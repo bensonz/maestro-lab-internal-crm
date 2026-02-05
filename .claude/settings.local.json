@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(pnpm test:run:*)"
+      "Bash(pnpm test:run:*)",
+      "Bash(pnpm lint:*)",
+      "Bash(pnpm install)",
+      "Bash(pnpm approve-builds)",
+      "Bash(pnpm prisma generate:*)"
     ]
   }
 }
