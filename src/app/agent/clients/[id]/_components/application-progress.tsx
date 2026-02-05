@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { IntakeStatus, PlatformType, PlatformStatus, ToDoType, ToDoStatus } from '@/types'
 import { getPlatformName } from '@/lib/platforms'
+import { PlatformUploadCard } from './platform-upload-card'
 
 type StepStatus = 'completed' | 'in_progress' | 'blocked' | 'pending'
 
@@ -35,6 +36,7 @@ interface Step {
 }
 
 interface ApplicationProgressProps {
+  clientId: string
   client: {
     intakeStatus: IntakeStatus
     createdAt: Date
@@ -43,6 +45,7 @@ interface ApplicationProgressProps {
       platformType: PlatformType
       status: PlatformStatus
       username: string | null
+      screenshots: string[]
     }[]
     toDos: {
       type: ToDoType
@@ -112,7 +115,7 @@ function formatDateTime(date: Date): string {
   })
 }
 
-export function ApplicationProgress({ client }: ApplicationProgressProps) {
+export function ApplicationProgress({ clientId, client }: ApplicationProgressProps) {
   const [openSteps, setOpenSteps] = useState<number[]>([2, 3]) // Default open steps 2 & 3
 
   const toggleStep = (stepNumber: number) => {
@@ -261,52 +264,46 @@ export function ApplicationProgress({ client }: ApplicationProgressProps) {
         <div className="space-y-4 pl-10 pt-3">
           {/* Financial Platforms */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-foreground">PayPal</span>
-              <Badge
-                className={`text-xs ${
-                  paypalPlatform?.status === PlatformStatus.VERIFIED
-                    ? 'bg-chart-4/20 text-chart-4'
-                    : 'bg-muted text-muted-foreground'
-                }`}
-              >
-                {paypalPlatform?.status === PlatformStatus.VERIFIED ? 'Complete' : 'Pending'}
-              </Badge>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-foreground">Edgeboost</span>
-              <Badge
-                className={`text-xs ${
-                  edgeboostPlatform?.status === PlatformStatus.VERIFIED
-                    ? 'bg-chart-4/20 text-chart-4'
-                    : 'bg-muted text-muted-foreground'
-                }`}
-              >
-                {edgeboostPlatform?.status === PlatformStatus.VERIFIED ? 'Complete' : 'Pending'}
-              </Badge>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Financial Platforms
+            </p>
+            <div className="space-y-2">
+              {paypalPlatform && (
+                <PlatformUploadCard
+                  clientId={clientId}
+                  platformType={paypalPlatform.platformType}
+                  status={paypalPlatform.status}
+                  screenshots={paypalPlatform.screenshots}
+                  username={paypalPlatform.username}
+                />
+              )}
+              {edgeboostPlatform && (
+                <PlatformUploadCard
+                  clientId={clientId}
+                  platformType={edgeboostPlatform.platformType}
+                  status={edgeboostPlatform.status}
+                  screenshots={edgeboostPlatform.screenshots}
+                  username={edgeboostPlatform.username}
+                />
+              )}
             </div>
           </div>
 
-          {/* Sports Platforms Grid */}
+          {/* Sports Platforms */}
           <div className="space-y-2">
-            <p className="text-xs font-medium text-foreground">Sports Platforms ({sportsPlatforms.length})</p>
-            <div className="grid grid-cols-3 gap-2">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Sports Platforms ({sportsPlatforms.length})
+            </p>
+            <div className="space-y-2">
               {sportsPlatforms.map((platform) => (
-                <div
+                <PlatformUploadCard
                   key={platform.platformType}
-                  className={`flex items-center justify-between rounded-md px-2 py-1.5 text-xs ring-1 ${
-                    platform.status === PlatformStatus.VERIFIED
-                      ? 'bg-chart-4/10 ring-chart-4/30 text-chart-4'
-                      : platform.status === PlatformStatus.PENDING_REVIEW
-                      ? 'bg-primary/10 ring-primary/30 text-primary'
-                      : 'bg-muted/30 ring-border/30 text-muted-foreground'
-                  }`}
-                >
-                  <span className="truncate">{getPlatformName(platform.platformType)}</span>
-                  {platform.status === PlatformStatus.VERIFIED && (
-                    <CheckCircle2 className="h-3 w-3 shrink-0 ml-1" />
-                  )}
-                </div>
+                  clientId={clientId}
+                  platformType={platform.platformType}
+                  status={platform.status}
+                  screenshots={platform.screenshots}
+                  username={platform.username}
+                />
               ))}
             </div>
           </div>

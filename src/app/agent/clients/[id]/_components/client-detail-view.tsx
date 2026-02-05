@@ -123,7 +123,7 @@ export function ClientDetailView({ client }: ClientDetailViewProps) {
 
         {/* Top-Right: Application Progress */}
         <div className="animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
-          <ApplicationProgress client={client} />
+          <ApplicationProgress clientId={client.id} client={client} />
         </div>
 
         {/* Bottom-Left: Auto-Generated To-Dos */}
