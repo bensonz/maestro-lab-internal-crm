@@ -16,7 +16,7 @@ function SubmitButton() {
     <Button
       type="submit"
       disabled={pending}
-      className="group h-12 w-full rounded-xl bg-primary text-primary-foreground font-semibold shadow-lg shadow-primary/25 transition-all duration-300 hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/30 disabled:opacity-50"
+      className="btn-glow group h-12 w-full rounded-xl bg-primary text-primary-foreground font-semibold shadow-lg shadow-primary/30 transition-all duration-300 hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/40 disabled:opacity-50"
     >
       {pending ? (
         <>
@@ -51,9 +51,9 @@ export function ClientForm() {
         {/* Left Column - Form */}
         <div className="space-y-6 lg:col-span-3">
           {/* Basic Information */}
-          <Card className="border-border/50 bg-card animate-fade-in-up">
+          <Card className="border-border/50 bg-card/80 backdrop-blur-sm animate-fade-in-up">
             <CardHeader className="pb-4">
-              <CardTitle className="text-lg font-semibold text-foreground">
+              <CardTitle className="font-display text-lg font-semibold text-foreground">
                 Client Information
               </CardTitle>
               <p className="text-sm text-muted-foreground">
@@ -69,7 +69,7 @@ export function ClientForm() {
                   <Input
                     id="firstName"
                     name="firstName"
-                    className="h-11 rounded-xl border-border/50 bg-input/50 px-4 text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    className="h-11 rounded-xl border-border/50 bg-input px-4 text-foreground placeholder:text-muted-foreground transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 focus:bg-input/80"
                     placeholder="John"
                   />
                   <FormError errors={state.errors?.firstName} />
@@ -81,7 +81,7 @@ export function ClientForm() {
                   <Input
                     id="lastName"
                     name="lastName"
-                    className="h-11 rounded-xl border-border/50 bg-input/50 px-4 text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    className="h-11 rounded-xl border-border/50 bg-input px-4 text-foreground placeholder:text-muted-foreground transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 focus:bg-input/80"
                     placeholder="Doe"
                   />
                   <FormError errors={state.errors?.lastName} />
@@ -95,7 +95,7 @@ export function ClientForm() {
                   <Input
                     id="phone"
                     name="phone"
-                    className="h-11 rounded-xl border-border/50 bg-input/50 px-4 text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    className="h-11 rounded-xl border-border/50 bg-input px-4 text-foreground placeholder:text-muted-foreground transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 focus:bg-input/80"
                     placeholder="(555) 000-0000"
                   />
                   <FormError errors={state.errors?.phone} />
@@ -108,7 +108,7 @@ export function ClientForm() {
                     id="email"
                     name="email"
                     type="email"
-                    className="h-11 rounded-xl border-border/50 bg-input/50 px-4 text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    className="h-11 rounded-xl border-border/50 bg-input px-4 text-foreground placeholder:text-muted-foreground transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 focus:bg-input/80"
                     placeholder="john@example.com"
                   />
                   <FormError errors={state.errors?.email} />
@@ -118,9 +118,9 @@ export function ClientForm() {
           </Card>
 
           {/* Notes */}
-          <Card className="border-border/50 bg-card animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
+          <Card className="border-border/50 bg-card/80 backdrop-blur-sm animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
             <CardHeader className="pb-4">
-              <CardTitle className="text-lg font-semibold text-foreground">
+              <CardTitle className="font-display text-lg font-semibold text-foreground">
                 Application Notes
               </CardTitle>
               <p className="text-sm text-muted-foreground">
@@ -131,7 +131,7 @@ export function ClientForm() {
               <Textarea
                 id="notes"
                 name="notes"
-                className="min-h-[120px] rounded-xl border-border/50 bg-input/50 px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 resize-none"
+                className="min-h-[120px] rounded-xl border-border/50 bg-input px-4 py-3 text-foreground placeholder:text-muted-foreground transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 focus:bg-input/80 resize-none"
                 placeholder="Add any relevant notes about this client..."
               />
             </CardContent>
@@ -141,18 +141,18 @@ export function ClientForm() {
         {/* Right Column - Info & Submit */}
         <div className="space-y-6 lg:col-span-2">
           {/* What happens next */}
-          <Card className="border-border/50 bg-card animate-fade-in-up" style={{ animationDelay: '0.15s' }}>
+          <Card className="border-border/50 bg-card/80 backdrop-blur-sm animate-fade-in-up" style={{ animationDelay: '0.15s' }}>
             <CardHeader className="pb-4">
-              <div className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+              <div className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-linear-to-br from-primary/20 to-chart-3/20 ring-1 ring-primary/20">
                 <Sparkles className="h-5 w-5 text-primary" />
               </div>
-              <CardTitle className="text-lg font-semibold text-foreground">
+              <CardTitle className="font-display text-lg font-semibold text-foreground">
                 What happens next?
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex gap-3">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary ring-1 ring-primary/20">
                   1
                 </div>
                 <div>
@@ -161,7 +161,7 @@ export function ClientForm() {
                 </div>
               </div>
               <div className="flex gap-3">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary ring-1 ring-primary/20">
                   2
                 </div>
                 <div>
@@ -170,8 +170,8 @@ export function ClientForm() {
                 </div>
               </div>
               <div className="flex gap-3">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-chart-4/10 text-xs font-semibold text-chart-4">
-                  <CheckCircle2 className="h-3.5 w-3.5" />
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-chart-4/15 ring-1 ring-chart-4/20">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-chart-4" />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-foreground">Begin onboarding</p>
@@ -183,9 +183,9 @@ export function ClientForm() {
 
           {/* Error Message */}
           {state.message && (
-            <Card className="border-destructive/50 bg-destructive/5 animate-fade-in-up">
+            <Card className="border-destructive/50 bg-destructive/10 animate-fade-in-up">
               <CardContent className="py-4">
-                <p className="text-sm text-destructive">{state.message}</p>
+                <p className="text-sm font-medium text-destructive">{state.message}</p>
               </CardContent>
             </Card>
           )}
