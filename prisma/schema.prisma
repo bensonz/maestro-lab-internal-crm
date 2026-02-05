@@ -1,0 +1,302 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum UserRole {
+  AGENT
+  BACKOFFICE
+  ADMIN
+  FINANCE
+}
+
+enum IntakeStatus {
+  PENDING
+  PHONE_ISSUED
+  IN_EXECUTION
+  NEEDS_MORE_INFO
+  PENDING_EXTERNAL
+  EXECUTION_DELAYED
+  INACTIVE
+  READY_FOR_APPROVAL
+  APPROVED
+  REJECTED
+}
+
+enum PlatformType {
+  // Sports Betting (8)
+  DRAFTKINGS
+  FANDUEL
+  BETMGM
+  CAESARS
+  FANATICS
+  BALLYBET
+  BETRIVERS
+  BET365
+  // Financial (3)
+  BANK
+  PAYPAL
+  EDGEBOOST
+}
+
+enum PlatformStatus {
+  NOT_STARTED
+  PENDING_UPLOAD
+  PENDING_REVIEW
+  NEEDS_MORE_INFO
+  PENDING_EXTERNAL
+  VERIFIED
+  REJECTED
+  LIMITED
+}
+
+enum ToDoType {
+  EXECUTION
+  UPLOAD_SCREENSHOT
+  PROVIDE_INFO
+  PAYMENT
+  PHONE_SIGNOUT
+  PHONE_RETURN
+  VERIFICATION
+}
+
+enum ToDoStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  OVERDUE
+  CANCELLED
+}
+
+enum EventType {
+  // Client lifecycle
+  APPLICATION_SUBMITTED
+  PHONE_ISSUED
+  PHONE_RETURNED
+  PLATFORM_UPLOAD
+  PLATFORM_STATUS_CHANGE
+  TODO_CREATED
+  TODO_COMPLETED
+  STATUS_CHANGE
+  DEADLINE_EXTENDED
+  DEADLINE_MISSED
+  APPROVAL
+  REJECTION
+  COMMENT
+  KPI_IMPACT
+  // Auth
+  LOGIN
+  LOGOUT
+  // Financial
+  TRANSACTION_CREATED
+  SETTLEMENT_CREATED
+  // System
+  CONFIG_CHANGED
+  EXPORT
+  // User management
+  USER_CREATED
+  USER_UPDATED
+}
+
+// ============================================
+// MODELS
+// ============================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String?   // null for OAuth users
+  name          String
+  role          UserRole
+  phone         String?
+  avatar        String?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  agentClients     Client[]       @relation("AgentClients")
+  assignedToDos    ToDo[]         @relation("AssignedToDos")
+  createdToDos     ToDo[]         @relation("CreatedToDos")
+  eventLogs        EventLog[]
+  agentMetrics     AgentMetrics?
+  phoneAssignments PhoneAssignment[]
+
+  @@index([role])
+  @@index([email])
+}
+
+model Client {
+  id              String        @id @default(cuid())
+  firstName       String
+  lastName        String
+  email           String?
+  phone           String?
+  idNumber        String?
+  idDocument      String?
+  address         String?
+  city            String?
+  state           String?
+  zipCode         String?
+  country         String?
+  questionnaire   String?
+  applicationNotes String?
+  intakeStatus    IntakeStatus  @default(PENDING)
+  statusChangedAt DateTime      @default(now())
+  complianceReview    String?
+  complianceStatus    String?
+  backgroundCheck     Boolean   @default(false)
+  executionDeadline   DateTime?
+  deadlineExtensions  Int       @default(0)
+  agentId         String
+  agent           User          @relation("AgentClients", fields: [agentId], references: [id])
+  platforms       ClientPlatform[]
+  toDos           ToDo[]
+  eventLogs       EventLog[]
+  phoneAssignment PhoneAssignment?
+  earnings        Earning[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([intakeStatus])
+  @@index([agentId])
+  @@index([createdAt])
+}
+
+model ClientPlatform {
+  id            String          @id @default(cuid())
+  clientId      String
+  client        Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  platformType  PlatformType
+  status        PlatformStatus  @default(NOT_STARTED)
+  username      String?
+  accountId     String?
+  screenshots   String[]
+  reviewNotes   String?
+  reviewedBy    String?
+  reviewedAt    DateTime?
+  externalId    String?
+  externalStatus String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@unique([clientId, platformType])
+  @@index([status])
+  @@index([platformType])
+}
+
+model ToDo {
+  id            String      @id @default(cuid())
+  title         String
+  description   String?
+  type          ToDoType
+  status        ToDoStatus  @default(PENDING)
+  priority      Int         @default(0)
+  dueDate       DateTime?
+  completedAt   DateTime?
+  clientId      String?
+  client        Client?     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  assignedToId  String?
+  assignedTo    User?       @relation("AssignedToDos", fields: [assignedToId], references: [id])
+  createdById   String
+  createdBy     User        @relation("CreatedToDos", fields: [createdById], references: [id])
+  metadata      Json?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([status])
+  @@index([type])
+  @@index([assignedToId])
+  @@index([clientId])
+  @@index([dueDate])
+}
+
+model EventLog {
+  id          String      @id @default(cuid())
+  eventType   EventType
+  description String
+  clientId    String?
+  client      Client?     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?       @relation(fields: [userId], references: [id])
+  metadata    Json?
+  oldValue    String?
+  newValue    String?
+  createdAt   DateTime    @default(now())
+
+  @@index([clientId])
+  @@index([userId])
+  @@index([eventType])
+  @@index([createdAt])
+}
+
+model PhoneAssignment {
+  id            String    @id @default(cuid())
+  phoneNumber   String
+  deviceId      String?
+  clientId      String?   @unique
+  client        Client?   @relation(fields: [clientId], references: [id])
+  agentId       String
+  agent         User      @relation(fields: [agentId], references: [id])
+  issuedAt      DateTime?
+  signedOutAt   DateTime?
+  returnedAt    DateTime?
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([phoneNumber])
+  @@index([agentId])
+}
+
+model AgentMetrics {
+  id              String    @id @default(cuid())
+  agentId         String    @unique
+  agent           User      @relation(fields: [agentId], references: [id])
+  totalClients    Int       @default(0)
+  approvedClients Int       @default(0)
+  rejectedClients Int       @default(0)
+  delayCount      Int       @default(0)
+  extensionCount  Int       @default(0)
+  successRate     Float     @default(0)
+  delayRate       Float     @default(0)
+  periodStart     DateTime?
+  periodEnd       DateTime?
+  updatedAt       DateTime  @updatedAt
+
+  @@index([agentId])
+}
+
+model Earning {
+  id          String    @id @default(cuid())
+  clientId    String
+  client      Client    @relation(fields: [clientId], references: [id])
+  amount      Decimal   @db.Decimal(10, 2)
+  currency    String    @default("USD")
+  description String?
+  status      String    @default("pending")
+  paidAt      DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([clientId])
+  @@index([status])
+}
+
+model FundAllocation {
+  id            String    @id @default(cuid())
+  name          String
+  description   String?
+  amount        Decimal   @db.Decimal(10, 2)
+  currency      String    @default("USD")
+  allocatedAt   DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
