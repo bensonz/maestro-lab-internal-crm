@@ -156,41 +156,53 @@ export async function saveDraft(
     return { message: 'You must be logged in to save a draft' }
   }
 
-  // 2. Parse form data (more lenient validation for drafts)
-  const rawData = {
-    firstName: formData.get('firstName'),
-    middleName: formData.get('middleName'),
-    lastName: formData.get('lastName'),
-    dateOfBirth: formData.get('dateOfBirth'),
-    phone: formData.get('phone'),
-    email: formData.get('email'),
-    primaryAddress: formData.get('primaryAddress'),
-    primaryCity: formData.get('primaryCity'),
-    primaryState: formData.get('primaryState'),
-    primaryZip: formData.get('primaryZip'),
-    hasSecondAddress: formData.get('hasSecondAddress'),
-    secondaryAddress: formData.get('secondaryAddress'),
-    secondaryCity: formData.get('secondaryCity'),
-    secondaryState: formData.get('secondaryState'),
-    secondaryZip: formData.get('secondaryZip'),
-    questionnaire: formData.get('questionnaire'),
-    notes: formData.get('notes'),
-    agentConfirmsSuitable: formData.get('agentConfirmsSuitable'),
-  }
+  // 2. Collect all form data as object
+  const formDataObj: Record<string, string> = {}
+  formData.forEach((value, key) => {
+    formDataObj[key] = value.toString()
+  })
 
-  // 3. Validate with draft schema (lenient)
-  const validationResult = saveDraftSchema.safeParse(rawData)
+  // 3. Check if updating existing draft
+  const draftId = formData.get('draftId') as string | null
 
-  if (!validationResult.success) {
-    return {
-      errors: validationResult.error.flatten().fieldErrors as Record<
-        string,
-        string[]
-      >,
+  try {
+    if (draftId) {
+      await prisma.applicationDraft.update({
+        where: { id: draftId, agentId: session.user.id },
+        data: { formData: formDataObj },
+      })
+    } else {
+      await prisma.applicationDraft.create({
+        data: {
+          formData: formDataObj,
+          agentId: session.user.id,
+        },
+      })
     }
+
+    return { message: 'Draft saved successfully' }
+  } catch {
+    return { message: 'Failed to save draft' }
+  }
+}
+
+// Wrapper for formAction prop (returns void instead of ActionState)
+export async function saveDraftAction(formData: FormData): Promise<void> {
+  await saveDraft({}, formData)
+}
+
+export async function deleteDraft(draftId: string): Promise<{ success: boolean }> {
+  const session = await auth()
+  if (!session?.user?.id) {
+    return { success: false }
   }
 
-  // For now, just return success - draft saving can be implemented later
-  // when there's a drafts table or localStorage mechanism
-  return { message: 'Draft saved successfully' }
+  try {
+    await prisma.applicationDraft.delete({
+      where: { id: draftId, agentId: session.user.id },
+    })
+    return { success: true }
+  } catch {
+    return { success: false }
+  }
 }
