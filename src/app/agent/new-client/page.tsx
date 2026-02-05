@@ -1,7 +1,27 @@
+import { auth } from '@/backend/auth'
+import prisma from '@/backend/prisma/client'
 import { ClientForm } from './_components/client-form'
 import { FileText } from 'lucide-react'
 
-export default function NewClientPage() {
+interface Props {
+  searchParams: Promise<{ draft?: string }>
+}
+
+export default async function NewClientPage({ searchParams }: Props) {
+  const { draft: draftId } = await searchParams
+  const session = await auth()
+
+  let initialData: Record<string, string> | null = null
+
+  if (draftId && session?.user?.id) {
+    const draft = await prisma.applicationDraft.findFirst({
+      where: { id: draftId, agentId: session.user.id },
+    })
+    if (draft) {
+      initialData = draft.formData as Record<string, string>
+    }
+  }
+
   return (
     <div className="min-h-screen p-6 lg:p-8">
       {/* Header */}
@@ -12,7 +32,7 @@ export default function NewClientPage() {
           </div>
           <div>
             <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">
-              Start Your Application
+              {draftId ? 'Continue Application' : 'Start Your Application'}
             </h1>
             <p className="text-sm text-muted-foreground">
               Application Kickstart — Internal Pre-Screen & Review
@@ -21,7 +41,7 @@ export default function NewClientPage() {
         </div>
       </div>
 
-      <ClientForm />
+      <ClientForm initialData={initialData} draftId={draftId} />
     </div>
   )
 }
