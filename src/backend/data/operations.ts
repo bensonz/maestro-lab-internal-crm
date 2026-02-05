@@ -1,9 +1,106 @@
 import prisma from '@/backend/prisma/client'
-import { ToDoStatus, IntakeStatus, UserRole } from '@/types'
+import { ToDoStatus, IntakeStatus, UserRole, PlatformType } from '@/types'
 
 // ==========================================
 // Sales Interaction Data
 // ==========================================
+
+export async function getSalesInteractionStats() {
+  const [clientCount, agentCount, activeApps, pendingCount] = await Promise.all([
+    prisma.client.count(),
+    prisma.user.count({ where: { role: UserRole.AGENT } }),
+    prisma.client.count({
+      where: { intakeStatus: { in: [IntakeStatus.IN_EXECUTION, IntakeStatus.PHONE_ISSUED] } },
+    }),
+    prisma.client.count({
+      where: { intakeStatus: { in: [IntakeStatus.PENDING, IntakeStatus.READY_FOR_APPROVAL] } },
+    }),
+  ])
+  return { clientCount, agentCount, activeApps, pendingCount }
+}
+
+interface AgentInHierarchy {
+  id: string
+  name: string
+  role: UserRole
+  level: string
+  stars: number
+  clientCount: number
+}
+
+export async function getAgentHierarchy() {
+  const users = await prisma.user.findMany({
+    where: {
+      role: { in: [UserRole.AGENT, UserRole.ADMIN, UserRole.BACKOFFICE] },
+      isActive: true,
+    },
+    include: {
+      agentClients: {
+        where: {
+          intakeStatus: { notIn: [IntakeStatus.APPROVED, IntakeStatus.REJECTED, IntakeStatus.INACTIVE] },
+        },
+        select: { id: true },
+      },
+    },
+    orderBy: [{ role: 'asc' }, { name: 'asc' }],
+  })
+
+  // Group agents by level
+  const hierarchy: Record<string, AgentInHierarchy[]> = {
+    'MANAGING DIRECTOR': [],
+    'SENIOR EXECUTIVE': [],
+    'EXECUTIVE DIRECTOR': [],
+    '4★ AGENTS': [],
+    '3★ AGENTS': [],
+    '2★ AGENTS': [],
+    '1★ AGENTS': [],
+  }
+
+  for (const user of users) {
+    // Map roles to hierarchy levels (simplified - would need actual tier field)
+    let level: string
+    let stars: number
+
+    if (user.role === UserRole.ADMIN) {
+      level = 'MANAGING DIRECTOR'
+      stars = 5
+    } else if (user.role === UserRole.BACKOFFICE) {
+      level = 'EXECUTIVE DIRECTOR'
+      stars = 4
+    } else {
+      // For agents, we'd ideally have a tier field
+      // For now, assign based on client count as a proxy
+      const clientCount = user.agentClients.length
+      if (clientCount >= 10) {
+        level = '4★ AGENTS'
+        stars = 4
+      } else if (clientCount >= 5) {
+        level = '3★ AGENTS'
+        stars = 3
+      } else if (clientCount >= 2) {
+        level = '2★ AGENTS'
+        stars = 2
+      } else {
+        level = '1★ AGENTS'
+        stars = 1
+      }
+    }
+
+    hierarchy[level].push({
+      id: user.id,
+      name: user.name || 'Unknown',
+      role: user.role,
+      level,
+      stars,
+      clientCount: user.agentClients.length,
+    })
+  }
+
+  // Remove empty groups and return
+  return Object.entries(hierarchy)
+    .filter(([, agents]) => agents.length > 0)
+    .map(([level, agents]) => ({ level, agents }))
+}
 
 export async function getTeamDirectory() {
   const agents = await prisma.user.findMany({
@@ -21,13 +118,30 @@ export async function getTeamDirectory() {
 
   // Group by tier (simplified - would need actual tier field)
   return agents.map((agent) => ({
+    id: agent.id,
     name: agent.name,
     code: '★',
     pending: agent.agentClients.length,
   }))
 }
 
-export async function getIntakeClients() {
+export type IntakeStatusType = 'needs_info' | 'pending_platform' | 'ready' | 'followup'
+
+export interface IntakeClient {
+  id: string
+  name: string
+  status: string
+  statusType: IntakeStatusType
+  statusColor: string
+  agentId: string
+  agentName: string
+  days: number
+  daysLabel: string
+  canApprove: boolean
+  pendingPlatform?: string
+}
+
+export async function getIntakeClients(): Promise<IntakeClient[]> {
   const clients = await prisma.client.findMany({
     where: {
       intakeStatus: {
@@ -36,11 +150,20 @@ export async function getIntakeClients() {
           IntakeStatus.NEEDS_MORE_INFO,
           IntakeStatus.PENDING_EXTERNAL,
           IntakeStatus.READY_FOR_APPROVAL,
+          IntakeStatus.IN_EXECUTION,
         ],
       },
     },
     include: {
-      agent: { select: { name: true } },
+      agent: { select: { id: true, name: true } },
+      platforms: {
+        select: { platformType: true, status: true },
+        where: { status: { not: 'VERIFIED' } },
+      },
+      toDos: {
+        where: { status: { in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS] } },
+        select: { type: true, dueDate: true },
+      },
     },
     orderBy: { statusChangedAt: 'asc' },
   })
@@ -50,51 +173,191 @@ export async function getIntakeClients() {
       (Date.now() - client.statusChangedAt.getTime()) / (1000 * 60 * 60 * 24)
     )
 
+    // Determine detailed status
+    const { statusType, status, pendingPlatform } = determineDetailedStatus(client)
+    const canApprove = client.intakeStatus === IntakeStatus.READY_FOR_APPROVAL
+
     return {
       id: client.id,
       name: `${client.firstName} ${client.lastName}`,
-      status: formatIntakeStatusLabel(client.intakeStatus),
-      statusColor: getIntakeStatusColor(client.intakeStatus),
-      agent: client.agent.name,
+      status,
+      statusType,
+      statusColor: getStatusTypeColor(statusType),
+      agentId: client.agent.id,
+      agentName: client.agent.name || 'Unassigned',
       days: daysSinceChange,
+      daysLabel: daysSinceChange === 0 ? 'Today' : `${daysSinceChange} days`,
+      canApprove,
+      pendingPlatform,
     }
   })
 }
 
-export async function getVerificationClients() {
+function determineDetailedStatus(client: {
+  intakeStatus: IntakeStatus
+  platforms: { platformType: PlatformType; status: string }[]
+  toDos: { type: string; dueDate: Date | null }[]
+}): { statusType: IntakeStatusType; status: string; pendingPlatform?: string } {
+  // Check if needs more info
+  if (client.intakeStatus === IntakeStatus.NEEDS_MORE_INFO) {
+    return { statusType: 'needs_info', status: 'Needs More Info' }
+  }
+
+  // Check pending platform uploads
+  const pendingPlatform = client.platforms.find((p) => p.status === 'PENDING_REVIEW')
+  if (pendingPlatform) {
+    return {
+      statusType: 'pending_platform',
+      status: `Pending ${formatPlatformShort(pendingPlatform.platformType)}`,
+      pendingPlatform: formatPlatformShort(pendingPlatform.platformType),
+    }
+  }
+
+  // Check if ready to approve
+  if (client.intakeStatus === IntakeStatus.READY_FOR_APPROVAL) {
+    return { statusType: 'ready', status: 'Ready to Approve' }
+  }
+
+  // Check if needs follow-up (has pending execution tasks)
+  const hasExecutionTasks = client.toDos.some((t) => t.type === 'EXECUTION')
+  if (hasExecutionTasks) {
+    // Find the soonest due date
+    const dueDates = client.toDos
+      .filter((t) => t.dueDate)
+      .map((t) => t.dueDate!)
+      .sort((a, b) => a.getTime() - b.getTime())
+
+    if (dueDates.length > 0) {
+      const daysUntilDue = Math.ceil((dueDates[0].getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+      const dueLabel = daysUntilDue <= 0 ? 'Due today' : `${daysUntilDue} days left`
+      return { statusType: 'followup', status: `Follow-up (${dueLabel})` }
+    }
+    return { statusType: 'followup', status: 'Follow-up' }
+  }
+
+  // Default to needs info
+  return { statusType: 'needs_info', status: 'Needs More Info' }
+}
+
+function getStatusTypeColor(statusType: IntakeStatusType): string {
+  const map: Record<IntakeStatusType, string> = {
+    needs_info: 'bg-destructive/20 text-destructive border-destructive/30',
+    pending_platform: 'bg-accent/20 text-accent border-accent/30',
+    ready: 'bg-chart-4/20 text-chart-4 border-chart-4/30',
+    followup: 'bg-primary/20 text-primary border-primary/30',
+  }
+  return map[statusType]
+}
+
+function formatPlatformShort(platformType: PlatformType): string {
+  const map: Record<PlatformType, string> = {
+    [PlatformType.DRAFTKINGS]: 'DraftKings',
+    [PlatformType.FANDUEL]: 'FanDuel',
+    [PlatformType.BETMGM]: 'BetMGM',
+    [PlatformType.CAESARS]: 'Caesars',
+    [PlatformType.FANATICS]: 'Fanatics',
+    [PlatformType.BALLYBET]: 'Bally Bet',
+    [PlatformType.BETRIVERS]: 'BetRivers',
+    [PlatformType.BET365]: 'Bet365',
+    [PlatformType.BANK]: 'Bank',
+    [PlatformType.PAYPAL]: 'PayPal',
+    [PlatformType.EDGEBOOST]: 'Edgeboost',
+  }
+  return map[platformType] || platformType
+}
+
+export interface VerificationTask {
+  id: string
+  clientId: string | null
+  clientName: string
+  platformType: PlatformType | null
+  platformLabel: string
+  task: string
+  agentId: string | null
+  agentName: string
+  deadline: Date | null
+  daysUntilDue: number | null
+  deadlineLabel: string
+  status: 'Pending' | 'Done'
+}
+
+export async function getVerificationClients(): Promise<VerificationTask[]> {
   const todos = await prisma.toDo.findMany({
     where: {
-      type: 'VERIFICATION',
+      type: { in: ['VERIFICATION', 'UPLOAD_SCREENSHOT'] },
       status: { in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS, ToDoStatus.COMPLETED] },
     },
     include: {
       client: {
         select: {
+          id: true,
           firstName: true,
           lastName: true,
+          agentId: true,
           agent: { select: { name: true } },
         },
       },
     },
-    orderBy: { dueDate: 'asc' },
-    take: 20,
+    orderBy: [{ status: 'asc' }, { dueDate: 'asc' }],
+    take: 50,
   })
 
   return todos.map((todo) => {
     const daysUntilDue = todo.dueDate
       ? Math.ceil((todo.dueDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-      : 0
+      : null
+
+    let deadlineLabel = 'No deadline'
+    if (daysUntilDue !== null) {
+      if (daysUntilDue <= 0) deadlineLabel = 'Today'
+      else if (daysUntilDue === 1) deadlineLabel = '1 day'
+      else deadlineLabel = `${daysUntilDue} days`
+    }
 
     return {
       id: todo.id,
-      name: todo.client ? `${todo.client.firstName} ${todo.client.lastName}` : 'N/A',
-      platform: extractPlatformFromMetadata(todo.metadata),
-      task: todo.title,
-      agent: todo.client?.agent?.name ?? 'Unassigned',
-      days: Math.max(0, daysUntilDue),
+      clientId: todo.client?.id ?? null,
+      clientName: todo.client ? `${todo.client.firstName} ${todo.client.lastName}` : 'N/A',
+      platformType: todo.platformType,
+      platformLabel: todo.platformType ? getPlatformBadgeLabel(todo.platformType) : 'N/A',
+      task: formatVerificationTask(todo.title),
+      agentId: todo.client?.agentId ?? null,
+      agentName: todo.client?.agent?.name ?? 'Unassigned',
+      deadline: todo.dueDate,
+      daysUntilDue,
+      deadlineLabel,
       status: todo.status === ToDoStatus.COMPLETED ? 'Done' : 'Pending',
     }
   })
+}
+
+function formatVerificationTask(title: string): string {
+  // Shorten common verification tasks
+  const shortened: Record<string, string> = {
+    'Upload ID Verification': 'ID Verification',
+    'Upload Bank Statement': 'Bank Statement',
+    'Upload Address Proof': 'Address Proof',
+    'Complete Face Scan': 'Face Scan',
+    'SSN Verification': 'SSN Verification',
+  }
+  return shortened[title] || title
+}
+
+function getPlatformBadgeLabel(platformType: PlatformType): string {
+  const map: Record<PlatformType, string> = {
+    [PlatformType.DRAFTKINGS]: 'DraftKings',
+    [PlatformType.FANDUEL]: 'FanDuel',
+    [PlatformType.BETMGM]: 'BetMGM',
+    [PlatformType.CAESARS]: 'Caesars',
+    [PlatformType.FANATICS]: 'Fanatics',
+    [PlatformType.BALLYBET]: 'Bally Bet',
+    [PlatformType.BETRIVERS]: 'BetRivers',
+    [PlatformType.BET365]: 'Bet365',
+    [PlatformType.BANK]: 'Bank',
+    [PlatformType.PAYPAL]: 'PayPal',
+    [PlatformType.EDGEBOOST]: 'Edgeboost',
+  }
+  return map[platformType] || platformType
 }
 
 // ==========================================
