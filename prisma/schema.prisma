@@ -122,12 +122,13 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  agentClients     Client[]       @relation("AgentClients")
-  assignedToDos    ToDo[]         @relation("AssignedToDos")
-  createdToDos     ToDo[]         @relation("CreatedToDos")
-  eventLogs        EventLog[]
-  agentMetrics     AgentMetrics?
-  phoneAssignments PhoneAssignment[]
+  agentClients      Client[]            @relation("AgentClients")
+  assignedToDos     ToDo[]              @relation("AssignedToDos")
+  createdToDos      ToDo[]              @relation("CreatedToDos")
+  eventLogs         EventLog[]
+  agentMetrics      AgentMetrics?
+  phoneAssignments  PhoneAssignment[]
+  applicationDrafts ApplicationDraft[]
 
   @@index([role])
   @@index([email])
@@ -299,4 +300,15 @@ model FundAllocation {
   allocatedAt   DateTime  @default(now())
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+}
+
+model ApplicationDraft {
+  id        String   @id @default(cuid())
+  formData  Json
+  agentId   String
+  agent     User     @relation(fields: [agentId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([agentId])
 }
