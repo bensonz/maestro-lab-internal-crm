@@ -1,0 +1,6 @@
+export { AgentSidebar } from './agent-sidebar'
+export { BackofficeSidebar } from './backoffice-sidebar'
+export { NavUser } from './nav-user'
+export { SidebarLogo } from './sidebar-logo'
+export { AgentNav } from './agent-nav'
+export { BackofficeNav } from './backoffice-nav'
