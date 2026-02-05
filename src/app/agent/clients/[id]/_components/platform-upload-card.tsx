@@ -1,17 +1,12 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
-import { UploadDropzone, ScreenshotThumbnail } from '@/components/upload-dropzone'
-import {
-  uploadPlatformScreenshot,
-  deletePlatformScreenshot,
-} from '@/app/actions/platforms'
 import { PlatformType, PlatformStatus } from '@/types'
 import { getPlatformName, getPlatformAbbrev } from '@/lib/platforms'
 import {
@@ -20,11 +15,10 @@ import {
   Clock,
   AlertCircle,
   Upload,
+  Image as ImageIcon,
 } from 'lucide-react'
-import { toast } from 'sonner'
 
 interface PlatformUploadCardProps {
-  clientId: string
   platformType: PlatformType
   status: PlatformStatus
   screenshots: string[]
@@ -78,57 +72,15 @@ function getStatusBadge(status: PlatformStatus) {
 }
 
 export function PlatformUploadCard({
-  clientId,
   platformType,
   status,
   screenshots,
   username,
 }: PlatformUploadCardProps) {
   const [isOpen, setIsOpen] = useState(false)
-  const [isUploading, startUploadTransition] = useTransition()
-  const [deletingPath, setDeletingPath] = useState<string | null>(null)
 
   const platformName = getPlatformName(platformType)
   const platformAbbrev = getPlatformAbbrev(platformType)
-
-  const handleUpload = async (file: File) => {
-    return new Promise<{ success: boolean; error?: string }>((resolve) => {
-      startUploadTransition(async () => {
-        const formData = new FormData()
-        formData.append('file', file)
-
-        const result = await uploadPlatformScreenshot(clientId, platformType, formData)
-
-        if (result.success) {
-          toast.success(`Screenshot uploaded for ${platformName}`)
-        } else {
-          toast.error(result.error || 'Upload failed')
-        }
-
-        resolve(result)
-      })
-    })
-  }
-
-  const handleDelete = async (screenshotPath: string) => {
-    setDeletingPath(screenshotPath)
-    try {
-      const result = await deletePlatformScreenshot(clientId, platformType, screenshotPath)
-      if (result.success) {
-        toast.success('Screenshot deleted')
-      } else {
-        toast.error(result.error || 'Delete failed')
-      }
-    } finally {
-      setDeletingPath(null)
-    }
-  }
-
-  const canUpload =
-    status === PlatformStatus.NOT_STARTED ||
-    status === PlatformStatus.PENDING_UPLOAD ||
-    status === PlatformStatus.NEEDS_MORE_INFO ||
-    status === PlatformStatus.REJECTED
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -161,37 +113,36 @@ export function PlatformUploadCard({
 
       <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapse data-[state=open]:animate-expand">
         <div className="space-y-3 pt-3 pl-2">
-          {/* Screenshots Grid */}
+          {/* Screenshots Grid (read-only) */}
           {screenshots.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs font-medium text-muted-foreground">Uploaded Screenshots</p>
               <div className="flex flex-wrap gap-2">
                 {screenshots.map((screenshot) => (
-                  <ScreenshotThumbnail
+                  <div
                     key={screenshot}
-                    src={screenshot}
-                    onDelete={() => handleDelete(screenshot)}
-                    isDeleting={deletingPath === screenshot}
-                  />
+                    className="relative h-16 w-16 overflow-hidden rounded-lg bg-muted/50 ring-1 ring-border/30"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={screenshot.startsWith('/') ? screenshot : `/${screenshot}`}
+                      alt="Screenshot"
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none'
+                        e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                      }}
+                    />
+                    <div className="hidden h-full w-full items-center justify-center">
+                      <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Upload Area */}
-          {canUpload && (
-            <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground">
-                {screenshots.length > 0 ? 'Add More Screenshots' : 'Upload Screenshot'}
-              </p>
-              <UploadDropzone
-                onUpload={handleUpload}
-                disabled={isUploading}
-              />
-            </div>
-          )}
-
-          {/* Verified State */}
+          {/* Status Messages */}
           {status === PlatformStatus.VERIFIED && (
             <div className="flex items-center gap-2 rounded-lg bg-chart-4/10 p-3 ring-1 ring-chart-4/20">
               <CheckCircle2 className="h-4 w-4 text-chart-4" />
@@ -201,12 +152,29 @@ export function PlatformUploadCard({
             </div>
           )}
 
-          {/* Pending Review State */}
           {status === PlatformStatus.PENDING_REVIEW && (
             <div className="flex items-center gap-2 rounded-lg bg-primary/10 p-3 ring-1 ring-primary/20">
               <Clock className="h-4 w-4 text-primary" />
               <span className="text-xs text-primary">
                 Awaiting backoffice review
+              </span>
+            </div>
+          )}
+
+          {(status === PlatformStatus.NOT_STARTED || status === PlatformStatus.PENDING_UPLOAD) && (
+            <div className="flex items-center gap-2 rounded-lg bg-muted/30 p-3 ring-1 ring-border/30">
+              <Upload className="h-4 w-4 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">
+                Complete the related To-Do to upload screenshots
+              </span>
+            </div>
+          )}
+
+          {status === PlatformStatus.NEEDS_MORE_INFO && (
+            <div className="flex items-center gap-2 rounded-lg bg-accent/10 p-3 ring-1 ring-accent/20">
+              <AlertCircle className="h-4 w-4 text-accent" />
+              <span className="text-xs text-accent">
+                Additional information required - check your To-Dos
               </span>
             </div>
           )}

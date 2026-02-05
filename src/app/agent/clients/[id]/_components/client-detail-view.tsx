@@ -64,6 +64,11 @@ interface ClientDetailViewProps {
       status: ToDoStatus
       priority: number
       dueDate: Date | null
+      platformType: PlatformType | null
+      stepNumber: number | null
+      extensionsUsed: number
+      maxExtensions: number
+      screenshots: string[]
       metadata: unknown
       createdAt: Date
     }[]
@@ -123,7 +128,7 @@ export function ClientDetailView({ client }: ClientDetailViewProps) {
 
         {/* Top-Right: Application Progress */}
         <div className="animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
-          <ApplicationProgress clientId={client.id} client={client} />
+          <ApplicationProgress client={client} />
         </div>
 
         {/* Bottom-Left: Auto-Generated To-Dos */}

@@ -36,7 +36,6 @@ interface Step {
 }
 
 interface ApplicationProgressProps {
-  clientId: string
   client: {
     intakeStatus: IntakeStatus
     createdAt: Date
@@ -115,7 +114,7 @@ function formatDateTime(date: Date): string {
   })
 }
 
-export function ApplicationProgress({ clientId, client }: ApplicationProgressProps) {
+export function ApplicationProgress({ client }: ApplicationProgressProps) {
   const [openSteps, setOpenSteps] = useState<number[]>([2, 3]) // Default open steps 2 & 3
 
   const toggleStep = (stepNumber: number) => {
@@ -270,7 +269,6 @@ export function ApplicationProgress({ clientId, client }: ApplicationProgressPro
             <div className="space-y-2">
               {paypalPlatform && (
                 <PlatformUploadCard
-                  clientId={clientId}
                   platformType={paypalPlatform.platformType}
                   status={paypalPlatform.status}
                   screenshots={paypalPlatform.screenshots}
@@ -279,7 +277,6 @@ export function ApplicationProgress({ clientId, client }: ApplicationProgressPro
               )}
               {edgeboostPlatform && (
                 <PlatformUploadCard
-                  clientId={clientId}
                   platformType={edgeboostPlatform.platformType}
                   status={edgeboostPlatform.status}
                   screenshots={edgeboostPlatform.screenshots}
@@ -298,7 +295,6 @@ export function ApplicationProgress({ clientId, client }: ApplicationProgressPro
               {sportsPlatforms.map((platform) => (
                 <PlatformUploadCard
                   key={platform.platformType}
-                  clientId={clientId}
                   platformType={platform.platformType}
                   status={platform.status}
                   screenshots={platform.screenshots}
