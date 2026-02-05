@@ -2,7 +2,7 @@
 
 import { useActionState, useState, useCallback } from 'react'
 import { useFormStatus } from 'react-dom'
-import { createClient, ActionState } from '@/app/actions/clients'
+import { createClient, saveDraftAction, ActionState } from '@/app/actions/clients'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -44,7 +44,8 @@ function SaveDraftButton() {
   const { pending } = useFormStatus()
   return (
     <Button
-      type="button"
+      type="submit"
+      formAction={saveDraftAction}
       variant="outline"
       disabled={pending}
       className="h-12 w-full rounded-xl"
@@ -91,32 +92,67 @@ interface ClientSourceData {
 
 const initialState: ActionState = {}
 
-export function ClientForm() {
+interface ClientFormProps {
+  initialData?: Record<string, string> | null
+  draftId?: string
+}
+
+export function ClientForm({ initialData, draftId }: ClientFormProps) {
   const [state, formAction] = useActionState(createClient, initialState)
 
+  // Parse questionnaire from initialData if loading a draft
+  const parsedQuestionnaire = initialData?.questionnaire
+    ? (() => {
+        try {
+          return JSON.parse(initialData.questionnaire)
+        } catch {
+          return null
+        }
+      })()
+    : null
+
   // ID verification state
-  const [isIdConfirmed, setIsIdConfirmed] = useState(false)
-  const [extractedData, setExtractedData] = useState<ExtractedIdData | null>(null)
+  const [isIdConfirmed, setIsIdConfirmed] = useState(
+    parsedQuestionnaire?.idVerified ?? false
+  )
+  const [extractedData, setExtractedData] = useState<ExtractedIdData | null>(
+    initialData
+      ? {
+          firstName: initialData.firstName ?? '',
+          lastName: initialData.lastName ?? '',
+          middleName: initialData.middleName,
+          dateOfBirth: initialData.dateOfBirth ?? parsedQuestionnaire?.dateOfBirth ?? '',
+          address: initialData.primaryAddress,
+          city: initialData.primaryCity,
+          state: initialData.primaryState,
+          zip: initialData.primaryZip,
+        }
+      : null
+  )
 
   // Compliance data state
   const [complianceData, setComplianceData] = useState<ComplianceData>({
-    hasCriminalRecord: '',
-    hasBankingHistory: '',
-    idType: '',
-    hasAddressProof: '',
-    hasPayPal: '',
-    hasBettingHistory: '',
-    riskLevel: '',
+    hasCriminalRecord: parsedQuestionnaire?.compliance?.hasCriminalRecord ?? '',
+    hasBankingHistory: parsedQuestionnaire?.compliance?.hasBankingHistory ?? '',
+    criminalDetails: parsedQuestionnaire?.compliance?.criminalDetails,
+    idType: parsedQuestionnaire?.compliance?.idType ?? '',
+    hasAddressProof: parsedQuestionnaire?.compliance?.hasAddressProof ?? '',
+    idNotes: parsedQuestionnaire?.compliance?.idNotes,
+    hasPayPal: parsedQuestionnaire?.compliance?.hasPayPal ?? '',
+    hasBettingHistory: parsedQuestionnaire?.compliance?.hasBettingHistory ?? '',
+    bettingDetails: parsedQuestionnaire?.compliance?.bettingDetails,
+    riskLevel: parsedQuestionnaire?.compliance?.riskLevel ?? '',
+    authorizationNotes: parsedQuestionnaire?.compliance?.authorizationNotes,
   })
 
   // Client source data state
   const [clientSourceData, setClientSourceData] = useState<ClientSourceData>({
-    introducedBy: '',
-    howMet: '',
-    profession: '',
-    isReliable: '',
-    previouslyFlagged: '',
-    additionalNotes: '',
+    introducedBy: parsedQuestionnaire?.clientSource?.introducedBy ?? '',
+    howMet: parsedQuestionnaire?.clientSource?.howMet ?? '',
+    profession: parsedQuestionnaire?.clientSource?.profession ?? '',
+    isReliable: parsedQuestionnaire?.clientSource?.isReliable ?? '',
+    previouslyFlagged: parsedQuestionnaire?.clientSource?.previouslyFlagged ?? '',
+    additionalNotes: parsedQuestionnaire?.clientSource?.additionalNotes ?? '',
   })
 
   // Agent confirmation state
@@ -170,8 +206,9 @@ export function ClientForm() {
 
   return (
     <form action={formAction}>
-      {/* Hidden field for questionnaire JSON */}
+      {/* Hidden fields */}
       <input type="hidden" name="questionnaire" value={questionnaireJson} />
+      {draftId && <input type="hidden" name="draftId" value={draftId} />}
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Left Column - ID, Basic Info, Address */}
@@ -191,10 +228,12 @@ export function ClientForm() {
               isIdConfirmed={isIdConfirmed}
               errors={state.errors}
               defaultValues={{
-                firstName: extractedData?.firstName,
-                middleName: extractedData?.middleName,
-                lastName: extractedData?.lastName,
-                dateOfBirth: extractedData?.dateOfBirth,
+                firstName: extractedData?.firstName ?? initialData?.firstName,
+                middleName: extractedData?.middleName ?? initialData?.middleName,
+                lastName: extractedData?.lastName ?? initialData?.lastName,
+                dateOfBirth: extractedData?.dateOfBirth ?? initialData?.dateOfBirth,
+                phone: initialData?.phone,
+                email: initialData?.email,
               }}
             />
           </div>
@@ -204,10 +243,15 @@ export function ClientForm() {
             <AddressSection
               errors={state.errors}
               defaultValues={{
-                primaryAddress: extractedData?.address,
-                primaryCity: extractedData?.city,
-                primaryState: extractedData?.state,
-                primaryZip: extractedData?.zip,
+                primaryAddress: extractedData?.address ?? initialData?.primaryAddress,
+                primaryCity: extractedData?.city ?? initialData?.primaryCity,
+                primaryState: extractedData?.state ?? initialData?.primaryState,
+                primaryZip: extractedData?.zip ?? initialData?.primaryZip,
+                hasSecondAddress: initialData?.hasSecondAddress === 'true',
+                secondaryAddress: initialData?.secondaryAddress,
+                secondaryCity: initialData?.secondaryCity,
+                secondaryState: initialData?.secondaryState,
+                secondaryZip: initialData?.secondaryZip,
               }}
             />
           </div>
@@ -229,6 +273,7 @@ export function ClientForm() {
                 <Textarea
                   id="notes"
                   name="notes"
+                  defaultValue={initialData?.notes}
                   className="min-h-[100px] rounded-xl border-border/50 bg-input px-4 py-3 text-foreground placeholder:text-muted-foreground transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 focus:bg-input/80 resize-none"
                   placeholder="Add any relevant notes about this client..."
                 />
