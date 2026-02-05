@@ -310,24 +310,69 @@ export async function getClientDetail(clientId: string, agentId: string) {
         select: {
           id: true,
           name: true,
+          email: true,
         },
       },
+      toDos: {
+        where: {
+          status: { not: ToDoStatus.COMPLETED },
+        },
+        orderBy: [{ status: 'asc' }, { dueDate: 'asc' }],
+      },
+      eventLogs: {
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+        include: {
+          user: {
+            select: { name: true },
+          },
+        },
+      },
+      phoneAssignment: true,
     },
   })
 
   if (!client) return null
 
+  // Parse questionnaire for additional data
+  let questionnaire: Record<string, unknown> = {}
+  try {
+    if (client.questionnaire) {
+      questionnaire = JSON.parse(client.questionnaire)
+    }
+  } catch {
+    // Ignore parse errors
+  }
+
   return {
     id: client.id,
     firstName: client.firstName,
     lastName: client.lastName,
+    middleName: (questionnaire.middleName as string) || null,
     name: `${client.firstName} ${client.lastName}`,
     email: client.email,
     phone: client.phone,
+    address: client.address,
+    city: client.city,
+    state: client.state,
+    zipCode: client.zipCode,
+    country: client.country,
+    secondaryAddress: (questionnaire.secondaryAddress as {
+      address?: string
+      city?: string
+      state?: string
+      zip?: string
+    }) || null,
+    dateOfBirth: (questionnaire.dateOfBirth as string) || null,
     status: formatIntakeStatus(client.intakeStatus),
     statusColor: getStatusColor(client.intakeStatus),
     intakeStatus: client.intakeStatus,
     deadline: client.executionDeadline,
+    deadlineExtensions: client.deadlineExtensions,
+    applicationNotes: client.applicationNotes,
+    complianceReview: client.complianceReview,
+    complianceStatus: client.complianceStatus,
+    questionnaire,
     agent: client.agent,
     platforms: client.platforms.map((p) => ({
       id: p.id,
@@ -341,8 +386,39 @@ export async function getClientDetail(clientId: string, agentId: string) {
       reviewNotes: p.reviewNotes,
       updatedAt: p.updatedAt,
     })),
+    toDos: client.toDos.map((t) => ({
+      id: t.id,
+      title: t.title,
+      description: t.description,
+      type: t.type,
+      status: t.status,
+      priority: t.priority,
+      dueDate: t.dueDate,
+      metadata: t.metadata,
+      createdAt: t.createdAt,
+    })),
+    eventLogs: client.eventLogs.map((e) => ({
+      id: e.id,
+      eventType: e.eventType,
+      description: e.description,
+      metadata: e.metadata,
+      oldValue: e.oldValue,
+      newValue: e.newValue,
+      userName: e.user?.name || 'System',
+      createdAt: e.createdAt,
+    })),
+    phoneAssignment: client.phoneAssignment
+      ? {
+          phoneNumber: client.phoneAssignment.phoneNumber,
+          deviceId: client.phoneAssignment.deviceId,
+          issuedAt: client.phoneAssignment.issuedAt,
+          signedOutAt: client.phoneAssignment.signedOutAt,
+          returnedAt: client.phoneAssignment.returnedAt,
+        }
+      : null,
     createdAt: client.createdAt,
     updatedAt: client.updatedAt,
+    statusChangedAt: client.statusChangedAt,
   }
 }
 
