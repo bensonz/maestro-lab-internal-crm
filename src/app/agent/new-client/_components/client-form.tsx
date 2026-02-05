@@ -1,13 +1,15 @@
 'use client'
 
-import { useActionState, useState, useCallback } from 'react'
+import { useActionState, useState, useCallback, useEffect, useRef, useTransition } from 'react'
 import { useFormStatus } from 'react-dom'
-import { createClient, saveDraftAction, ActionState } from '@/app/actions/clients'
+import { createClient, ActionState } from '@/app/actions/clients'
+import { saveDraft, DraftActionState } from '@/app/actions/drafts'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Loader2, ArrowRight, Save } from 'lucide-react'
+import { toast } from 'sonner'
 
 import { IdUploadSection } from './id-upload-section'
 import { BasicInfoSection } from './basic-info-section'
@@ -40,18 +42,26 @@ function SubmitButton() {
   )
 }
 
-function SaveDraftButton() {
-  const { pending } = useFormStatus()
+function SaveDraftButton({ onSave, isSaving }: { onSave: () => void; isSaving: boolean }) {
   return (
     <Button
-      type="submit"
-      formAction={saveDraftAction}
+      type="button"
       variant="outline"
-      disabled={pending}
+      disabled={isSaving}
+      onClick={onSave}
       className="h-12 w-full rounded-xl"
     >
-      <Save className="mr-2 h-4 w-4" />
-      Save Draft
+      {isSaving ? (
+        <>
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          Saving...
+        </>
+      ) : (
+        <>
+          <Save className="mr-2 h-4 w-4" />
+          Save Draft
+        </>
+      )}
     </Button>
   )
 }
@@ -99,6 +109,7 @@ interface ClientFormProps {
 
 export function ClientForm({ initialData, draftId }: ClientFormProps) {
   const [state, formAction] = useActionState(createClient, initialState)
+  const [isSavingDraft, startDraftTransition] = useTransition()
 
   // Parse questionnaire from initialData if loading a draft
   const parsedQuestionnaire = initialData?.questionnaire
@@ -158,6 +169,38 @@ export function ClientForm({ initialData, draftId }: ClientFormProps) {
   // Agent confirmation state
   const [agentConfirms, setAgentConfirms] = useState(false)
 
+  // Form ref for preserving values
+  const formRef = useRef<HTMLFormElement>(null)
+
+  // Show toast on validation errors
+  useEffect(() => {
+    if (state.message) {
+      toast.error(state.message)
+    } else if (state.errors && Object.keys(state.errors).length > 0) {
+      const errorCount = Object.keys(state.errors).length
+      toast.error(`Please fix ${errorCount} validation error${errorCount > 1 ? 's' : ''}`)
+    }
+  }, [state])
+
+  // Handle save draft
+  const handleSaveDraft = useCallback(() => {
+    if (!formRef.current) return
+
+    const formData = new FormData(formRef.current)
+    if (draftId) {
+      formData.set('draftId', draftId)
+    }
+
+    startDraftTransition(async () => {
+      const result = await saveDraft({}, formData)
+      if (result.success) {
+        toast.success(result.message || 'Draft saved successfully')
+      } else {
+        toast.error(result.message || 'Failed to save draft')
+      }
+    })
+  }, [draftId])
+
   // Calculate age from DOB
   const calculateAge = (dob: string): number | null => {
     if (!dob) return null
@@ -205,7 +248,7 @@ export function ClientForm({ initialData, draftId }: ClientFormProps) {
   })
 
   return (
-    <form action={formAction}>
+    <form ref={formRef} action={formAction}>
       {/* Hidden fields */}
       <input type="hidden" name="questionnaire" value={questionnaireJson} />
       {draftId && <input type="hidden" name="draftId" value={draftId} />}
@@ -337,7 +380,7 @@ export function ClientForm({ initialData, draftId }: ClientFormProps) {
             className="grid gap-3 sm:grid-cols-2 animate-fade-in-up"
             style={{ animationDelay: '0.25s' }}
           >
-            <SaveDraftButton />
+            <SaveDraftButton onSave={handleSaveDraft} isSaving={isSavingDraft} />
             <SubmitButton />
           </div>
         </div>
