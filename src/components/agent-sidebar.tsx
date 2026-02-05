@@ -31,12 +31,12 @@ interface User {
 }
 
 const navItems = [
-  { title: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { title: 'My Clients', href: '/clients', icon: Users },
-  { title: 'New Client', href: '/new-client', icon: UserPlus },
-  { title: 'My Earnings', href: '/earnings', icon: DollarSign },
-  { title: 'To-Do List', href: '/todo-list', icon: CheckSquare },
-  { title: 'Settings', href: '/settings', icon: Settings },
+  { title: 'Dashboard', href: '/agent', icon: LayoutDashboard },
+  { title: 'My Clients', href: '/agent/clients', icon: Users },
+  { title: 'New Client', href: '/agent/new-client', icon: UserPlus },
+  { title: 'My Earnings', href: '/agent/earnings', icon: DollarSign },
+  { title: 'To-Do List', href: '/agent/todo-list', icon: CheckSquare },
+  { title: 'Settings', href: '/agent/settings', icon: Settings },
 ]
 
 function getInitials(name: string): string {
@@ -65,7 +65,7 @@ export function AgentSidebar({ user }: { user: User }) {
       <nav className="flex-1 space-y-1 p-4">
         {navItems.map((item) => {
           const isActive =
-            item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)
+            item.href === '/agent' ? pathname === '/agent' : pathname.startsWith(item.href)
           return (
             <Link
               key={item.href}
@@ -108,7 +108,7 @@ export function AgentSidebar({ user }: { user: User }) {
             </div>
             <DropdownMenuSeparator className="bg-slate-800" />
             <DropdownMenuItem asChild>
-              <Link href="/settings" className="cursor-pointer text-slate-300 focus:bg-slate-800 focus:text-white">
+              <Link href="/agent/settings" className="cursor-pointer text-slate-300 focus:bg-slate-800 focus:text-white">
                 <Settings className="mr-2 h-4 w-4" />
                 Settings
               </Link>
