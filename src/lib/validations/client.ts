@@ -1,13 +1,22 @@
 import { z } from 'zod'
 
+// Helper to handle null from FormData.get() - converts null to undefined
+const optionalString = z.preprocess(
+  (val) => (val === null ? undefined : val),
+  z.string().optional()
+)
+
 export const createClientSchema = z.object({
   // Basic Info (from ID)
   firstName: z.string().min(1, 'First name is required'),
-  middleName: z.string().optional(),
+  middleName: optionalString,
   lastName: z.string().min(1, 'Last name is required'),
-  dateOfBirth: z.string().optional(),
+  dateOfBirth: optionalString,
   phone: z.string().min(1, 'Phone is required'),
-  email: z.string().email('Invalid email').optional().or(z.literal('')),
+  email: z.preprocess(
+    (val) => (val === null ? '' : val),
+    z.string().email('Invalid email').optional().or(z.literal(''))
+  ),
 
   // Primary Address
   primaryAddress: z.string().min(1, 'Primary address is required'),
@@ -20,16 +29,16 @@ export const createClientSchema = z.object({
     (val) => val === 'true' || val === true,
     z.boolean().optional()
   ),
-  secondaryAddress: z.string().optional(),
-  secondaryCity: z.string().optional(),
-  secondaryState: z.string().optional(),
-  secondaryZip: z.string().optional(),
+  secondaryAddress: optionalString,
+  secondaryCity: optionalString,
+  secondaryState: optionalString,
+  secondaryZip: optionalString,
 
   // Compliance questionnaire data stored as JSON
-  questionnaire: z.string().optional(),
+  questionnaire: optionalString,
 
   // Notes
-  notes: z.string().optional(),
+  notes: optionalString,
 
   // Agent confirmation - required to submit
   agentConfirmsSuitable: z.preprocess(
@@ -44,26 +53,26 @@ export type CreateClientInput = z.infer<typeof createClientSchema>
 
 // Draft schema - less strict, allows partial data
 export const saveDraftSchema = z.object({
-  firstName: z.string().optional(),
-  middleName: z.string().optional(),
-  lastName: z.string().optional(),
-  dateOfBirth: z.string().optional(),
-  phone: z.string().optional(),
-  email: z.string().optional(),
-  primaryAddress: z.string().optional(),
-  primaryCity: z.string().optional(),
-  primaryState: z.string().optional(),
-  primaryZip: z.string().optional(),
+  firstName: optionalString,
+  middleName: optionalString,
+  lastName: optionalString,
+  dateOfBirth: optionalString,
+  phone: optionalString,
+  email: optionalString,
+  primaryAddress: optionalString,
+  primaryCity: optionalString,
+  primaryState: optionalString,
+  primaryZip: optionalString,
   hasSecondAddress: z.preprocess(
     (val) => val === 'true' || val === true,
     z.boolean().optional()
   ),
-  secondaryAddress: z.string().optional(),
-  secondaryCity: z.string().optional(),
-  secondaryState: z.string().optional(),
-  secondaryZip: z.string().optional(),
-  questionnaire: z.string().optional(),
-  notes: z.string().optional(),
+  secondaryAddress: optionalString,
+  secondaryCity: optionalString,
+  secondaryState: optionalString,
+  secondaryZip: optionalString,
+  questionnaire: optionalString,
+  notes: optionalString,
   agentConfirmsSuitable: z.preprocess(
     (val) => val === 'true' || val === true,
     z.boolean().optional()
