@@ -3,7 +3,7 @@
 import { auth } from '@/backend/auth'
 import prisma from '@/backend/prisma/client'
 import { ALL_PLATFORMS } from '@/lib/platforms'
-import { createClientSchema, saveDraftSchema } from '@/lib/validations/client'
+import { createClientSchema } from '@/lib/validations/client'
 import { EventType, IntakeStatus, PlatformStatus } from '@/types'
 import { redirect } from 'next/navigation'
 
@@ -144,65 +144,4 @@ export async function createClient(
 
   // 6. Redirect on success
   redirect('/agent/clients')
-}
-
-export async function saveDraft(
-  prevState: ActionState,
-  formData: FormData
-): Promise<ActionState> {
-  // 1. Auth check
-  const session = await auth()
-  if (!session?.user?.id) {
-    return { message: 'You must be logged in to save a draft' }
-  }
-
-  // 2. Collect all form data as object
-  const formDataObj: Record<string, string> = {}
-  formData.forEach((value, key) => {
-    formDataObj[key] = value.toString()
-  })
-
-  // 3. Check if updating existing draft
-  const draftId = formData.get('draftId') as string | null
-
-  try {
-    if (draftId) {
-      await prisma.applicationDraft.update({
-        where: { id: draftId, agentId: session.user.id },
-        data: { formData: formDataObj },
-      })
-    } else {
-      await prisma.applicationDraft.create({
-        data: {
-          formData: formDataObj,
-          agentId: session.user.id,
-        },
-      })
-    }
-
-    return { message: 'Draft saved successfully' }
-  } catch {
-    return { message: 'Failed to save draft' }
-  }
-}
-
-// Wrapper for formAction prop (returns void instead of ActionState)
-export async function saveDraftAction(formData: FormData): Promise<void> {
-  await saveDraft({}, formData)
-}
-
-export async function deleteDraft(draftId: string): Promise<{ success: boolean }> {
-  const session = await auth()
-  if (!session?.user?.id) {
-    return { success: false }
-  }
-
-  try {
-    await prisma.applicationDraft.delete({
-      where: { id: draftId, agentId: session.user.id },
-    })
-    return { success: true }
-  } catch {
-    return { success: false }
-  }
 }

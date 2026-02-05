@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { formatDistanceToNow } from 'date-fns'
 import Link from 'next/link'
 import { Trash2, Edit, FileText } from 'lucide-react'
-import { deleteDraft } from '@/app/actions/clients'
+import { deleteDraft } from '@/app/actions/drafts'
 import { useRouter } from 'next/navigation'
 import { useTransition } from 'react'
 

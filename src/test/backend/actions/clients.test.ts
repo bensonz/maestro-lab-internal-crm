@@ -1,9 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, Mock } from 'vitest'
 
 // Mock the auth module
 vi.mock('@/backend/auth', () => ({
   auth: vi.fn(),
 }))
+
+// Type for mocked auth function
+type MockedAuth = Mock<() => Promise<{ user: { id: string; role: string }; expires: string } | null>>
 
 // Mock the prisma client
 vi.mock('@/backend/prisma/client', () => ({
@@ -38,11 +41,10 @@ vi.mock('next/navigation', () => ({
 import { auth } from '@/backend/auth'
 import prisma from '@/backend/prisma/client'
 import { redirect } from 'next/navigation'
-import {
-  createClient,
-  saveDraft,
-  deleteDraft,
-} from '@/app/actions/clients'
+import { createClient } from '@/app/actions/clients'
+import { saveDraft, deleteDraft } from '@/app/actions/drafts'
+
+const mockedAuth = auth as unknown as MockedAuth
 
 describe('createClient', () => {
   beforeEach(() => {
@@ -71,7 +73,7 @@ describe('createClient', () => {
   }
 
   it('returns error when user is not authenticated', async () => {
-    vi.mocked(auth).mockResolvedValue(null)
+    mockedAuth.mockResolvedValue(null)
 
     const formData = createFormData(validFormData)
     const result = await createClient({}, formData)
@@ -81,7 +83,7 @@ describe('createClient', () => {
   })
 
   it('returns validation errors for missing required fields', async () => {
-    vi.mocked(auth).mockResolvedValue({
+    mockedAuth.mockResolvedValue({
       user: { id: 'user-123', role: 'AGENT' },
       expires: '',
     })
@@ -103,7 +105,7 @@ describe('createClient', () => {
   })
 
   it('returns validation error when agent confirmation is false', async () => {
-    vi.mocked(auth).mockResolvedValue({
+    mockedAuth.mockResolvedValue({
       user: { id: 'user-123', role: 'AGENT' },
       expires: '',
     })
@@ -119,7 +121,7 @@ describe('createClient', () => {
   })
 
   it('creates client and redirects on success', async () => {
-    vi.mocked(auth).mockResolvedValue({
+    mockedAuth.mockResolvedValue({
       user: { id: 'user-123', role: 'AGENT' },
       expires: '',
     })
@@ -152,7 +154,7 @@ describe('createClient', () => {
   })
 
   it('creates 11 platform records for new client', async () => {
-    vi.mocked(auth).mockResolvedValue({
+    mockedAuth.mockResolvedValue({
       user: { id: 'user-123', role: 'AGENT' },
       expires: '',
     })
@@ -202,7 +204,7 @@ describe('saveDraft', () => {
   }
 
   it('returns error when user is not authenticated', async () => {
-    vi.mocked(auth).mockResolvedValue(null)
+    mockedAuth.mockResolvedValue(null)
 
     const formData = createFormData({ firstName: 'John' })
     const result = await saveDraft({}, formData)
@@ -211,7 +213,7 @@ describe('saveDraft', () => {
   })
 
   it('creates new draft when no draftId provided', async () => {
-    vi.mocked(auth).mockResolvedValue({
+    mockedAuth.mockResolvedValue({
       user: { id: 'user-123', role: 'AGENT' },
       expires: '',
     })
@@ -244,7 +246,7 @@ describe('saveDraft', () => {
   })
 
   it('updates existing draft when draftId provided', async () => {
-    vi.mocked(auth).mockResolvedValue({
+    mockedAuth.mockResolvedValue({
       user: { id: 'user-123', role: 'AGENT' },
       expires: '',
     })
@@ -278,7 +280,7 @@ describe('saveDraft', () => {
   })
 
   it('returns error message on database failure', async () => {
-    vi.mocked(auth).mockResolvedValue({
+    mockedAuth.mockResolvedValue({
       user: { id: 'user-123', role: 'AGENT' },
       expires: '',
     })
@@ -300,7 +302,7 @@ describe('deleteDraft', () => {
   })
 
   it('returns success false when user is not authenticated', async () => {
-    vi.mocked(auth).mockResolvedValue(null)
+    mockedAuth.mockResolvedValue(null)
 
     const result = await deleteDraft('draft-123')
 
@@ -308,7 +310,7 @@ describe('deleteDraft', () => {
   })
 
   it('deletes draft and returns success', async () => {
-    vi.mocked(auth).mockResolvedValue({
+    mockedAuth.mockResolvedValue({
       user: { id: 'user-123', role: 'AGENT' },
       expires: '',
     })
@@ -330,7 +332,7 @@ describe('deleteDraft', () => {
   })
 
   it('only deletes drafts owned by the authenticated user', async () => {
-    vi.mocked(auth).mockResolvedValue({
+    mockedAuth.mockResolvedValue({
       user: { id: 'user-456', role: 'AGENT' },
       expires: '',
     })
@@ -351,7 +353,7 @@ describe('deleteDraft', () => {
   })
 
   it('returns success false on database error', async () => {
-    vi.mocked(auth).mockResolvedValue({
+    mockedAuth.mockResolvedValue({
       user: { id: 'user-123', role: 'AGENT' },
       expires: '',
     })
