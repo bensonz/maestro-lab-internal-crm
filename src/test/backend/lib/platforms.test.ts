@@ -9,7 +9,7 @@ import {
   getPlatformAbbrev,
   isSportsPlatform,
   isFinancialPlatform,
-} from './platforms'
+} from '@/lib/platforms'
 
 describe('Platform Configuration', () => {
   it('should have exactly 11 platforms', () => {
