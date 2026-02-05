@@ -67,7 +67,7 @@ export default async function MyClientsPage() {
 
       {/* Client Cards */}
       {clients.length === 0 ? (
-        <Card className="border-border/50 bg-card/80 backdrop-blur-sm animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+        <Card className="border-border/50 bg-card/80 backdrop-blur-sm animate-fade-in-up" style={{ animationDelay: '0.15s' }}>
           <CardContent className="flex flex-col items-center justify-center py-16">
             <div className="mb-4 rounded-2xl bg-muted/50 p-4 ring-1 ring-border/30">
               <Users className="h-8 w-8 text-muted-foreground" />
