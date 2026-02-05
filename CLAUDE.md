@@ -60,6 +60,27 @@ if (!session?.user) redirect('/login')
 
 **UI Components**: shadcn/ui (new-york style) in `@/components/ui/`. Icons from `lucide-react`.
 
+**Form Fields**: Use `Field` component from `@/components/ui/field` instead of raw `Label` + `Input` combinations. The Field component provides consistent spacing, error handling, and accessibility.
+
+```tsx
+// Prefer this:
+import { Field, FieldLabel, FieldError } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+
+<Field>
+  <FieldLabel htmlFor="email">Email</FieldLabel>
+  <Input id="email" name="email" />
+  <FieldError>{errors?.email}</FieldError>
+</Field>
+
+// Instead of:
+<div className="space-y-2">
+  <Label htmlFor="email">Email</Label>
+  <Input id="email" name="email" />
+  {errors?.email && <p className="text-destructive">{errors.email}</p>}
+</div>
+```
+
 ### Path Aliases
 
 - `@/*` → `./src/*`
