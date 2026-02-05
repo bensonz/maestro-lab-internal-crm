@@ -5,7 +5,10 @@
       "Bash(pnpm lint:*)",
       "Bash(pnpm install)",
       "Bash(pnpm approve-builds)",
-      "Bash(pnpm prisma generate:*)"
+      "Bash(pnpm prisma generate:*)",
+      "Bash(pnpm add:*)",
+      "WebSearch",
+      "Bash(npx shadcn@latest add:*)"
     ]
   }
 }
