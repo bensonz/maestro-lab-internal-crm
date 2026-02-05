@@ -9,7 +9,8 @@
     "lint": "eslint",
     "db:seed": "tsx prisma/seed.ts",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "turbopack-prisma": "rm -rf .next node_modules/.prisma && pnpm prisma generate"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
