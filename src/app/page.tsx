@@ -1,6 +1,18 @@
 import { redirect } from 'next/navigation'
+import { auth } from '@/backend/auth'
 
-// Root redirects to agent dashboard
-export default function Home() {
-  redirect('/')
+export default async function Home() {
+  const session = await auth()
+
+  if (!session?.user) {
+    redirect('/login')
+  }
+
+  // Redirect based on role
+  const role = session.user.role
+  if (role === 'BACKOFFICE' || role === 'ADMIN' || role === 'FINANCE') {
+    redirect('/backoffice')
+  }
+
+  redirect('/agent')
 }

@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { Loader2, ArrowRight, Sparkles, CheckCircle2 } from 'lucide-react'
 
 function SubmitButton() {
   const { pending } = useFormStatus()
@@ -15,9 +16,19 @@ function SubmitButton() {
     <Button
       type="submit"
       disabled={pending}
-      className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+      className="group h-12 w-full rounded-xl bg-primary text-primary-foreground font-semibold shadow-lg shadow-primary/25 transition-all duration-300 hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/30 disabled:opacity-50"
     >
-      {pending ? 'Submitting...' : 'Submit & Start Application'}
+      {pending ? (
+        <>
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          Submitting...
+        </>
+      ) : (
+        <>
+          Submit Application
+          <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+        </>
+      )}
     </Button>
   )
 }
@@ -25,7 +36,7 @@ function SubmitButton() {
 function FormError({ errors }: { errors?: string[] }) {
   if (!errors || errors.length === 0) return null
   return (
-    <p className="mt-1 text-sm text-red-400">{errors[0]}</p>
+    <p className="mt-1.5 text-sm text-destructive">{errors[0]}</p>
   )
 }
 
@@ -36,64 +47,69 @@ export function ClientForm() {
 
   return (
     <form action={formAction}>
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Left Column */}
-        <div className="space-y-6">
+      <div className="grid gap-6 lg:grid-cols-5">
+        {/* Left Column - Form */}
+        <div className="space-y-6 lg:col-span-3">
           {/* Basic Information */}
-          <Card className="border-slate-800 bg-slate-900">
-            <CardHeader>
-              <CardTitle className="text-white">Basic Information</CardTitle>
+          <Card className="border-border/50 bg-card animate-fade-in-up">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-semibold text-foreground">
+                Client Information
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Enter the client&apos;s basic details
+              </p>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="firstName" className="text-slate-400">
-                    First Name *
+            <CardContent className="space-y-5">
+              <div className="grid gap-5 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="firstName" className="text-sm font-medium text-foreground">
+                    First Name <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="firstName"
                     name="firstName"
-                    className="border-slate-700 bg-slate-800 text-white"
-                    placeholder="Enter first name"
+                    className="h-11 rounded-xl border-border/50 bg-input/50 px-4 text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    placeholder="John"
                   />
                   <FormError errors={state.errors?.firstName} />
                 </div>
-                <div>
-                  <Label htmlFor="lastName" className="text-slate-400">
-                    Last Name *
+                <div className="space-y-2">
+                  <Label htmlFor="lastName" className="text-sm font-medium text-foreground">
+                    Last Name <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="lastName"
                     name="lastName"
-                    className="border-slate-700 bg-slate-800 text-white"
-                    placeholder="Enter last name"
+                    className="h-11 rounded-xl border-border/50 bg-input/50 px-4 text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    placeholder="Doe"
                   />
                   <FormError errors={state.errors?.lastName} />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="phone" className="text-slate-400">
-                    Phone Number *
+              <div className="grid gap-5 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="phone" className="text-sm font-medium text-foreground">
+                    Phone Number <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="phone"
                     name="phone"
-                    className="border-slate-700 bg-slate-800 text-white"
+                    className="h-11 rounded-xl border-border/50 bg-input/50 px-4 text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
                     placeholder="(555) 000-0000"
                   />
                   <FormError errors={state.errors?.phone} />
                 </div>
-                <div>
-                  <Label htmlFor="email" className="text-slate-400">
-                    Email (optional)
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-sm font-medium text-foreground">
+                    Email <span className="text-muted-foreground text-xs">(optional)</span>
                   </Label>
                   <Input
                     id="email"
                     name="email"
                     type="email"
-                    className="border-slate-700 bg-slate-800 text-white"
-                    placeholder="client@email.com"
+                    className="h-11 rounded-xl border-border/50 bg-input/50 px-4 text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    placeholder="john@example.com"
                   />
                   <FormError errors={state.errors?.email} />
                 </div>
@@ -102,52 +118,80 @@ export function ClientForm() {
           </Card>
 
           {/* Notes */}
-          <Card className="border-slate-800 bg-slate-900">
-            <CardHeader>
-              <CardTitle className="text-white">Application Notes</CardTitle>
-              <p className="text-sm text-slate-400">
-                Internal notes about the client (not client-facing)
+          <Card className="border-border/50 bg-card animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-semibold text-foreground">
+                Application Notes
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Internal notes about this client (not visible to client)
               </p>
             </CardHeader>
             <CardContent>
               <Textarea
                 id="notes"
                 name="notes"
-                className="min-h-[100px] border-slate-700 bg-slate-800 text-white"
-                placeholder="Any relevant notes about this client..."
+                className="min-h-[120px] rounded-xl border-border/50 bg-input/50 px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 resize-none"
+                placeholder="Add any relevant notes about this client..."
               />
             </CardContent>
           </Card>
         </div>
 
-        {/* Right Column */}
-        <div className="space-y-6">
-          {/* Info Card */}
-          <Card className="border-slate-800 bg-slate-900">
-            <CardHeader>
-              <CardTitle className="text-white">What happens next?</CardTitle>
+        {/* Right Column - Info & Submit */}
+        <div className="space-y-6 lg:col-span-2">
+          {/* What happens next */}
+          <Card className="border-border/50 bg-card animate-fade-in-up" style={{ animationDelay: '0.15s' }}>
+            <CardHeader className="pb-4">
+              <div className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                <Sparkles className="h-5 w-5 text-primary" />
+              </div>
+              <CardTitle className="text-lg font-semibold text-foreground">
+                What happens next?
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 text-slate-400">
-              <p>After submitting this application:</p>
-              <ol className="list-inside list-decimal space-y-2">
-                <li>Client record will be created in PENDING status</li>
-                <li>11 platform accounts will be initialized</li>
-                <li>You can begin the onboarding process</li>
-              </ol>
+            <CardContent className="space-y-4">
+              <div className="flex gap-3">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                  1
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">Client record created</p>
+                  <p className="text-xs text-muted-foreground">Status set to PENDING</p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                  2
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">Platform accounts initialized</p>
+                  <p className="text-xs text-muted-foreground">11 platforms ready to configure</p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-chart-4/10 text-xs font-semibold text-chart-4">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">Begin onboarding</p>
+                  <p className="text-xs text-muted-foreground">Start the client journey</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
-          {/* General Error Message */}
+          {/* Error Message */}
           {state.message && (
-            <Card className="border-red-800 bg-red-900/20">
+            <Card className="border-destructive/50 bg-destructive/5 animate-fade-in-up">
               <CardContent className="py-4">
-                <p className="text-red-400">{state.message}</p>
+                <p className="text-sm text-destructive">{state.message}</p>
               </CardContent>
             </Card>
           )}
 
-          {/* Actions */}
-          <div className="flex gap-4">
+          {/* Submit Button */}
+          <div className="animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
             <SubmitButton />
           </div>
         </div>
