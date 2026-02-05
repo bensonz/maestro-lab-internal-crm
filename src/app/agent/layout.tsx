@@ -1,18 +1,12 @@
-import Link from 'next/link'
-import { redirect } from 'next/navigation'
-import { auth } from '@/backend/auth'
 import { AgentSidebar } from '@/components/agent-sidebar'
+import { requireAgent } from './_require-agent'
 
 export default async function AgentLayout({ children }: { children: React.ReactNode }) {
-  const session = await auth()
-
-  if (!session?.user) {
-    redirect('/login')
-  }
+  const user = await requireAgent()
 
   return (
     <div className="flex h-screen bg-slate-950">
-      <AgentSidebar user={session.user} />
+      <AgentSidebar user={user} />
       <main className="flex-1 overflow-auto">
         {children}
       </main>
