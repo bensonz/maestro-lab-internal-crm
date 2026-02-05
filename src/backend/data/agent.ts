@@ -71,6 +71,68 @@ export async function getAgentClientStats(agentId: string) {
   return { total, inProgress, pendingApproval, verificationNeeded, approved, rejected }
 }
 
+export async function getAgentDashboardStats(agentId: string) {
+  const now = new Date()
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+
+  const [clients, earnings, pendingTodos] = await Promise.all([
+    prisma.client.findMany({
+      where: { agentId },
+      select: { intakeStatus: true },
+    }),
+    prisma.earning.findMany({
+      where: { client: { agentId } },
+      select: { amount: true, status: true, createdAt: true },
+    }),
+    prisma.toDo.count({
+      where: {
+        assignedToId: agentId,
+        status: { in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS, ToDoStatus.OVERDUE] },
+      },
+    }),
+  ])
+
+  const totalClients = clients.length
+  const activeClients = clients.filter(
+    (c) =>
+      c.intakeStatus === IntakeStatus.PHONE_ISSUED ||
+      c.intakeStatus === IntakeStatus.IN_EXECUTION
+  ).length
+  const completedThisMonth = clients.filter(
+    (c) => c.intakeStatus === IntakeStatus.APPROVED
+  ).length
+
+  const totalEarnings = earnings
+    .filter((e) => e.status === 'paid')
+    .reduce((sum, e) => sum + Number(e.amount), 0)
+
+  // Calculate previous month earnings for comparison
+  const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0)
+  const lastMonthEarnings = earnings
+    .filter(
+      (e) =>
+        e.status === 'paid' &&
+        e.createdAt >= lastMonth &&
+        e.createdAt <= endOfLastMonth
+    )
+    .reduce((sum, e) => sum + Number(e.amount), 0)
+
+  const earningsChange =
+    lastMonthEarnings > 0
+      ? ((totalEarnings - lastMonthEarnings) / lastMonthEarnings) * 100
+      : 0
+
+  return {
+    totalClients,
+    activeClients,
+    completedThisMonth,
+    pendingTasks: pendingTodos,
+    earnings: totalEarnings,
+    earningsChange: Math.round(earningsChange * 10) / 10,
+  }
+}
+
 export async function getAgentEarnings(agentId: string) {
   const earnings = await prisma.earning.findMany({
     where: {

@@ -1,5 +1,8 @@
 import { auth } from '@/backend/auth'
+import { redirect } from 'next/navigation'
+import { getAgentDashboardStats } from '@/backend/data/agent'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import Link from 'next/link'
 import {
   Users,
   DollarSign,
@@ -12,18 +15,12 @@ import {
 
 export default async function AgentDashboard() {
   const session = await auth()
-  const userName = session?.user?.name || 'Agent'
+  if (!session?.user) redirect('/login')
+
+  const userName = session.user.name || 'Agent'
   const firstName = userName.split(' ')[0]
 
-  // Mock stats for now - these would come from database
-  const stats = {
-    totalClients: 24,
-    activeClients: 8,
-    completedThisMonth: 12,
-    pendingTasks: 5,
-    earnings: 4250,
-    earningsChange: 12.5,
-  }
+  const stats = await getAgentDashboardStats(session.user.id)
 
   return (
     <div className="min-h-screen p-6 lg:p-8">
@@ -137,7 +134,7 @@ export default async function AgentDashboard() {
           Quick Actions
         </h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <a
+          <Link
             href="/agent/new-client"
             className="group flex items-center justify-between rounded-xl border border-border/50 bg-card/60 p-5 backdrop-blur-sm transition-all duration-300 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg hover:shadow-primary/10"
           >
@@ -150,9 +147,9 @@ export default async function AgentDashboard() {
             <div className="rounded-lg bg-primary/10 p-2 ring-1 ring-primary/20 transition-all group-hover:bg-primary/20 group-hover:ring-primary/30">
               <ArrowUpRight className="h-4 w-4 text-primary transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             </div>
-          </a>
+          </Link>
 
-          <a
+          <Link
             href="/agent/clients"
             className="group flex items-center justify-between rounded-xl border border-border/50 bg-card/60 p-5 backdrop-blur-sm transition-all duration-300 hover:border-chart-3/40 hover:bg-card/90 hover:shadow-lg hover:shadow-chart-3/10"
           >
@@ -165,9 +162,9 @@ export default async function AgentDashboard() {
             <div className="rounded-lg bg-chart-3/10 p-2 ring-1 ring-chart-3/20 transition-all group-hover:bg-chart-3/20 group-hover:ring-chart-3/30">
               <ArrowUpRight className="h-4 w-4 text-chart-3 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             </div>
-          </a>
+          </Link>
 
-          <a
+          <Link
             href="/agent/todo-list"
             className="group flex items-center justify-between rounded-xl border border-border/50 bg-card/60 p-5 backdrop-blur-sm transition-all duration-300 hover:border-accent/40 hover:bg-card/90 hover:shadow-lg hover:shadow-accent/10"
           >
@@ -182,7 +179,7 @@ export default async function AgentDashboard() {
             <div className="rounded-lg bg-accent/10 p-2 ring-1 ring-accent/20 transition-all group-hover:bg-accent/20 group-hover:ring-accent/30">
               <ArrowUpRight className="h-4 w-4 text-accent transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             </div>
-          </a>
+          </Link>
         </div>
       </div>
     </div>
