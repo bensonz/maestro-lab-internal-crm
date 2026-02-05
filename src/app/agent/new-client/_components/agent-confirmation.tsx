@@ -29,12 +29,15 @@ export function AgentConfirmation({
           </div>
           <div className="flex-1 space-y-3">
             <div className="flex items-start space-x-3">
+              <input
+                type="hidden"
+                name="agentConfirmsSuitable"
+                value={checked ? 'true' : 'false'}
+              />
               <Checkbox
                 id="agentConfirmsSuitable"
-                name="agentConfirmsSuitable"
                 checked={checked}
                 onCheckedChange={(val) => onCheckedChange(val === true)}
-                value="true"
                 className="mt-0.5"
               />
               <Label
