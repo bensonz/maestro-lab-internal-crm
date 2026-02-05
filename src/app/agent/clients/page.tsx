@@ -89,61 +89,56 @@ export default async function MyClientsPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 stagger-children">
           {clients.map((client) => (
-            <Card
-              key={client.id}
-              className="group border-border/50 bg-card/80 backdrop-blur-sm transition-all duration-300 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10 card-interactive"
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <CardTitle className="truncate text-lg font-semibold text-foreground">
-                      {client.name}
-                    </CardTitle>
-                    {client.nextTask && (
-                      <p className="mt-1 truncate text-sm text-muted-foreground">
-                        Next: {client.nextTask}
-                      </p>
-                    )}
+            <Link key={client.id} href={`/agent/clients/${client.id}`}>
+              <Card className="group h-full border-border/50 bg-card/80 backdrop-blur-sm transition-all duration-300 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10 card-interactive cursor-pointer">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <CardTitle className="truncate text-lg font-semibold text-foreground">
+                        {client.name}
+                      </CardTitle>
+                      {client.nextTask && (
+                        <p className="mt-1 truncate text-sm text-muted-foreground">
+                          Next: {client.nextTask}
+                        </p>
+                      )}
+                    </div>
+                    <Badge
+                      className={`shrink-0 rounded-lg px-2.5 py-1 text-xs font-medium ${client.statusColor}`}
+                    >
+                      {client.status}
+                    </Badge>
                   </div>
-                  <Badge
-                    className={`shrink-0 rounded-lg px-2.5 py-1 text-xs font-medium ${client.statusColor}`}
-                  >
-                    {client.status}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Progress Bar */}
-                <div>
-                  <div className="mb-2 flex items-center justify-between text-xs">
-                    <span className="font-medium text-muted-foreground">
-                      Step {client.step} of {client.totalSteps}
-                    </span>
-                    <span className="font-semibold text-foreground">{client.progress}%</span>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Progress Bar */}
+                  <div>
+                    <div className="mb-2 flex items-center justify-between text-xs">
+                      <span className="font-medium text-muted-foreground">
+                        Step {client.step} of {client.totalSteps}
+                      </span>
+                      <span className="font-semibold text-foreground">{client.progress}%</span>
+                    </div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-muted/50">
+                      <div
+                        className="h-full rounded-full bg-linear-to-r from-primary to-primary/70 transition-all duration-500"
+                        style={{ width: `${client.progress}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-muted/50">
-                    <div
-                      className="h-full rounded-full bg-linear-to-r from-primary to-primary/70 transition-all duration-500"
-                      style={{ width: `${client.progress}%` }}
-                    />
-                  </div>
-                </div>
 
-                {/* Footer */}
-                <div className="flex items-center justify-between border-t border-border/40 pt-4">
-                  <p className="text-xs text-muted-foreground">
-                    Updated {client.lastUpdated}
-                  </p>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 rounded-lg text-xs text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
-                  >
-                    View Details
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                  {/* Footer */}
+                  <div className="flex items-center justify-between border-t border-border/40 pt-4">
+                    <p className="text-xs text-muted-foreground">
+                      Updated {client.lastUpdated}
+                    </p>
+                    <span className="text-xs text-muted-foreground transition-colors group-hover:text-primary">
+                      View Details →
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
           ))}
         </div>
       )}
