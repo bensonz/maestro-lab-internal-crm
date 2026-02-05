@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { signIn } from 'next-auth/react'
+import { signIn, getSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -31,7 +31,16 @@ export default function LoginPage() {
     if (result?.error) {
       setError('Invalid email or password')
     } else {
-      router.push('/clients')
+      // Fetch session to get user role for redirect
+      const session = await getSession()
+      const role = session?.user?.role
+
+      // Redirect based on role
+      if (role === 'BACKOFFICE' || role === 'ADMIN' || role === 'FINANCE') {
+        router.push('/backoffice')
+      } else {
+        router.push('/agent')
+      }
       router.refresh()
     }
   }
