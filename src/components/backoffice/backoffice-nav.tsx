@@ -108,13 +108,6 @@ export function BackofficeNav({ user }: { user: User }) {
               <p className="text-xs text-slate-500">{user.email}</p>
             </div>
             <DropdownMenuSeparator className="bg-slate-800" />
-            <DropdownMenuItem asChild>
-              <Link href="/agent" className="cursor-pointer text-slate-300 focus:bg-slate-800 focus:text-white">
-                <Users className="mr-2 h-4 w-4" />
-                Switch to Agent View
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator className="bg-slate-800" />
             <DropdownMenuItem
               onClick={handleLogout}
               className="cursor-pointer text-red-400 focus:bg-slate-800 focus:text-red-400"

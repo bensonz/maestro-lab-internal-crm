@@ -113,14 +113,6 @@ export function AgentSidebar({ user }: { user: User }) {
                 Settings
               </Link>
             </DropdownMenuItem>
-            {user.role === 'BACKOFFICE' || user.role === 'ADMIN' ? (
-              <DropdownMenuItem asChild>
-                <Link href="/backoffice" className="cursor-pointer text-slate-300 focus:bg-slate-800 focus:text-white">
-                  <Users className="mr-2 h-4 w-4" />
-                  Switch to Backoffice
-                </Link>
-              </DropdownMenuItem>
-            ) : null}
             <DropdownMenuSeparator className="bg-slate-800" />
             <DropdownMenuItem
               onClick={handleLogout}
