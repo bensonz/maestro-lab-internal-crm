@@ -1,5 +1,5 @@
 import prisma from '@/backend/prisma/client'
-import { IntakeStatus, PlatformStatus, ToDoStatus, UserRole, PlatformType } from '@/types'
+import { IntakeStatus, PlatformStatus, ToDoStatus, UserRole, PlatformType, ToDoType, EventType } from '@/types'
 
 export async function getDashboardStats() {
   const [clientCount, agentCount] = await Promise.all([
@@ -13,6 +13,186 @@ export async function getDashboardStats() {
     totalFundsManaged: '$0', // Would need actual fund tracking
     monthlyRevenue: '$0',
   }
+}
+
+// ============================================================================
+// Overview Dashboard Functions
+// ============================================================================
+
+export async function getOverviewStats() {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const [pendingReviews, approvedToday, urgentActions, activeClients] = await Promise.all([
+    // Clients ready for approval + platforms pending review
+    prisma.client.count({
+      where: { intakeStatus: IntakeStatus.READY_FOR_APPROVAL },
+    }),
+    prisma.client.count({
+      where: {
+        intakeStatus: IntakeStatus.APPROVED,
+        statusChangedAt: { gte: today },
+      },
+    }),
+    prisma.toDo.count({
+      where: {
+        priority: { lte: 1 }, // High priority (0 or 1)
+        status: { in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS] },
+      },
+    }),
+    prisma.client.count({
+      where: {
+        intakeStatus: {
+          in: [IntakeStatus.PHONE_ISSUED, IntakeStatus.IN_EXECUTION, IntakeStatus.READY_FOR_APPROVAL],
+        },
+      },
+    }),
+  ])
+
+  return { pendingReviews, approvedToday, urgentActions, activeClients }
+}
+
+export async function getPriorityTasks() {
+  const now = new Date()
+
+  // Get urgent To-Dos
+  const tasks = await prisma.toDo.findMany({
+    where: {
+      status: { in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS, ToDoStatus.OVERDUE] },
+      OR: [
+        { priority: { lte: 1 } }, // High priority
+        { dueDate: { lte: now } }, // Due today or overdue
+      ],
+    },
+    include: {
+      client: { select: { id: true, firstName: true, lastName: true } },
+    },
+    orderBy: [{ priority: 'asc' }, { dueDate: 'asc' }],
+    take: 10,
+  })
+
+  return tasks.map((t) => ({
+    id: t.id,
+    title: t.title,
+    type: mapToDoTypeToLabel(t.type),
+    clientId: t.client?.id ?? null,
+    clientName: t.client ? `${t.client.firstName} ${t.client.lastName}` : null,
+    isUrgent: t.priority <= 1 || Boolean(t.dueDate && t.dueDate <= now),
+  }))
+}
+
+function mapToDoTypeToLabel(type: ToDoType): string {
+  const map: Record<ToDoType, string> = {
+    [ToDoType.EXECUTION]: 'Execution',
+    [ToDoType.UPLOAD_SCREENSHOT]: 'Document Review',
+    [ToDoType.PROVIDE_INFO]: 'Information Request',
+    [ToDoType.PAYMENT]: 'Finance',
+    [ToDoType.PHONE_SIGNOUT]: 'Phone Issuance',
+    [ToDoType.PHONE_RETURN]: 'Phone Return',
+    [ToDoType.VERIFICATION]: 'Approval',
+  }
+  return map[type] || type
+}
+
+export async function getReminders() {
+  const now = new Date()
+  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+
+  const [awaitingPhone, pendingDocs] = await Promise.all([
+    prisma.client.count({
+      where: {
+        phoneAssignment: null,
+        intakeStatus: { in: [IntakeStatus.PHONE_ISSUED, IntakeStatus.IN_EXECUTION] },
+        createdAt: { lte: yesterday },
+      },
+    }),
+    prisma.toDo.count({
+      where: {
+        type: ToDoType.VERIFICATION,
+        status: ToDoStatus.PENDING,
+        createdAt: { lte: yesterday },
+      },
+    }),
+  ])
+
+  const reminders: { message: string; timeLabel: string; isOverdue: boolean }[] = []
+
+  if (awaitingPhone > 0) {
+    reminders.push({
+      message: `${awaitingPhone} clients awaiting phone number issuance`,
+      timeLabel: 'Since yesterday',
+      isOverdue: false,
+    })
+  }
+
+  reminders.push({
+    message: 'Fund allocation due by 5 PM',
+    timeLabel: 'Today',
+    isOverdue: false,
+  })
+
+  if (pendingDocs > 0) {
+    reminders.push({
+      message: `${pendingDocs} documents pending review > 24h`,
+      timeLabel: 'Overdue',
+      isOverdue: true,
+    })
+  }
+
+  return reminders
+}
+
+export async function getOverviewRecentActivity() {
+  const events = await prisma.eventLog.findMany({
+    orderBy: { createdAt: 'desc' },
+    take: 10,
+    include: {
+      client: { select: { firstName: true, lastName: true } },
+      user: { select: { name: true, id: true } },
+    },
+  })
+
+  return events.map((e) => ({
+    id: e.id,
+    title: formatEventTitle(e.eventType),
+    subtitle: formatEventSubtitle(e),
+    timestamp: e.createdAt,
+  }))
+}
+
+function formatEventTitle(type: EventType): string {
+  const titles: Record<string, string> = {
+    [EventType.APPLICATION_SUBMITTED]: 'New application',
+    [EventType.STATUS_CHANGE]: 'Status updated',
+    [EventType.PLATFORM_UPLOAD]: 'Screenshot uploaded',
+    [EventType.PHONE_ISSUED]: 'Issued phone number',
+    [EventType.PHONE_RETURNED]: 'Phone returned',
+    [EventType.APPROVAL]: 'Approved application',
+    [EventType.REJECTION]: 'Rejected application',
+    [EventType.TODO_COMPLETED]: 'Reviewed documents',
+    [EventType.TODO_CREATED]: 'Task created',
+    [EventType.DEADLINE_EXTENDED]: 'Extended deadline',
+    [EventType.DEADLINE_MISSED]: 'Deadline missed',
+    [EventType.PLATFORM_STATUS_CHANGE]: 'Platform status updated',
+    [EventType.COMMENT]: 'Comment added',
+    [EventType.KPI_IMPACT]: 'KPI updated',
+  }
+  return titles[type] || type
+}
+
+function formatEventSubtitle(event: {
+  client: { firstName: string; lastName: string } | null
+  user: { name: string | null; id: string } | null
+}): string {
+  const clientName = event.client
+    ? `${event.client.firstName} ${event.client.lastName}`
+    : null
+  const agentRef = event.user?.name || 'System'
+
+  if (clientName) {
+    return `${clientName} • ${agentRef}`
+  }
+  return agentRef
 }
 
 export async function getPendingActionCounts() {
