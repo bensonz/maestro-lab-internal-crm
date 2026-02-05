@@ -233,3 +233,81 @@ function formatDate(date: Date): string {
     year: 'numeric',
   })
 }
+
+export async function getClientDetail(clientId: string, agentId: string) {
+  const client = await prisma.client.findFirst({
+    where: {
+      id: clientId,
+      agentId, // Ensure agent owns this client
+    },
+    include: {
+      platforms: {
+        orderBy: { platformType: 'asc' },
+      },
+      agent: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
+  })
+
+  if (!client) return null
+
+  return {
+    id: client.id,
+    firstName: client.firstName,
+    lastName: client.lastName,
+    name: `${client.firstName} ${client.lastName}`,
+    email: client.email,
+    phone: client.phone,
+    status: formatIntakeStatus(client.intakeStatus),
+    statusColor: getStatusColor(client.intakeStatus),
+    intakeStatus: client.intakeStatus,
+    deadline: client.executionDeadline,
+    agent: client.agent,
+    platforms: client.platforms.map((p) => ({
+      id: p.id,
+      platformType: p.platformType,
+      status: p.status,
+      statusLabel: formatPlatformStatus(p.status),
+      statusColor: getPlatformStatusColor(p.status),
+      username: p.username,
+      accountId: p.accountId,
+      screenshots: p.screenshots,
+      reviewNotes: p.reviewNotes,
+      updatedAt: p.updatedAt,
+    })),
+    createdAt: client.createdAt,
+    updatedAt: client.updatedAt,
+  }
+}
+
+function formatPlatformStatus(status: PlatformStatus): string {
+  const map: Record<PlatformStatus, string> = {
+    [PlatformStatus.NOT_STARTED]: 'Not Started',
+    [PlatformStatus.PENDING_UPLOAD]: 'Pending Upload',
+    [PlatformStatus.PENDING_REVIEW]: 'Pending Review',
+    [PlatformStatus.NEEDS_MORE_INFO]: 'Needs Info',
+    [PlatformStatus.PENDING_EXTERNAL]: 'Pending External',
+    [PlatformStatus.VERIFIED]: 'Verified',
+    [PlatformStatus.REJECTED]: 'Rejected',
+    [PlatformStatus.LIMITED]: 'Limited',
+  }
+  return map[status] || status
+}
+
+function getPlatformStatusColor(status: PlatformStatus): string {
+  const map: Record<PlatformStatus, string> = {
+    [PlatformStatus.NOT_STARTED]: 'bg-muted text-muted-foreground',
+    [PlatformStatus.PENDING_UPLOAD]: 'bg-accent/20 text-accent',
+    [PlatformStatus.PENDING_REVIEW]: 'bg-primary/20 text-primary',
+    [PlatformStatus.NEEDS_MORE_INFO]: 'bg-accent/20 text-accent',
+    [PlatformStatus.PENDING_EXTERNAL]: 'bg-chart-3/20 text-chart-3',
+    [PlatformStatus.VERIFIED]: 'bg-chart-4/20 text-chart-4',
+    [PlatformStatus.REJECTED]: 'bg-destructive/20 text-destructive',
+    [PlatformStatus.LIMITED]: 'bg-chart-5/20 text-chart-5',
+  }
+  return map[status] || 'bg-muted text-muted-foreground'
+}
