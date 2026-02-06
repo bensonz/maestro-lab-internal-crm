@@ -34,23 +34,6 @@ export async function changeClientStatus(
   return result
 }
 
-export async function issuePhone(
-  clientId: string
-): Promise<{ success: boolean; error?: string }> {
-  const session = await auth()
-  if (!session?.user?.id || !BACKOFFICE_ROLES.includes(session.user.role)) {
-    return { success: false, error: 'Unauthorized' }
-  }
-
-  const result = await transitionClientStatus(clientId, IntakeStatus.PHONE_ISSUED, session.user.id)
-
-  if (result.success) {
-    revalidateAll(clientId)
-  }
-
-  return result
-}
-
 export async function startExecution(
   clientId: string
 ): Promise<{ success: boolean; error?: string }> {
