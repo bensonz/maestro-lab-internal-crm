@@ -2,8 +2,9 @@
 
 import { auth } from '@/backend/auth'
 import prisma from '@/backend/prisma/client'
+import { transitionClientStatus } from '@/backend/services/status-transition'
 import { revalidatePath } from 'next/cache'
-import { IntakeStatus, EventType, UserRole } from '@/types'
+import { IntakeStatus, UserRole } from '@/types'
 
 export async function approveClientIntake(
   clientId: string
@@ -14,10 +15,10 @@ export async function approveClientIntake(
     return { success: false, error: 'Unauthorized' }
   }
 
-  // Verify client exists and is ready for approval
+  // Verify client is ready for approval before calling transition
   const client = await prisma.client.findUnique({
     where: { id: clientId },
-    select: { id: true, intakeStatus: true, firstName: true, lastName: true },
+    select: { id: true, intakeStatus: true },
   })
 
   if (!client) {
@@ -28,32 +29,15 @@ export async function approveClientIntake(
     return { success: false, error: 'Client is not ready for approval' }
   }
 
-  try {
-    await prisma.$transaction([
-      prisma.client.update({
-        where: { id: clientId },
-        data: {
-          intakeStatus: IntakeStatus.APPROVED,
-          statusChangedAt: new Date(),
-        },
-      }),
-      prisma.eventLog.create({
-        data: {
-          eventType: EventType.APPROVAL,
-          description: `Client intake approved: ${client.firstName} ${client.lastName}`,
-          clientId,
-          userId: session.user.id,
-        },
-      }),
-    ])
+  const result = await transitionClientStatus(clientId, IntakeStatus.APPROVED, session.user.id)
 
+  if (result.success) {
     revalidatePath('/backoffice/sales-interaction')
     revalidatePath('/backoffice')
-    return { success: true }
-  } catch (error) {
-    console.error('Approve client error:', error)
-    return { success: false, error: 'Failed to approve client' }
+    revalidatePath(`/agent/clients/${clientId}`)
   }
+
+  return result
 }
 
 export async function getVerificationTaskDetails(todoId: string) {
