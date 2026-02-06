@@ -23,7 +23,7 @@ export async function getOverviewStats() {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  const [pendingReviews, approvedToday, urgentActions, activeClients, pendingExtensions] = await Promise.all([
+  const [pendingReviews, approvedToday, urgentActions, activeClients, pendingExtensions, delayedClients] = await Promise.all([
     // Clients ready for approval + platforms pending review
     prisma.client.count({
       where: { intakeStatus: IntakeStatus.READY_FOR_APPROVAL },
@@ -50,9 +50,12 @@ export async function getOverviewStats() {
     prisma.extensionRequest.count({
       where: { status: ExtensionRequestStatus.PENDING },
     }),
+    prisma.client.count({
+      where: { intakeStatus: IntakeStatus.EXECUTION_DELAYED },
+    }),
   ])
 
-  return { pendingReviews, approvedToday, urgentActions, activeClients, pendingExtensions }
+  return { pendingReviews, approvedToday, urgentActions, activeClients, pendingExtensions, delayedClients }
 }
 
 export async function getPendingExtensionRequests() {
@@ -82,6 +85,38 @@ export async function getPendingExtensionRequests() {
     createdAt: r.createdAt,
     deadlineStatus: (r.currentDeadline < now ? 'overdue' : 'active') as 'active' | 'overdue',
   }))
+}
+
+export async function getDelayedClients() {
+  const clients = await prisma.client.findMany({
+    where: { intakeStatus: IntakeStatus.EXECUTION_DELAYED },
+    include: {
+      agent: { select: { name: true } },
+      toDos: {
+        select: { status: true },
+        where: {
+          status: { not: ToDoStatus.CANCELLED },
+        },
+      },
+    },
+    orderBy: { statusChangedAt: 'asc' },
+  })
+
+  return clients.map((c) => {
+    const completedCount = c.toDos.filter(
+      (t) => t.status === ToDoStatus.COMPLETED
+    ).length
+
+    return {
+      id: c.id,
+      name: `${c.firstName} ${c.lastName}`,
+      agentName: c.agent?.name ?? 'Unassigned',
+      executionDeadline: c.executionDeadline,
+      delayedSince: c.statusChangedAt,
+      pendingTodosCount: c.toDos.length - completedCount,
+      completedTodosCount: completedCount,
+    }
+  })
 }
 
 export async function getPriorityTasks() {
