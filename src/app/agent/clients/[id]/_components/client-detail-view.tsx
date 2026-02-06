@@ -96,6 +96,7 @@ interface ClientDetailViewProps {
       requestedDays: number
       createdAt: Date
     } | null
+    extensionRequestCount: number
     createdAt: Date
     updatedAt: Date
     statusChangedAt: Date
