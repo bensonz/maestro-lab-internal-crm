@@ -1,7 +1,8 @@
 import { auth } from '@/backend/auth'
 import { redirect } from 'next/navigation'
-import { getAgentDashboardStats } from '@/backend/data/agent'
+import { getAgentDashboardStats, getAgentTodaysTasks, getAgentClients } from '@/backend/data/agent'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
 import {
   Users,
@@ -11,6 +12,9 @@ import {
   TrendingUp,
   ArrowUpRight,
   Sparkles,
+  AlertTriangle,
+  Hourglass,
+  ListTodo,
 } from 'lucide-react'
 
 export default async function AgentDashboard() {
@@ -20,7 +24,13 @@ export default async function AgentDashboard() {
   const userName = session.user.name || 'Agent'
   const firstName = userName.split(' ')[0]
 
-  const stats = await getAgentDashboardStats(session.user.id)
+  const [stats, todaysTasks, allClients] = await Promise.all([
+    getAgentDashboardStats(session.user.id),
+    getAgentTodaysTasks(session.user.id),
+    getAgentClients(session.user.id),
+  ])
+
+  const recentClients = allClients.slice(0, 6)
 
   return (
     <div className="min-h-screen p-6 lg:p-8">
@@ -39,6 +49,48 @@ export default async function AgentDashboard() {
             </p>
           </div>
         </div>
+      </div>
+
+      {/* Client Status Breakdown */}
+      <div className="mb-8 grid gap-4 sm:grid-cols-3 stagger-children">
+        <Card className="group border-border/50 bg-card/80 backdrop-blur-sm transition-all duration-300 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10 card-interactive">
+          <CardContent className="flex items-center gap-4 py-5">
+            <div className="rounded-xl bg-primary/10 p-3 ring-1 ring-primary/20">
+              <Clock className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">In Progress</p>
+              <p className="text-2xl font-bold tracking-tight text-foreground">{stats.inProgressCount}</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="group border-border/50 bg-card/80 backdrop-blur-sm transition-all duration-300 hover:border-accent/40 hover:shadow-lg hover:shadow-accent/10 card-interactive">
+          <CardContent className="flex items-center gap-4 py-5">
+            <div className="rounded-xl bg-accent/10 p-3 ring-1 ring-accent/20">
+              <Hourglass className="h-5 w-5 text-accent" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Pending Approval</p>
+              <p className="text-2xl font-bold tracking-tight text-foreground">{stats.pendingApprovalCount}</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="group border-border/50 bg-card/80 backdrop-blur-sm transition-all duration-300 hover:border-chart-4/40 hover:shadow-lg hover:shadow-chart-4/10 card-interactive">
+          <CardContent className="flex items-center gap-4 py-5">
+            <div className="rounded-xl bg-chart-4/10 p-3 ring-1 ring-chart-4/20">
+              <CheckCircle2 className="h-5 w-5 text-chart-4" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Approved</p>
+              <p className="text-2xl font-bold tracking-tight text-foreground">{stats.approvedCount}</p>
+              {stats.lastApprovedAt && (
+                <p className="text-xs text-muted-foreground">Last: {stats.lastApprovedAt}</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Stats Grid */}
@@ -128,8 +180,71 @@ export default async function AgentDashboard() {
         </Card>
       </div>
 
+      {/* Today's Tasks */}
+      <div className="mb-8 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ListTodo className="h-5 w-5 text-muted-foreground" />
+            <h2 className="font-display text-lg font-semibold text-foreground">
+              Today&apos;s Tasks
+            </h2>
+          </div>
+          {todaysTasks.length > 0 && (
+            <Badge variant="outline" className="bg-accent/10 text-accent border-accent/30">
+              {todaysTasks.length} pending
+            </Badge>
+          )}
+        </div>
+
+        {todaysTasks.length === 0 ? (
+          <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
+            <CardContent className="flex items-center justify-center py-8">
+              <p className="text-sm text-muted-foreground">No tasks due today</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-2">
+            {todaysTasks.map((task) => (
+              <Link
+                key={task.id}
+                href={task.clientId ? `/agent/clients/${task.clientId}` : '/agent/todo-list'}
+              >
+                <Card className="group border-border/50 bg-card/80 backdrop-blur-sm transition-all duration-300 hover:border-primary/40 hover:shadow-md hover:shadow-primary/5 card-interactive cursor-pointer">
+                  <CardContent className="flex items-center gap-4 py-3.5">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {task.title}
+                        </p>
+                        {task.isOverdue && (
+                          <Badge variant="outline" className="shrink-0 bg-destructive/10 text-destructive border-destructive/30 text-xs">
+                            <AlertTriangle className="mr-1 h-3 w-3" />
+                            Urgent
+                          </Badge>
+                        )}
+                      </div>
+                      {task.description && (
+                        <p className="mt-0.5 text-xs text-muted-foreground truncate">
+                          {task.description}
+                        </p>
+                      )}
+                      {task.clientName && (
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {task.clientName}
+                        </p>
+                      )}
+                    </div>
+                    <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Quick Actions */}
-      <div className="animate-fade-in-up" style={{ animationDelay: '0.25s' }}>
+      <div className="mb-8 animate-fade-in-up" style={{ animationDelay: '0.25s' }}>
         <h2 className="mb-4 font-display text-lg font-semibold text-foreground">
           Quick Actions
         </h2>
@@ -182,6 +297,66 @@ export default async function AgentDashboard() {
           </Link>
         </div>
       </div>
+
+      {/* Recent Clients */}
+      {recentClients.length > 0 && (
+        <div className="animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="font-display text-lg font-semibold text-foreground">
+              Recent Clients
+            </h2>
+            <Link
+              href="/agent/clients"
+              className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+            >
+              View All →
+            </Link>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 stagger-children">
+            {recentClients.map((client) => (
+              <Link key={client.id} href={`/agent/clients/${client.id}`}>
+                <Card className="group h-full border-border/50 bg-card/80 backdrop-blur-sm transition-all duration-300 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10 card-interactive cursor-pointer">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <CardTitle className="truncate text-base font-semibold text-foreground">
+                          {client.name}
+                        </CardTitle>
+                        {client.nextTask && (
+                          <p className="mt-1 truncate text-xs text-muted-foreground">
+                            Next: {client.nextTask}
+                          </p>
+                        )}
+                      </div>
+                      <Badge
+                        className={`shrink-0 rounded-lg px-2 py-0.5 text-xs font-medium ${client.statusColor}`}
+                      >
+                        {client.status}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div>
+                      <div className="mb-1.5 flex items-center justify-between text-xs">
+                        <span className="font-medium text-muted-foreground">
+                          Step {client.step} of {client.totalSteps}
+                        </span>
+                        <span className="font-semibold text-foreground">{client.progress}%</span>
+                      </div>
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/50">
+                        <div
+                          className="h-full rounded-full bg-linear-to-r from-primary to-primary/70 transition-all duration-500"
+                          style={{ width: `${client.progress}%` }}
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
