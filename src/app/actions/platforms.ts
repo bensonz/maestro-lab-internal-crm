@@ -3,7 +3,7 @@
 import { auth } from '@/backend/auth'
 import prisma from '@/backend/prisma/client'
 import { getStorage } from '@/lib/storage'
-import { PlatformStatus, EventType, PlatformType } from '@/types'
+import { PlatformStatus, EventType, PlatformType, UserRole } from '@/types'
 import { revalidatePath } from 'next/cache'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
@@ -160,5 +160,135 @@ export async function deletePlatformScreenshot(
   } catch (error) {
     console.error('Delete error:', error)
     return { success: false, error: 'Failed to delete screenshot' }
+  }
+}
+
+const BACKOFFICE_ROLES: string[] = [UserRole.BACKOFFICE, UserRole.ADMIN]
+
+export async function approvePlatformScreenshot(
+  clientId: string,
+  platformType: PlatformType
+): Promise<{ success: boolean; error?: string }> {
+  const session = await auth()
+  if (!session?.user?.id || !BACKOFFICE_ROLES.includes(session.user.role)) {
+    return { success: false, error: 'Unauthorized' }
+  }
+
+  try {
+    await prisma.clientPlatform.update({
+      where: {
+        clientId_platformType: { clientId, platformType },
+      },
+      data: {
+        status: PlatformStatus.VERIFIED,
+        reviewedBy: session.user.id,
+        reviewedAt: new Date(),
+      },
+    })
+
+    await prisma.eventLog.create({
+      data: {
+        eventType: EventType.PLATFORM_STATUS_CHANGE,
+        description: `Platform ${platformType} verified`,
+        clientId,
+        userId: session.user.id,
+        metadata: { platformType, action: 'approve' },
+      },
+    })
+
+    revalidatePath('/backoffice/sales-interaction')
+
+    return { success: true }
+  } catch (error) {
+    console.error('Approve error:', error)
+    return { success: false, error: 'Failed to approve screenshot' }
+  }
+}
+
+export async function rejectPlatformScreenshot(
+  clientId: string,
+  platformType: PlatformType,
+  reason?: string
+): Promise<{ success: boolean; error?: string }> {
+  const session = await auth()
+  if (!session?.user?.id || !BACKOFFICE_ROLES.includes(session.user.role)) {
+    return { success: false, error: 'Unauthorized' }
+  }
+
+  try {
+    await prisma.clientPlatform.update({
+      where: {
+        clientId_platformType: { clientId, platformType },
+      },
+      data: {
+        status: PlatformStatus.REJECTED,
+        reviewNotes: reason || null,
+        reviewedBy: session.user.id,
+        reviewedAt: new Date(),
+      },
+    })
+
+    await prisma.eventLog.create({
+      data: {
+        eventType: EventType.PLATFORM_STATUS_CHANGE,
+        description: `Platform ${platformType} rejected${reason ? `: ${reason}` : ''}`,
+        clientId,
+        userId: session.user.id,
+        metadata: { platformType, action: 'reject', reason },
+      },
+    })
+
+    revalidatePath('/backoffice/sales-interaction')
+
+    return { success: true }
+  } catch (error) {
+    console.error('Reject error:', error)
+    return { success: false, error: 'Failed to reject screenshot' }
+  }
+}
+
+export async function requestMoreInfo(
+  clientId: string,
+  platformType: PlatformType,
+  notes: string
+): Promise<{ success: boolean; error?: string }> {
+  const session = await auth()
+  if (!session?.user?.id || !BACKOFFICE_ROLES.includes(session.user.role)) {
+    return { success: false, error: 'Unauthorized' }
+  }
+
+  if (!notes.trim()) {
+    return { success: false, error: 'Notes are required' }
+  }
+
+  try {
+    await prisma.clientPlatform.update({
+      where: {
+        clientId_platformType: { clientId, platformType },
+      },
+      data: {
+        status: PlatformStatus.NEEDS_MORE_INFO,
+        reviewNotes: notes,
+        reviewedBy: session.user.id,
+        reviewedAt: new Date(),
+      },
+    })
+
+    await prisma.eventLog.create({
+      data: {
+        eventType: EventType.PLATFORM_STATUS_CHANGE,
+        description: `Platform ${platformType} needs more info`,
+        clientId,
+        userId: session.user.id,
+        metadata: { platformType, action: 'request_more_info', notes },
+      },
+    })
+
+    revalidatePath('/backoffice/sales-interaction')
+
+    return { success: true }
+  } catch (error) {
+    console.error('Request more info error:', error)
+    return { success: false, error: 'Failed to request more info' }
   }
 }
