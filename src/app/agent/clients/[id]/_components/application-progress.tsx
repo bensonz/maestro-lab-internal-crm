@@ -23,6 +23,7 @@ import {
 import { IntakeStatus, PlatformType, PlatformStatus, ToDoType, ToDoStatus } from '@/types'
 import { getPlatformName } from '@/lib/platforms'
 import { PlatformUploadCard } from './platform-upload-card'
+import { DeadlineCountdown } from '@/components/deadline-countdown'
 
 type StepStatus = 'completed' | 'in_progress' | 'blocked' | 'pending'
 
@@ -32,12 +33,14 @@ interface Step {
   status: StepStatus
   date?: string
   hasPendingTodos?: boolean
+  headerExtra?: React.ReactNode
   content?: React.ReactNode
 }
 
 interface ApplicationProgressProps {
   client: {
     intakeStatus: IntakeStatus
+    deadline: Date | null
     createdAt: Date
     statusChangedAt: Date
     platforms: {
@@ -259,6 +262,9 @@ export function ApplicationProgress({ client }: ApplicationProgressProps) {
       status: getStepStatus(3),
       date: getStepStatus(3) === 'in_progress' ? formatDateTime(new Date()) : undefined,
       hasPendingTodos: hasPendingTodosForStep(3),
+      headerExtra: getStepStatus(3) === 'in_progress' && client.deadline ? (
+        <DeadlineCountdown deadline={client.deadline} variant="badge" />
+      ) : undefined,
       content: (
         <div className="space-y-4 pl-10 pt-3">
           {/* Financial Platforms */}
@@ -354,6 +360,7 @@ export function ApplicationProgress({ client }: ApplicationProgressProps) {
                     {step.hasPendingTodos && (
                       <Bell className="h-4 w-4 text-accent animate-pulse" />
                     )}
+                    {step.headerExtra}
                   </div>
                   {step.date && (
                     <p className="text-xs text-muted-foreground">{step.date}</p>
