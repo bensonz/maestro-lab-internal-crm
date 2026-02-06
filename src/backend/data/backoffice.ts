@@ -1,5 +1,6 @@
 import prisma from '@/backend/prisma/client'
 import { IntakeStatus, PlatformStatus, ToDoStatus, UserRole, PlatformType, ToDoType, EventType, ExtensionRequestStatus } from '@/types'
+import { getAllAgentKPIs } from '@/backend/services/agent-kpis'
 
 export async function getDashboardStats() {
   const [clientCount, agentCount] = await Promise.all([
@@ -405,21 +406,26 @@ export async function getClientStats() {
 }
 
 export async function getAllAgents() {
-  const agents = await prisma.user.findMany({
-    where: { role: UserRole.AGENT },
-    include: {
-      agentMetrics: true,
-      agentClients: {
-        select: { intakeStatus: true },
+  const [agents, kpisMap] = await Promise.all([
+    prisma.user.findMany({
+      where: { role: UserRole.AGENT },
+      include: {
+        agentMetrics: true,
+        agentClients: {
+          select: { intakeStatus: true },
+        },
       },
-    },
-    orderBy: { createdAt: 'asc' },
-  })
+      orderBy: { createdAt: 'asc' },
+    }),
+    getAllAgentKPIs(),
+  ])
 
   return agents.map((agent) => {
     const workingClients = agent.agentClients.filter((c) =>
       c.intakeStatus === IntakeStatus.PHONE_ISSUED || c.intakeStatus === IntakeStatus.IN_EXECUTION
     ).length
+
+    const kpis = kpisMap[agent.id]
 
     return {
       id: agent.id,
@@ -428,35 +434,60 @@ export async function getAllAgents() {
       phone: agent.phone ?? '',
       start: formatDate(agent.createdAt),
       clients: agent.agentClients.length,
-      earned: '$0', // Would need earnings tracking
-      month: '$0',
       working: workingClients,
+      successRate: kpis?.successRate ?? 0,
+      delayRate: kpis?.delayRate ?? 0,
+      avgDaysToConvert: kpis?.avgDaysToConvert ?? null,
     }
   })
 }
 
 export async function getAgentStats() {
-  const [totalAgents, initiatedApps] = await Promise.all([
+  const now = new Date()
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+
+  const [totalAgents, initiatedApps, newClientsMonth, initiateEvents] = await Promise.all([
     prisma.user.count({ where: { role: UserRole.AGENT } }),
     prisma.client.count({
       where: {
         intakeStatus: { in: [IntakeStatus.PENDING, IntakeStatus.PHONE_ISSUED] },
       },
     }),
+    prisma.client.count({
+      where: { createdAt: { gte: startOfMonth } },
+    }),
+    // Get all PHONE_ISSUED events with client creation dates for avg computation
+    prisma.eventLog.findMany({
+      where: {
+        eventType: EventType.STATUS_CHANGE,
+        newValue: IntakeStatus.PHONE_ISSUED,
+      },
+      select: {
+        createdAt: true,
+        client: { select: { createdAt: true } },
+      },
+    }),
   ])
 
-  // New clients this month
-  const now = new Date()
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-  const newClientsMonth = await prisma.client.count({
-    where: { createdAt: { gte: startOfMonth } },
-  })
+  // Compute avg days to open from all agents' initiation events
+  let avgDaysToOpen: number | null = null
+  if (initiateEvents.length > 0) {
+    const days = initiateEvents
+      .filter((e) => e.client)
+      .map((e) => {
+        const diffMs = e.createdAt.getTime() - e.client!.createdAt.getTime()
+        return diffMs / (1000 * 60 * 60 * 24)
+      })
+    if (days.length > 0) {
+      avgDaysToOpen = Math.round((days.reduce((s, d) => s + d, 0) / days.length) * 10) / 10
+    }
+  }
 
   return {
     totalAgents,
     initiatedApps,
     newClientsMonth,
-    avgDaysToOpen: 0, // Would need calculation
+    avgDaysToOpen,
   }
 }
 
