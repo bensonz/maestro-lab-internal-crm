@@ -35,7 +35,7 @@ const ALLOWED_TRANSITIONS: Record<IntakeStatus, IntakeStatus[]> = {
 
 // ─── Business Day Helper ──────────────────────────────────────────────────────
 
-function addBusinessDays(date: Date, days: number): Date {
+export function addBusinessDays(date: Date, days: number): Date {
   const result = new Date(date)
   let added = 0
   while (added < days) {
