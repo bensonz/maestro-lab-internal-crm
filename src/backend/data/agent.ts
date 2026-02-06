@@ -402,6 +402,9 @@ export async function getClientDetail(clientId: string, agentId: string) {
           createdAt: true,
         },
       },
+      _count: {
+        select: { extensionRequests: true },
+      },
     },
   })
 
@@ -495,6 +498,7 @@ export async function getClientDetail(clientId: string, agentId: string) {
         }
       : null,
     pendingExtensionRequest: client.extensionRequests[0] ?? null,
+    extensionRequestCount: client._count.extensionRequests,
     createdAt: client.createdAt,
     updatedAt: client.updatedAt,
     statusChangedAt: client.statusChangedAt,
