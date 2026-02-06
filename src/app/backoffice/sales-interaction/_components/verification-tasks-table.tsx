@@ -10,6 +10,7 @@ import type { VerificationTask } from '@/backend/data/operations'
 import { PlatformType } from '@/types'
 import { cn } from '@/lib/utils'
 import { DocumentReviewModal } from './document-review-modal'
+import { DeadlineCountdown } from '@/components/deadline-countdown'
 
 interface VerificationTasksTableProps {
   tasks: VerificationTask[]
@@ -76,10 +77,14 @@ export function VerificationTasksTable({ tasks, selectedAgentId }: VerificationT
                       <td className="py-3 text-muted-foreground">{task.task}</td>
                       <td className="py-3 text-muted-foreground">{task.agentName}</td>
                       <td className="py-3">
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <Clock className="h-3.5 w-3.5" />
-                          {task.deadlineLabel}
-                        </div>
+                        {task.clientDeadline ? (
+                          <DeadlineCountdown deadline={task.clientDeadline} variant="inline" />
+                        ) : (
+                          <div className="flex items-center gap-1.5 text-muted-foreground">
+                            <Clock className="h-3.5 w-3.5" />
+                            {task.deadlineLabel}
+                          </div>
+                        )}
                       </td>
                       <td className="py-3">
                         <Badge
