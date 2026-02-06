@@ -278,6 +278,7 @@ export interface VerificationTask {
   deadline: Date | null
   daysUntilDue: number | null
   deadlineLabel: string
+  clientDeadline: Date | null
   status: 'Pending' | 'Done'
   screenshots: string[]
 }
@@ -295,6 +296,7 @@ export async function getVerificationClients(): Promise<VerificationTask[]> {
           firstName: true,
           lastName: true,
           agentId: true,
+          executionDeadline: true,
           agent: { select: { name: true } },
           platforms: {
             select: { platformType: true, screenshots: true },
@@ -335,6 +337,7 @@ export async function getVerificationClients(): Promise<VerificationTask[]> {
       deadline: todo.dueDate,
       daysUntilDue,
       deadlineLabel,
+      clientDeadline: todo.client?.executionDeadline ?? null,
       status: todo.status === ToDoStatus.COMPLETED ? 'Done' : 'Pending',
       screenshots: matchingPlatform?.screenshots ?? [],
     }
