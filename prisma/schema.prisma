@@ -137,6 +137,7 @@ model User {
   applicationDrafts ApplicationDraft[]
   extensionRequests ExtensionRequest[] @relation("ExtensionRequests")
   extensionReviews  ExtensionRequest[] @relation("ExtensionReviews")
+  fundMovements     FundMovement[]
 
   @@index([role])
   @@index([email])
@@ -172,6 +173,8 @@ model Client {
   phoneAssignment    PhoneAssignment?
   earnings           Earning[]
   extensionRequests  ExtensionRequest[]
+  fundMovementsFrom  FundMovement[]   @relation("FundMovementsFrom")
+  fundMovementsTo    FundMovement[]   @relation("FundMovementsTo")
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
 
@@ -350,4 +353,44 @@ model ExtensionRequest {
   @@index([clientId])
   @@index([status])
   @@index([requestedById])
+}
+
+model FundMovement {
+  id           String   @id @default(cuid())
+
+  // Transfer classification
+  type         String // "internal" | "external"
+  flowType     String // "same_client" | "different_clients" | "external"
+
+  // Sender
+  fromClientId String?
+  fromClient   Client?  @relation("FundMovementsFrom", fields: [fromClientId], references: [id])
+  fromPlatform String
+
+  // Receiver
+  toClientId   String?
+  toClient     Client?  @relation("FundMovementsTo", fields: [toClientId], references: [id])
+  toPlatform   String
+
+  // Amount
+  amount       Decimal  @db.Decimal(10, 2)
+  currency     String   @default("USD")
+  fee          Decimal? @db.Decimal(10, 2)
+
+  // Transfer details
+  method       String? // "zelle" | "wire" | "transfer" | null
+  status       String   @default("completed") // "pending" | "completed"
+  notes        String?
+
+  // Audit
+  recordedById String
+  recordedBy   User     @relation(fields: [recordedById], references: [id])
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([fromClientId])
+  @@index([toClientId])
+  @@index([recordedById])
+  @@index([createdAt])
 }
