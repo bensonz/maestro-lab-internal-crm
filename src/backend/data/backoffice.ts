@@ -1,5 +1,5 @@
 import prisma from '@/backend/prisma/client'
-import { IntakeStatus, PlatformStatus, ToDoStatus, UserRole, PlatformType, ToDoType, EventType } from '@/types'
+import { IntakeStatus, PlatformStatus, ToDoStatus, UserRole, PlatformType, ToDoType, EventType, ExtensionRequestStatus } from '@/types'
 
 export async function getDashboardStats() {
   const [clientCount, agentCount] = await Promise.all([
@@ -23,7 +23,7 @@ export async function getOverviewStats() {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  const [pendingReviews, approvedToday, urgentActions, activeClients] = await Promise.all([
+  const [pendingReviews, approvedToday, urgentActions, activeClients, pendingExtensions] = await Promise.all([
     // Clients ready for approval + platforms pending review
     prisma.client.count({
       where: { intakeStatus: IntakeStatus.READY_FOR_APPROVAL },
@@ -47,9 +47,41 @@ export async function getOverviewStats() {
         },
       },
     }),
+    prisma.extensionRequest.count({
+      where: { status: ExtensionRequestStatus.PENDING },
+    }),
   ])
 
-  return { pendingReviews, approvedToday, urgentActions, activeClients }
+  return { pendingReviews, approvedToday, urgentActions, activeClients, pendingExtensions }
+}
+
+export async function getPendingExtensionRequests() {
+  const now = new Date()
+
+  const requests = await prisma.extensionRequest.findMany({
+    where: { status: ExtensionRequestStatus.PENDING },
+    include: {
+      client: {
+        select: { firstName: true, lastName: true },
+      },
+      requestedBy: {
+        select: { name: true },
+      },
+    },
+    orderBy: { createdAt: 'asc' },
+  })
+
+  return requests.map((r) => ({
+    id: r.id,
+    clientId: r.clientId,
+    clientName: `${r.client.firstName} ${r.client.lastName}`,
+    agentName: r.requestedBy.name,
+    reason: r.reason,
+    requestedDays: r.requestedDays,
+    currentDeadline: r.currentDeadline,
+    createdAt: r.createdAt,
+    deadlineStatus: (r.currentDeadline < now ? 'overdue' : 'active') as 'active' | 'overdue',
+  }))
 }
 
 export async function getPriorityTasks() {
