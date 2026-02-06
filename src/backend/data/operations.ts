@@ -279,6 +279,7 @@ export interface VerificationTask {
   daysUntilDue: number | null
   deadlineLabel: string
   status: 'Pending' | 'Done'
+  screenshots: string[]
 }
 
 export async function getVerificationClients(): Promise<VerificationTask[]> {
@@ -295,6 +296,9 @@ export async function getVerificationClients(): Promise<VerificationTask[]> {
           lastName: true,
           agentId: true,
           agent: { select: { name: true } },
+          platforms: {
+            select: { platformType: true, screenshots: true },
+          },
         },
       },
     },
@@ -314,6 +318,11 @@ export async function getVerificationClients(): Promise<VerificationTask[]> {
       else deadlineLabel = `${daysUntilDue} days`
     }
 
+    // Find screenshots for this todo's platform from the client's platforms
+    const matchingPlatform = todo.platformType
+      ? todo.client?.platforms.find((p) => p.platformType === todo.platformType)
+      : null
+
     return {
       id: todo.id,
       clientId: todo.client?.id ?? null,
@@ -327,6 +336,7 @@ export async function getVerificationClients(): Promise<VerificationTask[]> {
       daysUntilDue,
       deadlineLabel,
       status: todo.status === ToDoStatus.COMPLETED ? 'Done' : 'Pending',
+      screenshots: matchingPlatform?.screenshots ?? [],
     }
   })
 }
