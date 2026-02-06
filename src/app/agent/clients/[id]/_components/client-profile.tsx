@@ -59,6 +59,7 @@ interface ClientProfileProps {
       requestedDays: number
       createdAt: Date
     } | null
+    extensionRequestCount: number
   }
 }
 
