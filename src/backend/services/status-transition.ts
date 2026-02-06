@@ -114,6 +114,7 @@ export async function transitionClientStatus(
   options?: {
     reason?: string
     metadata?: Record<string, unknown>
+    executionDeadlineDays?: number
   }
 ): Promise<{ success: boolean; error?: string }> {
   // 1. Fetch client
@@ -143,10 +144,11 @@ export async function transitionClientStatus(
   }
 
   // 3. Calculate execution deadline if entering IN_EXECUTION
+  const deadlineDays = options?.executionDeadlineDays ?? 3
   const executionDeadline =
     newStatus === IntakeStatus.IN_EXECUTION
-      ? addBusinessDays(new Date(), 3)
-      : (client.executionDeadline ?? addBusinessDays(new Date(), 3))
+      ? addBusinessDays(new Date(), deadlineDays)
+      : (client.executionDeadline ?? addBusinessDays(new Date(), deadlineDays))
 
   // 4. Determine todos to create
   const todoTemplates = getTodosForStatus(newStatus, executionDeadline)
