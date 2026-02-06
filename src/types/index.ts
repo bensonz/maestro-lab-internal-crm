@@ -9,6 +9,7 @@ export type {
   AgentMetrics,
   Earning,
   FundAllocation,
+  FundMovement,
 } from '@prisma/generated/browser'
 
 export {
