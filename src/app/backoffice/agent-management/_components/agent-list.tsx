@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import { Search } from 'lucide-react'
 
 interface Agent {
   id: string
@@ -11,23 +13,26 @@ interface Agent {
   phone: string
   start: string
   clients: number
-  earned: string
-  month: string
   working: number
+  successRate: number
+  delayRate: number
+  avgDaysToConvert: number | null
 }
 
 interface AgentListProps {
   agents: Agent[]
 }
 
-const tierColors: Record<string, string> = {
-  MD: 'text-amber-400',
-  SE: 'text-purple-400',
-  ED: 'text-blue-400',
-  '4★': 'text-emerald-400',
-  '3★': 'text-cyan-400',
-  '2★': 'text-slate-400',
-  '1★': 'text-slate-500',
+function getSuccessRateBg(rate: number): string {
+  if (rate >= 80) return 'bg-chart-4/20 text-chart-4 border-chart-4/30'
+  if (rate >= 60) return 'bg-accent/20 text-accent border-accent/30'
+  return 'bg-destructive/20 text-destructive border-destructive/30'
+}
+
+function getDelayRateBg(rate: number): string {
+  if (rate <= 10) return 'bg-chart-4/20 text-chart-4 border-chart-4/30'
+  if (rate <= 20) return 'bg-accent/20 text-accent border-accent/30'
+  return 'bg-destructive/20 text-destructive border-destructive/30'
 }
 
 export function AgentList({ agents }: AgentListProps) {
@@ -39,52 +44,74 @@ export function AgentList({ agents }: AgentListProps) {
   )
 
   return (
-    <Card className="border-slate-800 bg-slate-900 lg:col-span-3">
+    <Card className="border-border/50 bg-card/80 backdrop-blur-sm lg:col-span-3">
       <CardHeader>
-        <CardTitle className="text-white">Agent Directory ({filteredAgents.length})</CardTitle>
-        <Input
-          className="border-slate-700 bg-slate-800 text-white"
-          placeholder="Search agents..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
+        <CardTitle className="font-display text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          Agent Directory ({filteredAgents.length})
+        </CardTitle>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search agents..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+            data-testid="agent-search-input"
+          />
+        </div>
       </CardHeader>
       <CardContent>
         {filteredAgents.length === 0 ? (
-          <p className="text-center text-slate-400 py-8">
+          <p className="text-center text-muted-foreground py-8">
             {agents.length === 0 ? 'No agents registered' : 'No agents match your search'}
           </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-slate-400">
-                  <th className="pb-3">Agent</th>
-                  <th className="pb-3">Phone</th>
-                  <th className="pb-3">Start</th>
-                  <th className="pb-3">Clients</th>
-                  <th className="pb-3">Earned</th>
-                  <th className="pb-3">Month</th>
-                  <th className="pb-3">Working</th>
+                <tr className="text-left text-muted-foreground">
+                  <th className="pb-3 font-medium">Agent</th>
+                  <th className="pb-3 font-medium">Phone</th>
+                  <th className="pb-3 font-medium">Start</th>
+                  <th className="pb-3 font-medium">Clients</th>
+                  <th className="pb-3 font-medium">Working</th>
+                  <th className="pb-3 font-medium">Success %</th>
+                  <th className="pb-3 font-medium">Delay %</th>
+                  <th className="pb-3 font-medium">Avg Convert</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredAgents.map((agent) => (
-                  <tr key={agent.id} className="border-t border-slate-800">
+                  <tr
+                    key={agent.id}
+                    className="border-t border-border/50"
+                    data-testid={`agent-row-${agent.id}`}
+                  >
                     <td className="py-3">
                       <div className="flex items-center gap-2">
-                        <span className={`text-xs font-bold ${tierColors[agent.tier] || 'text-slate-400'}`}>
+                        <span className="text-xs font-bold text-muted-foreground">
                           {agent.tier}
                         </span>
-                        <span className="font-medium text-white">{agent.name}</span>
+                        <span className="font-medium text-foreground">{agent.name}</span>
                       </div>
                     </td>
-                    <td className="text-slate-400">{agent.phone || '—'}</td>
-                    <td className="text-slate-400">{agent.start}</td>
-                    <td className="text-white">{agent.clients}</td>
-                    <td className="text-emerald-400">{agent.earned}</td>
-                    <td className="text-white">{agent.month}</td>
-                    <td className="text-slate-400">{agent.working}</td>
+                    <td className="text-muted-foreground">{agent.phone || '—'}</td>
+                    <td className="text-muted-foreground">{agent.start}</td>
+                    <td className="text-foreground font-mono">{agent.clients}</td>
+                    <td className="text-muted-foreground font-mono">{agent.working}</td>
+                    <td>
+                      <Badge className={`text-xs font-mono ${getSuccessRateBg(agent.successRate)}`}>
+                        {agent.successRate}%
+                      </Badge>
+                    </td>
+                    <td>
+                      <Badge className={`text-xs font-mono ${getDelayRateBg(agent.delayRate)}`}>
+                        {agent.delayRate}%
+                      </Badge>
+                    </td>
+                    <td className="font-mono text-muted-foreground">
+                      {agent.avgDaysToConvert !== null ? `${agent.avgDaysToConvert}d` : '—'}
+                    </td>
                   </tr>
                 ))}
               </tbody>
