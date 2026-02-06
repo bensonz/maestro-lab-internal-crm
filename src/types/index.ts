@@ -19,6 +19,7 @@ export {
   ToDoType,
   ToDoStatus,
   EventType,
+  ExtensionRequestStatus,
 } from '@prisma/generated/browser'
 
 // UI-specific types
