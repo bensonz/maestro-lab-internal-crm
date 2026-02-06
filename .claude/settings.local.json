@@ -8,7 +8,8 @@
       "Bash(pnpm prisma generate:*)",
       "Bash(pnpm add:*)",
       "WebSearch",
-      "Bash(npx shadcn@latest add:*)"
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(pnpm list:*)"
     ]
   }
 }

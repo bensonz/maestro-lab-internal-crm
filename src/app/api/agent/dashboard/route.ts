@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/backend/auth'
 import { prisma } from '@/backend/prisma/client'
-import { IntakeStatus, ToDoStatus } from '@prisma/client'
+import { IntakeStatus, ToDoStatus } from '@prisma/generated'
 
 export async function GET() {
   const session = await auth()

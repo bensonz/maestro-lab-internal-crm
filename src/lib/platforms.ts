@@ -1,4 +1,4 @@
-import { PlatformType } from '@prisma/client'
+import { PlatformType } from '@prisma/generated/browser'
 
 /**
  * Platform metadata and utilities

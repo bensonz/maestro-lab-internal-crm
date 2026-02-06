@@ -1,8 +1,12 @@
 import 'dotenv/config'
-import { PrismaClient, UserRole } from '@prisma/client'
+import { PrismaClient, UserRole } from './generated/prisma/client'
+import { PrismaPg } from '@prisma/adapter-pg'
+import pg from 'pg'
 import bcrypt from 'bcryptjs'
 
-const prisma = new PrismaClient()
+const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL })
+const adapter = new PrismaPg(pool)
+const prisma = new PrismaClient({ adapter })
 
 const hashPassword = (password: string) => bcrypt.hashSync(password, 10)
 
@@ -70,4 +74,5 @@ main()
   })
   .finally(async () => {
     await prisma.$disconnect()
+    await pool.end()
   })

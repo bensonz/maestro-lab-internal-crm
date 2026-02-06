@@ -9,7 +9,7 @@ export type {
   AgentMetrics,
   Earning,
   FundAllocation,
-} from '@prisma/client'
+} from '@prisma/generated/browser'
 
 export {
   UserRole,
@@ -19,7 +19,7 @@ export {
   ToDoType,
   ToDoStatus,
   EventType,
-} from '@prisma/client'
+} from '@prisma/generated/browser'
 
 // UI-specific types
 export interface NavItem {

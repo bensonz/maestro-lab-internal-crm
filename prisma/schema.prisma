@@ -1,10 +1,10 @@
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "./generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // ============================================
@@ -111,20 +111,20 @@ enum EventType {
 // ============================================
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  passwordHash  String?   // null for OAuth users
-  name          String
-  role          UserRole
-  phone         String?
-  avatar        String?
-  isActive      Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String? // null for OAuth users
+  name         String
+  role         UserRole
+  phone        String?
+  avatar       String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  agentClients      Client[]            @relation("AgentClients")
-  assignedToDos     ToDo[]              @relation("AssignedToDos")
-  createdToDos      ToDo[]              @relation("CreatedToDos")
+  agentClients      Client[]           @relation("AgentClients")
+  assignedToDos     ToDo[]             @relation("AssignedToDos")
+  createdToDos      ToDo[]             @relation("CreatedToDos")
   eventLogs         EventLog[]
   agentMetrics      AgentMetrics?
   phoneAssignments  PhoneAssignment[]
@@ -135,36 +135,36 @@ model User {
 }
 
 model Client {
-  id              String        @id @default(cuid())
-  firstName       String
-  lastName        String
-  email           String?
-  phone           String?
-  idNumber        String?
-  idDocument      String?
-  address         String?
-  city            String?
-  state           String?
-  zipCode         String?
-  country         String?
-  questionnaire   String?
-  applicationNotes String?
-  intakeStatus    IntakeStatus  @default(PENDING)
-  statusChangedAt DateTime      @default(now())
-  complianceReview    String?
-  complianceStatus    String?
-  backgroundCheck     Boolean   @default(false)
-  executionDeadline   DateTime?
-  deadlineExtensions  Int       @default(0)
-  agentId         String
-  agent           User          @relation("AgentClients", fields: [agentId], references: [id])
-  platforms       ClientPlatform[]
-  toDos           ToDo[]
-  eventLogs       EventLog[]
-  phoneAssignment PhoneAssignment?
-  earnings        Earning[]
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id                 String           @id @default(cuid())
+  firstName          String
+  lastName           String
+  email              String?
+  phone              String?
+  idNumber           String?
+  idDocument         String?
+  address            String?
+  city               String?
+  state              String?
+  zipCode            String?
+  country            String?
+  questionnaire      String?
+  applicationNotes   String?
+  intakeStatus       IntakeStatus     @default(PENDING)
+  statusChangedAt    DateTime         @default(now())
+  complianceReview   String?
+  complianceStatus   String?
+  backgroundCheck    Boolean          @default(false)
+  executionDeadline  DateTime?
+  deadlineExtensions Int              @default(0)
+  agentId            String
+  agent              User             @relation("AgentClients", fields: [agentId], references: [id])
+  platforms          ClientPlatform[]
+  toDos              ToDo[]
+  eventLogs          EventLog[]
+  phoneAssignment    PhoneAssignment?
+  earnings           Earning[]
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
 
   @@index([intakeStatus])
   @@index([agentId])
@@ -172,21 +172,21 @@ model Client {
 }
 
 model ClientPlatform {
-  id            String          @id @default(cuid())
-  clientId      String
-  client        Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  platformType  PlatformType
-  status        PlatformStatus  @default(NOT_STARTED)
-  username      String?
-  accountId     String?
-  screenshots   String[]
-  reviewNotes   String?
-  reviewedBy    String?
-  reviewedAt    DateTime?
-  externalId    String?
+  id             String         @id @default(cuid())
+  clientId       String
+  client         Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  platformType   PlatformType
+  status         PlatformStatus @default(NOT_STARTED)
+  username       String?
+  accountId      String?
+  screenshots    String[]
+  reviewNotes    String?
+  reviewedBy     String?
+  reviewedAt     DateTime?
+  externalId     String?
   externalStatus String?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
   @@unique([clientId, platformType])
   @@index([status])
@@ -228,17 +228,17 @@ model ToDo {
 }
 
 model EventLog {
-  id          String      @id @default(cuid())
+  id          String    @id @default(cuid())
   eventType   EventType
   description String
   clientId    String?
-  client      Client?     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client      Client?   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   userId      String?
-  user        User?       @relation(fields: [userId], references: [id])
+  user        User?     @relation(fields: [userId], references: [id])
   metadata    Json?
   oldValue    String?
   newValue    String?
-  createdAt   DateTime    @default(now())
+  createdAt   DateTime  @default(now())
 
   @@index([clientId])
   @@index([userId])
@@ -247,19 +247,19 @@ model EventLog {
 }
 
 model PhoneAssignment {
-  id            String    @id @default(cuid())
-  phoneNumber   String
-  deviceId      String?
-  clientId      String?   @unique
-  client        Client?   @relation(fields: [clientId], references: [id])
-  agentId       String
-  agent         User      @relation(fields: [agentId], references: [id])
-  issuedAt      DateTime?
-  signedOutAt   DateTime?
-  returnedAt    DateTime?
-  notes         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id          String    @id @default(cuid())
+  phoneNumber String
+  deviceId    String?
+  clientId    String?   @unique
+  client      Client?   @relation(fields: [clientId], references: [id])
+  agentId     String
+  agent       User      @relation(fields: [agentId], references: [id])
+  issuedAt    DateTime?
+  signedOutAt DateTime?
+  returnedAt  DateTime?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([phoneNumber])
   @@index([agentId])
@@ -300,14 +300,14 @@ model Earning {
 }
 
 model FundAllocation {
-  id            String    @id @default(cuid())
-  name          String
-  description   String?
-  amount        Decimal   @db.Decimal(10, 2)
-  currency      String    @default("USD")
-  allocatedAt   DateTime  @default(now())
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  amount      Decimal  @db.Decimal(10, 2)
+  currency    String   @default("USD")
+  allocatedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model ApplicationDraft {
