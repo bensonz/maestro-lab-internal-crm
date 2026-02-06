@@ -5,6 +5,7 @@ interface DeadlineCountdownProps {
   deadline: Date | string | null
   className?: string
   variant?: 'badge' | 'inline' | 'card'
+  isDelayed?: boolean
 }
 
 type Urgency = 'safe' | 'warning' | 'urgent' | 'critical' | 'overdue'
@@ -59,10 +60,12 @@ const URGENCY_STYLES: Record<Urgency, string> = {
   overdue: 'bg-destructive/20 text-destructive border-destructive/30',
 }
 
-export function DeadlineCountdown({ deadline, className, variant = 'badge' }: DeadlineCountdownProps) {
+export function DeadlineCountdown({ deadline, className, variant = 'badge', isDelayed }: DeadlineCountdownProps) {
   if (!deadline) return null
 
-  const { label, urgency, deadlineDate } = getDeadlineInfo(deadline)
+  const info = getDeadlineInfo(deadline)
+  const label = isDelayed && info.urgency === 'overdue' ? 'Delayed' : info.label
+  const { urgency, deadlineDate } = info
   const Icon = urgency === 'overdue' ? AlertTriangle : Clock
 
   if (variant === 'inline') {
