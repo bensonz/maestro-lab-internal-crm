@@ -45,9 +45,10 @@ Each client is onboarded to 11 platforms (8 sports betting + 3 financial), track
 ### Key Patterns
 
 **Authentication**: NextAuth v5 beta with credentials provider. Session includes `user.id` and `user.role`. Auth check pattern:
+
 ```typescript
-const session = await auth()
-if (!session?.user) redirect('/login')
+const session = await auth();
+if (!session?.user) redirect("/login");
 ```
 
 **Database Access**: Prisma client singleton at `@/lib/prisma/client`. Always import from there, not `@prisma/client` directly.
@@ -90,18 +91,21 @@ import { Input } from '@/components/ui/input'
 ## Next.js Best Practices (App Router)
 
 ### Data Fetching
+
 - **Server Components by default** — fetch data directly in components, no `useEffect`
 - **Server Actions for mutations** — `'use server'` functions, form actions
 - **No API routes for internal data** — only for external webhooks/third-party integrations
 - **Parallel fetching** — `Promise.all()` or multiple awaits in same component
 
 ### Component Architecture
+
 - **Server Components** — data fetching, heavy deps, SEO content
 - **Client Components** — interactivity, hooks, browser APIs
 - **`'use client'`** — only at the boundary, push it down as far as possible
 - **Composition pattern** — pass Server Components as children to Client Components
 
 ### File Structure
+
 ```
 app/
 ├── (portal)/               # Route groups for shared layouts
@@ -115,22 +119,26 @@ app/
 ```
 
 ### Forms
+
 - **Server Actions** over API routes
 - **`useActionState`** (React 19) for form state + pending
 - **`useFormStatus`** for submit button states
 - **Progressive enhancement** — forms work without JS
 
 ### Validation
+
 - **Zod** for schema validation
 - **Validate on server** — never trust client
 - **Return typed errors** from Server Actions
 
 ### Caching & Revalidation
+
 - **`revalidatePath()`** / **`revalidateTag()`** after mutations
 - **`unstable_cache()`** for expensive operations
 - **Avoid over-caching** — Next.js 15 is less aggressive by default
 
 ### Auth
+
 - **Middleware** for route protection
 - **Server-side session checks** in layouts/pages
 - **Don't expose sensitive data** in Client Components
@@ -140,12 +148,15 @@ app/
 ## Current Violations to Fix
 
 ### 1. API Route for Internal Data ❌
+
 `src/app/api/agent/dashboard/route.ts` — fetches dashboard data via API route.
 
 **Fix:** Delete this route. Fetch directly in Server Component or use Server Action.
 
 ### 2. Excessive `'use client'` at Page Level ❌
+
 Almost all pages are marked `'use client'`:
+
 - All `/backoffice/*` pages including layout
 - `/agent/new-client/page.tsx`
 - `/login/page.tsx`
@@ -153,16 +164,19 @@ Almost all pages are marked `'use client'`:
 **Fix:** Make pages Server Components by default. Extract interactive parts into `_components/` client components.
 
 ### 3. Hardcoded Mock Data in Pages ❌
+
 `/agent/clients/page.tsx` and `/backoffice/page.tsx` use hardcoded arrays instead of fetching from DB.
 
 **Fix:** Fetch real data in Server Components using Prisma directly.
 
 ### 4. No Server Actions Directory ❌
+
 No `src/app/actions/` directory for mutations.
 
 **Fix:** Create `src/app/actions/` with domain-grouped server action files (e.g., `clients.ts`, `platforms.ts`).
 
 ### 5. Backoffice Layout is Client Component ❌
+
 `/backoffice/layout.tsx` is `'use client'` — makes all children client components by default.
 
 **Fix:** Make layout a Server Component. Only wrap interactive sidebar in client boundary.
@@ -171,18 +185,15 @@ No `src/app/actions/` directory for mutations.
 
 ## Test Accounts (Seed Data)
 
-| Role       | Email              | Password     |
-|------------|-------------------|--------------|
-| Agent      | agent@test.com    | password123  |
-| Backoffice | admin@test.com    | password123  |
-| GM         | gm@test.com       | password123  |
+| Role       | Email          | Password    |
+| ---------- | -------------- | ----------- |
+| Agent      | agent@test.com | password123 |
+| Backoffice | admin@test.com | password123 |
+| GM         | gm@test.com    | password123 |
 
 ---
 
 ## Documentation
 
-See `/docs/` for detailed specs:
-- `MILESTONES.md` — MVP → V1 → V1.1 → V2 roadmap
-- `PAGES-AGENT.md` — Agent portal interactions + API specs
-- `PAGES-BACKOFFICE.md` — Backoffice portal interactions + API specs
-- `gap-analysis-v1.md` — Gap analysis from supplementary requirements
+For every task you complete, you should update the `CLAUDE.md` file to reflect the changes you made.
+And if some detail document is needed, write a new file in the `docs/` directory.
