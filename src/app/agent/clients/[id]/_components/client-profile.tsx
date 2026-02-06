@@ -128,6 +128,22 @@ export function ClientProfile({ client }: ClientProfileProps) {
         </div>
       </CardHeader>
       <CardContent className="space-y-5">
+        {/* Execution Delayed Banner */}
+        {client.intakeStatus === IntakeStatus.EXECUTION_DELAYED && (
+          <div
+            data-testid="execution-delayed-banner"
+            className="flex items-center gap-3 rounded-lg bg-yellow-500/10 p-3 ring-1 ring-yellow-500/30"
+          >
+            <AlertTriangle className="h-5 w-5 text-yellow-500 shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-yellow-500">Execution Delayed</p>
+              <p className="text-xs text-yellow-500/80">
+                Deadline has passed. Awaiting backoffice action.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Full Name */}
         <div className="space-y-1">
           <label className="text-xs text-muted-foreground">Full Name</label>
@@ -141,7 +157,7 @@ export function ClientProfile({ client }: ClientProfileProps) {
               <Timer className="h-3 w-3" />
               Execution Deadline
             </label>
-            <DeadlineCountdown deadline={client.deadline} variant="card" />
+            <DeadlineCountdown deadline={client.deadline} variant="card" isDelayed={client.intakeStatus === IntakeStatus.EXECUTION_DELAYED} />
             <div className="flex items-center justify-between">
               <p className="text-xs text-muted-foreground">
                 {client.deadlineExtensions} extension{client.deadlineExtensions !== 1 ? 's' : ''} used
