@@ -15,20 +15,6 @@ export async function approveClientIntake(
     return { success: false, error: 'Unauthorized' }
   }
 
-  // Verify client is ready for approval before calling transition
-  const client = await prisma.client.findUnique({
-    where: { id: clientId },
-    select: { id: true, intakeStatus: true },
-  })
-
-  if (!client) {
-    return { success: false, error: 'Client not found' }
-  }
-
-  if (client.intakeStatus !== IntakeStatus.READY_FOR_APPROVAL) {
-    return { success: false, error: 'Client is not ready for approval' }
-  }
-
   const result = await transitionClientStatus(clientId, IntakeStatus.APPROVED, session.user.id)
 
   if (result.success) {
