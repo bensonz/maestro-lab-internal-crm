@@ -82,6 +82,30 @@ import { Input } from '@/components/ui/input'
 </div>
 ```
 
+### Test IDs
+
+Add `data-testid` attributes to all interactive and significant UI elements for automated testing. Use descriptive kebab-case names:
+
+```tsx
+// Buttons & actions
+<Button data-testid="submit-client-form">Submit</Button>
+<Button data-testid="approve-extension-btn">Approve</Button>
+
+// Inputs & forms
+<Input data-testid="client-first-name" />
+<form data-testid="new-client-form">
+
+// Cards, sections & containers
+<Card data-testid="client-card-{clientId}">
+<div data-testid="deadline-countdown">
+<div data-testid="extension-request-dialog">
+
+// Table rows
+<tr data-testid="client-row-{clientId}">
+```
+
+This enables reliable UI automation. Always add `data-testid` to: buttons, form inputs, modals/dialogs, cards, table rows, nav links, and status badges.
+
 ### Path Aliases
 
 - `@/*` → `./src/*`
