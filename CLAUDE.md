@@ -112,6 +112,85 @@ This enables reliable UI automation. Always add `data-testid` to: buttons, form 
 
 ---
 
+## Testing Requirements
+
+**Every feature must include test files.** When implementing a new feature, write tests alongside the production code.
+
+### Test Setup
+
+- **Framework**: Vitest + @testing-library/react + @testing-library/jest-dom
+- **Config**: `vitest.config.ts` (jsdom environment, globals enabled)
+- **Setup file**: `src/test/setup.ts`
+- **Test location**: `src/test/` directory, mirroring source structure
+
+### What to Test
+
+For **server actions** (`src/app/actions/*.ts`):
+- Auth guard (unauthenticated → error)
+- Role authorization (wrong role → error)
+- Validation (missing/invalid inputs → error)
+- Happy path (correct inputs → success + side effects)
+- Edge cases (duplicate, not found, invalid state transitions)
+
+For **service functions** (`src/backend/services/*.ts`):
+- Core business logic
+- State transitions (valid + invalid)
+- Edge cases
+
+For **data queries** (`src/backend/data/*.ts`):
+- Test with mocked Prisma client
+- Verify correct query parameters
+
+For **React components** (when they contain significant logic):
+- Rendering with various props
+- User interactions (clicks, form submissions)
+- Conditional rendering based on state
+
+### Test Conventions
+
+```typescript
+// File naming: mirror the source path
+// src/app/actions/phones.ts → src/test/backend/actions/phones.test.ts
+// src/backend/services/status-transition.ts → src/test/backend/services/status-transition.test.ts
+
+// Mock pattern for auth
+vi.mock('@/backend/auth', () => ({ auth: vi.fn() }))
+
+// Mock pattern for Prisma
+vi.mock('@/backend/prisma/client', () => ({
+  default: {
+    client: { findUnique: vi.fn(), update: vi.fn() },
+    // ... mock each model used
+  },
+}))
+
+// Mock pattern for next/navigation
+vi.mock('next/navigation', () => ({
+  redirect: vi.fn((url: string) => { throw new Error(`REDIRECT:${url}`) }),
+}))
+
+// Mock pattern for next/cache
+vi.mock('next/cache', () => ({
+  revalidatePath: vi.fn(),
+}))
+```
+
+### Running Tests
+
+```bash
+pnpm test              # Watch mode
+pnpm test:run          # Single run (CI)
+pnpm test src/test/backend/actions/phones.test.ts  # Specific file
+```
+
+### Existing Tests (Reference)
+
+- `src/test/backend/actions/clients.test.ts` — createClient, saveDraft, deleteDraft actions
+- `src/test/backend/validations/client.test.ts` — client form validation
+- `src/test/backend/lib/platforms.test.ts` — platform utilities
+
+---
+
 ## Next.js Best Practices (App Router)
 
 ### Data Fetching
