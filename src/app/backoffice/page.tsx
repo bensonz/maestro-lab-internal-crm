@@ -7,21 +7,24 @@ import {
   getReminders,
   getOverviewRecentActivity,
   getPendingExtensionRequests,
+  getDelayedClients,
 } from '@/backend/data/backoffice'
 import { OverviewStats } from './_components/overview-stats'
 import { PriorityTasks } from './_components/priority-tasks'
 import { ExtensionRequests } from './_components/extension-requests'
+import { DelayedClients } from './_components/delayed-clients'
 import { QuickActions } from './_components/quick-actions'
 import { RemindersPanel } from './_components/reminders-panel'
 import { RecentActivity } from './_components/recent-activity'
 
 export default async function BackofficeOverviewPage() {
-  const [stats, tasks, reminders, activities, extensionRequests] = await Promise.all([
+  const [stats, tasks, reminders, activities, extensionRequests, delayedClients] = await Promise.all([
     getOverviewStats(),
     getPriorityTasks(),
     getReminders(),
     getOverviewRecentActivity(),
     getPendingExtensionRequests(),
+    getDelayedClients(),
   ])
 
   const today = format(new Date(), 'EEEE, MMMM d')
@@ -52,6 +55,7 @@ export default async function BackofficeOverviewPage() {
           urgentActions={stats.urgentActions}
           activeClients={stats.activeClients}
           pendingExtensions={stats.pendingExtensions}
+          delayedClients={stats.delayedClients}
         />
       </div>
 
@@ -65,6 +69,11 @@ export default async function BackofficeOverviewPage() {
           {extensionRequests.length > 0 && (
             <div className="animate-fade-in-up" style={{ animationDelay: '0.125s' }}>
               <ExtensionRequests requests={extensionRequests} />
+            </div>
+          )}
+          {delayedClients.length > 0 && (
+            <div className="animate-fade-in-up" style={{ animationDelay: '0.135s' }}>
+              <DelayedClients clients={delayedClients} />
             </div>
           )}
           <div className="animate-fade-in-up" style={{ animationDelay: '0.15s' }}>
