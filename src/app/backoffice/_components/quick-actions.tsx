@@ -1,36 +1,61 @@
 'use client'
 
+import { useTransition } from 'react'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Phone, DollarSign, FileText, BarChart3 } from 'lucide-react'
+import { Phone, DollarSign, FileText, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
+import { checkOverdueClients } from '@/app/actions/status'
 
 const actions = [
   {
     label: 'Issue Phone',
     icon: Phone,
     href: '/backoffice/phone-tracking',
+    action: null as string | null,
   },
   {
     label: 'Allocate Funds',
     icon: DollarSign,
     href: '/backoffice/fund-allocation',
+    action: null as string | null,
   },
   {
     label: 'Review Docs',
     icon: FileText,
     href: '/backoffice/sales-interaction',
+    action: null as string | null,
   },
   {
-    label: 'View Reports',
-    icon: BarChart3,
-    href: null, // Coming soon
+    label: 'Check Overdue',
+    icon: AlertTriangle,
+    href: null,
+    action: 'checkOverdue' as string | null,
   },
 ]
 
 export function QuickActions() {
-  const handleComingSoon = () => {
-    toast.info('Reports feature coming soon')
+  const [isPending, startTransition] = useTransition()
+
+  const handleCheckOverdue = () => {
+    startTransition(async () => {
+      const result = await checkOverdueClients()
+      if (result.success) {
+        if (result.marked > 0) {
+          toast.warning(`${result.marked} client${result.marked !== 1 ? 's' : ''} marked as delayed`)
+        } else {
+          toast.success('All clients on track — no overdue deadlines')
+        }
+      } else {
+        toast.error(result.error || 'Failed to check overdue clients')
+      }
+    })
+  }
+
+  const handleAction = (action: string | null) => {
+    if (action === 'checkOverdue') {
+      handleCheckOverdue()
+    }
   }
 
   return (
@@ -42,27 +67,28 @@ export function QuickActions() {
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 gap-3">
-          {actions.map((action) =>
-            action.href ? (
+          {actions.map((item) =>
+            item.href ? (
               <Link
-                key={action.label}
-                href={action.href}
+                key={item.label}
+                href={item.href}
                 className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-muted/30 ring-1 ring-border/30 transition-all hover:bg-muted/50 hover:ring-primary/30 hover:scale-[1.02]"
               >
-                <action.icon className="h-6 w-6 text-primary" />
+                <item.icon className="h-6 w-6 text-primary" />
                 <span className="text-sm font-medium text-foreground">
-                  {action.label}
+                  {item.label}
                 </span>
               </Link>
             ) : (
               <button
-                key={action.label}
-                onClick={handleComingSoon}
-                className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-muted/30 ring-1 ring-border/30 transition-all hover:bg-muted/50 hover:ring-primary/30 hover:scale-[1.02]"
+                key={item.label}
+                onClick={() => handleAction(item.action)}
+                disabled={isPending}
+                className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-muted/30 ring-1 ring-border/30 transition-all hover:bg-muted/50 hover:ring-primary/30 hover:scale-[1.02] disabled:opacity-50"
               >
-                <action.icon className="h-6 w-6 text-primary" />
+                <item.icon className="h-6 w-6 text-primary" />
                 <span className="text-sm font-medium text-foreground">
-                  {action.label}
+                  {isPending && item.action === 'checkOverdue' ? 'Checking...' : item.label}
                 </span>
               </button>
             )
