@@ -43,6 +43,7 @@ export async function getAgentClients(agentId: string) {
       progress,
       lastUpdated: formatRelativeTime(client.updatedAt),
       updatedAt: client.updatedAt.toISOString(),
+      deadline: client.executionDeadline?.toISOString() ?? null,
     }
   })
 }
