@@ -1,4 +1,5 @@
 import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { Clock, CheckCircle, AlertTriangle, Users } from 'lucide-react'
 
 interface OverviewStatsProps {
@@ -6,6 +7,7 @@ interface OverviewStatsProps {
   approvedToday: number
   urgentActions: number
   activeClients: number
+  pendingExtensions: number
 }
 
 export function OverviewStats({
@@ -13,6 +15,7 @@ export function OverviewStats({
   approvedToday,
   urgentActions,
   activeClients,
+  pendingExtensions,
 }: OverviewStatsProps) {
   const stats = [
     {
@@ -24,6 +27,7 @@ export function OverviewStats({
       iconColor: 'text-accent',
       hoverBorder: 'hover:border-accent/40',
       hoverShadow: 'hover:shadow-accent/10',
+      badge: null as string | null,
     },
     {
       label: 'APPROVED TODAY',
@@ -34,6 +38,7 @@ export function OverviewStats({
       iconColor: 'text-chart-4',
       hoverBorder: 'hover:border-chart-4/40',
       hoverShadow: 'hover:shadow-chart-4/10',
+      badge: null as string | null,
     },
     {
       label: 'URGENT ACTIONS',
@@ -44,6 +49,7 @@ export function OverviewStats({
       iconColor: 'text-destructive',
       hoverBorder: 'hover:border-destructive/40',
       hoverShadow: 'hover:shadow-destructive/10',
+      badge: pendingExtensions > 0 ? `${pendingExtensions} extension${pendingExtensions !== 1 ? 's' : ''}` : null,
     },
     {
       label: 'ACTIVE CLIENTS',
@@ -54,6 +60,7 @@ export function OverviewStats({
       iconColor: 'text-primary',
       hoverBorder: 'hover:border-primary/40',
       hoverShadow: 'hover:shadow-primary/10',
+      badge: null as string | null,
     },
   ]
 
@@ -73,6 +80,11 @@ export function OverviewStats({
                 <p className="text-3xl font-bold tracking-tight text-foreground">
                   {stat.value}
                 </p>
+                {stat.badge && (
+                  <Badge className="bg-accent/20 text-accent border-accent/30 text-xs font-medium mt-1">
+                    {stat.badge}
+                  </Badge>
+                )}
               </div>
               <div
                 className={`rounded-lg p-3 ring-1 ${stat.iconBg} ${stat.iconRing} transition-all group-hover:scale-105`}
