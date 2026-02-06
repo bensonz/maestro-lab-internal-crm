@@ -17,12 +17,15 @@ import {
   Info,
   Building2,
   Timer,
+  Clock,
 } from 'lucide-react'
 import { IntakeStatus } from '@/types'
 import { DeadlineCountdown } from '@/components/deadline-countdown'
+import { ExtensionRequestDialog } from './extension-request-dialog'
 
 interface ClientProfileProps {
   client: {
+    id: string
     firstName: string
     lastName: string
     middleName: string | null
@@ -49,6 +52,13 @@ interface ClientProfileProps {
       phoneNumber: string
       deviceId: string | null
     } | null
+    pendingExtensionRequest: {
+      id: string
+      status: string
+      reason: string
+      requestedDays: number
+      createdAt: Date
+    } | null
   }
 }
 
@@ -73,8 +83,11 @@ function formatDate(dateStr: string): string {
   })
 }
 
+const MAX_EXTENSIONS = 3
+
 export function ClientProfile({ client }: ClientProfileProps) {
   const [showCredentials, setShowCredentials] = useState(false)
+  const [extensionDialogOpen, setExtensionDialogOpen] = useState(false)
 
   const fullName = [client.firstName, client.middleName, client.lastName]
     .filter(Boolean)
@@ -128,9 +141,45 @@ export function ClientProfile({ client }: ClientProfileProps) {
               Execution Deadline
             </label>
             <DeadlineCountdown deadline={client.deadline} variant="card" />
-            <p className="text-xs text-muted-foreground">
-              {client.deadlineExtensions} extension{client.deadlineExtensions !== 1 ? 's' : ''} used
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                {client.deadlineExtensions} extension{client.deadlineExtensions !== 1 ? 's' : ''} used
+              </p>
+              {client.intakeStatus === IntakeStatus.IN_EXECUTION && (
+                <>
+                  {client.pendingExtensionRequest ? (
+                    <Badge variant="outline" className="border-yellow-500/50 bg-yellow-500/10 text-yellow-500 text-xs">
+                      <Clock className="h-3 w-3 mr-1" />
+                      Extension Pending
+                    </Badge>
+                  ) : client.deadlineExtensions >= MAX_EXTENSIONS ? (
+                    <Badge variant="outline" className="border-muted-foreground/30 bg-muted/30 text-muted-foreground text-xs">
+                      Max Extensions Used
+                    </Badge>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => setExtensionDialogOpen(true)}
+                    >
+                      <Clock className="h-3 w-3 mr-1" />
+                      Request Extension
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
+
+            {client.intakeStatus === IntakeStatus.IN_EXECUTION && (
+              <ExtensionRequestDialog
+                clientId={client.id}
+                currentDeadline={client.deadline}
+                extensionsUsed={client.deadlineExtensions}
+                open={extensionDialogOpen}
+                onOpenChange={setExtensionDialogOpen}
+              />
+            )}
           </div>
         )}
 

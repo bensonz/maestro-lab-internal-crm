@@ -89,6 +89,13 @@ interface ClientDetailViewProps {
       signedOutAt: Date | null
       returnedAt: Date | null
     } | null
+    pendingExtensionRequest: {
+      id: string
+      status: string
+      reason: string
+      requestedDays: number
+      createdAt: Date
+    } | null
     createdAt: Date
     updatedAt: Date
     statusChangedAt: Date

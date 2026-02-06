@@ -1,5 +1,5 @@
 import prisma from '@/backend/prisma/client'
-import { ToDoStatus, IntakeStatus, PlatformStatus } from '@/types'
+import { ToDoStatus, IntakeStatus, PlatformStatus, ExtensionRequestStatus } from '@/types'
 
 export async function getAgentClients(agentId: string) {
   const clients = await prisma.client.findMany({
@@ -390,6 +390,18 @@ export async function getClientDetail(clientId: string, agentId: string) {
         },
       },
       phoneAssignment: true,
+      extensionRequests: {
+        where: { status: ExtensionRequestStatus.PENDING },
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+        select: {
+          id: true,
+          status: true,
+          reason: true,
+          requestedDays: true,
+          createdAt: true,
+        },
+      },
     },
   })
 
@@ -482,6 +494,7 @@ export async function getClientDetail(clientId: string, agentId: string) {
           returnedAt: client.phoneAssignment.returnedAt,
         }
       : null,
+    pendingExtensionRequest: client.extensionRequests[0] ?? null,
     createdAt: client.createdAt,
     updatedAt: client.updatedAt,
     statusChangedAt: client.statusChangedAt,
