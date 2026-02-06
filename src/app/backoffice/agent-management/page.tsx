@@ -9,45 +9,54 @@ export default async function AgentManagementPage() {
   ])
 
   return (
-    <div className="p-6 text-white">
-      <h1 className="mb-6 text-2xl font-bold">Agent Management</h1>
+    <div className="p-6 lg:p-8 space-y-6">
+      <div>
+        <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">
+          Agent Management
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Monitor agent performance and manage your team
+        </p>
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-4">
         {/* Stats */}
         <div className="space-y-4">
-          <Card className="border-slate-800 bg-slate-900">
+          <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-slate-400">Total Agents</CardTitle>
+              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total Agents</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-white">{stats.totalAgents}</div>
+              <div className="text-3xl font-bold tracking-tight text-foreground">{stats.totalAgents}</div>
             </CardContent>
           </Card>
 
-          <Card className="border-slate-800 bg-slate-900">
+          <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-slate-400">Initiated Applications</CardTitle>
+              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Initiated Applications</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-emerald-500">{stats.initiatedApps}</div>
+              <div className="text-3xl font-bold tracking-tight text-chart-4">{stats.initiatedApps}</div>
             </CardContent>
           </Card>
 
-          <Card className="border-slate-800 bg-slate-900">
+          <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-slate-400">New Clients (Month)</CardTitle>
+              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">New Clients (Month)</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-white">{stats.newClientsMonth}</div>
+              <div className="text-3xl font-bold tracking-tight text-foreground">{stats.newClientsMonth}</div>
             </CardContent>
           </Card>
 
-          <Card className="border-slate-800 bg-slate-900">
+          <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-slate-400">Avg. Days to Open</CardTitle>
+              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Avg. Days to Open</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-white">{stats.avgDaysToOpen || '—'}</div>
+              <div className="text-3xl font-bold tracking-tight font-mono text-foreground">
+                {stats.avgDaysToOpen !== null ? stats.avgDaysToOpen : '—'}
+              </div>
             </CardContent>
           </Card>
         </div>
