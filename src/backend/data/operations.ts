@@ -138,6 +138,7 @@ export interface IntakeClient {
   days: number
   daysLabel: string
   canApprove: boolean
+  canAssignPhone: boolean
   pendingPlatform?: string
 }
 
@@ -164,6 +165,7 @@ export async function getIntakeClients(): Promise<IntakeClient[]> {
         where: { status: { in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS] } },
         select: { type: true, dueDate: true },
       },
+      phoneAssignment: { select: { id: true } },
     },
     orderBy: { statusChangedAt: 'asc' },
   })
@@ -176,6 +178,7 @@ export async function getIntakeClients(): Promise<IntakeClient[]> {
     // Determine detailed status
     const { statusType, status, pendingPlatform } = determineDetailedStatus(client)
     const canApprove = client.intakeStatus === IntakeStatus.READY_FOR_APPROVAL
+    const canAssignPhone = client.intakeStatus === IntakeStatus.PENDING && !client.phoneAssignment
 
     return {
       id: client.id,
@@ -188,6 +191,7 @@ export async function getIntakeClients(): Promise<IntakeClient[]> {
       days: daysSinceChange,
       daysLabel: daysSinceChange === 0 ? 'Today' : `${daysSinceChange} days`,
       canApprove,
+      canAssignPhone,
       pendingPlatform,
     }
   })
@@ -513,6 +517,29 @@ export async function getClientsForFundAllocation() {
 // Phone Tracking Data
 // ==========================================
 
+export async function getEligibleClientsForPhone(): Promise<{
+  id: string
+  name: string
+  agentName: string
+}[]> {
+  const clients = await prisma.client.findMany({
+    where: {
+      intakeStatus: IntakeStatus.PENDING,
+      phoneAssignment: null,
+    },
+    include: {
+      agent: { select: { name: true } },
+    },
+    orderBy: { createdAt: 'asc' },
+  })
+
+  return clients.map((c) => ({
+    id: c.id,
+    name: `${c.firstName} ${c.lastName}`,
+    agentName: c.agent?.name ?? 'Unassigned',
+  }))
+}
+
 export async function getPhoneAssignments() {
   const assignments = await prisma.phoneAssignment.findMany({
     include: {
@@ -541,7 +568,7 @@ export async function getPhoneAssignments() {
       number: a.phoneNumber,
       client: a.client ? `${a.client.firstName} ${a.client.lastName}` : 'Unassigned',
       clientId: a.client?.id ?? '',
-      carrier: 'Unknown', // Would need carrier field in schema
+      deviceId: a.deviceId ?? '',
       issuedDate: a.issuedAt ? formatDate(a.issuedAt) : '',
       issuedBy: a.agent.name,
       status,
