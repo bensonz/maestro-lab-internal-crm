@@ -77,7 +77,7 @@ export async function getAgentDashboardStats(agentId: string) {
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
 
-  const [clients, earnings, pendingTodos] = await Promise.all([
+  const [clients, earnings, pendingTodos, lastApprovedClient] = await Promise.all([
     prisma.client.findMany({
       where: { agentId },
       select: { intakeStatus: true },
@@ -92,6 +92,11 @@ export async function getAgentDashboardStats(agentId: string) {
         status: { in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS, ToDoStatus.OVERDUE] },
       },
     }),
+    prisma.client.findFirst({
+      where: { agentId, intakeStatus: IntakeStatus.APPROVED },
+      orderBy: { statusChangedAt: 'desc' },
+      select: { statusChangedAt: true },
+    }),
   ])
 
   const totalClients = clients.length
@@ -100,9 +105,14 @@ export async function getAgentDashboardStats(agentId: string) {
       c.intakeStatus === IntakeStatus.PHONE_ISSUED ||
       c.intakeStatus === IntakeStatus.IN_EXECUTION
   ).length
-  const completedThisMonth = clients.filter(
+  const inProgressCount = activeClients
+  const pendingApprovalCount = clients.filter(
+    (c) => c.intakeStatus === IntakeStatus.READY_FOR_APPROVAL || c.intakeStatus === IntakeStatus.NEEDS_MORE_INFO
+  ).length
+  const approvedCount = clients.filter(
     (c) => c.intakeStatus === IntakeStatus.APPROVED
   ).length
+  const completedThisMonth = approvedCount
 
   const totalEarnings = earnings
     .filter((e) => e.status === 'paid')
@@ -132,7 +142,53 @@ export async function getAgentDashboardStats(agentId: string) {
     pendingTasks: pendingTodos,
     earnings: totalEarnings,
     earningsChange: Math.round(earningsChange * 10) / 10,
+    inProgressCount,
+    pendingApprovalCount,
+    approvedCount,
+    lastApprovedAt: lastApprovedClient?.statusChangedAt
+      ? formatRelativeTime(lastApprovedClient.statusChangedAt)
+      : null,
   }
+}
+
+export async function getAgentTodaysTasks(agentId: string) {
+  const now = new Date()
+  const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+
+  const todos = await prisma.toDo.findMany({
+    where: {
+      assignedToId: agentId,
+      status: { in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS, ToDoStatus.OVERDUE] },
+      OR: [
+        { dueDate: { lte: endOfDay } },
+        { status: ToDoStatus.OVERDUE },
+      ],
+    },
+    include: {
+      client: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
+    },
+    orderBy: [{ dueDate: 'asc' }],
+    take: 5,
+  })
+
+  return todos.map((t) => {
+    const isOverdue = t.status === ToDoStatus.OVERDUE || (t.dueDate ? t.dueDate < now : false)
+    return {
+      id: t.id,
+      title: t.title,
+      description: t.description,
+      priority: t.priority,
+      isOverdue,
+      clientId: t.client?.id ?? null,
+      clientName: t.client ? `${t.client.firstName} ${t.client.lastName}` : null,
+    }
+  })
 }
 
 export async function getAgentEarnings(agentId: string) {
