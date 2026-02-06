@@ -3,7 +3,7 @@
 import { auth } from '@/backend/auth'
 import prisma from '@/backend/prisma/client'
 import { getStorage } from '@/lib/storage'
-import { PlatformStatus, EventType, PlatformType, UserRole } from '@/types'
+import { PlatformStatus, EventType, PlatformType, UserRole, ToDoStatus, ToDoType } from '@/types'
 import { revalidatePath } from 'next/cache'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
@@ -186,6 +186,19 @@ export async function approvePlatformScreenshot(
       },
     })
 
+    await prisma.toDo.updateMany({
+      where: {
+        clientId,
+        platformType,
+        type: { in: [ToDoType.UPLOAD_SCREENSHOT, ToDoType.VERIFICATION] },
+        status: { in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS] },
+      },
+      data: {
+        status: ToDoStatus.COMPLETED,
+        completedAt: new Date(),
+      },
+    })
+
     await prisma.eventLog.create({
       data: {
         eventType: EventType.PLATFORM_STATUS_CHANGE,
@@ -197,6 +210,7 @@ export async function approvePlatformScreenshot(
     })
 
     revalidatePath('/backoffice/sales-interaction')
+    revalidatePath(`/agent/clients/${clientId}`)
 
     return { success: true }
   } catch (error) {
@@ -228,6 +242,18 @@ export async function rejectPlatformScreenshot(
       },
     })
 
+    await prisma.toDo.updateMany({
+      where: {
+        clientId,
+        platformType,
+        type: { in: [ToDoType.UPLOAD_SCREENSHOT, ToDoType.VERIFICATION] },
+        status: { in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS] },
+      },
+      data: {
+        status: ToDoStatus.PENDING,
+      },
+    })
+
     await prisma.eventLog.create({
       data: {
         eventType: EventType.PLATFORM_STATUS_CHANGE,
@@ -239,6 +265,7 @@ export async function rejectPlatformScreenshot(
     })
 
     revalidatePath('/backoffice/sales-interaction')
+    revalidatePath(`/agent/clients/${clientId}`)
 
     return { success: true }
   } catch (error) {
@@ -274,6 +301,18 @@ export async function requestMoreInfo(
       },
     })
 
+    await prisma.toDo.updateMany({
+      where: {
+        clientId,
+        platformType,
+        type: { in: [ToDoType.UPLOAD_SCREENSHOT, ToDoType.VERIFICATION] },
+        status: { in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS] },
+      },
+      data: {
+        status: ToDoStatus.PENDING,
+      },
+    })
+
     await prisma.eventLog.create({
       data: {
         eventType: EventType.PLATFORM_STATUS_CHANGE,
@@ -285,6 +324,7 @@ export async function requestMoreInfo(
     })
 
     revalidatePath('/backoffice/sales-interaction')
+    revalidatePath(`/agent/clients/${clientId}`)
 
     return { success: true }
   } catch (error) {
