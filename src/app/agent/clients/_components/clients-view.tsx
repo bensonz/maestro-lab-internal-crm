@@ -10,8 +10,9 @@ import { Plus, Users, Search, ArrowUpDown } from 'lucide-react'
 import { IntakeStatus } from '@/types'
 import { cn } from '@/lib/utils'
 import { ClientsSummaryPanel, type StatusFilter } from './clients-summary-panel'
+import { DeadlineCountdown } from '@/components/deadline-countdown'
 
-type SortOption = 'priority' | 'newest' | 'oldest'
+type SortOption = 'priority' | 'newest' | 'oldest' | 'deadline'
 
 interface AgentClient {
   id: string
@@ -25,6 +26,7 @@ interface AgentClient {
   progress: number
   lastUpdated: string
   updatedAt: string
+  deadline: string | null
 }
 
 interface ClientsViewProps {
@@ -77,9 +79,10 @@ const SORT_LABELS: Record<SortOption, string> = {
   priority: 'Priority',
   newest: 'Newest Updated',
   oldest: 'Oldest Updated',
+  deadline: 'Deadline',
 }
 
-const SORT_OPTIONS: SortOption[] = ['priority', 'newest', 'oldest']
+const SORT_OPTIONS: SortOption[] = ['priority', 'newest', 'oldest', 'deadline']
 
 export function ClientsView({ clients, stats }: ClientsViewProps) {
   const [search, setSearch] = useState('')
@@ -109,6 +112,13 @@ export function ClientsView({ clients, stats }: ClientsViewProps) {
       }
       if (sort === 'newest') {
         return b.updatedAt.localeCompare(a.updatedAt)
+      }
+      if (sort === 'deadline') {
+        // Clients with deadlines first (ascending), then those without
+        if (a.deadline && b.deadline) return a.deadline.localeCompare(b.deadline)
+        if (a.deadline) return -1
+        if (b.deadline) return 1
+        return 0
       }
       return a.updatedAt.localeCompare(b.updatedAt)
     })
@@ -252,6 +262,11 @@ export function ClientsView({ clients, stats }: ClientsViewProps) {
                         />
                       </div>
                     </div>
+
+                    {/* Deadline Countdown */}
+                    {client.deadline && (
+                      <DeadlineCountdown deadline={client.deadline} variant="badge" />
+                    )}
 
                     {/* Footer */}
                     <div className="flex items-center justify-between border-t border-border/40 pt-4">
