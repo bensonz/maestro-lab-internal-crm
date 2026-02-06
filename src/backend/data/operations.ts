@@ -476,28 +476,61 @@ export async function getBackofficeTodoStats() {
 // ==========================================
 
 export async function getFundMovements() {
-  const allocations = await prisma.fundAllocation.findMany({
-    orderBy: { allocatedAt: 'desc' },
-    take: 20,
+  const movements = await prisma.fundMovement.findMany({
+    include: {
+      fromClient: { select: { firstName: true, lastName: true } },
+      toClient: { select: { firstName: true, lastName: true } },
+      recordedBy: { select: { name: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 50,
   })
 
-  return allocations.map((a) => ({
-    id: a.id,
-    from: 'Bank', // Would need proper from/to tracking
-    to: a.name,
-    amount: Number(a.amount),
-    type: 'internal',
-    method: 'transfer',
-    status: 'completed',
-    agent: 'System',
-    time: formatRelativeTime(a.allocatedAt),
+  return movements.map((m) => ({
+    id: m.id,
+    type: m.type,
+    flowType: m.flowType,
+    fromClientName: m.fromClient ? `${m.fromClient.firstName} ${m.fromClient.lastName}` : '—',
+    toClientName: m.toClient ? `${m.toClient.firstName} ${m.toClient.lastName}` : '—',
+    fromPlatform: m.fromPlatform,
+    toPlatform: m.toPlatform,
+    amount: Number(m.amount),
+    fee: m.fee ? Number(m.fee) : null,
+    method: m.method,
+    status: m.status,
+    recordedByName: m.recordedBy.name,
+    createdAt: formatRelativeTime(m.createdAt),
   }))
+}
+
+export async function getFundMovementStats() {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const todayMovements = await prisma.fundMovement.findMany({
+    where: { createdAt: { gte: today } },
+    select: { type: true, amount: true, status: true, flowType: true },
+  })
+
+  const externalTotal = todayMovements
+    .filter((m) => m.type === 'external')
+    .reduce((sum, m) => sum + Number(m.amount), 0)
+
+  const internalDeposits = todayMovements
+    .filter((m) => m.type === 'internal')
+    .reduce((sum, m) => sum + Number(m.amount), 0)
+
+  const pendingCount = todayMovements.filter((m) => m.status === 'pending').length
+
+  return { externalTotal, internalDeposits, pendingCount }
 }
 
 export async function getClientsForFundAllocation() {
   const clients = await prisma.client.findMany({
     where: {
-      intakeStatus: { in: [IntakeStatus.APPROVED, IntakeStatus.IN_EXECUTION] },
+      intakeStatus: {
+        in: [IntakeStatus.APPROVED, IntakeStatus.IN_EXECUTION, IntakeStatus.PHONE_ISSUED],
+      },
     },
     select: {
       id: true,
