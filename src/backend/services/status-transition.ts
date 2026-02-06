@@ -6,7 +6,7 @@ import {
   ToDoStatus,
   PlatformType,
 } from '@/types'
-import { getPlatformName } from '@/lib/platforms'
+import { ALL_PLATFORMS, getPlatformName } from '@/lib/platforms'
 
 // ─── Allowed Transitions ──────────────────────────────────────────────────────
 
@@ -32,22 +32,6 @@ const ALLOWED_TRANSITIONS: Record<IntakeStatus, IntakeStatus[]> = {
   [IntakeStatus.REJECTED]: [],
   [IntakeStatus.INACTIVE]: [],
 }
-
-// ─── All Platforms ────────────────────────────────────────────────────────────
-
-const ALL_PLATFORMS: PlatformType[] = [
-  PlatformType.DRAFTKINGS,
-  PlatformType.FANDUEL,
-  PlatformType.BETMGM,
-  PlatformType.CAESARS,
-  PlatformType.FANATICS,
-  PlatformType.BALLYBET,
-  PlatformType.BETRIVERS,
-  PlatformType.BET365,
-  PlatformType.BANK,
-  PlatformType.PAYPAL,
-  PlatformType.EDGEBOOST,
-]
 
 // ─── Business Day Helper ──────────────────────────────────────────────────────
 
@@ -208,6 +192,26 @@ export async function transitionClientStatus(
         })
       }
 
+      // Cancel status-specific todos when leaving certain states
+      const todosToCancel: Partial<Record<IntakeStatus, ToDoType[]>> = {
+        [IntakeStatus.NEEDS_MORE_INFO]: [ToDoType.PROVIDE_INFO],
+        [IntakeStatus.PENDING_EXTERNAL]: [ToDoType.PROVIDE_INFO],
+      }
+
+      const cancelTypes = todosToCancel[client.intakeStatus]
+      if (cancelTypes) {
+        await tx.toDo.updateMany({
+          where: {
+            clientId,
+            type: { in: cancelTypes },
+            status: { in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS] },
+          },
+          data: {
+            status: ToDoStatus.CANCELLED,
+          },
+        })
+      }
+
       // Create new todos (with duplicate prevention for UPLOAD_SCREENSHOT)
       if (todoTemplates.length > 0 && client.agentId) {
         let templatesToCreate = todoTemplates
@@ -258,6 +262,16 @@ export async function transitionClientStatus(
               clientId,
               assignedToId: client.agentId,
               createdById: userId,
+            })),
+          })
+
+          // Log TODO_CREATED events for timeline visibility
+          await tx.eventLog.createMany({
+            data: templatesToCreate.map((t) => ({
+              eventType: EventType.TODO_CREATED,
+              description: t.title,
+              clientId,
+              userId,
             })),
           })
         }
