@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Check, Clock, Users } from 'lucide-react'
+import { Check, Clock, Phone, Users } from 'lucide-react'
 import { approveClientIntake } from '@/app/actions/backoffice'
 import { toast } from 'sonner'
 import type { IntakeClient } from '@/backend/data/operations'
@@ -89,7 +89,19 @@ export function ClientIntakeList({ clients, selectedAgentId }: ClientIntakeListP
                     <Clock className="h-4 w-4" />
                     {client.daysLabel}
                   </div>
-                  {client.canApprove ? (
+                  {client.canAssignPhone ? (
+                    <Link href="/backoffice/phone-tracking">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-primary border-primary/30 hover:bg-primary/10"
+                        data-testid={`assign-phone-${client.id}`}
+                      >
+                        <Phone className="h-4 w-4 mr-1" />
+                        Assign Phone
+                      </Button>
+                    </Link>
+                  ) : client.canApprove ? (
                     <Button
                       size="sm"
                       onClick={() => handleApprove(client.id, client.name)}
