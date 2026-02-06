@@ -8,6 +8,7 @@ interface OverviewStatsProps {
   urgentActions: number
   activeClients: number
   pendingExtensions: number
+  delayedClients: number
 }
 
 export function OverviewStats({
@@ -16,6 +17,7 @@ export function OverviewStats({
   urgentActions,
   activeClients,
   pendingExtensions,
+  delayedClients,
 }: OverviewStatsProps) {
   const stats = [
     {
@@ -49,7 +51,10 @@ export function OverviewStats({
       iconColor: 'text-destructive',
       hoverBorder: 'hover:border-destructive/40',
       hoverShadow: 'hover:shadow-destructive/10',
-      badge: pendingExtensions > 0 ? `${pendingExtensions} extension${pendingExtensions !== 1 ? 's' : ''}` : null,
+      badge: [
+        pendingExtensions > 0 ? `${pendingExtensions} extension${pendingExtensions !== 1 ? 's' : ''}` : null,
+        delayedClients > 0 ? `${delayedClients} delayed` : null,
+      ].filter(Boolean).join(' • ') || null,
     },
     {
       label: 'ACTIVE CLIENTS',
