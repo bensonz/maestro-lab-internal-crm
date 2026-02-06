@@ -16,8 +16,10 @@ import {
   AlertTriangle,
   Info,
   Building2,
+  Timer,
 } from 'lucide-react'
 import { IntakeStatus } from '@/types'
+import { DeadlineCountdown } from '@/components/deadline-countdown'
 
 interface ClientProfileProps {
   client: {
@@ -40,6 +42,8 @@ interface ClientProfileProps {
     status: string
     statusColor: string
     intakeStatus: IntakeStatus
+    deadline: Date | null
+    deadlineExtensions: number
     questionnaire: Record<string, unknown>
     phoneAssignment: {
       phoneNumber: string
@@ -115,6 +119,20 @@ export function ClientProfile({ client }: ClientProfileProps) {
           <label className="text-xs text-muted-foreground">Full Name</label>
           <p className="font-mono text-lg font-semibold text-foreground">{fullName}</p>
         </div>
+
+        {/* Execution Deadline */}
+        {client.deadline && (
+          <div className="rounded-lg bg-muted/30 p-3 ring-1 ring-border/30 space-y-2">
+            <label className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+              <Timer className="h-3 w-3" />
+              Execution Deadline
+            </label>
+            <DeadlineCountdown deadline={client.deadline} variant="card" />
+            <p className="text-xs text-muted-foreground">
+              {client.deadlineExtensions} extension{client.deadlineExtensions !== 1 ? 's' : ''} used
+            </p>
+          </div>
+        )}
 
         {/* DOB + Age + Gender */}
         <div className="flex items-center gap-4">
