@@ -1,6 +1,7 @@
 import { auth } from '@/backend/auth'
 import { redirect } from 'next/navigation'
 import { getAgentDashboardStats, getAgentTodaysTasks, getAgentClients } from '@/backend/data/agent'
+import { getAgentKPIs } from '@/backend/services/agent-kpis'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
@@ -15,6 +16,10 @@ import {
   AlertTriangle,
   Hourglass,
   ListTodo,
+  Target,
+  Timer,
+  TrendingDown,
+  Percent,
 } from 'lucide-react'
 
 export default async function AgentDashboard() {
@@ -24,10 +29,11 @@ export default async function AgentDashboard() {
   const userName = session.user.name || 'Agent'
   const firstName = userName.split(' ')[0]
 
-  const [stats, todaysTasks, allClients] = await Promise.all([
+  const [stats, todaysTasks, allClients, kpis] = await Promise.all([
     getAgentDashboardStats(session.user.id),
     getAgentTodaysTasks(session.user.id),
     getAgentClients(session.user.id),
+    getAgentKPIs(session.user.id),
   ])
 
   const recentClients = allClients.slice(0, 6)
@@ -88,6 +94,95 @@ export default async function AgentDashboard() {
               {stats.lastApprovedAt && (
                 <p className="text-xs text-muted-foreground">Last: {stats.lastApprovedAt}</p>
               )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* KPI Metrics */}
+      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4 stagger-children">
+        <Card
+          className="group border-border/50 bg-card/80 backdrop-blur-sm transition-all duration-300 hover:border-chart-4/40 hover:shadow-lg hover:shadow-chart-4/10 card-interactive"
+          data-testid="kpi-success-rate"
+        >
+          <CardContent className="flex items-center gap-4 py-5">
+            <div className={`rounded-xl p-3 ring-1 ${
+              kpis.successRate >= 80
+                ? 'bg-chart-4/10 ring-chart-4/20'
+                : kpis.successRate >= 60
+                  ? 'bg-accent/10 ring-accent/20'
+                  : 'bg-destructive/10 ring-destructive/20'
+            }`}>
+              <Target className={`h-5 w-5 ${
+                kpis.successRate >= 80
+                  ? 'text-chart-4'
+                  : kpis.successRate >= 60
+                    ? 'text-accent'
+                    : 'text-destructive'
+              }`} />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Success Rate</p>
+              <p className="text-2xl font-bold tracking-tight font-mono text-foreground">{kpis.successRate}%</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card
+          className="group border-border/50 bg-card/80 backdrop-blur-sm transition-all duration-300 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10 card-interactive"
+          data-testid="kpi-avg-days-convert"
+        >
+          <CardContent className="flex items-center gap-4 py-5">
+            <div className="rounded-xl bg-primary/10 p-3 ring-1 ring-primary/20">
+              <Timer className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Avg Days to Convert</p>
+              <p className="text-2xl font-bold tracking-tight font-mono text-foreground">
+                {kpis.avgDaysToConvert !== null ? `${kpis.avgDaysToConvert} days` : '—'}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card
+          className="group border-border/50 bg-card/80 backdrop-blur-sm transition-all duration-300 hover:border-accent/40 hover:shadow-lg hover:shadow-accent/10 card-interactive"
+          data-testid="kpi-delay-rate"
+        >
+          <CardContent className="flex items-center gap-4 py-5">
+            <div className={`rounded-xl p-3 ring-1 ${
+              kpis.delayRate <= 10
+                ? 'bg-chart-4/10 ring-chart-4/20'
+                : kpis.delayRate <= 20
+                  ? 'bg-accent/10 ring-accent/20'
+                  : 'bg-destructive/10 ring-destructive/20'
+            }`}>
+              <TrendingDown className={`h-5 w-5 ${
+                kpis.delayRate <= 10
+                  ? 'text-chart-4'
+                  : kpis.delayRate <= 20
+                    ? 'text-accent'
+                    : 'text-destructive'
+              }`} />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Delay Rate</p>
+              <p className="text-2xl font-bold tracking-tight font-mono text-foreground">{kpis.delayRate}%</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card
+          className="group border-border/50 bg-card/80 backdrop-blur-sm transition-all duration-300 hover:border-chart-5/40 hover:shadow-lg hover:shadow-chart-5/10 card-interactive"
+          data-testid="kpi-extension-rate"
+        >
+          <CardContent className="flex items-center gap-4 py-5">
+            <div className="rounded-xl bg-chart-5/10 p-3 ring-1 ring-chart-5/20">
+              <Percent className="h-5 w-5 text-chart-5" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Extension Rate</p>
+              <p className="text-2xl font-bold tracking-tight font-mono text-foreground">{kpis.extensionRate}%</p>
             </div>
           </CardContent>
         </Card>
