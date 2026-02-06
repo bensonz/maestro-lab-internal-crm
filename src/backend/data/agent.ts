@@ -80,7 +80,7 @@ export async function getAgentDashboardStats(agentId: string) {
   const [clients, earnings, pendingTodos, lastApprovedClient] = await Promise.all([
     prisma.client.findMany({
       where: { agentId },
-      select: { intakeStatus: true },
+      select: { intakeStatus: true, statusChangedAt: true },
     }),
     prisma.earning.findMany({
       where: { client: { agentId } },
@@ -112,7 +112,9 @@ export async function getAgentDashboardStats(agentId: string) {
   const approvedCount = clients.filter(
     (c) => c.intakeStatus === IntakeStatus.APPROVED
   ).length
-  const completedThisMonth = approvedCount
+  const completedThisMonth = clients.filter(
+    (c) => c.intakeStatus === IntakeStatus.APPROVED && c.statusChangedAt && c.statusChangedAt >= startOfMonth
+  ).length
 
   const totalEarnings = earnings
     .filter((e) => e.status === 'paid')
