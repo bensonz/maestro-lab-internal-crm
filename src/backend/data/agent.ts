@@ -34,6 +34,7 @@ export async function getAgentClients(agentId: string) {
     return {
       id: client.id,
       name: `${client.firstName} ${client.lastName}`,
+      intakeStatus: client.intakeStatus,
       status: formatIntakeStatus(client.intakeStatus),
       statusColor: getStatusColor(client.intakeStatus),
       nextTask: client.toDos[0]?.title ?? null,
@@ -41,6 +42,7 @@ export async function getAgentClients(agentId: string) {
       totalSteps: totalPlatforms,
       progress,
       lastUpdated: formatRelativeTime(client.updatedAt),
+      updatedAt: client.updatedAt.toISOString(),
     }
   })
 }
