@@ -76,6 +76,12 @@ enum ToDoStatus {
   CANCELLED
 }
 
+enum ExtensionRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum EventType {
   // Client lifecycle
   APPLICATION_SUBMITTED
@@ -129,6 +135,8 @@ model User {
   agentMetrics      AgentMetrics?
   phoneAssignments  PhoneAssignment[]
   applicationDrafts ApplicationDraft[]
+  extensionRequests ExtensionRequest[] @relation("ExtensionRequests")
+  extensionReviews  ExtensionRequest[] @relation("ExtensionReviews")
 
   @@index([role])
   @@index([email])
@@ -163,6 +171,7 @@ model Client {
   eventLogs          EventLog[]
   phoneAssignment    PhoneAssignment?
   earnings           Earning[]
+  extensionRequests  ExtensionRequest[]
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
 
@@ -319,4 +328,26 @@ model ApplicationDraft {
   updatedAt DateTime @updatedAt
 
   @@index([agentId])
+}
+
+model ExtensionRequest {
+  id              String                 @id @default(cuid())
+  clientId        String
+  client          Client                 @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  requestedById   String
+  requestedBy     User                   @relation("ExtensionRequests", fields: [requestedById], references: [id])
+  reviewedById    String?
+  reviewedBy      User?                  @relation("ExtensionReviews", fields: [reviewedById], references: [id])
+  status          ExtensionRequestStatus @default(PENDING)
+  reason          String
+  requestedDays   Int                    @default(3)
+  currentDeadline DateTime
+  newDeadline     DateTime?
+  reviewedAt      DateTime?
+  reviewNotes     String?
+  createdAt       DateTime               @default(now())
+
+  @@index([clientId])
+  @@index([status])
+  @@index([requestedById])
 }
