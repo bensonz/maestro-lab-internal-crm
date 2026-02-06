@@ -227,6 +227,7 @@ export async function getAgentEarnings(agentId: string) {
   const recentTransactions = earnings.slice(0, 10).map((e) => ({
     id: e.id,
     client: `${e.client.firstName} ${e.client.lastName}`,
+    description: e.description || 'Client approval commission',
     amount: Number(e.amount),
     status: e.status === 'paid' ? 'Paid' : 'Pending',
     date: formatDate(e.createdAt),
