@@ -13,6 +13,7 @@ export type {
   BonusPool,
   BonusAllocation,
   LeadershipPayout,
+  Transaction,
 } from '@prisma/generated/browser'
 
 export {
@@ -24,6 +25,7 @@ export {
   ToDoStatus,
   EventType,
   ExtensionRequestStatus,
+  TransactionType,
 } from '@prisma/generated/browser'
 
 // UI-specific types
