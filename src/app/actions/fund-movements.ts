@@ -5,6 +5,7 @@ import prisma from '@/backend/prisma/client'
 import { UserRole, EventType } from '@/types'
 import { PLATFORM_INFO } from '@/lib/platforms'
 import { revalidatePath } from 'next/cache'
+import { recordTransactionFromFundMovement } from '@/backend/services/transaction'
 
 const VALID_PLATFORM_NAMES = new Set(
   Object.values(PLATFORM_INFO).map((p) => p.name),
@@ -107,7 +108,7 @@ export async function recordFundMovement(data: {
   }
 
   try {
-    await prisma.fundMovement.create({
+    const movement = await prisma.fundMovement.create({
       data: {
         type: data.type,
         flowType: data.flowType,
@@ -122,6 +123,9 @@ export async function recordFundMovement(data: {
         recordedById: session.user.id,
       },
     })
+
+    // Record transaction ledger entries
+    await recordTransactionFromFundMovement(movement, session.user.id)
 
     // Log event
     await prisma.eventLog.create({
