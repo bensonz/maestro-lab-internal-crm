@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -56,6 +55,10 @@ interface ApplicationProgressProps {
     } | null
     questionnaire: Record<string, unknown>
   }
+  selectedPlatform: PlatformType | null
+  onPlatformSelect: (platformType: PlatformType) => void
+  onSectionSelect: (section: 'personal' | 'contract') => void
+  activeSection: 'personal' | 'contract' | null
 }
 
 type SectionStatus = 'complete' | 'in_progress' | 'empty'
@@ -97,7 +100,13 @@ function getPlatformStatusColor(status: PlatformStatus): string {
   }
 }
 
-function getPlatformQuickColor(status: PlatformStatus): string {
+function getPlatformQuickColor(
+  status: PlatformStatus,
+  isSelected: boolean,
+): string {
+  if (isSelected) {
+    return 'bg-primary text-primary-foreground border-primary'
+  }
   switch (status) {
     case PlatformStatus.VERIFIED:
       return 'bg-success/20 text-success border-success/40 hover:opacity-80'
@@ -108,11 +117,13 @@ function getPlatformQuickColor(status: PlatformStatus): string {
   }
 }
 
-export function ApplicationProgress({ client }: ApplicationProgressProps) {
-  const [personalExpanded, setPersonalExpanded] = useState(false)
-  const [platformsExpanded, setPlatformsExpanded] = useState(true)
-  const [contractExpanded, setContractExpanded] = useState(false)
-
+export function ApplicationProgress({
+  client,
+  selectedPlatform,
+  onPlatformSelect,
+  onSectionSelect,
+  activeSection,
+}: ApplicationProgressProps) {
   const financePlatforms = client.platforms.filter(
     (p) =>
       p.platformType === PlatformType.BANK ||
@@ -156,8 +167,14 @@ export function ApplicationProgress({ client }: ApplicationProgressProps) {
     contractStatus === 'complete',
   ].filter(Boolean).length
 
+  // Sections open by default based on active selection
+  const personalOpen = activeSection === 'personal'
+  const contractOpen = activeSection === 'contract'
+  const platformsOpen =
+    selectedPlatform !== null || (!personalOpen && !contractOpen)
+
   return (
-    <Card className="flex h-full flex-col border-border/50 bg-card/80">
+    <Card className="card-terminal flex h-full flex-col">
       <CardHeader className="px-3 pb-2 pt-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
@@ -194,16 +211,19 @@ export function ApplicationProgress({ client }: ApplicationProgressProps) {
       <CardContent className="min-h-0 flex-1 p-0">
         <div className="divide-y divide-border">
           {/* 1. Personal Information */}
-          <Collapsible
-            open={personalExpanded}
-            onOpenChange={setPersonalExpanded}
-          >
-            <CollapsibleTrigger className="flex w-full items-center justify-between p-2.5 text-left transition-colors hover:bg-muted/30">
+          <Collapsible open={personalOpen}>
+            <CollapsibleTrigger
+              className={cn(
+                'flex w-full items-center justify-between p-2.5 text-left transition-colors hover:bg-muted/30',
+                activeSection === 'personal' && 'bg-primary/10',
+              )}
+              onClick={() => onSectionSelect('personal')}
+            >
               <div className="flex items-center gap-1.5">
                 <ChevronDown
                   className={cn(
                     'h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform',
-                    personalExpanded && 'rotate-180',
+                    personalOpen && 'rotate-180',
                   )}
                 />
                 <User className="h-3.5 w-3.5 text-muted-foreground" />
@@ -216,24 +236,21 @@ export function ApplicationProgress({ client }: ApplicationProgressProps) {
             <CollapsibleContent className="border-t border-border/50 bg-muted/10">
               <div className="space-y-1 p-2.5">
                 <p className="text-xs text-muted-foreground">
-                  Identity, contact info, and addresses verified via profile
-                  card above.
+                  SSN, Bank Statement, Address Confirmation, Zelle, ID Back,
+                  Interview Questionnaire
                 </p>
               </div>
             </CollapsibleContent>
           </Collapsible>
 
           {/* 2. All Platforms */}
-          <Collapsible
-            open={platformsExpanded}
-            onOpenChange={setPlatformsExpanded}
-          >
+          <Collapsible open={platformsOpen}>
             <CollapsibleTrigger className="flex w-full items-center justify-between p-2.5 text-left transition-colors hover:bg-muted/30">
               <div className="flex items-center gap-1.5">
                 <ChevronDown
                   className={cn(
                     'h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform',
-                    platformsExpanded && 'rotate-180',
+                    platformsOpen && 'rotate-180',
                   )}
                 />
                 <Building className="h-3.5 w-3.5 text-muted-foreground" />
@@ -261,14 +278,18 @@ export function ApplicationProgress({ client }: ApplicationProgressProps) {
                       {financePlatforms.map((p) => (
                         <Tooltip key={p.platformType}>
                           <TooltipTrigger asChild>
-                            <div
+                            <button
                               className={cn(
-                                'flex h-5 w-6 items-center justify-center rounded border text-[9px] font-semibold',
-                                getPlatformQuickColor(p.status),
+                                'flex h-5 w-6 items-center justify-center rounded border text-[9px] font-semibold transition-colors',
+                                getPlatformQuickColor(
+                                  p.status,
+                                  selectedPlatform === p.platformType,
+                                ),
                               )}
+                              onClick={() => onPlatformSelect(p.platformType)}
                             >
                               {getPlatformAbbrev(p.platformType)}
-                            </div>
+                            </button>
                           </TooltipTrigger>
                           <TooltipContent side="bottom" className="text-xs">
                             {getPlatformName(p.platformType)}
@@ -279,14 +300,18 @@ export function ApplicationProgress({ client }: ApplicationProgressProps) {
                       {sportsPlatforms.map((p) => (
                         <Tooltip key={p.platformType}>
                           <TooltipTrigger asChild>
-                            <div
+                            <button
                               className={cn(
-                                'flex h-5 w-6 items-center justify-center rounded border text-[8px] font-semibold',
-                                getPlatformQuickColor(p.status),
+                                'flex h-5 w-6 items-center justify-center rounded border text-[8px] font-semibold transition-colors',
+                                getPlatformQuickColor(
+                                  p.status,
+                                  selectedPlatform === p.platformType,
+                                ),
                               )}
+                              onClick={() => onPlatformSelect(p.platformType)}
                             >
                               {getPlatformAbbrev(p.platformType)}
-                            </div>
+                            </button>
                           </TooltipTrigger>
                           <TooltipContent side="bottom" className="text-xs">
                             {getPlatformName(p.platformType)}
@@ -300,10 +325,16 @@ export function ApplicationProgress({ client }: ApplicationProgressProps) {
                 {/* Finance Platforms */}
                 {financePlatforms.map((platform) => {
                   const screenshotCount = platform.screenshots.length
+                  const isSelected =
+                    selectedPlatform === platform.platformType
                   return (
-                    <div
+                    <button
                       key={platform.platformType}
-                      className="flex items-center justify-between p-2 text-left"
+                      className={cn(
+                        'flex w-full items-center justify-between p-2 text-left transition-colors hover:bg-muted/30',
+                        isSelected && 'bg-primary/10',
+                      )}
+                      onClick={() => onPlatformSelect(platform.platformType)}
                     >
                       <div className="flex items-center gap-1.5">
                         <span className="text-sm">
@@ -329,7 +360,7 @@ export function ApplicationProgress({ client }: ApplicationProgressProps) {
                                 : 'Incomplete'}
                         </Badge>
                       </div>
-                    </div>
+                    </button>
                   )
                 })}
 
@@ -343,10 +374,16 @@ export function ApplicationProgress({ client }: ApplicationProgressProps) {
                 {/* Sportsbook Platforms */}
                 {sportsPlatforms.map((platform) => {
                   const screenshotCount = platform.screenshots.length
+                  const isSelected =
+                    selectedPlatform === platform.platformType
                   return (
-                    <div
+                    <button
                       key={platform.platformType}
-                      className="flex items-center justify-between p-2 text-left"
+                      className={cn(
+                        'flex w-full items-center justify-between p-2 text-left transition-colors hover:bg-muted/30',
+                        isSelected && 'bg-primary/10',
+                      )}
+                      onClick={() => onPlatformSelect(platform.platformType)}
                     >
                       <span className="text-sm">
                         {getPlatformName(platform.platformType)}
@@ -370,7 +407,7 @@ export function ApplicationProgress({ client }: ApplicationProgressProps) {
                                 : 'Incomplete'}
                         </Badge>
                       </div>
-                    </div>
+                    </button>
                   )
                 })}
               </div>
@@ -378,16 +415,19 @@ export function ApplicationProgress({ client }: ApplicationProgressProps) {
           </Collapsible>
 
           {/* 3. Contract */}
-          <Collapsible
-            open={contractExpanded}
-            onOpenChange={setContractExpanded}
-          >
-            <CollapsibleTrigger className="flex w-full items-center justify-between p-2.5 text-left transition-colors hover:bg-muted/30">
+          <Collapsible open={contractOpen}>
+            <CollapsibleTrigger
+              className={cn(
+                'flex w-full items-center justify-between p-2.5 text-left transition-colors hover:bg-muted/30',
+                activeSection === 'contract' && 'bg-primary/10',
+              )}
+              onClick={() => onSectionSelect('contract')}
+            >
               <div className="flex items-center gap-1.5">
                 <ChevronDown
                   className={cn(
                     'h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform',
-                    contractExpanded && 'rotate-180',
+                    contractOpen && 'rotate-180',
                   )}
                 />
                 <FileCheck className="h-3.5 w-3.5 text-muted-foreground" />

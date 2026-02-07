@@ -108,7 +108,7 @@ export function EventTimeline({ events }: EventTimelineProps) {
   const recentEvents = events.slice(0, 3)
 
   return (
-    <Card className="border-border/50 bg-card/80">
+    <Card className="card-terminal">
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
         <CardHeader className="px-3 pb-2 pt-3">
           <CollapsibleTrigger className="flex w-full items-center justify-between">

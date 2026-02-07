@@ -14,7 +14,8 @@ import {
   Building2,
   Timer,
   Clock,
-  AlertCircle,
+  Edit3,
+  Upload,
 } from 'lucide-react'
 import { IntakeStatus } from '@/types'
 import { DeadlineCountdown } from '@/components/deadline-countdown'
@@ -59,6 +60,14 @@ interface ClientProfileProps {
     } | null
     extensionRequestCount: number
   }
+  bankPin: string
+  bankLogin: { username: string; password: string }
+  pinEditCount: number
+  credentialEditCount: number
+  onEditPin: () => void
+  onEditCredentials: () => void
+  onUploadSSN: () => void
+  onUploadZelle: () => void
 }
 
 function calculateAge(dob: string): number | null {
@@ -87,7 +96,17 @@ function formatDate(dateStr: string): string {
 
 const MAX_EXTENSIONS = 3
 
-export function ClientProfile({ client }: ClientProfileProps) {
+export function ClientProfile({
+  client,
+  bankPin,
+  bankLogin,
+  pinEditCount,
+  credentialEditCount,
+  onEditPin,
+  onEditCredentials,
+  onUploadSSN,
+  onUploadZelle,
+}: ClientProfileProps) {
   const [showCredentials, setShowCredentials] = useState(false)
   const [extensionDialogOpen, setExtensionDialogOpen] = useState(false)
 
@@ -114,11 +133,6 @@ export function ClientProfile({ client }: ClientProfileProps) {
   if (compliance?.idType) {
     flags.push({ type: 'info', label: `ID: ${compliance.idType}` })
   }
-
-  // Bank credentials (masked)
-  const bankPin = '••••'
-  const onlineBankingUser = 's_johnson_ops'
-  const onlineBankingPass = '••••••••'
 
   return (
     <div className="space-y-2">
@@ -166,8 +180,8 @@ export function ClientProfile({ client }: ClientProfileProps) {
         </div>
       )}
 
-      {/* Compact Profile Card — 3-column grid like Lovable */}
-      <Card className="border-border/50 bg-card/80">
+      {/* Compact Profile Card — 3-column grid */}
+      <Card className="card-terminal">
         <CardContent className="p-3">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             {/* Identity Column */}
@@ -185,6 +199,21 @@ export function ClientProfile({ client }: ClientProfileProps) {
                   {client.dateOfBirth ? formatDate(client.dateOfBirth) : 'N/A'}
                 </span>
                 {age !== null && <> · {age} yrs</>}
+              </div>
+
+              {/* SSN Upload */}
+              <div className="mt-1.5 flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">SSN:</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-5 gap-1 px-1.5 text-[10px]"
+                  onClick={onUploadSSN}
+                  data-testid="upload-ssn-btn"
+                >
+                  <Upload className="h-3 w-3" />
+                  Upload
+                </Button>
               </div>
 
               {/* Deadline */}
@@ -283,7 +312,22 @@ export function ClientProfile({ client }: ClientProfileProps) {
                 </div>
               )}
 
-              {/* Bank Credentials (Masked) */}
+              {/* Zelle Upload */}
+              <div className="mt-1.5 flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Zelle:</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-5 gap-1 px-1.5 text-[10px]"
+                  onClick={onUploadZelle}
+                  data-testid="upload-zelle-btn"
+                >
+                  <Upload className="h-3 w-3" />
+                  Upload
+                </Button>
+              </div>
+
+              {/* Bank Credentials */}
               <div className="mt-2 space-y-2 rounded-lg bg-muted/30 p-2 ring-1 ring-border/30">
                 <div className="flex items-center justify-between">
                   <label className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
@@ -306,19 +350,59 @@ export function ClientProfile({ client }: ClientProfileProps) {
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <div>
-                    <label className="text-[10px] text-muted-foreground">PIN</label>
+                    <div className="flex items-center gap-1">
+                      <label className="text-[10px] text-muted-foreground">
+                        PIN
+                      </label>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-4 px-1 text-[9px] text-muted-foreground"
+                        onClick={onEditPin}
+                        data-testid="edit-pin-btn"
+                      >
+                        <Edit3 className="h-2.5 w-2.5" />
+                      </Button>
+                      {pinEditCount > 0 && (
+                        <Badge
+                          variant="outline"
+                          className="h-3.5 border-warning/30 px-1 text-[8px] text-warning"
+                        >
+                          {pinEditCount}x
+                        </Badge>
+                      )}
+                    </div>
                     <p className="font-mono text-sm">
-                      {showCredentials ? '2580' : bankPin}
+                      {showCredentials ? bankPin : '••••'}
                     </p>
                   </div>
                   <div>
-                    <label className="text-[10px] text-muted-foreground">
-                      Online Banking
-                    </label>
+                    <div className="flex items-center gap-1">
+                      <label className="text-[10px] text-muted-foreground">
+                        Online Banking
+                      </label>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-4 px-1 text-[9px] text-muted-foreground"
+                        onClick={onEditCredentials}
+                        data-testid="edit-credentials-btn"
+                      >
+                        <Edit3 className="h-2.5 w-2.5" />
+                      </Button>
+                      {credentialEditCount > 0 && (
+                        <Badge
+                          variant="outline"
+                          className="h-3.5 border-warning/30 px-1 text-[8px] text-warning"
+                        >
+                          {credentialEditCount}x
+                        </Badge>
+                      )}
+                    </div>
                     <p className="font-mono text-sm">
-                      {showCredentials ? onlineBankingUser : '••••••••'}
-                      {' / '}
-                      {showCredentials ? 'SecurePass123' : onlineBankingPass}
+                      {showCredentials
+                        ? `${bankLogin.username} / ${bankLogin.password}`
+                        : '•••••••• / ••••••••'}
                     </p>
                   </div>
                 </div>
