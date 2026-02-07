@@ -28,7 +28,10 @@ interface ToDoCardProps {
 
 type UrgencyLevel = 'overdue' | 'due_soon' | 'normal'
 
-function getUrgencyLevel(dueDate: Date | null, status: ToDoStatus): UrgencyLevel {
+function getUrgencyLevel(
+  dueDate: Date | null,
+  status: ToDoStatus,
+): UrgencyLevel {
   if (status === ToDoStatus.OVERDUE) return 'overdue'
   if (!dueDate) return 'normal'
 
@@ -122,7 +125,9 @@ export function ToDoCard({ todo, onUpdate }: ToDoCardProps) {
               )}
             </div>
             <div>
-              <h4 className="text-sm font-semibold text-foreground">{todo.title}</h4>
+              <h4 className="text-sm font-semibold text-foreground">
+                {todo.title}
+              </h4>
               <p className={`text-xs font-medium ${styles.text}`}>
                 {formatDueStatus(todo.dueDate, todo.status)}
               </p>
@@ -160,7 +165,12 @@ export function ToDoCard({ todo, onUpdate }: ToDoCardProps) {
             <div
               className={`h-full rounded-full transition-all duration-500 ${styles.progress}`}
               style={{
-                width: urgency === 'overdue' ? '100%' : urgency === 'due_soon' ? '75%' : '25%',
+                width:
+                  urgency === 'overdue'
+                    ? '100%'
+                    : urgency === 'due_soon'
+                      ? '75%'
+                      : '25%',
               }}
             />
           </div>

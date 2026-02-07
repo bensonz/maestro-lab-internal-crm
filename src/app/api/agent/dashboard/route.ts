@@ -33,12 +33,22 @@ export async function GET() {
   })
 
   // Count by status
-  const inProgressStatuses = ['PHONE_ISSUED', 'IN_EXECUTION', 'NEEDS_MORE_INFO'] as const
+  const inProgressStatuses = [
+    'PHONE_ISSUED',
+    'IN_EXECUTION',
+    'NEEDS_MORE_INFO',
+  ] as const
   const statusCounts = {
     total: clients.length,
     pending: clients.filter((c) => c.intakeStatus === 'PENDING').length,
-    inProgress: clients.filter((c) => inProgressStatuses.includes(c.intakeStatus as typeof inProgressStatuses[number])).length,
-    pendingApproval: clients.filter((c) => c.intakeStatus === 'READY_FOR_APPROVAL').length,
+    inProgress: clients.filter((c) =>
+      inProgressStatuses.includes(
+        c.intakeStatus as (typeof inProgressStatuses)[number],
+      ),
+    ).length,
+    pendingApproval: clients.filter(
+      (c) => c.intakeStatus === 'READY_FOR_APPROVAL',
+    ).length,
     approved: clients.filter((c) => c.intakeStatus === 'APPROVED').length,
     rejected: clients.filter((c) => c.intakeStatus === 'REJECTED').length,
   }
@@ -47,7 +57,9 @@ export async function GET() {
   const todos = await prisma.toDo.findMany({
     where: {
       assignedToId: userId,
-      status: { in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS, ToDoStatus.OVERDUE] },
+      status: {
+        in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS, ToDoStatus.OVERDUE],
+      },
     },
     include: {
       client: {
@@ -64,9 +76,7 @@ export async function GET() {
   // Get today's tasks (due within 24h)
   const now = new Date()
   const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000)
-  const todaysTasks = todos.filter(
-    (t) => t.dueDate && t.dueDate <= tomorrow
-  )
+  const todaysTasks = todos.filter((t) => t.dueDate && t.dueDate <= tomorrow)
 
   // Get earnings
   const earnings = await prisma.earning.aggregate({
@@ -113,7 +123,9 @@ export async function GET() {
       type: t.type,
       status: t.status,
       dueDate: t.dueDate,
-      clientName: t.client ? `${t.client.firstName} ${t.client.lastName}` : null,
+      clientName: t.client
+        ? `${t.client.firstName} ${t.client.lastName}`
+        : null,
       isUrgent: t.dueDate && t.dueDate <= now,
     })),
     recentClients: clients
@@ -123,7 +135,8 @@ export async function GET() {
         id: c.id,
         name: `${c.firstName} ${c.lastName}`,
         status: c.intakeStatus,
-        platformsVerified: c.platforms.filter((p) => p.status === 'VERIFIED').length,
+        platformsVerified: c.platforms.filter((p) => p.status === 'VERIFIED')
+          .length,
         platformsTotal: c.platforms.length,
         deadline: c.executionDeadline,
       })),

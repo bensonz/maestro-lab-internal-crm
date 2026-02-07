@@ -1,6 +1,13 @@
 'use client'
 
-import { useActionState, useState, useCallback, useEffect, useRef, useTransition } from 'react'
+import {
+  useActionState,
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  useTransition,
+} from 'react'
 import { useFormStatus } from 'react-dom'
 import { createClient, ActionState } from '@/app/actions/clients'
 import { saveDraft, DraftActionState } from '@/app/actions/drafts'
@@ -42,7 +49,13 @@ function SubmitButton() {
   )
 }
 
-function SaveDraftButton({ onSave, isSaving }: { onSave: () => void; isSaving: boolean }) {
+function SaveDraftButton({
+  onSave,
+  isSaving,
+}: {
+  onSave: () => void
+  isSaving: boolean
+}) {
   return (
     <Button
       type="button"
@@ -124,7 +137,7 @@ export function ClientForm({ initialData, draftId }: ClientFormProps) {
 
   // ID verification state
   const [isIdConfirmed, setIsIdConfirmed] = useState(
-    parsedQuestionnaire?.idVerified ?? false
+    parsedQuestionnaire?.idVerified ?? false,
   )
   const [extractedData, setExtractedData] = useState<ExtractedIdData | null>(
     initialData
@@ -132,13 +145,14 @@ export function ClientForm({ initialData, draftId }: ClientFormProps) {
           firstName: initialData.firstName ?? '',
           lastName: initialData.lastName ?? '',
           middleName: initialData.middleName,
-          dateOfBirth: initialData.dateOfBirth ?? parsedQuestionnaire?.dateOfBirth ?? '',
+          dateOfBirth:
+            initialData.dateOfBirth ?? parsedQuestionnaire?.dateOfBirth ?? '',
           address: initialData.primaryAddress,
           city: initialData.primaryCity,
           state: initialData.primaryState,
           zip: initialData.primaryZip,
         }
-      : null
+      : null,
   )
 
   // Compliance data state
@@ -162,7 +176,8 @@ export function ClientForm({ initialData, draftId }: ClientFormProps) {
     howMet: parsedQuestionnaire?.clientSource?.howMet ?? '',
     profession: parsedQuestionnaire?.clientSource?.profession ?? '',
     isReliable: parsedQuestionnaire?.clientSource?.isReliable ?? '',
-    previouslyFlagged: parsedQuestionnaire?.clientSource?.previouslyFlagged ?? '',
+    previouslyFlagged:
+      parsedQuestionnaire?.clientSource?.previouslyFlagged ?? '',
     additionalNotes: parsedQuestionnaire?.clientSource?.additionalNotes ?? '',
   })
 
@@ -178,7 +193,9 @@ export function ClientForm({ initialData, draftId }: ClientFormProps) {
       toast.error(state.message)
     } else if (state.errors && Object.keys(state.errors).length > 0) {
       const errorCount = Object.keys(state.errors).length
-      toast.error(`Please fix ${errorCount} validation error${errorCount > 1 ? 's' : ''}`)
+      toast.error(
+        `Please fix ${errorCount} validation error${errorCount > 1 ? 's' : ''}`,
+      )
     }
   }, [state])
 
@@ -266,15 +283,20 @@ export function ClientForm({ initialData, draftId }: ClientFormProps) {
           </div>
 
           {/* Basic Information */}
-          <div className="animate-fade-in-up" style={{ animationDelay: '0.05s' }}>
+          <div
+            className="animate-fade-in-up"
+            style={{ animationDelay: '0.05s' }}
+          >
             <BasicInfoSection
               isIdConfirmed={isIdConfirmed}
               errors={state.errors}
               defaultValues={{
                 firstName: extractedData?.firstName ?? initialData?.firstName,
-                middleName: extractedData?.middleName ?? initialData?.middleName,
+                middleName:
+                  extractedData?.middleName ?? initialData?.middleName,
                 lastName: extractedData?.lastName ?? initialData?.lastName,
-                dateOfBirth: extractedData?.dateOfBirth ?? initialData?.dateOfBirth,
+                dateOfBirth:
+                  extractedData?.dateOfBirth ?? initialData?.dateOfBirth,
                 phone: initialData?.phone,
                 email: initialData?.email,
               }}
@@ -282,11 +304,15 @@ export function ClientForm({ initialData, draftId }: ClientFormProps) {
           </div>
 
           {/* Address Information */}
-          <div className="animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
+          <div
+            className="animate-fade-in-up"
+            style={{ animationDelay: '0.1s' }}
+          >
             <AddressSection
               errors={state.errors}
               defaultValues={{
-                primaryAddress: extractedData?.address ?? initialData?.primaryAddress,
+                primaryAddress:
+                  extractedData?.address ?? initialData?.primaryAddress,
                 primaryCity: extractedData?.city ?? initialData?.primaryCity,
                 primaryState: extractedData?.state ?? initialData?.primaryState,
                 primaryZip: extractedData?.zip ?? initialData?.primaryZip,
@@ -311,7 +337,9 @@ export function ClientForm({ initialData, draftId }: ClientFormProps) {
                   className="text-sm font-medium text-foreground"
                 >
                   Application Notes{' '}
-                  <span className="text-muted-foreground text-xs">(internal)</span>
+                  <span className="text-muted-foreground text-xs">
+                    (internal)
+                  </span>
                 </Label>
                 <Textarea
                   id="notes"
@@ -328,7 +356,10 @@ export function ClientForm({ initialData, draftId }: ClientFormProps) {
         {/* Right Column - Compliance, Source, Summary */}
         <div className="space-y-6">
           {/* Compliance Groups */}
-          <div className="animate-fade-in-up" style={{ animationDelay: '0.05s' }}>
+          <div
+            className="animate-fade-in-up"
+            style={{ animationDelay: '0.05s' }}
+          >
             <ComplianceGroups
               onChange={handleComplianceChange}
               defaultValues={complianceData}
@@ -336,7 +367,10 @@ export function ClientForm({ initialData, draftId }: ClientFormProps) {
           </div>
 
           {/* Client Source Section */}
-          <div className="animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
+          <div
+            className="animate-fade-in-up"
+            style={{ animationDelay: '0.1s' }}
+          >
             <ClientSourceSection
               onChange={handleClientSourceChange}
               defaultValues={clientSourceData}
@@ -344,7 +378,10 @@ export function ClientForm({ initialData, draftId }: ClientFormProps) {
           </div>
 
           {/* Compliance Summary */}
-          <div className="animate-fade-in-up" style={{ animationDelay: '0.15s' }}>
+          <div
+            className="animate-fade-in-up"
+            style={{ animationDelay: '0.15s' }}
+          >
             <ComplianceSummary
               isIdVerified={isIdConfirmed}
               isAgeCompliant={isAgeCompliant}
@@ -356,7 +393,10 @@ export function ClientForm({ initialData, draftId }: ClientFormProps) {
           </div>
 
           {/* Agent Confirmation */}
-          <div className="animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+          <div
+            className="animate-fade-in-up"
+            style={{ animationDelay: '0.2s' }}
+          >
             <AgentConfirmation
               checked={agentConfirms}
               onCheckedChange={setAgentConfirms}
@@ -380,7 +420,10 @@ export function ClientForm({ initialData, draftId }: ClientFormProps) {
             className="grid gap-3 sm:grid-cols-2 animate-fade-in-up"
             style={{ animationDelay: '0.25s' }}
           >
-            <SaveDraftButton onSave={handleSaveDraft} isSaving={isSavingDraft} />
+            <SaveDraftButton
+              onSave={handleSaveDraft}
+              isSaving={isSavingDraft}
+            />
             <SubmitButton />
           </div>
         </div>

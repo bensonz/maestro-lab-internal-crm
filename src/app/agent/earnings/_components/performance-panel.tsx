@@ -86,13 +86,17 @@ const metrics = [
     label: 'Overdue Todos',
     icon: AlertTriangle,
     format: (kpis: AgentKPIs) => String(kpis.overdueTodos),
-    color: (kpis: AgentKPIs) => (kpis.overdueTodos > 0 ? 'text-destructive' : 'text-foreground'),
+    color: (kpis: AgentKPIs) =>
+      kpis.overdueTodos > 0 ? 'text-destructive' : 'text-foreground',
   },
 ] as const
 
 export function PerformancePanel({ kpis }: PerformancePanelProps) {
   return (
-    <Card className="border-border/50 bg-card/80 backdrop-blur-sm" data-testid="performance-panel">
+    <Card
+      className="border-border/50 bg-card/80 backdrop-blur-sm"
+      data-testid="performance-panel"
+    >
       <CardHeader>
         <CardTitle className="font-display text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           Performance Metrics
@@ -115,7 +119,9 @@ export function PerformancePanel({ kpis }: PerformancePanelProps) {
             >
               <div className="flex items-center gap-2.5">
                 <Icon className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">{metric.label}</span>
+                <span className="text-sm text-muted-foreground">
+                  {metric.label}
+                </span>
               </div>
               <span className={`text-sm font-semibold font-mono ${colorClass}`}>
                 {value}

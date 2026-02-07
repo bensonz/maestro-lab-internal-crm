@@ -57,7 +57,8 @@ export function AgentNav() {
                 <Link
                   href={item.href}
                   className={cn(
-                    active && 'bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground'
+                    active &&
+                      'bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground',
                   )}
                 >
                   <item.icon />

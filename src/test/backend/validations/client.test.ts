@@ -133,7 +133,7 @@ describe('createClientSchema', () => {
       expect(result.success).toBe(false)
       if (!result.success) {
         expect(
-          result.error.flatten().fieldErrors.agentConfirmsSuitable
+          result.error.flatten().fieldErrors.agentConfirmsSuitable,
         ).toBeDefined()
       }
     })

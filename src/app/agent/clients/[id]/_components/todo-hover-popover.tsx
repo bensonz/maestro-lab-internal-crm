@@ -65,7 +65,10 @@ export function ToDoHoverPopover({
             </h5>
             <ul className="space-y-1.5">
               {instructions.mustDo.map((item, idx) => (
-                <li key={idx} className="flex items-start gap-2 text-xs text-foreground">
+                <li
+                  key={idx}
+                  className="flex items-start gap-2 text-xs text-foreground"
+                >
                   <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-chart-4 mt-0.5" />
                   <span>{item}</span>
                 </li>
@@ -80,7 +83,10 @@ export function ToDoHoverPopover({
             </h5>
             <ul className="space-y-1.5">
               {instructions.mustNotDo.map((item, idx) => (
-                <li key={idx} className="flex items-start gap-2 text-xs text-foreground">
+                <li
+                  key={idx}
+                  className="flex items-start gap-2 text-xs text-foreground"
+                >
                   <XCircle className="h-3.5 w-3.5 shrink-0 text-destructive mt-0.5" />
                   <span>{item}</span>
                 </li>
@@ -97,15 +103,21 @@ export function ToDoHoverPopover({
             <div className="space-y-1 text-xs">
               <div className="flex gap-2">
                 <span className="text-muted-foreground">Page:</span>
-                <span className="text-foreground">{instructions.screenshotGuidance.page}</span>
+                <span className="text-foreground">
+                  {instructions.screenshotGuidance.page}
+                </span>
               </div>
               <div className="flex gap-2">
                 <span className="text-muted-foreground">Section:</span>
-                <span className="text-foreground">{instructions.screenshotGuidance.section}</span>
+                <span className="text-foreground">
+                  {instructions.screenshotGuidance.section}
+                </span>
               </div>
               <div className="flex gap-2">
                 <span className="text-chart-4">Success:</span>
-                <span className="text-foreground">{instructions.screenshotGuidance.success}</span>
+                <span className="text-foreground">
+                  {instructions.screenshotGuidance.success}
+                </span>
               </div>
             </div>
           </div>
@@ -115,13 +127,17 @@ export function ToDoHoverPopover({
             <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
               Success Criteria
             </h5>
-            <p className="text-xs text-foreground">{instructions.successCriteria}</p>
+            <p className="text-xs text-foreground">
+              {instructions.successCriteria}
+            </p>
           </div>
 
           {/* Footer */}
           <div className="flex items-center justify-between pt-2 border-t border-border/30 text-xs text-muted-foreground">
             <div>
-              <span className="block text-muted-foreground/70">Trigger Source</span>
+              <span className="block text-muted-foreground/70">
+                Trigger Source
+              </span>
               <span>{triggerSource}</span>
             </div>
             <div className="text-right">

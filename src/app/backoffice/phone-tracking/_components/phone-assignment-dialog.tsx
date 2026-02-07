@@ -65,7 +65,7 @@ export function PhoneAssignmentDialog({
         clientId,
         phoneNumber.trim(),
         deviceId.trim() || undefined,
-        notes.trim() || undefined
+        notes.trim() || undefined,
       )
       if (result.success) {
         toast.success('Phone assigned successfully')

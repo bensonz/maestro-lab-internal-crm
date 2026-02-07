@@ -17,8 +17,13 @@ interface VerificationTasksTableProps {
   selectedAgentId: string | null
 }
 
-export function VerificationTasksTable({ tasks, selectedAgentId }: VerificationTasksTableProps) {
-  const [selectedTask, setSelectedTask] = useState<VerificationTask | null>(null)
+export function VerificationTasksTable({
+  tasks,
+  selectedAgentId,
+}: VerificationTasksTableProps) {
+  const [selectedTask, setSelectedTask] = useState<VerificationTask | null>(
+    null,
+  )
 
   return (
     <>
@@ -37,7 +42,9 @@ export function VerificationTasksTable({ tasks, selectedAgentId }: VerificationT
         <CardContent>
           {tasks.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
-              {selectedAgentId ? 'No tasks for selected agent' : 'No verification tasks pending'}
+              {selectedAgentId
+                ? 'No tasks for selected agent'
+                : 'No verification tasks pending'}
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -68,17 +75,26 @@ export function VerificationTasksTable({ tasks, selectedAgentId }: VerificationT
                             {task.clientName}
                           </Link>
                         ) : (
-                          <span className="text-muted-foreground">{task.clientName}</span>
+                          <span className="text-muted-foreground">
+                            {task.clientName}
+                          </span>
                         )}
                       </td>
                       <td className="py-3">
                         <PlatformBadge platformType={task.platformType} />
                       </td>
-                      <td className="py-3 text-muted-foreground">{task.task}</td>
-                      <td className="py-3 text-muted-foreground">{task.agentName}</td>
+                      <td className="py-3 text-muted-foreground">
+                        {task.task}
+                      </td>
+                      <td className="py-3 text-muted-foreground">
+                        {task.agentName}
+                      </td>
                       <td className="py-3">
                         {task.clientDeadline ? (
-                          <DeadlineCountdown deadline={task.clientDeadline} variant="inline" />
+                          <DeadlineCountdown
+                            deadline={task.clientDeadline}
+                            variant="inline"
+                          />
                         ) : (
                           <div className="flex items-center gap-1.5 text-muted-foreground">
                             <Clock className="h-3.5 w-3.5" />
@@ -93,7 +109,7 @@ export function VerificationTasksTable({ tasks, selectedAgentId }: VerificationT
                             'text-xs',
                             task.status === 'Done'
                               ? 'bg-chart-4/20 text-chart-4 border-chart-4/30'
-                              : 'bg-accent/20 text-accent border-accent/30'
+                              : 'bg-accent/20 text-accent border-accent/30',
                           )}
                         >
                           {task.status}
@@ -137,9 +153,17 @@ export function VerificationTasksTable({ tasks, selectedAgentId }: VerificationT
   )
 }
 
-function PlatformBadge({ platformType }: { platformType: PlatformType | null }) {
+function PlatformBadge({
+  platformType,
+}: {
+  platformType: PlatformType | null
+}) {
   if (!platformType) {
-    return <Badge variant="outline" className="text-xs">N/A</Badge>
+    return (
+      <Badge variant="outline" className="text-xs">
+        N/A
+      </Badge>
+    )
   }
 
   const config = getPlatformBadgeConfig(platformType)
@@ -154,7 +178,10 @@ function PlatformBadge({ platformType }: { platformType: PlatformType | null }) 
   )
 }
 
-function getPlatformBadgeConfig(platformType: PlatformType): { label: string; className: string } {
+function getPlatformBadgeConfig(platformType: PlatformType): {
+  label: string
+  className: string
+} {
   const configs: Record<PlatformType, { label: string; className: string }> = {
     [PlatformType.DRAFTKINGS]: {
       label: 'DraftKings',

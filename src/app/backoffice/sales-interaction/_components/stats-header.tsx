@@ -13,7 +13,11 @@ interface StatsHeaderProps {
   onSearch: (query: string) => void
 }
 
-export function StatsHeader({ stats, searchQuery, onSearch }: StatsHeaderProps) {
+export function StatsHeader({
+  stats,
+  searchQuery,
+  onSearch,
+}: StatsHeaderProps) {
   return (
     <div className="space-y-4">
       {/* Title and Add Button */}
@@ -35,22 +39,30 @@ export function StatsHeader({ stats, searchQuery, onSearch }: StatsHeaderProps) 
         <div className="flex items-center gap-2 rounded-full bg-muted/50 px-4 py-2 ring-1 ring-border/30">
           <Users className="h-4 w-4 text-primary" />
           <span className="text-sm text-muted-foreground">Clients</span>
-          <span className="font-semibold text-foreground">{stats.clientCount}</span>
+          <span className="font-semibold text-foreground">
+            {stats.clientCount}
+          </span>
         </div>
         <div className="flex items-center gap-2 rounded-full bg-muted/50 px-4 py-2 ring-1 ring-border/30">
           <UserCheck className="h-4 w-4 text-chart-4" />
           <span className="text-sm text-muted-foreground">Agents</span>
-          <span className="font-semibold text-foreground">{stats.agentCount}</span>
+          <span className="font-semibold text-foreground">
+            {stats.agentCount}
+          </span>
         </div>
         <div className="flex items-center gap-2 rounded-full bg-muted/50 px-4 py-2 ring-1 ring-border/30">
           <Smartphone className="h-4 w-4 text-chart-5" />
           <span className="text-sm text-muted-foreground">Active Apps</span>
-          <span className="font-semibold text-foreground">{stats.activeApps}</span>
+          <span className="font-semibold text-foreground">
+            {stats.activeApps}
+          </span>
         </div>
         <div className="flex items-center gap-2 rounded-full bg-muted/50 px-4 py-2 ring-1 ring-border/30">
           <Clock className="h-4 w-4 text-accent" />
           <span className="text-sm text-muted-foreground">Pending</span>
-          <span className="font-semibold text-accent">{stats.pendingCount}</span>
+          <span className="font-semibold text-accent">
+            {stats.pendingCount}
+          </span>
         </div>
       </div>
 

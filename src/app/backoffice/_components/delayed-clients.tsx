@@ -55,7 +55,7 @@ export function DelayedClients({ clients }: DelayedClientsProps) {
       const result = await changeClientStatus(
         clientId,
         IntakeStatus.INACTIVE,
-        'Execution delayed beyond recovery'
+        'Execution delayed beyond recovery',
       )
       if (result.success) {
         toast.success('Client marked as inactive')
@@ -85,7 +85,8 @@ export function DelayedClients({ clients }: DelayedClientsProps) {
           </p>
         ) : (
           clients.map((client) => {
-            const totalTodos = client.pendingTodosCount + client.completedTodosCount
+            const totalTodos =
+              client.pendingTodosCount + client.completedTodosCount
 
             return (
               <div
@@ -96,16 +97,23 @@ export function DelayedClients({ clients }: DelayedClientsProps) {
                 {/* Header */}
                 <div className="flex items-start justify-between gap-2">
                   <div className="space-y-1 min-w-0">
-                    <span className="font-medium text-foreground">{client.name}</span>
+                    <span className="font-medium text-foreground">
+                      {client.name}
+                    </span>
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
                       <User className="h-3 w-3" />
                       <span>{client.agentName}</span>
                       <span className="text-muted-foreground/50 mx-1">•</span>
-                      <span>Delayed {formatRelativeTime(client.delayedSince)}</span>
+                      <span>
+                        Delayed {formatRelativeTime(client.delayedSince)}
+                      </span>
                     </div>
                   </div>
                   {totalTodos > 0 && (
-                    <Badge variant="outline" className="text-xs whitespace-nowrap shrink-0">
+                    <Badge
+                      variant="outline"
+                      className="text-xs whitespace-nowrap shrink-0"
+                    >
                       {client.completedTodosCount}/{totalTodos} todos
                     </Badge>
                   )}

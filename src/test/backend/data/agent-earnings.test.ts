@@ -69,9 +69,24 @@ describe('getAgentEarnings', () => {
     const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 10)
 
     vi.mocked(prisma.earning.findMany).mockResolvedValue([
-      makeEarning({ id: 'e1', amount: 300, status: 'paid', createdAt: thisMonthDate }),
-      makeEarning({ id: 'e2', amount: 100, status: 'pending', createdAt: thisMonthDate }),
-      makeEarning({ id: 'e3', amount: 500, status: 'paid', createdAt: lastMonthDate }),
+      makeEarning({
+        id: 'e1',
+        amount: 300,
+        status: 'paid',
+        createdAt: thisMonthDate,
+      }),
+      makeEarning({
+        id: 'e2',
+        amount: 100,
+        status: 'pending',
+        createdAt: thisMonthDate,
+      }),
+      makeEarning({
+        id: 'e3',
+        amount: 500,
+        status: 'paid',
+        createdAt: lastMonthDate,
+      }),
     ] as never)
 
     const result = await getAgentEarnings('agent-1')
@@ -89,7 +104,7 @@ describe('getAgentEarnings', () => {
         amount: 10 * (i + 1),
         status: 'paid',
         createdAt: new Date(2025, 0, 15 - i),
-      })
+      }),
     )
 
     vi.mocked(prisma.earning.findMany).mockResolvedValue(earnings as never)
@@ -111,7 +126,9 @@ describe('getAgentEarnings', () => {
     const result = await getAgentEarnings('agent-1')
 
     expect(result.recentTransactions[0].description).toBe('Bonus commission')
-    expect(result.recentTransactions[1].description).toBe('Client approval commission')
+    expect(result.recentTransactions[1].description).toBe(
+      'Client approval commission',
+    )
   })
 
   it('maps status labels correctly', async () => {
@@ -128,7 +145,12 @@ describe('getAgentEarnings', () => {
 
   it('includes client name and formatted date in transactions', async () => {
     vi.mocked(prisma.earning.findMany).mockResolvedValue([
-      makeEarning({ id: 'e1', firstName: 'Jane', lastName: 'Smith', createdAt: new Date(2025, 5, 15) }),
+      makeEarning({
+        id: 'e1',
+        firstName: 'Jane',
+        lastName: 'Smith',
+        createdAt: new Date(2025, 5, 15),
+      }),
     ] as never)
 
     const result = await getAgentEarnings('agent-1')

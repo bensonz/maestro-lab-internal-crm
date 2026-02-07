@@ -20,12 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  Phone,
-  Search,
-  LogOut,
-  RotateCcw,
-} from 'lucide-react'
+import { Phone, Search, LogOut, RotateCcw } from 'lucide-react'
 import { signOutPhone, returnPhone } from '@/app/actions/phones'
 import { toast } from 'sonner'
 
@@ -48,13 +43,29 @@ interface PhoneTableProps {
 function getStatusBadge(status: string) {
   switch (status) {
     case 'active':
-      return <Badge className="bg-chart-4/20 text-chart-4 border-chart-4/30">Active</Badge>
+      return (
+        <Badge className="bg-chart-4/20 text-chart-4 border-chart-4/30">
+          Active
+        </Badge>
+      )
     case 'pending':
-      return <Badge className="bg-accent/20 text-accent border-accent/30">Pending</Badge>
+      return (
+        <Badge className="bg-accent/20 text-accent border-accent/30">
+          Pending
+        </Badge>
+      )
     case 'suspended':
-      return <Badge className="bg-destructive/20 text-destructive border-destructive/30">Signed Out</Badge>
+      return (
+        <Badge className="bg-destructive/20 text-destructive border-destructive/30">
+          Signed Out
+        </Badge>
+      )
     case 'inactive':
-      return <Badge className="bg-muted text-muted-foreground border-border">Returned</Badge>
+      return (
+        <Badge className="bg-muted text-muted-foreground border-border">
+          Returned
+        </Badge>
+      )
     default:
       return <Badge variant="outline">{status}</Badge>
   }
@@ -70,7 +81,8 @@ export function PhoneTable({ phoneNumbers }: PhoneTableProps) {
       phone.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
       phone.client.toLowerCase().includes(searchQuery.toLowerCase()) ||
       phone.clientId.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesStatus = statusFilter === 'all' || phone.status === statusFilter
+    const matchesStatus =
+      statusFilter === 'all' || phone.status === statusFilter
     return matchesSearch && matchesStatus
   })
 
@@ -128,7 +140,9 @@ export function PhoneTable({ phoneNumbers }: PhoneTableProps) {
       <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
         {filteredNumbers.length === 0 ? (
           <div className="py-12 text-center text-muted-foreground">
-            {phoneNumbers.length === 0 ? 'No phone assignments' : 'No phone numbers match your filters'}
+            {phoneNumbers.length === 0
+              ? 'No phone assignments'
+              : 'No phone numbers match your filters'}
           </div>
         ) : (
           <Table>
@@ -150,26 +164,36 @@ export function PhoneTable({ phoneNumbers }: PhoneTableProps) {
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Phone className="h-4 w-4 text-primary" />
-                      <span className="font-mono font-medium">{phone.number}</span>
+                      <span className="font-mono font-medium">
+                        {phone.number}
+                      </span>
                     </div>
                   </TableCell>
                   <TableCell>
                     <div>
                       <p className="font-medium">{phone.client}</p>
                       {phone.clientId && (
-                        <p className="text-xs text-muted-foreground">{phone.clientId}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {phone.clientId}
+                        </p>
                       )}
                     </div>
                   </TableCell>
                   <TableCell>
                     {phone.deviceId ? (
-                      <span className="font-mono text-sm">{phone.deviceId}</span>
+                      <span className="font-mono text-sm">
+                        {phone.deviceId}
+                      </span>
                     ) : (
                       <span className="text-muted-foreground/50">—</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{phone.issuedDate || '—'}</TableCell>
-                  <TableCell className="text-muted-foreground">{phone.issuedBy}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {phone.issuedDate || '—'}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {phone.issuedBy}
+                  </TableCell>
                   <TableCell>{getStatusBadge(phone.status)}</TableCell>
                   <TableCell className="text-muted-foreground max-w-[200px] truncate">
                     {phone.notes || '—'}

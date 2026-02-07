@@ -34,16 +34,20 @@ const platformColors: Record<string, string> = {
 export function ClientList({ clients }: ClientListProps) {
   const [searchQuery, setSearchQuery] = useState('')
 
-  const filteredClients = clients.filter((client) =>
-    client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    client.phone.includes(searchQuery) ||
-    (client.email && client.email.toLowerCase().includes(searchQuery.toLowerCase()))
+  const filteredClients = clients.filter(
+    (client) =>
+      client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      client.phone.includes(searchQuery) ||
+      (client.email &&
+        client.email.toLowerCase().includes(searchQuery.toLowerCase())),
   )
 
   return (
     <Card className="border-slate-800 bg-slate-900 lg:col-span-3">
       <CardHeader>
-        <CardTitle className="text-white">Client Registry ({filteredClients.length})</CardTitle>
+        <CardTitle className="text-white">
+          Client Registry ({filteredClients.length})
+        </CardTitle>
         <Input
           className="border-slate-700 bg-slate-800 text-white"
           placeholder="Search clients..."
@@ -54,7 +58,9 @@ export function ClientList({ clients }: ClientListProps) {
       <CardContent>
         {filteredClients.length === 0 ? (
           <p className="text-center text-slate-400 py-8">
-            {clients.length === 0 ? 'No clients yet' : 'No clients match your search'}
+            {clients.length === 0
+              ? 'No clients yet'
+              : 'No clients match your search'}
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -87,7 +93,12 @@ export function ClientList({ clients }: ClientListProps) {
                     <td>
                       <div className="flex flex-wrap gap-1">
                         {client.activePlatforms.map((p) => (
-                          <Badge key={p} className={`${platformColors[p] || 'bg-slate-600'} text-xs`}>{p}</Badge>
+                          <Badge
+                            key={p}
+                            className={`${platformColors[p] || 'bg-slate-600'} text-xs`}
+                          >
+                            {p}
+                          </Badge>
                         ))}
                         {client.activePlatforms.length === 0 && (
                           <span className="text-slate-500">—</span>
@@ -97,10 +108,16 @@ export function ClientList({ clients }: ClientListProps) {
                     <td className="text-slate-500">—</td>
                     <td>
                       <div className="flex flex-wrap gap-1">
-                        {client.platforms.filter(p => !client.activePlatforms.includes(p)).map((p) => (
-                          <Badge key={p} className="bg-slate-700 text-xs">{p}</Badge>
-                        ))}
-                        {client.platforms.filter(p => !client.activePlatforms.includes(p)).length === 0 && (
+                        {client.platforms
+                          .filter((p) => !client.activePlatforms.includes(p))
+                          .map((p) => (
+                            <Badge key={p} className="bg-slate-700 text-xs">
+                              {p}
+                            </Badge>
+                          ))}
+                        {client.platforms.filter(
+                          (p) => !client.activePlatforms.includes(p),
+                        ).length === 0 && (
                           <span className="text-slate-500">—</span>
                         )}
                       </div>

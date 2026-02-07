@@ -39,7 +39,9 @@ export function PriorityTasks({ tasks }: PriorityTasksProps) {
             >
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="font-medium text-foreground">{task.title}</span>
+                  <span className="font-medium text-foreground">
+                    {task.title}
+                  </span>
                   {task.isUrgent && (
                     <Badge className="bg-accent/20 text-accent border-accent/30 text-xs font-medium">
                       URGENT

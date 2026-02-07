@@ -1,4 +1,8 @@
-import { getFundMovements, getClientsForFundAllocation, getFundMovementStats } from '@/backend/data/operations'
+import {
+  getFundMovements,
+  getClientsForFundAllocation,
+  getFundMovementStats,
+} from '@/backend/data/operations'
 import { Card, CardContent } from '@/components/ui/card'
 import {
   Building2,
@@ -78,13 +82,18 @@ export default async function FundAllocationPage() {
         </h2>
         <div className="grid grid-cols-3 gap-4 mb-4">
           {platformBalances.map((platform) => (
-            <Card key={platform.name} className="border-border/50 bg-card/80 backdrop-blur-sm">
+            <Card
+              key={platform.name}
+              className="border-border/50 bg-card/80 backdrop-blur-sm"
+            >
               <CardContent className="flex items-center gap-3 p-4">
                 <div className="p-2 rounded-lg bg-muted/50">
                   <platform.icon className={`h-5 w-5 ${platform.color}`} />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">{platform.name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {platform.name}
+                  </p>
                   <p className="text-lg font-semibold font-mono text-foreground">
                     ${platform.balance.toLocaleString()}
                   </p>
@@ -95,9 +104,14 @@ export default async function FundAllocationPage() {
         </div>
         <div className="grid grid-cols-8 gap-4">
           {sportsbooks.map((sb) => (
-            <Card key={sb.name} className="border-border/50 bg-card/80 backdrop-blur-sm">
+            <Card
+              key={sb.name}
+              className="border-border/50 bg-card/80 backdrop-blur-sm"
+            >
               <CardContent className="p-3 text-center">
-                <p className="text-xs text-muted-foreground truncate mb-1">{sb.name}</p>
+                <p className="text-xs text-muted-foreground truncate mb-1">
+                  {sb.name}
+                </p>
                 <p className="text-sm font-semibold font-mono text-muted-foreground/60">
                   ${sb.balance.toLocaleString()}
                 </p>
@@ -110,14 +124,21 @@ export default async function FundAllocationPage() {
       {/* Summary Stats */}
       <div className="grid grid-cols-3 gap-4">
         {summaryStats.map((stat) => (
-          <Card key={stat.label} className="border-border/50 bg-card/80 backdrop-blur-sm">
+          <Card
+            key={stat.label}
+            className="border-border/50 bg-card/80 backdrop-blur-sm"
+          >
             <CardContent className="flex items-center gap-3 p-4">
               <div className={`p-2.5 rounded-xl ${stat.bg}`}>
                 <stat.icon className={`h-5 w-5 ${stat.color}`} />
               </div>
               <div>
-                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{stat.label}</p>
-                <p className={`text-lg font-semibold font-mono ${stat.color}`}>{stat.value}</p>
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  {stat.label}
+                </p>
+                <p className={`text-lg font-semibold font-mono ${stat.color}`}>
+                  {stat.value}
+                </p>
               </div>
             </CardContent>
           </Card>

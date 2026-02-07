@@ -32,7 +32,7 @@ export function AddressSection({
   defaultValues = {},
 }: AddressSectionProps) {
   const [hasSecondAddress, setHasSecondAddress] = useState(
-    defaultValues.hasSecondAddress ?? false
+    defaultValues.hasSecondAddress ?? false,
   )
 
   return (
@@ -57,7 +57,10 @@ export function AddressSection({
         <div className="space-y-4">
           <p className="text-sm font-medium text-foreground">Primary Address</p>
           <div className="space-y-2">
-            <Label htmlFor="primaryAddress" className="text-sm font-medium text-foreground">
+            <Label
+              htmlFor="primaryAddress"
+              className="text-sm font-medium text-foreground"
+            >
               Street Address <span className="text-destructive">*</span>
             </Label>
             <Input
@@ -71,7 +74,10 @@ export function AddressSection({
           </div>
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-2">
-              <Label htmlFor="primaryCity" className="text-sm font-medium text-foreground">
+              <Label
+                htmlFor="primaryCity"
+                className="text-sm font-medium text-foreground"
+              >
                 City <span className="text-destructive">*</span>
               </Label>
               <Input
@@ -84,7 +90,10 @@ export function AddressSection({
               <FormError errors={errors?.primaryCity} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="primaryState" className="text-sm font-medium text-foreground">
+              <Label
+                htmlFor="primaryState"
+                className="text-sm font-medium text-foreground"
+              >
                 State <span className="text-destructive">*</span>
               </Label>
               <Input
@@ -97,7 +106,10 @@ export function AddressSection({
               <FormError errors={errors?.primaryState} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="primaryZip" className="text-sm font-medium text-foreground">
+              <Label
+                htmlFor="primaryZip"
+                className="text-sm font-medium text-foreground"
+              >
                 ZIP Code <span className="text-destructive">*</span>
               </Label>
               <Input
@@ -132,7 +144,9 @@ export function AddressSection({
         {/* Secondary Address - Conditionally Shown */}
         {hasSecondAddress && (
           <div className="space-y-4 animate-fade-in-up">
-            <p className="text-sm font-medium text-foreground">Secondary Address</p>
+            <p className="text-sm font-medium text-foreground">
+              Secondary Address
+            </p>
             <div className="space-y-2">
               <Label
                 htmlFor="secondaryAddress"

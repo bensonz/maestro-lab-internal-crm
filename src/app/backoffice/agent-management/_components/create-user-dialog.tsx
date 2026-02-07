@@ -57,7 +57,8 @@ export function CreateUserDialog({ currentUserRole }: CreateUserDialogProps) {
     if (!name?.trim()) errors.name = 'Name is required'
     if (!email?.trim()) errors.email = 'Email is required'
     if (!password || password.length < 8) errors.password = 'Min 8 characters'
-    if (password !== confirmPassword) errors.confirmPassword = 'Passwords do not match'
+    if (password !== confirmPassword)
+      errors.confirmPassword = 'Passwords do not match'
     if (!role) errors.role = 'Role is required'
     return errors
   }
@@ -162,15 +163,14 @@ export function CreateUserDialog({ currentUserRole }: CreateUserDialogProps) {
 
           <Field>
             <FieldLabel htmlFor="phone">Phone (optional)</FieldLabel>
-            <Input
-              id="phone"
-              name="phone"
-              data-testid="create-user-phone"
-            />
+            <Input id="phone" name="phone" data-testid="create-user-phone" />
           </Field>
 
           {error && (
-            <p className="text-sm text-destructive" data-testid="create-user-error">
+            <p
+              className="text-sm text-destructive"
+              data-testid="create-user-error"
+            >
               {error}
             </p>
           )}

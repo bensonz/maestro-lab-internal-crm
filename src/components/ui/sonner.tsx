@@ -22,8 +22,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
             'group-[.toaster]:border-chart-4/30 group-[.toaster]:bg-chart-4/5',
           error:
             'group-[.toaster]:border-destructive/30 group-[.toaster]:bg-destructive/5',
-          info:
-            'group-[.toaster]:border-primary/30 group-[.toaster]:bg-primary/5',
+          info: 'group-[.toaster]:border-primary/30 group-[.toaster]:bg-primary/5',
           warning:
             'group-[.toaster]:border-accent/30 group-[.toaster]:bg-accent/5',
         },

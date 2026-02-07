@@ -93,7 +93,10 @@ export default function LoginPage() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium text-foreground">
+              <Label
+                htmlFor="email"
+                className="text-sm font-medium text-foreground"
+              >
                 Email address
               </Label>
               <Input
@@ -108,7 +111,10 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-medium text-foreground">
+              <Label
+                htmlFor="password"
+                className="text-sm font-medium text-foreground"
+              >
                 Password
               </Label>
               <Input
@@ -143,7 +149,10 @@ export default function LoginPage() {
         </div>
 
         {/* Demo Accounts */}
-        <div className="mt-8 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+        <div
+          className="mt-8 animate-fade-in-up"
+          style={{ animationDelay: '0.2s' }}
+        >
           <div className="flex items-center gap-3 mb-4">
             <div className="h-px flex-1 bg-gradient-to-r from-transparent via-border to-transparent" />
             <span className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
@@ -158,18 +167,23 @@ export default function LoginPage() {
                 <div className="h-2 w-2 rounded-full bg-primary status-dot" />
                 <span className="text-sm text-muted-foreground">Agent</span>
               </div>
-              <code className="font-mono text-xs text-foreground">agent@test.com</code>
+              <code className="font-mono text-xs text-foreground">
+                agent@test.com
+              </code>
             </div>
             <div className="flex items-center justify-between rounded-xl bg-card/60 px-4 py-3 ring-1 ring-border/40 backdrop-blur-sm">
               <div className="flex items-center gap-3">
                 <div className="h-2 w-2 rounded-full bg-accent status-dot" />
                 <span className="text-sm text-muted-foreground">Admin</span>
               </div>
-              <code className="font-mono text-xs text-foreground">admin@test.com</code>
+              <code className="font-mono text-xs text-foreground">
+                admin@test.com
+              </code>
             </div>
           </div>
           <p className="mt-3 text-center text-xs text-muted-foreground">
-            Password: <code className="font-mono text-foreground/80">password123</code>
+            Password:{' '}
+            <code className="font-mono text-foreground/80">password123</code>
           </p>
         </div>
       </div>

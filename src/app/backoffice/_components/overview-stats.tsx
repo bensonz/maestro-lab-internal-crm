@@ -51,10 +51,15 @@ export function OverviewStats({
       iconColor: 'text-destructive',
       hoverBorder: 'hover:border-destructive/40',
       hoverShadow: 'hover:shadow-destructive/10',
-      badge: [
-        pendingExtensions > 0 ? `${pendingExtensions} extension${pendingExtensions !== 1 ? 's' : ''}` : null,
-        delayedClients > 0 ? `${delayedClients} delayed` : null,
-      ].filter(Boolean).join(' • ') || null,
+      badge:
+        [
+          pendingExtensions > 0
+            ? `${pendingExtensions} extension${pendingExtensions !== 1 ? 's' : ''}`
+            : null,
+          delayedClients > 0 ? `${delayedClients} delayed` : null,
+        ]
+          .filter(Boolean)
+          .join(' • ') || null,
     },
     {
       label: 'ACTIVE CLIENTS',

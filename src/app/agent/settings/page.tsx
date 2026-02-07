@@ -1,7 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Field, FieldLabel, FieldGroup, FieldDescription } from '@/components/ui/field'
+import {
+  Field,
+  FieldLabel,
+  FieldGroup,
+  FieldDescription,
+} from '@/components/ui/field'
 import { Settings, User, Bell, Save } from 'lucide-react'
 
 export default function SettingsPage() {
@@ -82,7 +87,10 @@ export default function SettingsPage() {
         </Card>
 
         {/* Notification Preferences */}
-        <Card className="border-border/50 bg-card/80 backdrop-blur-sm animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
+        <Card
+          className="border-border/50 bg-card/80 backdrop-blur-sm animate-fade-in-up"
+          style={{ animationDelay: '0.1s' }}
+        >
           <CardHeader className="pb-4">
             <div className="flex items-center gap-3">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10 ring-1 ring-accent/20">

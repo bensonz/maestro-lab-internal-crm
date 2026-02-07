@@ -59,7 +59,11 @@ describe('getAgentKPIs', () => {
       { id: 'c2', intakeStatus: 'APPROVED', createdAt: new Date('2026-01-02') },
       { id: 'c3', intakeStatus: 'APPROVED', createdAt: new Date('2026-01-03') },
       { id: 'c4', intakeStatus: 'REJECTED', createdAt: new Date('2026-01-04') },
-      { id: 'c5', intakeStatus: 'IN_EXECUTION', createdAt: new Date('2026-01-05') },
+      {
+        id: 'c5',
+        intakeStatus: 'IN_EXECUTION',
+        createdAt: new Date('2026-01-05'),
+      },
     ] as never)
 
     const result = await getAgentKPIs('agent-1')
@@ -84,8 +88,16 @@ describe('getAgentKPIs', () => {
 
   it('returns 0% success rate when no clients have completed', async () => {
     vi.mocked(prisma.client.findMany).mockResolvedValue([
-      { id: 'c1', intakeStatus: 'IN_EXECUTION', createdAt: new Date('2026-01-01') },
-      { id: 'c2', intakeStatus: 'PHONE_ISSUED', createdAt: new Date('2026-01-02') },
+      {
+        id: 'c1',
+        intakeStatus: 'IN_EXECUTION',
+        createdAt: new Date('2026-01-01'),
+      },
+      {
+        id: 'c2',
+        intakeStatus: 'PHONE_ISSUED',
+        createdAt: new Date('2026-01-02'),
+      },
     ] as never)
 
     const result = await getAgentKPIs('agent-1')
@@ -95,9 +107,21 @@ describe('getAgentKPIs', () => {
 
   it('computes correct delay rate with EXECUTION_DELAYED clients', async () => {
     vi.mocked(prisma.client.findMany).mockResolvedValue([
-      { id: 'c1', intakeStatus: 'IN_EXECUTION', createdAt: new Date('2026-01-01') },
-      { id: 'c2', intakeStatus: 'PHONE_ISSUED', createdAt: new Date('2026-01-02') },
-      { id: 'c3', intakeStatus: 'EXECUTION_DELAYED', createdAt: new Date('2026-01-03') },
+      {
+        id: 'c1',
+        intakeStatus: 'IN_EXECUTION',
+        createdAt: new Date('2026-01-01'),
+      },
+      {
+        id: 'c2',
+        intakeStatus: 'PHONE_ISSUED',
+        createdAt: new Date('2026-01-02'),
+      },
+      {
+        id: 'c3',
+        intakeStatus: 'EXECUTION_DELAYED',
+        createdAt: new Date('2026-01-03'),
+      },
       { id: 'c4', intakeStatus: 'APPROVED', createdAt: new Date('2026-01-04') },
     ] as never)
 
@@ -122,8 +146,16 @@ describe('getAgentKPIs', () => {
 
   it('computes correct extension rate', async () => {
     vi.mocked(prisma.client.findMany).mockResolvedValue([
-      { id: 'c1', intakeStatus: 'IN_EXECUTION', createdAt: new Date('2026-01-01') },
-      { id: 'c2', intakeStatus: 'IN_EXECUTION', createdAt: new Date('2026-01-02') },
+      {
+        id: 'c1',
+        intakeStatus: 'IN_EXECUTION',
+        createdAt: new Date('2026-01-01'),
+      },
+      {
+        id: 'c2',
+        intakeStatus: 'IN_EXECUTION',
+        createdAt: new Date('2026-01-02'),
+      },
       { id: 'c3', intakeStatus: 'APPROVED', createdAt: new Date('2026-01-03') },
       { id: 'c4', intakeStatus: 'APPROVED', createdAt: new Date('2026-01-04') },
     ] as never)
@@ -200,7 +232,11 @@ describe('getAgentKPIs', () => {
 
   it('counts pending and overdue todos', async () => {
     vi.mocked(prisma.client.findMany).mockResolvedValue([
-      { id: 'c1', intakeStatus: 'IN_EXECUTION', createdAt: new Date('2026-01-01') },
+      {
+        id: 'c1',
+        intakeStatus: 'IN_EXECUTION',
+        createdAt: new Date('2026-01-01'),
+      },
     ] as never)
 
     vi.mocked(prisma.toDo.groupBy).mockResolvedValue([

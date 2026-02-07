@@ -20,16 +20,15 @@ export const platformInstructions: Record<string, ToDoInstruction> = {
       'Upload TWO screenshots: login credentials + homepage with balance',
       'Bulk upload supported - AI will detect which is which',
     ],
-    mustNotDo: [
-      'Use personal email for PayPal',
-      'Upload only one screenshot',
-    ],
+    mustNotDo: ['Use personal email for PayPal', 'Upload only one screenshot'],
     screenshotGuidance: {
       page: 'PayPal Login + Dashboard',
       section: 'Login screen AND Account Overview',
-      success: 'Two screenshots: 1) Email/password visible, 2) Homepage showing balance',
+      success:
+        'Two screenshots: 1) Email/password visible, 2) Homepage showing balance',
     },
-    successCriteria: 'Both screenshots verified: login credentials + homepage with balance',
+    successCriteria:
+      'Both screenshots verified: login credentials + homepage with balance',
   },
 
   // Edgeboost Registration (Step 3)
@@ -48,7 +47,8 @@ export const platformInstructions: Record<string, ToDoInstruction> = {
       section: 'Login Screen AND Address Verification Page',
       success: 'Two screenshots showing credentials and address form submitted',
     },
-    successCriteria: 'Both screenshots uploaded: login credentials + address submission page',
+    successCriteria:
+      'Both screenshots uploaded: login credentials + address submission page',
   },
 
   // Bank Account Created (Step 2)
@@ -58,16 +58,14 @@ export const platformInstructions: Record<string, ToDoInstruction> = {
       'Upload online banking login screenshot',
       'Confirm PIN matches suggested PIN',
     ],
-    mustNotDo: [
-      'Use different bank than selected',
-      'Share PIN with client',
-    ],
+    mustNotDo: ['Use different bank than selected', 'Share PIN with client'],
     screenshotGuidance: {
       page: 'Online Banking Login',
       section: 'Account dashboard showing username',
       success: 'Screenshot showing successful login with username visible',
     },
-    successCriteria: 'Screenshot showing successful login with username visible',
+    successCriteria:
+      'Screenshot showing successful login with username visible',
   },
 
   // Sports betting platforms - generic instructions
@@ -77,10 +75,7 @@ export const platformInstructions: Record<string, ToDoInstruction> = {
       'Upload registration confirmation screenshot',
       'Verify account is fully activated',
     ],
-    mustNotDo: [
-      'Use personal email',
-      'Place any bets before verification',
-    ],
+    mustNotDo: ['Use personal email', 'Place any bets before verification'],
     screenshotGuidance: {
       page: 'DraftKings Account',
       section: 'Account dashboard or profile page',
@@ -95,10 +90,7 @@ export const platformInstructions: Record<string, ToDoInstruction> = {
       'Upload registration confirmation screenshot',
       'Verify identity if prompted',
     ],
-    mustNotDo: [
-      'Use personal email',
-      'Skip identity verification steps',
-    ],
+    mustNotDo: ['Use personal email', 'Skip identity verification steps'],
     screenshotGuidance: {
       page: 'FanDuel Account',
       section: 'Account settings or profile',
@@ -113,10 +105,7 @@ export const platformInstructions: Record<string, ToDoInstruction> = {
       'Complete all verification steps',
       'Upload account dashboard screenshot',
     ],
-    mustNotDo: [
-      'Use personal email',
-      'Submit incomplete registration',
-    ],
+    mustNotDo: ['Use personal email', 'Submit incomplete registration'],
     screenshotGuidance: {
       page: 'BetMGM Account',
       section: 'Account dashboard',
@@ -131,10 +120,7 @@ export const platformInstructions: Record<string, ToDoInstruction> = {
       'Complete identity verification',
       'Upload confirmation screenshot',
     ],
-    mustNotDo: [
-      'Use personal email',
-      'Skip any verification steps',
-    ],
+    mustNotDo: ['Use personal email', 'Skip any verification steps'],
     screenshotGuidance: {
       page: 'Caesars Sportsbook',
       section: 'Account profile',
@@ -167,10 +153,7 @@ export const platformInstructions: Record<string, ToDoInstruction> = {
       'Complete verification process',
       'Upload confirmation screenshot',
     ],
-    mustNotDo: [
-      'Use personal email',
-      'Skip document verification',
-    ],
+    mustNotDo: ['Use personal email', 'Skip document verification'],
     screenshotGuidance: {
       page: 'BetRivers Account',
       section: 'Profile or settings page',
@@ -185,10 +168,7 @@ export const platformInstructions: Record<string, ToDoInstruction> = {
       'Complete all registration steps',
       'Upload account confirmation',
     ],
-    mustNotDo: [
-      'Use personal email',
-      'Submit incomplete information',
-    ],
+    mustNotDo: ['Use personal email', 'Submit incomplete information'],
     screenshotGuidance: {
       page: 'Fanatics Sportsbook',
       section: 'Account page',
@@ -203,10 +183,7 @@ export const platformInstructions: Record<string, ToDoInstruction> = {
       'Complete identity verification',
       'Upload verification screenshot',
     ],
-    mustNotDo: [
-      'Use personal account',
-      'Skip verification steps',
-    ],
+    mustNotDo: ['Use personal account', 'Skip verification steps'],
     screenshotGuidance: {
       page: 'Bet365 Account',
       section: 'Account dashboard',
@@ -223,10 +200,7 @@ export const defaultInstructions: ToDoInstruction = {
     'Use company-provided email and information',
     'Upload confirmation screenshot',
   ],
-  mustNotDo: [
-    'Use personal information',
-    'Skip any verification steps',
-  ],
+  mustNotDo: ['Use personal information', 'Skip any verification steps'],
   screenshotGuidance: {
     page: 'Platform Account',
     section: 'Account dashboard or confirmation page',
@@ -235,7 +209,9 @@ export const defaultInstructions: ToDoInstruction = {
   successCriteria: 'Account successfully created and verified',
 }
 
-export function getInstructionsForPlatform(platformType: string | null): ToDoInstruction {
+export function getInstructionsForPlatform(
+  platformType: string | null,
+): ToDoInstruction {
   if (!platformType) return defaultInstructions
   return platformInstructions[platformType] || defaultInstructions
 }

@@ -17,7 +17,10 @@ interface ClientIntakeListProps {
   selectedAgentId: string | null
 }
 
-export function ClientIntakeList({ clients, selectedAgentId }: ClientIntakeListProps) {
+export function ClientIntakeList({
+  clients,
+  selectedAgentId,
+}: ClientIntakeListProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
@@ -49,7 +52,9 @@ export function ClientIntakeList({ clients, selectedAgentId }: ClientIntakeListP
       <CardContent>
         {clients.length === 0 ? (
           <p className="text-center text-muted-foreground py-8">
-            {selectedAgentId ? 'No clients for selected agent' : 'No clients in intake process'}
+            {selectedAgentId
+              ? 'No clients for selected agent'
+              : 'No clients in intake process'}
           </p>
         ) : (
           <div className="space-y-2">
@@ -113,7 +118,9 @@ export function ClientIntakeList({ clients, selectedAgentId }: ClientIntakeListP
                     </Button>
                   ) : client.statusType === 'followup' ? (
                     <span className="text-sm text-primary">
-                      {client.status.includes('Due today') ? 'Due today' : client.status.match(/\d+ days left/)?.[0] || ''}
+                      {client.status.includes('Due today')
+                        ? 'Due today'
+                        : client.status.match(/\d+ days left/)?.[0] || ''}
                     </span>
                   ) : null}
                 </div>

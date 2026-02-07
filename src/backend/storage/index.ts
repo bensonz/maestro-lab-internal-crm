@@ -1,14 +1,24 @@
 import { LocalStorage } from './local'
 import { VercelBlobStorage } from './vercel-blob'
-import type { StorageProvider, StorageConfig, StorageProviderType } from './types'
+import type {
+  StorageProvider,
+  StorageConfig,
+  StorageProviderType,
+} from './types'
 
-export type { StorageProvider, UploadResult, StorageConfig, StorageProviderType } from './types'
+export type {
+  StorageProvider,
+  UploadResult,
+  StorageConfig,
+  StorageProviderType,
+} from './types'
 
 /**
  * Get storage configuration from environment
  */
 function getStorageConfig(): StorageConfig {
-  const provider = (process.env.STORAGE_PROVIDER || 'local') as StorageProviderType
+  const provider = (process.env.STORAGE_PROVIDER ||
+    'local') as StorageProviderType
 
   return {
     provider,
@@ -36,7 +46,9 @@ function createStorageProvider(config: StorageConfig): StorageProvider {
     case 'r2':
       // TODO: Implement S3Storage when needed
       // return new S3Storage(config)
-      throw new Error(`Storage provider "${config.provider}" not yet implemented.`)
+      throw new Error(
+        `Storage provider "${config.provider}" not yet implemented.`,
+      )
 
     default:
       throw new Error(`Unknown storage provider: ${config.provider}`)
@@ -65,7 +77,7 @@ export function getStoragePath(
   entityId: string,
   type: 'id-documents' | 'login-verification' | 'closure-proof' | 'avatars',
   filename: string,
-  platformCode?: string
+  platformCode?: string,
 ): string {
   const timestamp = Date.now()
   const safeName = filename.replace(/[^a-zA-Z0-9.-]/g, '_')

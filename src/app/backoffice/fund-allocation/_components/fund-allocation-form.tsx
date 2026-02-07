@@ -15,12 +15,7 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  Building2,
-  ArrowUpCircle,
-  DollarSign,
-  ArrowRight,
-} from 'lucide-react'
+import { Building2, ArrowUpCircle, DollarSign, ArrowRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { recordFundMovement } from '@/app/actions/fund-movements'
 
@@ -51,16 +46,29 @@ interface FundAllocationFormProps {
 }
 
 const platforms = [
-  'Bank', 'PayPal', 'EdgeBoost',
-  'DraftKings', 'FanDuel', 'BetMGM', 'Caesars',
-  'Fanatics', 'Bally Bet', 'BetRivers', 'Bet365',
+  'Bank',
+  'PayPal',
+  'EdgeBoost',
+  'DraftKings',
+  'FanDuel',
+  'BetMGM',
+  'Caesars',
+  'Fanatics',
+  'Bally Bet',
+  'BetRivers',
+  'Bet365',
 ]
 
-export function FundAllocationForm({ clients, movements }: FundAllocationFormProps) {
+export function FundAllocationForm({
+  clients,
+  movements,
+}: FundAllocationFormProps) {
   const [isPending, startTransition] = useTransition()
 
   // Form state
-  const [transferType, setTransferType] = useState<'internal' | 'external'>('internal')
+  const [transferType, setTransferType] = useState<'internal' | 'external'>(
+    'internal',
+  )
   const [flowType, setFlowType] = useState<'same' | 'different'>('same')
   const [fromClientId, setFromClientId] = useState('')
   const [toClientId, setToClientId] = useState('')
@@ -107,11 +115,12 @@ export function FundAllocationForm({ clients, movements }: FundAllocationFormPro
       return
     }
 
-    const resolvedFlowType = transferType === 'external'
-      ? 'external' as const
-      : flowType === 'same'
-        ? 'same_client' as const
-        : 'different_clients' as const
+    const resolvedFlowType =
+      transferType === 'external'
+        ? ('external' as const)
+        : flowType === 'same'
+          ? ('same_client' as const)
+          : ('different_clients' as const)
 
     if (resolvedFlowType === 'different_clients' && !toClientId) {
       toast.error('Please select a destination client')
@@ -123,7 +132,10 @@ export function FundAllocationForm({ clients, movements }: FundAllocationFormPro
         type: transferType,
         flowType: resolvedFlowType,
         fromClientId,
-        toClientId: resolvedFlowType === 'same_client' ? fromClientId : toClientId || undefined,
+        toClientId:
+          resolvedFlowType === 'same_client'
+            ? fromClientId
+            : toClientId || undefined,
         fromPlatform,
         toPlatform,
         amount: parsedAmount,
@@ -196,7 +208,9 @@ export function FundAllocationForm({ clients, movements }: FundAllocationFormPro
           {/* Source Client */}
           <Field>
             <FieldLabel htmlFor="from-client">
-              {transferType === 'internal' && flowType === 'different' ? 'From Client' : 'Client'}
+              {transferType === 'internal' && flowType === 'different'
+                ? 'From Client'
+                : 'Client'}
             </FieldLabel>
             <Select value={fromClientId} onValueChange={setFromClientId}>
               <SelectTrigger id="from-client" data-testid="from-client-select">
@@ -219,7 +233,8 @@ export function FundAllocationForm({ clients, movements }: FundAllocationFormPro
           </Field>
 
           {/* Destination Client (for different_clients or external) */}
-          {(transferType === 'external' || (transferType === 'internal' && flowType === 'different')) && (
+          {(transferType === 'external' ||
+            (transferType === 'internal' && flowType === 'different')) && (
             <Field>
               <FieldLabel htmlFor="to-client">To Client</FieldLabel>
               <Select value={toClientId} onValueChange={setToClientId}>
@@ -286,12 +301,17 @@ export function FundAllocationForm({ clients, movements }: FundAllocationFormPro
             <Field>
               <FieldLabel htmlFor="from-platform">From Platform</FieldLabel>
               <Select value={fromPlatform} onValueChange={setFromPlatform}>
-                <SelectTrigger id="from-platform" data-testid="from-platform-select">
+                <SelectTrigger
+                  id="from-platform"
+                  data-testid="from-platform-select"
+                >
                   <SelectValue placeholder="Select platform" />
                 </SelectTrigger>
                 <SelectContent>
                   {platforms.map((p) => (
-                    <SelectItem key={p} value={p}>{p}</SelectItem>
+                    <SelectItem key={p} value={p}>
+                      {p}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -299,12 +319,17 @@ export function FundAllocationForm({ clients, movements }: FundAllocationFormPro
             <Field>
               <FieldLabel htmlFor="to-platform">To Platform</FieldLabel>
               <Select value={toPlatform} onValueChange={setToPlatform}>
-                <SelectTrigger id="to-platform" data-testid="to-platform-select">
+                <SelectTrigger
+                  id="to-platform"
+                  data-testid="to-platform-select"
+                >
                   <SelectValue placeholder="Select platform" />
                 </SelectTrigger>
                 <SelectContent>
                   {platforms.map((p) => (
-                    <SelectItem key={p} value={p}>{p}</SelectItem>
+                    <SelectItem key={p} value={p}>
+                      {p}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -358,15 +383,23 @@ export function FundAllocationForm({ clients, movements }: FundAllocationFormPro
           </CardTitle>
           <Tabs value={movementFilter} onValueChange={setMovementFilter}>
             <TabsList>
-              <TabsTrigger value="all" data-testid="filter-all">All</TabsTrigger>
-              <TabsTrigger value="external" data-testid="filter-external">External</TabsTrigger>
-              <TabsTrigger value="internal" data-testid="filter-internal">Internal</TabsTrigger>
+              <TabsTrigger value="all" data-testid="filter-all">
+                All
+              </TabsTrigger>
+              <TabsTrigger value="external" data-testid="filter-external">
+                External
+              </TabsTrigger>
+              <TabsTrigger value="internal" data-testid="filter-internal">
+                Internal
+              </TabsTrigger>
             </TabsList>
           </Tabs>
         </CardHeader>
         <CardContent className="space-y-3">
           {filteredMovements.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">No fund movements recorded</p>
+            <p className="text-center text-muted-foreground py-8">
+              No fund movements recorded
+            </p>
           ) : (
             filteredMovements.map((movement) => (
               <div
@@ -377,9 +410,10 @@ export function FundAllocationForm({ clients, movements }: FundAllocationFormPro
                 <div className="flex items-center gap-3 min-w-0">
                   <Badge
                     variant="outline"
-                    className={movement.type === 'internal'
-                      ? 'bg-primary/10 text-primary border-primary/30'
-                      : 'bg-accent/10 text-accent border-accent/30'
+                    className={
+                      movement.type === 'internal'
+                        ? 'bg-primary/10 text-primary border-primary/30'
+                        : 'bg-accent/10 text-accent border-accent/30'
                     }
                   >
                     {movement.type === 'internal' ? 'INT' : 'EXT'}
@@ -399,8 +433,8 @@ export function FundAllocationForm({ clients, movements }: FundAllocationFormPro
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {movement.fromPlatform} &rarr; {movement.toPlatform}
-                      {' '}&middot;{' '}{movement.createdAt}
+                      {movement.fromPlatform} &rarr; {movement.toPlatform}{' '}
+                      &middot; {movement.createdAt}
                     </p>
                   </div>
                 </div>
@@ -413,9 +447,10 @@ export function FundAllocationForm({ clients, movements }: FundAllocationFormPro
                     )}
                     <Badge
                       variant="outline"
-                      className={movement.status === 'completed'
-                        ? 'bg-chart-4/10 text-chart-4 border-chart-4/30'
-                        : 'bg-accent/10 text-accent border-accent/30'
+                      className={
+                        movement.status === 'completed'
+                          ? 'bg-chart-4/10 text-chart-4 border-chart-4/30'
+                          : 'bg-accent/10 text-accent border-accent/30'
                       }
                     >
                       {movement.status}

@@ -68,8 +68,18 @@ describe('getClientsForSettlement', () => {
       { id: 'c1', firstName: 'Jane', lastName: 'Smith' },
     ] as never)
     vi.mocked(prisma.fundMovement.findMany).mockResolvedValueOnce([
-      makeMovement({ id: 'm1', toClientId: 'c1', toPlatform: 'DraftKings', amount: 200 }),
-      makeMovement({ id: 'm2', toClientId: 'c1', toPlatform: 'Bank', amount: 300 }),
+      makeMovement({
+        id: 'm1',
+        toClientId: 'c1',
+        toPlatform: 'DraftKings',
+        amount: 200,
+      }),
+      makeMovement({
+        id: 'm2',
+        toClientId: 'c1',
+        toPlatform: 'Bank',
+        amount: 300,
+      }),
     ] as never)
 
     const result = await getClientsForSettlement()
@@ -84,8 +94,18 @@ describe('getClientsForSettlement', () => {
       { id: 'c1', firstName: 'Bob', lastName: 'Jones' },
     ] as never)
     vi.mocked(prisma.fundMovement.findMany).mockResolvedValueOnce([
-      makeMovement({ id: 'm1', toClientId: 'c1', toPlatform: 'DraftKings', amount: 500 }),
-      makeMovement({ id: 'm2', fromClientId: 'c1', fromPlatform: 'DraftKings', amount: 150 }),
+      makeMovement({
+        id: 'm1',
+        toClientId: 'c1',
+        toPlatform: 'DraftKings',
+        amount: 500,
+      }),
+      makeMovement({
+        id: 'm2',
+        fromClientId: 'c1',
+        fromPlatform: 'DraftKings',
+        amount: 150,
+      }),
     ] as never)
 
     const result = await getClientsForSettlement()
@@ -128,8 +148,12 @@ describe('getClientsForSettlement', () => {
 
     // Two transaction entries (deposit + withdrawal with -w suffix)
     expect(result[0].recentTransactions).toHaveLength(2)
-    const deposit = result[0].recentTransactions.find((t) => t.type === 'deposit')
-    const withdrawal = result[0].recentTransactions.find((t) => t.type === 'withdrawal')
+    const deposit = result[0].recentTransactions.find(
+      (t) => t.type === 'deposit',
+    )
+    const withdrawal = result[0].recentTransactions.find(
+      (t) => t.type === 'withdrawal',
+    )
     expect(deposit?.id).toBe('m1')
     expect(withdrawal?.id).toBe('m1-w')
   })
@@ -139,10 +163,30 @@ describe('getClientsForSettlement', () => {
       { id: 'c1', firstName: 'Max', lastName: 'Power' },
     ] as never)
     vi.mocked(prisma.fundMovement.findMany).mockResolvedValueOnce([
-      makeMovement({ id: 'm1', toClientId: 'c1', toPlatform: 'DraftKings', amount: 100 }),
-      makeMovement({ id: 'm2', toClientId: 'c1', toPlatform: 'DraftKings', amount: 200 }),
-      makeMovement({ id: 'm3', toClientId: 'c1', toPlatform: 'FanDuel', amount: 50 }),
-      makeMovement({ id: 'm4', fromClientId: 'c1', fromPlatform: 'DraftKings', amount: 75 }),
+      makeMovement({
+        id: 'm1',
+        toClientId: 'c1',
+        toPlatform: 'DraftKings',
+        amount: 100,
+      }),
+      makeMovement({
+        id: 'm2',
+        toClientId: 'c1',
+        toPlatform: 'DraftKings',
+        amount: 200,
+      }),
+      makeMovement({
+        id: 'm3',
+        toClientId: 'c1',
+        toPlatform: 'FanDuel',
+        amount: 50,
+      }),
+      makeMovement({
+        id: 'm4',
+        fromClientId: 'c1',
+        fromPlatform: 'DraftKings',
+        amount: 75,
+      }),
     ] as never)
 
     const result = await getClientsForSettlement()
@@ -165,13 +209,15 @@ describe('getClientsForSettlement', () => {
         toPlatform: 'Bank',
         amount: 10,
         createdAt: new Date(2026, 0, 25 - i),
-      })
+      }),
     )
 
     vi.mocked(prisma.client.findMany).mockResolvedValueOnce([
       { id: 'c1', firstName: 'Test', lastName: 'User' },
     ] as never)
-    vi.mocked(prisma.fundMovement.findMany).mockResolvedValueOnce(movements as never)
+    vi.mocked(prisma.fundMovement.findMany).mockResolvedValueOnce(
+      movements as never,
+    )
 
     const result = await getClientsForSettlement()
 
@@ -186,7 +232,12 @@ describe('getClientsForSettlement', () => {
       { id: 'c1', firstName: 'Date', lastName: 'Test' },
     ] as never)
     vi.mocked(prisma.fundMovement.findMany).mockResolvedValueOnce([
-      makeMovement({ id: 'm1', toClientId: 'c1', amount: 50, createdAt: new Date(2026, 1, 7) }),
+      makeMovement({
+        id: 'm1',
+        toClientId: 'c1',
+        amount: 50,
+        createdAt: new Date(2026, 1, 7),
+      }),
     ] as never)
 
     const result = await getClientsForSettlement()

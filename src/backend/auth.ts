@@ -26,7 +26,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         const isValid = bcrypt.compareSync(
           credentials.password as string,
-          user.passwordHash
+          user.passwordHash,
         )
 
         if (!isValid) {

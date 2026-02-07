@@ -1,10 +1,10 @@
-"use client"
+'use client'
 
-import * as React from "react"
-import { CircleIcon } from "lucide-react"
-import { RadioGroup as RadioGroupPrimitive } from "radix-ui"
+import * as React from 'react'
+import { CircleIcon } from 'lucide-react'
+import { RadioGroup as RadioGroupPrimitive } from 'radix-ui'
 
-import { cn } from "@/lib/utils"
+import { cn } from '@/lib/utils'
 
 function RadioGroup({
   className,
@@ -13,7 +13,7 @@ function RadioGroup({
   return (
     <RadioGroupPrimitive.Root
       data-slot="radio-group"
-      className={cn("grid gap-3", className)}
+      className={cn('grid gap-3', className)}
       {...props}
     />
   )
@@ -27,14 +27,14 @@ function RadioGroupItem({
     <RadioGroupPrimitive.Item
       data-slot="radio-group-item"
       className={cn(
-        "peer aspect-square size-4 shrink-0 rounded-full border border-border bg-background text-primary shadow-xs transition-all duration-200 outline-none",
-        "hover:border-primary/50",
-        "focus-visible:border-primary/50 focus-visible:ring-primary/20 focus-visible:ring-[3px]",
-        "data-[state=checked]:border-primary",
-        "disabled:cursor-not-allowed disabled:opacity-50",
-        "aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40",
-        "dark:bg-input/30 dark:border-border",
-        className
+        'peer aspect-square size-4 shrink-0 rounded-full border border-border bg-background text-primary shadow-xs transition-all duration-200 outline-none',
+        'hover:border-primary/50',
+        'focus-visible:border-primary/50 focus-visible:ring-primary/20 focus-visible:ring-[3px]',
+        'data-[state=checked]:border-primary',
+        'disabled:cursor-not-allowed disabled:opacity-50',
+        'aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40',
+        'dark:bg-input/30 dark:border-border',
+        className,
       )}
       {...props}
     >

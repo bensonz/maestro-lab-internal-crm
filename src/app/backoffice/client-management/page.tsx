@@ -17,7 +17,9 @@ export default async function ClientManagementPage() {
         <div className="space-y-4">
           <Card className="border-slate-800 bg-slate-900">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-slate-400">Total Clients</CardTitle>
+              <CardTitle className="text-sm text-slate-400">
+                Total Clients
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-white">{stats.total}</div>
@@ -29,7 +31,9 @@ export default async function ClientManagementPage() {
               <CardTitle className="text-sm text-slate-400">Active</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-emerald-500">{stats.active}</div>
+              <div className="text-3xl font-bold text-emerald-500">
+                {stats.active}
+              </div>
             </CardContent>
           </Card>
 
@@ -38,16 +42,22 @@ export default async function ClientManagementPage() {
               <CardTitle className="text-sm text-slate-400">Closed</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-slate-400">{stats.closed}</div>
+              <div className="text-3xl font-bold text-slate-400">
+                {stats.closed}
+              </div>
             </CardContent>
           </Card>
 
           <Card className="border-slate-800 bg-slate-900">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-slate-400">Further Verification</CardTitle>
+              <CardTitle className="text-sm text-slate-400">
+                Further Verification
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-yellow-500">{stats.furtherVerification}</div>
+              <div className="text-3xl font-bold text-yellow-500">
+                {stats.furtherVerification}
+              </div>
             </CardContent>
           </Card>
         </div>

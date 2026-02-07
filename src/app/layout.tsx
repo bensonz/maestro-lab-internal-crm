@@ -1,14 +1,15 @@
-import type { Metadata } from "next"
-import NextTopLoader from "nextjs-toploader"
-import { Toaster } from "@/components/ui/sonner"
-import { teodor, inter } from "./fonts"
-import { Providers } from "./providers"
-import "./globals.css"
-import { cn } from "@/lib/utils"
+import type { Metadata } from 'next'
+import NextTopLoader from 'nextjs-toploader'
+import { Toaster } from '@/components/ui/sonner'
+import { teodor, inter } from './fonts'
+import { Providers } from './providers'
+import './globals.css'
+import { cn } from '@/lib/utils'
 
 export const metadata: Metadata = {
-  title: "Maestro L.A.B | CRM & Operations",
-  description: "Maestro L.A.B internal client workflow and operations management",
+  title: 'Maestro L.A.B | CRM & Operations',
+  description:
+    'Maestro L.A.B internal client workflow and operations management',
 }
 
 export default function RootLayout({
@@ -22,7 +23,7 @@ export default function RootLayout({
         className={cn(
           'min-h-svh bg-background font-inter antialiased',
           teodor.variable,
-          inter.variable
+          inter.variable,
         )}
       >
         <NextTopLoader

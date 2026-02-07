@@ -55,7 +55,7 @@ export function SalesInteractionView({
     ? filteredIntake.filter(
         (c) =>
           c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          c.agentName.toLowerCase().includes(searchQuery.toLowerCase())
+          c.agentName.toLowerCase().includes(searchQuery.toLowerCase()),
       )
     : filteredIntake
 
@@ -64,7 +64,7 @@ export function SalesInteractionView({
         (t) =>
           t.clientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
           t.agentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          t.platformLabel.toLowerCase().includes(searchQuery.toLowerCase())
+          t.platformLabel.toLowerCase().includes(searchQuery.toLowerCase()),
       )
     : filteredTasks
 

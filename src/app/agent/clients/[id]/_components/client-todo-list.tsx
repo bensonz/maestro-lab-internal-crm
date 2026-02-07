@@ -27,7 +27,10 @@ interface ClientTodoListProps {
 type UrgencyLevel = 'overdue' | 'due_soon' | 'normal'
 type FilterType = 'all' | UrgencyLevel
 
-function getUrgencyLevel(dueDate: Date | null, status: ToDoStatus): UrgencyLevel {
+function getUrgencyLevel(
+  dueDate: Date | null,
+  status: ToDoStatus,
+): UrgencyLevel {
   if (status === ToDoStatus.OVERDUE) return 'overdue'
   if (!dueDate) return 'normal'
 
@@ -47,10 +50,15 @@ export function ClientTodoList({ toDos }: ClientTodoListProps) {
   // Add default values for new fields if not present
   const normalizedTodos = toDos.map((todo) => ({
     ...todo,
-    platformType: (todo as Todo & { platformType?: PlatformType | null }).platformType || null,
-    stepNumber: (todo as Todo & { stepNumber?: number | null }).stepNumber || null,
-    extensionsUsed: (todo as Todo & { extensionsUsed?: number }).extensionsUsed || 0,
-    maxExtensions: (todo as Todo & { maxExtensions?: number }).maxExtensions || 3,
+    platformType:
+      (todo as Todo & { platformType?: PlatformType | null }).platformType ||
+      null,
+    stepNumber:
+      (todo as Todo & { stepNumber?: number | null }).stepNumber || null,
+    extensionsUsed:
+      (todo as Todo & { extensionsUsed?: number }).extensionsUsed || 0,
+    maxExtensions:
+      (todo as Todo & { maxExtensions?: number }).maxExtensions || 3,
   }))
 
   // Sort by urgency: Overdue → Due ≤24h → Normal
@@ -65,14 +73,16 @@ export function ClientTodoList({ toDos }: ClientTodoListProps) {
   const filteredTodos =
     filter === 'all'
       ? sortedTodos
-      : sortedTodos.filter((t) => getUrgencyLevel(t.dueDate, t.status) === filter)
+      : sortedTodos.filter(
+          (t) => getUrgencyLevel(t.dueDate, t.status) === filter,
+        )
 
   // Count by urgency
   const overdueCount = sortedTodos.filter(
-    (t) => getUrgencyLevel(t.dueDate, t.status) === 'overdue'
+    (t) => getUrgencyLevel(t.dueDate, t.status) === 'overdue',
   ).length
   const dueSoonCount = sortedTodos.filter(
-    (t) => getUrgencyLevel(t.dueDate, t.status) === 'due_soon'
+    (t) => getUrgencyLevel(t.dueDate, t.status) === 'due_soon',
   ).length
   const normalCount = sortedTodos.length - overdueCount - dueSoonCount
 
@@ -144,7 +154,9 @@ export function ClientTodoList({ toDos }: ClientTodoListProps) {
           <div className="text-center py-8 text-muted-foreground">
             <ListTodo className="h-8 w-8 mx-auto mb-2 opacity-50" />
             <p className="text-sm">
-              {filter === 'all' ? 'No pending to-dos' : `No ${filter.replace('_', ' ')} to-dos`}
+              {filter === 'all'
+                ? 'No pending to-dos'
+                : `No ${filter.replace('_', ' ')} to-dos`}
             </p>
           </div>
         ) : (

@@ -42,7 +42,9 @@ export function QuickActions() {
       const result = await checkOverdueClients()
       if (result.success) {
         if (result.marked > 0) {
-          toast.warning(`${result.marked} client${result.marked !== 1 ? 's' : ''} marked as delayed`)
+          toast.warning(
+            `${result.marked} client${result.marked !== 1 ? 's' : ''} marked as delayed`,
+          )
         } else {
           toast.success('All clients on track — no overdue deadlines')
         }
@@ -88,10 +90,12 @@ export function QuickActions() {
               >
                 <item.icon className="h-6 w-6 text-primary" />
                 <span className="text-sm font-medium text-foreground">
-                  {isPending && item.action === 'checkOverdue' ? 'Checking...' : item.label}
+                  {isPending && item.action === 'checkOverdue'
+                    ? 'Checking...'
+                    : item.label}
                 </span>
               </button>
-            )
+            ),
           )}
         </div>
       </CardContent>

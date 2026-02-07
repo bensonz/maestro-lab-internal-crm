@@ -6,16 +6,26 @@ import { ToDoStatus, IntakeStatus, UserRole, PlatformType } from '@/types'
 // ==========================================
 
 export async function getSalesInteractionStats() {
-  const [clientCount, agentCount, activeApps, pendingCount] = await Promise.all([
-    prisma.client.count(),
-    prisma.user.count({ where: { role: UserRole.AGENT } }),
-    prisma.client.count({
-      where: { intakeStatus: { in: [IntakeStatus.IN_EXECUTION, IntakeStatus.PHONE_ISSUED] } },
-    }),
-    prisma.client.count({
-      where: { intakeStatus: { in: [IntakeStatus.PENDING, IntakeStatus.READY_FOR_APPROVAL] } },
-    }),
-  ])
+  const [clientCount, agentCount, activeApps, pendingCount] = await Promise.all(
+    [
+      prisma.client.count(),
+      prisma.user.count({ where: { role: UserRole.AGENT } }),
+      prisma.client.count({
+        where: {
+          intakeStatus: {
+            in: [IntakeStatus.IN_EXECUTION, IntakeStatus.PHONE_ISSUED],
+          },
+        },
+      }),
+      prisma.client.count({
+        where: {
+          intakeStatus: {
+            in: [IntakeStatus.PENDING, IntakeStatus.READY_FOR_APPROVAL],
+          },
+        },
+      }),
+    ],
+  )
   return { clientCount, agentCount, activeApps, pendingCount }
 }
 
@@ -37,7 +47,13 @@ export async function getAgentHierarchy() {
     include: {
       agentClients: {
         where: {
-          intakeStatus: { notIn: [IntakeStatus.APPROVED, IntakeStatus.REJECTED, IntakeStatus.INACTIVE] },
+          intakeStatus: {
+            notIn: [
+              IntakeStatus.APPROVED,
+              IntakeStatus.REJECTED,
+              IntakeStatus.INACTIVE,
+            ],
+          },
         },
         select: { id: true },
       },
@@ -108,7 +124,13 @@ export async function getTeamDirectory() {
     include: {
       agentClients: {
         where: {
-          intakeStatus: { notIn: [IntakeStatus.APPROVED, IntakeStatus.REJECTED, IntakeStatus.INACTIVE] },
+          intakeStatus: {
+            notIn: [
+              IntakeStatus.APPROVED,
+              IntakeStatus.REJECTED,
+              IntakeStatus.INACTIVE,
+            ],
+          },
         },
         select: { id: true },
       },
@@ -125,7 +147,11 @@ export async function getTeamDirectory() {
   }))
 }
 
-export type IntakeStatusType = 'needs_info' | 'pending_platform' | 'ready' | 'followup'
+export type IntakeStatusType =
+  | 'needs_info'
+  | 'pending_platform'
+  | 'ready'
+  | 'followup'
 
 export interface IntakeClient {
   id: string
@@ -172,13 +198,15 @@ export async function getIntakeClients(): Promise<IntakeClient[]> {
 
   return clients.map((client) => {
     const daysSinceChange = Math.floor(
-      (Date.now() - client.statusChangedAt.getTime()) / (1000 * 60 * 60 * 24)
+      (Date.now() - client.statusChangedAt.getTime()) / (1000 * 60 * 60 * 24),
     )
 
     // Determine detailed status
-    const { statusType, status, pendingPlatform } = determineDetailedStatus(client)
+    const { statusType, status, pendingPlatform } =
+      determineDetailedStatus(client)
     const canApprove = client.intakeStatus === IntakeStatus.READY_FOR_APPROVAL
-    const canAssignPhone = client.intakeStatus === IntakeStatus.PENDING && !client.phoneAssignment
+    const canAssignPhone =
+      client.intakeStatus === IntakeStatus.PENDING && !client.phoneAssignment
 
     return {
       id: client.id,
@@ -208,7 +236,9 @@ function determineDetailedStatus(client: {
   }
 
   // Check pending platform uploads
-  const pendingPlatform = client.platforms.find((p) => p.status === 'PENDING_REVIEW')
+  const pendingPlatform = client.platforms.find(
+    (p) => p.status === 'PENDING_REVIEW',
+  )
   if (pendingPlatform) {
     return {
       statusType: 'pending_platform',
@@ -232,8 +262,11 @@ function determineDetailedStatus(client: {
       .sort((a, b) => a.getTime() - b.getTime())
 
     if (dueDates.length > 0) {
-      const daysUntilDue = Math.ceil((dueDates[0].getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-      const dueLabel = daysUntilDue <= 0 ? 'Due today' : `${daysUntilDue} days left`
+      const daysUntilDue = Math.ceil(
+        (dueDates[0].getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+      )
+      const dueLabel =
+        daysUntilDue <= 0 ? 'Due today' : `${daysUntilDue} days left`
       return { statusType: 'followup', status: `Follow-up (${dueLabel})` }
     }
     return { statusType: 'followup', status: 'Follow-up' }
@@ -291,7 +324,9 @@ export async function getVerificationClients(): Promise<VerificationTask[]> {
   const todos = await prisma.toDo.findMany({
     where: {
       type: { in: ['VERIFICATION', 'UPLOAD_SCREENSHOT'] },
-      status: { in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS, ToDoStatus.COMPLETED] },
+      status: {
+        in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS, ToDoStatus.COMPLETED],
+      },
     },
     include: {
       client: {
@@ -332,9 +367,13 @@ export async function getVerificationClients(): Promise<VerificationTask[]> {
     return {
       id: todo.id,
       clientId: todo.client?.id ?? null,
-      clientName: todo.client ? `${todo.client.firstName} ${todo.client.lastName}` : 'N/A',
+      clientName: todo.client
+        ? `${todo.client.firstName} ${todo.client.lastName}`
+        : 'N/A',
       platformType: todo.platformType,
-      platformLabel: todo.platformType ? getPlatformBadgeLabel(todo.platformType) : 'N/A',
+      platformLabel: todo.platformType
+        ? getPlatformBadgeLabel(todo.platformType)
+        : 'N/A',
       task: formatVerificationTask(todo.title),
       agentId: todo.client?.agentId ?? null,
       agentName: todo.client?.agent?.name ?? 'Unassigned',
@@ -384,7 +423,9 @@ function getPlatformBadgeLabel(platformType: PlatformType): string {
 export async function getBackofficeTodos() {
   const todos = await prisma.toDo.findMany({
     where: {
-      status: { in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS, ToDoStatus.OVERDUE] },
+      status: {
+        in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS, ToDoStatus.OVERDUE],
+      },
     },
     include: {
       assignedTo: { select: { id: true, name: true } },
@@ -394,18 +435,21 @@ export async function getBackofficeTodos() {
   })
 
   // Group by agent
-  const agentMap = new Map<string, {
-    agentId: string
-    agentName: string
-    tasks: Array<{
-      id: string
-      title: string
-      client: string
-      category: string
-      dueIn: string
-      overdue: boolean
-    }>
-  }>()
+  const agentMap = new Map<
+    string,
+    {
+      agentId: string
+      agentName: string
+      tasks: Array<{
+        id: string
+        title: string
+        client: string
+        category: string
+        dueIn: string
+        overdue: boolean
+      }>
+    }
+  >()
 
   const now = new Date()
 
@@ -417,13 +461,16 @@ export async function getBackofficeTodos() {
       agentMap.set(agentId, { agentId, agentName, tasks: [] })
     }
 
-    const isOverdue = todo.status === ToDoStatus.OVERDUE ||
+    const isOverdue =
+      todo.status === ToDoStatus.OVERDUE ||
       (todo.dueDate !== null && todo.dueDate < now)
 
     agentMap.get(agentId)!.tasks.push({
       id: todo.id,
       title: todo.title,
-      client: todo.client ? `${todo.client.firstName} ${todo.client.lastName}` : 'N/A',
+      client: todo.client
+        ? `${todo.client.firstName} ${todo.client.lastName}`
+        : 'N/A',
       category: mapToDoTypeToCategory(todo.type),
       dueIn: todo.dueDate ? formatDueTime(todo.dueDate) : 'No deadline',
       overdue: isOverdue,
@@ -439,29 +486,30 @@ export async function getBackofficeTodoStats() {
   const in3Days = new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000)
   const in7Days = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
 
-  const [todayCount, threeDayCount, sevenDayCount, overdueCount] = await Promise.all([
-    prisma.toDo.count({
-      where: {
-        status: { in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS] },
-        dueDate: { lt: new Date(today.getTime() + 24 * 60 * 60 * 1000) },
-      },
-    }),
-    prisma.toDo.count({
-      where: {
-        status: { in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS] },
-        dueDate: { lt: in3Days },
-      },
-    }),
-    prisma.toDo.count({
-      where: {
-        status: { in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS] },
-        dueDate: { lt: in7Days },
-      },
-    }),
-    prisma.toDo.count({
-      where: { status: ToDoStatus.OVERDUE },
-    }),
-  ])
+  const [todayCount, threeDayCount, sevenDayCount, overdueCount] =
+    await Promise.all([
+      prisma.toDo.count({
+        where: {
+          status: { in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS] },
+          dueDate: { lt: new Date(today.getTime() + 24 * 60 * 60 * 1000) },
+        },
+      }),
+      prisma.toDo.count({
+        where: {
+          status: { in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS] },
+          dueDate: { lt: in3Days },
+        },
+      }),
+      prisma.toDo.count({
+        where: {
+          status: { in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS] },
+          dueDate: { lt: in7Days },
+        },
+      }),
+      prisma.toDo.count({
+        where: { status: ToDoStatus.OVERDUE },
+      }),
+    ])
 
   return {
     todaysTasks: todayCount,
@@ -490,8 +538,12 @@ export async function getFundMovements() {
     id: m.id,
     type: m.type,
     flowType: m.flowType,
-    fromClientName: m.fromClient ? `${m.fromClient.firstName} ${m.fromClient.lastName}` : '—',
-    toClientName: m.toClient ? `${m.toClient.firstName} ${m.toClient.lastName}` : '—',
+    fromClientName: m.fromClient
+      ? `${m.fromClient.firstName} ${m.fromClient.lastName}`
+      : '—',
+    toClientName: m.toClient
+      ? `${m.toClient.firstName} ${m.toClient.lastName}`
+      : '—',
     fromPlatform: m.fromPlatform,
     toPlatform: m.toPlatform,
     amount: Number(m.amount),
@@ -520,7 +572,9 @@ export async function getFundMovementStats() {
     .filter((m) => m.type === 'internal')
     .reduce((sum, m) => sum + Number(m.amount), 0)
 
-  const pendingCount = todayMovements.filter((m) => m.status === 'pending').length
+  const pendingCount = todayMovements.filter(
+    (m) => m.status === 'pending',
+  ).length
 
   return { externalTotal, internalDeposits, pendingCount }
 }
@@ -529,7 +583,11 @@ export async function getClientsForFundAllocation() {
   const clients = await prisma.client.findMany({
     where: {
       intakeStatus: {
-        in: [IntakeStatus.APPROVED, IntakeStatus.IN_EXECUTION, IntakeStatus.PHONE_ISSUED],
+        in: [
+          IntakeStatus.APPROVED,
+          IntakeStatus.IN_EXECUTION,
+          IntakeStatus.PHONE_ISSUED,
+        ],
       },
     },
     select: {
@@ -550,11 +608,13 @@ export async function getClientsForFundAllocation() {
 // Phone Tracking Data
 // ==========================================
 
-export async function getEligibleClientsForPhone(): Promise<{
-  id: string
-  name: string
-  agentName: string
-}[]> {
+export async function getEligibleClientsForPhone(): Promise<
+  {
+    id: string
+    name: string
+    agentName: string
+  }[]
+> {
   const clients = await prisma.client.findMany({
     where: {
       intakeStatus: IntakeStatus.PENDING,
@@ -599,7 +659,9 @@ export async function getPhoneAssignments() {
     return {
       id: a.id,
       number: a.phoneNumber,
-      client: a.client ? `${a.client.firstName} ${a.client.lastName}` : 'Unassigned',
+      client: a.client
+        ? `${a.client.firstName} ${a.client.lastName}`
+        : 'Unassigned',
       clientId: a.client?.id ?? '',
       deviceId: a.deviceId ?? '',
       issuedDate: a.issuedAt ? formatDate(a.issuedAt) : '',
@@ -620,9 +682,13 @@ export async function getPhoneStats() {
   })
 
   const total = assignments.length
-  const active = assignments.filter((a) => a.issuedAt && !a.signedOutAt && !a.returnedAt).length
+  const active = assignments.filter(
+    (a) => a.issuedAt && !a.signedOutAt && !a.returnedAt,
+  ).length
   const pending = assignments.filter((a) => !a.issuedAt).length
-  const suspended = assignments.filter((a) => a.signedOutAt && !a.returnedAt).length
+  const suspended = assignments.filter(
+    (a) => a.signedOutAt && !a.returnedAt,
+  ).length
 
   return { total, active, pending, suspended }
 }
@@ -684,7 +750,9 @@ export async function getClientsForSettlement(): Promise<SettlementClient[]> {
 
   // Merge: approved clients + any clients with movements not already in the approved list
   const approvedIds = new Set(approvedClients.map((c) => c.id))
-  const extraClientIds = [...clientIdsWithMovements].filter((id) => !approvedIds.has(id))
+  const extraClientIds = [...clientIdsWithMovements].filter(
+    (id) => !approvedIds.has(id),
+  )
 
   let extraClients: { id: string; firstName: string; lastName: string }[] = []
   if (extraClientIds.length > 0) {
@@ -699,7 +767,10 @@ export async function getClientsForSettlement(): Promise<SettlementClient[]> {
 
   // Group movements by client
   return allClients.map((client) => {
-    const platformTotals = new Map<string, { deposited: number; withdrawn: number }>()
+    const platformTotals = new Map<
+      string,
+      { deposited: number; withdrawn: number }
+    >()
 
     // Transactions for this client (both deposit and withdrawal entries)
     const transactions: {
@@ -718,7 +789,10 @@ export async function getClientsForSettlement(): Promise<SettlementClient[]> {
       // Deposit: money coming INTO this client
       if (m.toClientId === client.id) {
         const platform = m.toPlatform
-        const entry = platformTotals.get(platform) || { deposited: 0, withdrawn: 0 }
+        const entry = platformTotals.get(platform) || {
+          deposited: 0,
+          withdrawn: 0,
+        }
         entry.deposited += amount
         platformTotals.set(platform, entry)
 
@@ -736,7 +810,10 @@ export async function getClientsForSettlement(): Promise<SettlementClient[]> {
       // Withdrawal: money going OUT OF this client
       if (m.fromClientId === client.id) {
         const platform = m.fromPlatform
-        const entry = platformTotals.get(platform) || { deposited: 0, withdrawn: 0 }
+        const entry = platformTotals.get(platform) || {
+          deposited: 0,
+          withdrawn: 0,
+        }
         entry.withdrawn += amount
         platformTotals.set(platform, entry)
 
@@ -768,16 +845,18 @@ export async function getClientsForSettlement(): Promise<SettlementClient[]> {
 
     const totalDeposited = [...platformTotals.values()].reduce(
       (sum, p) => sum + p.deposited,
-      0
+      0,
     )
     const totalWithdrawn = [...platformTotals.values()].reduce(
       (sum, p) => sum + p.withdrawn,
-      0
+      0,
     )
 
     // Sort transactions by date desc, limit to 20
     transactions.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-    const recentTransactions = transactions.slice(0, 20).map(({ createdAt: _, ...rest }) => rest)
+    const recentTransactions = transactions
+      .slice(0, 20)
+      .map(({ createdAt: _, ...rest }) => rest)
 
     const platforms = [...platformTotals.entries()]
       .map(([name, totals]) => ({

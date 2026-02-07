@@ -69,7 +69,10 @@ function calculateAge(dob: string): number | null {
   const today = new Date()
   let age = today.getFullYear() - birthDate.getFullYear()
   const monthDiff = today.getMonth() - birthDate.getMonth()
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+  if (
+    monthDiff < 0 ||
+    (monthDiff === 0 && today.getDate() < birthDate.getDate())
+  ) {
     age--
   }
   return age
@@ -95,7 +98,9 @@ export function ClientProfile({ client }: ClientProfileProps) {
     .join(' ')
 
   const age = client.dateOfBirth ? calculateAge(client.dateOfBirth) : null
-  const compliance = client.questionnaire?.compliance as Record<string, unknown> | undefined
+  const compliance = client.questionnaire?.compliance as
+    | Record<string, unknown>
+    | undefined
 
   // Extract bank credentials from questionnaire (if stored there)
   const bankPin = '••••'
@@ -103,7 +108,9 @@ export function ClientProfile({ client }: ClientProfileProps) {
   const onlineBankingPass = '••••••••'
 
   // Flags from questionnaire
-  const clientSource = client.questionnaire?.clientSource as Record<string, unknown> | undefined
+  const clientSource = client.questionnaire?.clientSource as
+    | Record<string, unknown>
+    | undefined
   const flags: { type: 'warning' | 'compliance' | 'info'; label: string }[] = []
   if (compliance?.hasCriminalRecord === 'yes') {
     flags.push({ type: 'compliance', label: 'Criminal Record' })
@@ -122,7 +129,9 @@ export function ClientProfile({ client }: ClientProfileProps) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <User className="h-5 w-5 text-primary" />
-            <CardTitle className="text-lg font-semibold">Client Static Profile</CardTitle>
+            <CardTitle className="text-lg font-semibold">
+              Client Static Profile
+            </CardTitle>
           </div>
           <span className="text-xs text-muted-foreground">Source of Truth</span>
         </div>
@@ -136,7 +145,9 @@ export function ClientProfile({ client }: ClientProfileProps) {
           >
             <AlertTriangle className="h-5 w-5 text-yellow-500 shrink-0" />
             <div>
-              <p className="text-sm font-medium text-yellow-500">Execution Delayed</p>
+              <p className="text-sm font-medium text-yellow-500">
+                Execution Delayed
+              </p>
               <p className="text-xs text-yellow-500/80">
                 Deadline has passed. Awaiting backoffice action.
               </p>
@@ -147,7 +158,9 @@ export function ClientProfile({ client }: ClientProfileProps) {
         {/* Full Name */}
         <div className="space-y-1">
           <label className="text-xs text-muted-foreground">Full Name</label>
-          <p className="font-mono text-lg font-semibold text-foreground">{fullName}</p>
+          <p className="font-mono text-lg font-semibold text-foreground">
+            {fullName}
+          </p>
         </div>
 
         {/* Execution Deadline */}
@@ -157,20 +170,31 @@ export function ClientProfile({ client }: ClientProfileProps) {
               <Timer className="h-3 w-3" />
               Execution Deadline
             </label>
-            <DeadlineCountdown deadline={client.deadline} variant="card" isDelayed={client.intakeStatus === IntakeStatus.EXECUTION_DELAYED} />
+            <DeadlineCountdown
+              deadline={client.deadline}
+              variant="card"
+              isDelayed={client.intakeStatus === IntakeStatus.EXECUTION_DELAYED}
+            />
             <div className="flex items-center justify-between">
               <p className="text-xs text-muted-foreground">
-                {client.deadlineExtensions} extension{client.deadlineExtensions !== 1 ? 's' : ''} used
+                {client.deadlineExtensions} extension
+                {client.deadlineExtensions !== 1 ? 's' : ''} used
               </p>
               {client.intakeStatus === IntakeStatus.IN_EXECUTION && (
                 <>
                   {client.pendingExtensionRequest ? (
-                    <Badge variant="outline" className="border-yellow-500/50 bg-yellow-500/10 text-yellow-500 text-xs">
+                    <Badge
+                      variant="outline"
+                      className="border-yellow-500/50 bg-yellow-500/10 text-yellow-500 text-xs"
+                    >
                       <Clock className="h-3 w-3 mr-1" />
                       Extension Pending
                     </Badge>
                   ) : client.deadlineExtensions >= MAX_EXTENSIONS ? (
-                    <Badge variant="outline" className="border-muted-foreground/30 bg-muted/30 text-muted-foreground text-xs">
+                    <Badge
+                      variant="outline"
+                      className="border-muted-foreground/30 bg-muted/30 text-muted-foreground text-xs"
+                    >
                       Max Extensions Used
                     </Badge>
                   ) : (
@@ -209,7 +233,10 @@ export function ClientProfile({ client }: ClientProfileProps) {
             </span>
           </div>
           {age !== null && (
-            <Badge variant="secondary" className="rounded-md px-2 py-0.5 text-xs">
+            <Badge
+              variant="secondary"
+              className="rounded-md px-2 py-0.5 text-xs"
+            >
               Age: {age}
             </Badge>
           )}
@@ -238,19 +265,27 @@ export function ClientProfile({ client }: ClientProfileProps) {
         <div className="grid gap-3 sm:grid-cols-2">
           {client.phone && (
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">Personal Phone</label>
+              <label className="text-xs text-muted-foreground">
+                Personal Phone
+              </label>
               <div className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">{client.phone}</span>
+                <span className="text-sm text-muted-foreground">
+                  {client.phone}
+                </span>
               </div>
             </div>
           )}
           {client.email && (
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">Personal Email</label>
+              <label className="text-xs text-muted-foreground">
+                Personal Email
+              </label>
               <div className="flex items-center gap-2">
                 <Mail className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground truncate">{client.email}</span>
+                <span className="text-sm text-muted-foreground truncate">
+                  {client.email}
+                </span>
               </div>
             </div>
           )}
@@ -299,7 +334,9 @@ export function ClientProfile({ client }: ClientProfileProps) {
               </p>
             </div>
             <div>
-              <label className="text-xs text-muted-foreground">Online Banking</label>
+              <label className="text-xs text-muted-foreground">
+                Online Banking
+              </label>
               <p className="font-mono text-sm text-foreground">
                 {showCredentials ? onlineBankingUser : '••••••••'}
                 {' / '}
@@ -320,17 +357,23 @@ export function ClientProfile({ client }: ClientProfileProps) {
               <>
                 {client.address}
                 <br />
-                {[client.city, client.state, client.zipCode].filter(Boolean).join(', ')}
+                {[client.city, client.state, client.zipCode]
+                  .filter(Boolean)
+                  .join(', ')}
               </>
             )}
-            {!client.address && <span className="text-muted-foreground">Not provided</span>}
+            {!client.address && (
+              <span className="text-muted-foreground">Not provided</span>
+            )}
           </p>
         </div>
 
         {/* Secondary Address */}
         {client.secondaryAddress?.address && (
           <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Secondary Address</label>
+            <label className="text-xs text-muted-foreground">
+              Secondary Address
+            </label>
             <p className="text-sm text-muted-foreground">
               {client.secondaryAddress.address}
               <br />
@@ -360,12 +403,16 @@ export function ClientProfile({ client }: ClientProfileProps) {
                     flag.type === 'warning'
                       ? 'border-accent/50 bg-accent/10 text-accent'
                       : flag.type === 'compliance'
-                      ? 'border-destructive/50 bg-destructive/10 text-destructive'
-                      : 'border-border bg-muted/50 text-muted-foreground'
+                        ? 'border-destructive/50 bg-destructive/10 text-destructive'
+                        : 'border-border bg-muted/50 text-muted-foreground'
                   }`}
                 >
-                  {flag.type === 'warning' && <AlertTriangle className="h-3 w-3 mr-1" />}
-                  {flag.type === 'compliance' && <Shield className="h-3 w-3 mr-1" />}
+                  {flag.type === 'warning' && (
+                    <AlertTriangle className="h-3 w-3 mr-1" />
+                  )}
+                  {flag.type === 'compliance' && (
+                    <Shield className="h-3 w-3 mr-1" />
+                  )}
                   {flag.type === 'info' && <Info className="h-3 w-3 mr-1" />}
                   {flag.label}
                 </Badge>

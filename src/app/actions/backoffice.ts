@@ -7,7 +7,7 @@ import { revalidatePath } from 'next/cache'
 import { IntakeStatus, UserRole } from '@/types'
 
 export async function approveClientIntake(
-  clientId: string
+  clientId: string,
 ): Promise<{ success: boolean; error?: string }> {
   const session = await auth()
   const allowedRoles: string[] = [UserRole.ADMIN, UserRole.BACKOFFICE]
@@ -15,7 +15,11 @@ export async function approveClientIntake(
     return { success: false, error: 'Unauthorized' }
   }
 
-  const result = await transitionClientStatus(clientId, IntakeStatus.APPROVED, session.user.id)
+  const result = await transitionClientStatus(
+    clientId,
+    IntakeStatus.APPROVED,
+    session.user.id,
+  )
 
   if (result.success) {
     revalidatePath('/backoffice/sales-interaction')

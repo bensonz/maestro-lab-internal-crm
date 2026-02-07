@@ -1,4 +1,8 @@
-import { getAllAgents, getAllUsers, getAgentStats } from '@/backend/data/backoffice'
+import {
+  getAllAgents,
+  getAllUsers,
+  getAgentStats,
+} from '@/backend/data/backoffice'
 import { auth } from '@/backend/auth'
 import { redirect } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -34,34 +38,48 @@ export default async function AgentManagementPage() {
         <div className="space-y-4">
           <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total Agents</CardTitle>
+              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Total Agents
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold tracking-tight text-foreground">{stats.totalAgents}</div>
+              <div className="text-3xl font-bold tracking-tight text-foreground">
+                {stats.totalAgents}
+              </div>
             </CardContent>
           </Card>
 
           <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Initiated Applications</CardTitle>
+              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Initiated Applications
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold tracking-tight text-chart-4">{stats.initiatedApps}</div>
+              <div className="text-3xl font-bold tracking-tight text-chart-4">
+                {stats.initiatedApps}
+              </div>
             </CardContent>
           </Card>
 
           <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">New Clients (Month)</CardTitle>
+              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                New Clients (Month)
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold tracking-tight text-foreground">{stats.newClientsMonth}</div>
+              <div className="text-3xl font-bold tracking-tight text-foreground">
+                {stats.newClientsMonth}
+              </div>
             </CardContent>
           </Card>
 
           <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Avg. Days to Open</CardTitle>
+              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Avg. Days to Open
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold tracking-tight font-mono text-foreground">

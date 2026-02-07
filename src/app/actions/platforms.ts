@@ -3,7 +3,14 @@
 import { auth } from '@/backend/auth'
 import prisma from '@/backend/prisma/client'
 import { getStorage } from '@/lib/storage'
-import { PlatformStatus, EventType, PlatformType, UserRole, ToDoStatus, ToDoType } from '@/types'
+import {
+  PlatformStatus,
+  EventType,
+  PlatformType,
+  UserRole,
+  ToDoStatus,
+  ToDoType,
+} from '@/types'
 import { revalidatePath } from 'next/cache'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
@@ -12,7 +19,7 @@ const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 export async function uploadPlatformScreenshot(
   clientId: string,
   platformType: PlatformType,
-  formData: FormData
+  formData: FormData,
 ): Promise<{ success: boolean; error?: string; path?: string }> {
   const session = await auth()
   if (!session?.user?.id) {
@@ -26,7 +33,10 @@ export async function uploadPlatformScreenshot(
 
   // Validate file type
   if (!ALLOWED_TYPES.includes(file.type)) {
-    return { success: false, error: 'Invalid file type. Please upload JPG, PNG, or WebP.' }
+    return {
+      success: false,
+      error: 'Invalid file type. Please upload JPG, PNG, or WebP.',
+    }
   }
 
   // Validate file size
@@ -91,7 +101,7 @@ export async function uploadPlatformScreenshot(
 export async function deletePlatformScreenshot(
   clientId: string,
   platformType: PlatformType,
-  screenshotPath: string
+  screenshotPath: string,
 ): Promise<{ success: boolean; error?: string }> {
   const session = await auth()
   if (!session?.user?.id) {
@@ -122,7 +132,9 @@ export async function deletePlatformScreenshot(
     }
 
     // Remove screenshot from array
-    const updatedScreenshots = platform.screenshots.filter((s) => s !== screenshotPath)
+    const updatedScreenshots = platform.screenshots.filter(
+      (s) => s !== screenshotPath,
+    )
 
     // Update platform
     await prisma.clientPlatform.update({
@@ -167,7 +179,7 @@ const BACKOFFICE_ROLES: string[] = [UserRole.BACKOFFICE, UserRole.ADMIN]
 
 export async function approvePlatformScreenshot(
   clientId: string,
-  platformType: PlatformType
+  platformType: PlatformType,
 ): Promise<{ success: boolean; error?: string }> {
   const session = await auth()
   if (!session?.user?.id || !BACKOFFICE_ROLES.includes(session.user.role)) {
@@ -222,7 +234,7 @@ export async function approvePlatformScreenshot(
 export async function rejectPlatformScreenshot(
   clientId: string,
   platformType: PlatformType,
-  reason?: string
+  reason?: string,
 ): Promise<{ success: boolean; error?: string }> {
   const session = await auth()
   if (!session?.user?.id || !BACKOFFICE_ROLES.includes(session.user.role)) {
@@ -277,7 +289,7 @@ export async function rejectPlatformScreenshot(
 export async function requestMoreInfo(
   clientId: string,
   platformType: PlatformType,
-  notes: string
+  notes: string,
 ): Promise<{ success: boolean; error?: string }> {
   const session = await auth()
   if (!session?.user?.id || !BACKOFFICE_ROLES.includes(session.user.role)) {

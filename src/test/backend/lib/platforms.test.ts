@@ -41,7 +41,9 @@ describe('Platform Configuration', () => {
       expect(PLATFORM_INFO[platform]).toBeDefined()
       expect(PLATFORM_INFO[platform].name).toBeTruthy()
       expect(PLATFORM_INFO[platform].abbrev).toBeTruthy()
-      expect(['sports', 'financial']).toContain(PLATFORM_INFO[platform].category)
+      expect(['sports', 'financial']).toContain(
+        PLATFORM_INFO[platform].category,
+      )
     }
   })
 

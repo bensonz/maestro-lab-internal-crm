@@ -12,8 +12,20 @@ export default defineConfig({
   },
   resolve: {
     alias: [
-      { find: '@prisma/generated/browser', replacement: path.resolve(__dirname, './prisma/generated/prisma/browser') },
-      { find: '@prisma/generated', replacement: path.resolve(__dirname, './prisma/generated/prisma/client') },
+      {
+        find: '@prisma/generated/browser',
+        replacement: path.resolve(
+          __dirname,
+          './prisma/generated/prisma/browser',
+        ),
+      },
+      {
+        find: '@prisma/generated',
+        replacement: path.resolve(
+          __dirname,
+          './prisma/generated/prisma/client',
+        ),
+      },
       { find: '@', replacement: path.resolve(__dirname, './src') },
     ],
   },

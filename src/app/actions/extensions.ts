@@ -2,7 +2,13 @@
 
 import { auth } from '@/backend/auth'
 import prisma from '@/backend/prisma/client'
-import { IntakeStatus, EventType, ExtensionRequestStatus, UserRole, ToDoStatus } from '@/types'
+import {
+  IntakeStatus,
+  EventType,
+  ExtensionRequestStatus,
+  UserRole,
+  ToDoStatus,
+} from '@/types'
 import { revalidatePath } from 'next/cache'
 import { addBusinessDays } from '@/backend/services/status-transition'
 
@@ -12,7 +18,7 @@ const DEFAULT_REQUESTED_DAYS = 3
 export async function requestDeadlineExtension(
   clientId: string,
   reason: string,
-  requestedDays?: number
+  requestedDays?: number,
 ): Promise<{ success: boolean; error?: string }> {
   const session = await auth()
   if (!session?.user?.id) {
@@ -21,7 +27,10 @@ export async function requestDeadlineExtension(
 
   // Validate reason
   if (!reason || reason.trim().length < 10) {
-    return { success: false, error: 'Please provide a reason (at least 10 characters)' }
+    return {
+      success: false,
+      error: 'Please provide a reason (at least 10 characters)',
+    }
   }
 
   // Verify agent owns this client
@@ -44,7 +53,10 @@ export async function requestDeadlineExtension(
 
   // Client must be IN_EXECUTION with a deadline
   if (client.intakeStatus !== IntakeStatus.IN_EXECUTION) {
-    return { success: false, error: 'Extensions can only be requested for clients in execution' }
+    return {
+      success: false,
+      error: 'Extensions can only be requested for clients in execution',
+    }
   }
 
   if (!client.executionDeadline) {
@@ -65,7 +77,10 @@ export async function requestDeadlineExtension(
   })
 
   if (existingPending) {
-    return { success: false, error: 'An extension request is already pending for this client' }
+    return {
+      success: false,
+      error: 'An extension request is already pending for this client',
+    }
   }
 
   const days = requestedDays ?? DEFAULT_REQUESTED_DAYS
@@ -114,7 +129,7 @@ function revalidateExtensionPaths(clientId: string) {
 
 export async function approveExtensionRequest(
   requestId: string,
-  reviewNotes?: string
+  reviewNotes?: string,
 ): Promise<{ success: boolean; error?: string }> {
   const session = await auth()
   if (!session?.user?.id) {
@@ -127,8 +142,14 @@ export async function approveExtensionRequest(
     select: { role: true },
   })
 
-  if (!user || (user.role !== UserRole.ADMIN && user.role !== UserRole.BACKOFFICE)) {
-    return { success: false, error: 'Unauthorized — admin or backoffice role required' }
+  if (
+    !user ||
+    (user.role !== UserRole.ADMIN && user.role !== UserRole.BACKOFFICE)
+  ) {
+    return {
+      success: false,
+      error: 'Unauthorized — admin or backoffice role required',
+    }
   }
 
   // Find extension request
@@ -152,11 +173,15 @@ export async function approveExtensionRequest(
     return { success: false, error: 'Extension request is not pending' }
   }
 
-  const newDeadline = addBusinessDays(request.currentDeadline, request.requestedDays)
+  const newDeadline = addBusinessDays(
+    request.currentDeadline,
+    request.requestedDays,
+  )
 
   // Calculate calendar day difference for shifting todo due dates
   const calendarDayDiff = Math.round(
-    (newDeadline.getTime() - request.currentDeadline.getTime()) / (1000 * 60 * 60 * 24)
+    (newDeadline.getTime() - request.currentDeadline.getTime()) /
+      (1000 * 60 * 60 * 24),
   )
 
   try {
@@ -236,7 +261,7 @@ export async function approveExtensionRequest(
 
 export async function rejectExtensionRequest(
   requestId: string,
-  reviewNotes: string
+  reviewNotes: string,
 ): Promise<{ success: boolean; error?: string }> {
   const session = await auth()
   if (!session?.user?.id) {
@@ -254,8 +279,14 @@ export async function rejectExtensionRequest(
     select: { role: true },
   })
 
-  if (!user || (user.role !== UserRole.ADMIN && user.role !== UserRole.BACKOFFICE)) {
-    return { success: false, error: 'Unauthorized — admin or backoffice role required' }
+  if (
+    !user ||
+    (user.role !== UserRole.ADMIN && user.role !== UserRole.BACKOFFICE)
+  ) {
+    return {
+      success: false,
+      error: 'Unauthorized — admin or backoffice role required',
+    }
   }
 
   // Find extension request

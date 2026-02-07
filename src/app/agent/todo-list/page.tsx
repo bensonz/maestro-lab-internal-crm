@@ -21,37 +21,53 @@ export default async function TodoListPage() {
       <div className="mb-6 grid gap-4 md:grid-cols-4">
         <Card className="border-slate-800 bg-slate-900">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-400">Today&apos;s Tasks</CardTitle>
+            <CardTitle className="text-sm font-medium text-slate-400">
+              Today&apos;s Tasks
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-white">{todos.todaysTasks}</div>
+            <div className="text-2xl font-bold text-white">
+              {todos.todaysTasks}
+            </div>
           </CardContent>
         </Card>
 
         <Card className="border-slate-800 bg-slate-900">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-400">This Week</CardTitle>
+            <CardTitle className="text-sm font-medium text-slate-400">
+              This Week
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-white">{todos.thisWeek}</div>
+            <div className="text-2xl font-bold text-white">
+              {todos.thisWeek}
+            </div>
           </CardContent>
         </Card>
 
         <Card className="border-slate-800 bg-slate-900">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-400">Overdue</CardTitle>
+            <CardTitle className="text-sm font-medium text-slate-400">
+              Overdue
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-500">{todos.overdue}</div>
+            <div className="text-2xl font-bold text-red-500">
+              {todos.overdue}
+            </div>
           </CardContent>
         </Card>
 
         <Card className="border-slate-800 bg-slate-900">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-400">Completed Today</CardTitle>
+            <CardTitle className="text-sm font-medium text-slate-400">
+              Completed Today
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-emerald-500">{todos.completedToday}</div>
+            <div className="text-2xl font-bold text-emerald-500">
+              {todos.completedToday}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -67,13 +83,18 @@ export default async function TodoListPage() {
           ) : (
             <div className="space-y-4">
               {todos.pendingTasks.map((todo) => (
-                <div key={todo.id} className="flex items-center justify-between rounded-lg bg-slate-800 p-4">
+                <div
+                  key={todo.id}
+                  className="flex items-center justify-between rounded-lg bg-slate-800 p-4"
+                >
                   <div>
                     <p className="font-medium text-white">{todo.task}</p>
                     <p className="text-sm text-slate-400">{todo.client}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge className={todo.overdue ? 'bg-red-500' : 'bg-slate-600'}>
+                    <Badge
+                      className={todo.overdue ? 'bg-red-500' : 'bg-slate-600'}
+                    >
                       {todo.due}
                     </Badge>
                   </div>

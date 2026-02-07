@@ -65,7 +65,7 @@ export function ComplianceGroups({
 
   const toggleGroup = (group: string) => {
     setOpenGroups((prev) =>
-      prev.includes(group) ? prev.filter((g) => g !== group) : [...prev, group]
+      prev.includes(group) ? prev.filter((g) => g !== group) : [...prev, group],
     )
   }
 
@@ -97,7 +97,9 @@ export function ComplianceGroups({
                 <ShieldCheck className="h-4 w-4 text-primary" />
               </div>
               <div className="text-left">
-                <p className="font-medium text-foreground">Group A: Quick Assessment</p>
+                <p className="font-medium text-foreground">
+                  Group A: Quick Assessment
+                </p>
                 <p className="text-xs text-muted-foreground">
                   Criminal record, banking history
                 </p>
@@ -116,7 +118,9 @@ export function ComplianceGroups({
               </Label>
               <RadioGroup
                 value={data.hasCriminalRecord}
-                onValueChange={(value) => updateField('hasCriminalRecord', value)}
+                onValueChange={(value) =>
+                  updateField('hasCriminalRecord', value)
+                }
                 className="flex gap-4"
               >
                 <div className="flex items-center space-x-2">
@@ -142,7 +146,9 @@ export function ComplianceGroups({
                 <Textarea
                   placeholder="Provide details about the criminal record..."
                   value={data.criminalDetails}
-                  onChange={(e) => updateField('criminalDetails', e.target.value)}
+                  onChange={(e) =>
+                    updateField('criminalDetails', e.target.value)
+                  }
                   className="mt-2 min-h-[80px] rounded-xl border-border/50 bg-input"
                 />
               )}
@@ -153,7 +159,9 @@ export function ComplianceGroups({
               </Label>
               <RadioGroup
                 value={data.hasBankingHistory}
-                onValueChange={(value) => updateField('hasBankingHistory', value)}
+                onValueChange={(value) =>
+                  updateField('hasBankingHistory', value)
+                }
                 className="flex gap-4"
               >
                 <div className="flex items-center space-x-2">
@@ -263,7 +271,10 @@ export function ComplianceGroups({
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="pending" id="address-proof-pending" />
-                  <Label htmlFor="address-proof-pending" className="cursor-pointer">
+                  <Label
+                    htmlFor="address-proof-pending"
+                    className="cursor-pointer"
+                  >
                     Pending
                   </Label>
                 </div>
@@ -344,7 +355,9 @@ export function ComplianceGroups({
               </Label>
               <RadioGroup
                 value={data.hasBettingHistory}
-                onValueChange={(value) => updateField('hasBettingHistory', value)}
+                onValueChange={(value) =>
+                  updateField('hasBettingHistory', value)
+                }
                 className="flex gap-4"
               >
                 <div className="flex items-center space-x-2">
@@ -371,7 +384,9 @@ export function ComplianceGroups({
                 <Textarea
                   placeholder="List platforms the client has used..."
                   value={data.bettingDetails}
-                  onChange={(e) => updateField('bettingDetails', e.target.value)}
+                  onChange={(e) =>
+                    updateField('bettingDetails', e.target.value)
+                  }
                   className="mt-2 min-h-[80px] rounded-xl border-border/50 bg-input"
                 />
               )}

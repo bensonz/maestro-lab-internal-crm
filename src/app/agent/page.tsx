@@ -1,6 +1,10 @@
 import { auth } from '@/backend/auth'
 import { redirect } from 'next/navigation'
-import { getAgentDashboardStats, getAgentTodaysTasks, getAgentClients } from '@/backend/data/agent'
+import {
+  getAgentDashboardStats,
+  getAgentTodaysTasks,
+  getAgentClients,
+} from '@/backend/data/agent'
 import { getAgentKPIs } from '@/backend/services/agent-kpis'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -65,8 +69,12 @@ export default async function AgentDashboard() {
               <Clock className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <p className="text-sm font-medium text-muted-foreground">In Progress</p>
-              <p className="text-2xl font-bold tracking-tight text-foreground">{stats.inProgressCount}</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                In Progress
+              </p>
+              <p className="text-2xl font-bold tracking-tight text-foreground">
+                {stats.inProgressCount}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -77,8 +85,12 @@ export default async function AgentDashboard() {
               <Hourglass className="h-5 w-5 text-accent" />
             </div>
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Pending Approval</p>
-              <p className="text-2xl font-bold tracking-tight text-foreground">{stats.pendingApprovalCount}</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                Pending Approval
+              </p>
+              <p className="text-2xl font-bold tracking-tight text-foreground">
+                {stats.pendingApprovalCount}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -89,10 +101,16 @@ export default async function AgentDashboard() {
               <CheckCircle2 className="h-5 w-5 text-chart-4" />
             </div>
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Approved</p>
-              <p className="text-2xl font-bold tracking-tight text-foreground">{stats.approvedCount}</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                Approved
+              </p>
+              <p className="text-2xl font-bold tracking-tight text-foreground">
+                {stats.approvedCount}
+              </p>
               {stats.lastApprovedAt && (
-                <p className="text-xs text-muted-foreground">Last: {stats.lastApprovedAt}</p>
+                <p className="text-xs text-muted-foreground">
+                  Last: {stats.lastApprovedAt}
+                </p>
               )}
             </div>
           </CardContent>
@@ -106,24 +124,32 @@ export default async function AgentDashboard() {
           data-testid="kpi-success-rate"
         >
           <CardContent className="flex items-center gap-4 py-5">
-            <div className={`rounded-xl p-3 ring-1 ${
-              kpis.successRate >= 80
-                ? 'bg-chart-4/10 ring-chart-4/20'
-                : kpis.successRate >= 60
-                  ? 'bg-accent/10 ring-accent/20'
-                  : 'bg-destructive/10 ring-destructive/20'
-            }`}>
-              <Target className={`h-5 w-5 ${
+            <div
+              className={`rounded-xl p-3 ring-1 ${
                 kpis.successRate >= 80
-                  ? 'text-chart-4'
+                  ? 'bg-chart-4/10 ring-chart-4/20'
                   : kpis.successRate >= 60
-                    ? 'text-accent'
-                    : 'text-destructive'
-              }`} />
+                    ? 'bg-accent/10 ring-accent/20'
+                    : 'bg-destructive/10 ring-destructive/20'
+              }`}
+            >
+              <Target
+                className={`h-5 w-5 ${
+                  kpis.successRate >= 80
+                    ? 'text-chart-4'
+                    : kpis.successRate >= 60
+                      ? 'text-accent'
+                      : 'text-destructive'
+                }`}
+              />
             </div>
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Success Rate</p>
-              <p className="text-2xl font-bold tracking-tight font-mono text-foreground">{kpis.successRate}%</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                Success Rate
+              </p>
+              <p className="text-2xl font-bold tracking-tight font-mono text-foreground">
+                {kpis.successRate}%
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -137,9 +163,13 @@ export default async function AgentDashboard() {
               <Timer className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Avg Days to Convert</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                Avg Days to Convert
+              </p>
               <p className="text-2xl font-bold tracking-tight font-mono text-foreground">
-                {kpis.avgDaysToConvert !== null ? `${kpis.avgDaysToConvert} days` : '—'}
+                {kpis.avgDaysToConvert !== null
+                  ? `${kpis.avgDaysToConvert} days`
+                  : '—'}
               </p>
             </div>
           </CardContent>
@@ -150,24 +180,32 @@ export default async function AgentDashboard() {
           data-testid="kpi-delay-rate"
         >
           <CardContent className="flex items-center gap-4 py-5">
-            <div className={`rounded-xl p-3 ring-1 ${
-              kpis.delayRate <= 10
-                ? 'bg-chart-4/10 ring-chart-4/20'
-                : kpis.delayRate <= 20
-                  ? 'bg-accent/10 ring-accent/20'
-                  : 'bg-destructive/10 ring-destructive/20'
-            }`}>
-              <TrendingDown className={`h-5 w-5 ${
+            <div
+              className={`rounded-xl p-3 ring-1 ${
                 kpis.delayRate <= 10
-                  ? 'text-chart-4'
+                  ? 'bg-chart-4/10 ring-chart-4/20'
                   : kpis.delayRate <= 20
-                    ? 'text-accent'
-                    : 'text-destructive'
-              }`} />
+                    ? 'bg-accent/10 ring-accent/20'
+                    : 'bg-destructive/10 ring-destructive/20'
+              }`}
+            >
+              <TrendingDown
+                className={`h-5 w-5 ${
+                  kpis.delayRate <= 10
+                    ? 'text-chart-4'
+                    : kpis.delayRate <= 20
+                      ? 'text-accent'
+                      : 'text-destructive'
+                }`}
+              />
             </div>
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Delay Rate</p>
-              <p className="text-2xl font-bold tracking-tight font-mono text-foreground">{kpis.delayRate}%</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                Delay Rate
+              </p>
+              <p className="text-2xl font-bold tracking-tight font-mono text-foreground">
+                {kpis.delayRate}%
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -181,8 +219,12 @@ export default async function AgentDashboard() {
               <Percent className="h-5 w-5 text-chart-5" />
             </div>
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Extension Rate</p>
-              <p className="text-2xl font-bold tracking-tight font-mono text-foreground">{kpis.extensionRate}%</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                Extension Rate
+              </p>
+              <p className="text-2xl font-bold tracking-tight font-mono text-foreground">
+                {kpis.extensionRate}%
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -207,7 +249,9 @@ export default async function AgentDashboard() {
             </div>
             <p className="mt-1 flex items-center gap-1.5 text-sm">
               <span className="inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
-              <span className="text-primary font-medium">{stats.activeClients} active</span>
+              <span className="text-primary font-medium">
+                {stats.activeClients} active
+              </span>
               <span className="text-muted-foreground">in progress</span>
             </p>
           </CardContent>
@@ -247,7 +291,9 @@ export default async function AgentDashboard() {
             <div className="text-3xl font-bold tracking-tight text-foreground">
               {stats.pendingTasks}
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">Require attention</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Require attention
+            </p>
           </CardContent>
         </Card>
 
@@ -268,7 +314,9 @@ export default async function AgentDashboard() {
             </div>
             <p className="mt-1 flex items-center gap-1.5 text-sm">
               <TrendingUp className="h-3.5 w-3.5 text-chart-4" />
-              <span className="font-medium text-chart-4">+{stats.earningsChange}%</span>
+              <span className="font-medium text-chart-4">
+                +{stats.earningsChange}%
+              </span>
               <span className="text-muted-foreground">from last month</span>
             </p>
           </CardContent>
@@ -276,7 +324,10 @@ export default async function AgentDashboard() {
       </div>
 
       {/* Today's Tasks */}
-      <div className="mb-8 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+      <div
+        className="mb-8 animate-fade-in-up"
+        style={{ animationDelay: '0.2s' }}
+      >
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <ListTodo className="h-5 w-5 text-muted-foreground" />
@@ -285,7 +336,10 @@ export default async function AgentDashboard() {
             </h2>
           </div>
           {todaysTasks.length > 0 && (
-            <Badge variant="outline" className="bg-accent/10 text-accent border-accent/30">
+            <Badge
+              variant="outline"
+              className="bg-accent/10 text-accent border-accent/30"
+            >
               {todaysTasks.length} pending
             </Badge>
           )}
@@ -294,7 +348,9 @@ export default async function AgentDashboard() {
         {todaysTasks.length === 0 ? (
           <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
             <CardContent className="flex items-center justify-center py-8">
-              <p className="text-sm text-muted-foreground">No tasks due today</p>
+              <p className="text-sm text-muted-foreground">
+                No tasks due today
+              </p>
             </CardContent>
           </Card>
         ) : (
@@ -302,7 +358,11 @@ export default async function AgentDashboard() {
             {todaysTasks.map((task) => (
               <Link
                 key={task.id}
-                href={task.clientId ? `/agent/clients/${task.clientId}` : '/agent/todo-list'}
+                href={
+                  task.clientId
+                    ? `/agent/clients/${task.clientId}`
+                    : '/agent/todo-list'
+                }
               >
                 <Card className="group border-border/50 bg-card/80 backdrop-blur-sm transition-all duration-300 hover:border-primary/40 hover:shadow-md hover:shadow-primary/5 card-interactive cursor-pointer">
                   <CardContent className="flex items-center gap-4 py-3.5">
@@ -312,7 +372,10 @@ export default async function AgentDashboard() {
                           {task.title}
                         </p>
                         {task.isOverdue && (
-                          <Badge variant="outline" className="shrink-0 bg-destructive/10 text-destructive border-destructive/30 text-xs">
+                          <Badge
+                            variant="outline"
+                            className="shrink-0 bg-destructive/10 text-destructive border-destructive/30 text-xs"
+                          >
                             <AlertTriangle className="mr-1 h-3 w-3" />
                             Urgent
                           </Badge>
@@ -339,7 +402,10 @@ export default async function AgentDashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className="mb-8 animate-fade-in-up" style={{ animationDelay: '0.25s' }}>
+      <div
+        className="mb-8 animate-fade-in-up"
+        style={{ animationDelay: '0.25s' }}
+      >
         <h2 className="mb-4 font-display text-lg font-semibold text-foreground">
           Quick Actions
         </h2>
@@ -352,7 +418,9 @@ export default async function AgentDashboard() {
               <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">
                 New Client
               </h3>
-              <p className="text-sm text-muted-foreground">Start a new application</p>
+              <p className="text-sm text-muted-foreground">
+                Start a new application
+              </p>
             </div>
             <div className="rounded-lg bg-primary/10 p-2 ring-1 ring-primary/20 transition-all group-hover:bg-primary/20 group-hover:ring-primary/30">
               <ArrowUpRight className="h-4 w-4 text-primary transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
@@ -367,7 +435,9 @@ export default async function AgentDashboard() {
               <h3 className="font-semibold text-foreground group-hover:text-chart-3 transition-colors">
                 View Clients
               </h3>
-              <p className="text-sm text-muted-foreground">Manage your portfolio</p>
+              <p className="text-sm text-muted-foreground">
+                Manage your portfolio
+              </p>
             </div>
             <div className="rounded-lg bg-chart-3/10 p-2 ring-1 ring-chart-3/20 transition-all group-hover:bg-chart-3/20 group-hover:ring-chart-3/30">
               <ArrowUpRight className="h-4 w-4 text-chart-3 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
@@ -436,7 +506,9 @@ export default async function AgentDashboard() {
                         <span className="font-medium text-muted-foreground">
                           Step {client.step} of {client.totalSteps}
                         </span>
-                        <span className="font-semibold text-foreground">{client.progress}%</span>
+                        <span className="font-semibold text-foreground">
+                          {client.progress}%
+                        </span>
                       </div>
                       <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/50">
                         <div

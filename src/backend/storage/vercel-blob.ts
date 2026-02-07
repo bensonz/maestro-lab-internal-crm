@@ -6,7 +6,11 @@ import type { StorageProvider, UploadResult } from './types'
  * Requires BLOB_READ_WRITE_TOKEN env var.
  */
 export class VercelBlobStorage implements StorageProvider {
-  async upload(file: Buffer, path: string, contentType: string): Promise<UploadResult> {
+  async upload(
+    file: Buffer,
+    path: string,
+    contentType: string,
+  ): Promise<UploadResult> {
     const blob = await put(path, file, {
       access: 'public',
       contentType,

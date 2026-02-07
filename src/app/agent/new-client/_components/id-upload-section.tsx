@@ -42,22 +42,25 @@ export function IdUploadSection({
   const [dragActive, setDragActive] = useState(false)
 
   // Simulated OCR - in production this would call an actual OCR API
-  const simulateOCR = useCallback(async (_file: File): Promise<ExtractedData> => {
-    // Simulate processing delay
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+  const simulateOCR = useCallback(
+    async (_file: File): Promise<ExtractedData> => {
+      // Simulate processing delay
+      await new Promise((resolve) => setTimeout(resolve, 1500))
 
-    // Return simulated extracted data
-    return {
-      firstName: 'John',
-      middleName: 'Michael',
-      lastName: 'Smith',
-      dateOfBirth: '1985-06-15',
-      address: '123 Main Street',
-      city: 'Austin',
-      state: 'TX',
-      zip: '78701',
-    }
-  }, [])
+      // Return simulated extracted data
+      return {
+        firstName: 'John',
+        middleName: 'Michael',
+        lastName: 'Smith',
+        dateOfBirth: '1985-06-15',
+        address: '123 Main Street',
+        city: 'Austin',
+        state: 'TX',
+        zip: '78701',
+      }
+    },
+    [],
+  )
 
   const handleFileUpload = useCallback(
     async (file: File) => {
@@ -74,7 +77,7 @@ export function IdUploadSection({
         setIsProcessing(false)
       }
     },
-    [simulateOCR, onDataExtracted]
+    [simulateOCR, onDataExtracted],
   )
 
   const handleDrop = useCallback(
@@ -87,7 +90,7 @@ export function IdUploadSection({
         handleFileUpload(file)
       }
     },
-    [handleFileUpload]
+    [handleFileUpload],
   )
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -107,7 +110,7 @@ export function IdUploadSection({
         handleFileUpload(file)
       }
     },
-    [handleFileUpload]
+    [handleFileUpload],
   )
 
   const handleRemoveFile = useCallback(() => {
@@ -250,12 +253,15 @@ export function IdUploadSection({
                       <span className="text-muted-foreground">Name:</span>
                       <span className="font-medium text-foreground">
                         {extractedData.firstName}{' '}
-                        {extractedData.middleName && `${extractedData.middleName} `}
+                        {extractedData.middleName &&
+                          `${extractedData.middleName} `}
                         {extractedData.lastName}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Date of Birth:</span>
+                      <span className="text-muted-foreground">
+                        Date of Birth:
+                      </span>
                       <span className="font-medium text-foreground">
                         {extractedData.dateOfBirth}
                       </span>
@@ -281,7 +287,8 @@ export function IdUploadSection({
                         Age Compliance Warning
                       </p>
                       <p className="text-xs text-destructive/80">
-                        Client is {age} years old. Must be 21+ for sports betting.
+                        Client is {age} years old. Must be 21+ for sports
+                        betting.
                       </p>
                     </div>
                   </div>
@@ -296,7 +303,8 @@ export function IdUploadSection({
                         Age Verified
                       </p>
                       <p className="text-xs text-chart-4/80">
-                        Client is {age} years old. Meets minimum age requirement.
+                        Client is {age} years old. Meets minimum age
+                        requirement.
                       </p>
                     </div>
                   </div>
@@ -304,11 +312,7 @@ export function IdUploadSection({
 
                 {/* Confirm Button */}
                 {!isConfirmed && (
-                  <Button
-                    type="button"
-                    onClick={onConfirm}
-                    className="w-full"
-                  >
+                  <Button type="button" onClick={onConfirm} className="w-full">
                     <CheckCircle2 className="mr-2 h-4 w-4" />
                     Confirm & Save ID Data
                   </Button>

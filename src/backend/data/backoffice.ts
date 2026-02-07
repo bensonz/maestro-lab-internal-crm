@@ -1,5 +1,14 @@
 import prisma from '@/backend/prisma/client'
-import { IntakeStatus, PlatformStatus, ToDoStatus, UserRole, PlatformType, ToDoType, EventType, ExtensionRequestStatus } from '@/types'
+import {
+  IntakeStatus,
+  PlatformStatus,
+  ToDoStatus,
+  UserRole,
+  PlatformType,
+  ToDoType,
+  EventType,
+  ExtensionRequestStatus,
+} from '@/types'
 import { getAllAgentKPIs } from '@/backend/services/agent-kpis'
 
 export async function getDashboardStats() {
@@ -24,7 +33,14 @@ export async function getOverviewStats() {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  const [pendingReviews, approvedToday, urgentActions, activeClients, pendingExtensions, delayedClients] = await Promise.all([
+  const [
+    pendingReviews,
+    approvedToday,
+    urgentActions,
+    activeClients,
+    pendingExtensions,
+    delayedClients,
+  ] = await Promise.all([
     // Clients ready for approval + platforms pending review
     prisma.client.count({
       where: { intakeStatus: IntakeStatus.READY_FOR_APPROVAL },
@@ -44,7 +60,11 @@ export async function getOverviewStats() {
     prisma.client.count({
       where: {
         intakeStatus: {
-          in: [IntakeStatus.PHONE_ISSUED, IntakeStatus.IN_EXECUTION, IntakeStatus.READY_FOR_APPROVAL],
+          in: [
+            IntakeStatus.PHONE_ISSUED,
+            IntakeStatus.IN_EXECUTION,
+            IntakeStatus.READY_FOR_APPROVAL,
+          ],
         },
       },
     }),
@@ -56,7 +76,14 @@ export async function getOverviewStats() {
     }),
   ])
 
-  return { pendingReviews, approvedToday, urgentActions, activeClients, pendingExtensions, delayedClients }
+  return {
+    pendingReviews,
+    approvedToday,
+    urgentActions,
+    activeClients,
+    pendingExtensions,
+    delayedClients,
+  }
 }
 
 export async function getPendingExtensionRequests() {
@@ -84,7 +111,9 @@ export async function getPendingExtensionRequests() {
     requestedDays: r.requestedDays,
     currentDeadline: r.currentDeadline,
     createdAt: r.createdAt,
-    deadlineStatus: (r.currentDeadline < now ? 'overdue' : 'active') as 'active' | 'overdue',
+    deadlineStatus: (r.currentDeadline < now ? 'overdue' : 'active') as
+      | 'active'
+      | 'overdue',
   }))
 }
 
@@ -105,7 +134,7 @@ export async function getDelayedClients() {
 
   return clients.map((c) => {
     const completedCount = c.toDos.filter(
-      (t) => t.status === ToDoStatus.COMPLETED
+      (t) => t.status === ToDoStatus.COMPLETED,
     ).length
 
     return {
@@ -126,7 +155,9 @@ export async function getPriorityTasks() {
   // Get urgent To-Dos
   const tasks = await prisma.toDo.findMany({
     where: {
-      status: { in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS, ToDoStatus.OVERDUE] },
+      status: {
+        in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS, ToDoStatus.OVERDUE],
+      },
       OR: [
         { priority: { lte: 1 } }, // High priority
         { dueDate: { lte: now } }, // Due today or overdue
@@ -170,7 +201,9 @@ export async function getReminders() {
     prisma.client.count({
       where: {
         phoneAssignment: null,
-        intakeStatus: { in: [IntakeStatus.PHONE_ISSUED, IntakeStatus.IN_EXECUTION] },
+        intakeStatus: {
+          in: [IntakeStatus.PHONE_ISSUED, IntakeStatus.IN_EXECUTION],
+        },
         createdAt: { lte: yesterday },
       },
     }),
@@ -183,7 +216,11 @@ export async function getReminders() {
     }),
   ])
 
-  const reminders: { message: string; timeLabel: string; isOverdue: boolean }[] = []
+  const reminders: {
+    message: string
+    timeLabel: string
+    isOverdue: boolean
+  }[] = []
 
   if (awaitingPhone > 0) {
     reminders.push({
@@ -264,19 +301,20 @@ function formatEventSubtitle(event: {
 }
 
 export async function getPendingActionCounts() {
-  const [pendingIntake, pendingVerification, pendingSettlement, overdueTasks] = await Promise.all([
-    prisma.client.count({
-      where: { intakeStatus: IntakeStatus.READY_FOR_APPROVAL },
-    }),
-    prisma.clientPlatform.count({
-      where: { status: PlatformStatus.PENDING_REVIEW },
-    }),
-    // Settlement would need its own model - for now return 0
-    Promise.resolve(0),
-    prisma.toDo.count({
-      where: { status: ToDoStatus.OVERDUE },
-    }),
-  ])
+  const [pendingIntake, pendingVerification, pendingSettlement, overdueTasks] =
+    await Promise.all([
+      prisma.client.count({
+        where: { intakeStatus: IntakeStatus.READY_FOR_APPROVAL },
+      }),
+      prisma.clientPlatform.count({
+        where: { status: PlatformStatus.PENDING_REVIEW },
+      }),
+      // Settlement would need its own model - for now return 0
+      Promise.resolve(0),
+      prisma.toDo.count({
+        where: { status: ToDoStatus.OVERDUE },
+      }),
+    ])
 
   return {
     pendingIntake,
@@ -337,7 +375,7 @@ export async function getPlatformOverview() {
         clients: count,
         balance: 0, // Would need fund allocation tracking
       }
-    })
+    }),
   )
 
   return platformStats
@@ -368,7 +406,9 @@ export async function getAllClients() {
     const activePlatforms = client.platforms
       .filter((p) => p.status === PlatformStatus.VERIFIED)
       .map((p) => getPlatformAbbrev(p.platformType))
-    const allPlatforms = client.platforms.map((p) => getPlatformAbbrev(p.platformType))
+    const allPlatforms = client.platforms.map((p) =>
+      getPlatformAbbrev(p.platformType),
+    )
 
     return {
       id: client.id,
@@ -390,16 +430,21 @@ export async function getClientStats() {
   })
 
   const total = clients.length
-  const active = clients.filter((c) =>
-    c.intakeStatus === IntakeStatus.PHONE_ISSUED ||
-    c.intakeStatus === IntakeStatus.IN_EXECUTION ||
-    c.intakeStatus === IntakeStatus.APPROVED
+  const active = clients.filter(
+    (c) =>
+      c.intakeStatus === IntakeStatus.PHONE_ISSUED ||
+      c.intakeStatus === IntakeStatus.IN_EXECUTION ||
+      c.intakeStatus === IntakeStatus.APPROVED,
   ).length
-  const closed = clients.filter((c) =>
-    c.intakeStatus === IntakeStatus.REJECTED || c.intakeStatus === IntakeStatus.INACTIVE
+  const closed = clients.filter(
+    (c) =>
+      c.intakeStatus === IntakeStatus.REJECTED ||
+      c.intakeStatus === IntakeStatus.INACTIVE,
   ).length
-  const furtherVerification = clients.filter((c) =>
-    c.intakeStatus === IntakeStatus.NEEDS_MORE_INFO || c.intakeStatus === IntakeStatus.PENDING_EXTERNAL
+  const furtherVerification = clients.filter(
+    (c) =>
+      c.intakeStatus === IntakeStatus.NEEDS_MORE_INFO ||
+      c.intakeStatus === IntakeStatus.PENDING_EXTERNAL,
   ).length
 
   return { total, active, closed, furtherVerification }
@@ -443,8 +488,10 @@ export async function getAllAgents() {
   ])
 
   return agents.map((agent) => {
-    const workingClients = agent.agentClients.filter((c) =>
-      c.intakeStatus === IntakeStatus.PHONE_ISSUED || c.intakeStatus === IntakeStatus.IN_EXECUTION
+    const workingClients = agent.agentClients.filter(
+      (c) =>
+        c.intakeStatus === IntakeStatus.PHONE_ISSUED ||
+        c.intakeStatus === IntakeStatus.IN_EXECUTION,
     ).length
 
     const kpis = kpisMap[agent.id]
@@ -468,28 +515,31 @@ export async function getAgentStats() {
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
 
-  const [totalAgents, initiatedApps, newClientsMonth, initiateEvents] = await Promise.all([
-    prisma.user.count({ where: { role: UserRole.AGENT } }),
-    prisma.client.count({
-      where: {
-        intakeStatus: { in: [IntakeStatus.PENDING, IntakeStatus.PHONE_ISSUED] },
-      },
-    }),
-    prisma.client.count({
-      where: { createdAt: { gte: startOfMonth } },
-    }),
-    // Get all PHONE_ISSUED events with client creation dates for avg computation
-    prisma.eventLog.findMany({
-      where: {
-        eventType: EventType.STATUS_CHANGE,
-        newValue: IntakeStatus.PHONE_ISSUED,
-      },
-      select: {
-        createdAt: true,
-        client: { select: { createdAt: true } },
-      },
-    }),
-  ])
+  const [totalAgents, initiatedApps, newClientsMonth, initiateEvents] =
+    await Promise.all([
+      prisma.user.count({ where: { role: UserRole.AGENT } }),
+      prisma.client.count({
+        where: {
+          intakeStatus: {
+            in: [IntakeStatus.PENDING, IntakeStatus.PHONE_ISSUED],
+          },
+        },
+      }),
+      prisma.client.count({
+        where: { createdAt: { gte: startOfMonth } },
+      }),
+      // Get all PHONE_ISSUED events with client creation dates for avg computation
+      prisma.eventLog.findMany({
+        where: {
+          eventType: EventType.STATUS_CHANGE,
+          newValue: IntakeStatus.PHONE_ISSUED,
+        },
+        select: {
+          createdAt: true,
+          client: { select: { createdAt: true } },
+        },
+      }),
+    ])
 
   // Compute avg days to open from all agents' initiation events
   let avgDaysToOpen: number | null = null
@@ -501,7 +551,8 @@ export async function getAgentStats() {
         return diffMs / (1000 * 60 * 60 * 24)
       })
     if (days.length > 0) {
-      avgDaysToOpen = Math.round((days.reduce((s, d) => s + d, 0) / days.length) * 10) / 10
+      avgDaysToOpen =
+        Math.round((days.reduce((s, d) => s + d, 0) / days.length) * 10) / 10
     }
   }
 

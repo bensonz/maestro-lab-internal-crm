@@ -5,7 +5,9 @@ vi.mock('@/backend/auth', () => ({
   auth: vi.fn(),
 }))
 
-type MockedAuth = Mock<() => Promise<{ user: { id: string; role: string }; expires: string } | null>>
+type MockedAuth = Mock<
+  () => Promise<{ user: { id: string; role: string }; expires: string } | null>
+>
 
 // Mock the prisma client
 vi.mock('@/backend/prisma/client', () => ({
@@ -63,7 +65,12 @@ describe('createUser', () => {
   it('returns error when user is not authenticated', async () => {
     mockedAuth.mockResolvedValue(null)
 
-    const formData = createFormData({ name: 'Test', email: 'test@test.com', password: 'password123', role: 'AGENT' })
+    const formData = createFormData({
+      name: 'Test',
+      email: 'test@test.com',
+      password: 'password123',
+      role: 'AGENT',
+    })
     const result = await createUser(formData)
 
     expect(result.success).toBe(false)
@@ -79,7 +86,12 @@ describe('createUser', () => {
       role: 'AGENT',
     } as never)
 
-    const formData = createFormData({ name: 'Test', email: 'test@test.com', password: 'password123', role: 'AGENT' })
+    const formData = createFormData({
+      name: 'Test',
+      email: 'test@test.com',
+      password: 'password123',
+      role: 'AGENT',
+    })
     const result = await createUser(formData)
 
     expect(result.success).toBe(false)
@@ -270,7 +282,11 @@ describe('updateUser', () => {
     })
     vi.mocked(prisma.user.findUnique)
       .mockResolvedValueOnce({ role: 'ADMIN' } as never) // current user
-      .mockResolvedValueOnce({ id: 'user-1', role: 'AGENT', email: 'old@test.com' } as never) // target user
+      .mockResolvedValueOnce({
+        id: 'user-1',
+        role: 'AGENT',
+        email: 'old@test.com',
+      } as never) // target user
       .mockResolvedValueOnce(null as never) // email uniqueness check (new email not taken)
     vi.mocked(prisma.user.update).mockResolvedValue({} as never)
     vi.mocked(prisma.eventLog.create).mockResolvedValue({} as never)
@@ -301,7 +317,11 @@ describe('updateUser', () => {
     })
     vi.mocked(prisma.user.findUnique)
       .mockResolvedValueOnce({ role: 'ADMIN' } as never)
-      .mockResolvedValueOnce({ id: 'admin-1', role: 'ADMIN', email: 'admin@test.com' } as never)
+      .mockResolvedValueOnce({
+        id: 'admin-1',
+        role: 'ADMIN',
+        email: 'admin@test.com',
+      } as never)
 
     const formData = createFormData({
       name: 'Admin',
@@ -328,7 +348,11 @@ describe('toggleUserActive', () => {
     })
     vi.mocked(prisma.user.findUnique)
       .mockResolvedValueOnce({ role: 'ADMIN' } as never)
-      .mockResolvedValueOnce({ id: 'user-1', isActive: true, email: 'user@test.com' } as never)
+      .mockResolvedValueOnce({
+        id: 'user-1',
+        isActive: true,
+        email: 'user@test.com',
+      } as never)
     vi.mocked(prisma.user.update).mockResolvedValue({} as never)
     vi.mocked(prisma.eventLog.create).mockResolvedValue({} as never)
 
@@ -348,7 +372,11 @@ describe('toggleUserActive', () => {
     })
     vi.mocked(prisma.user.findUnique)
       .mockResolvedValueOnce({ role: 'ADMIN' } as never)
-      .mockResolvedValueOnce({ id: 'user-1', isActive: false, email: 'user@test.com' } as never)
+      .mockResolvedValueOnce({
+        id: 'user-1',
+        isActive: false,
+        email: 'user@test.com',
+      } as never)
     vi.mocked(prisma.user.update).mockResolvedValue({} as never)
     vi.mocked(prisma.eventLog.create).mockResolvedValue({} as never)
 
@@ -404,7 +432,11 @@ describe('resetUserPassword', () => {
     })
     vi.mocked(prisma.user.findUnique)
       .mockResolvedValueOnce({ role: 'ADMIN' } as never)
-      .mockResolvedValueOnce({ id: 'user-1', role: 'AGENT', email: 'user@test.com' } as never)
+      .mockResolvedValueOnce({
+        id: 'user-1',
+        role: 'AGENT',
+        email: 'user@test.com',
+      } as never)
     vi.mocked(prisma.user.update).mockResolvedValue({} as never)
 
     const result = await resetUserPassword('user-1', 'newpassword123')
@@ -438,7 +470,11 @@ describe('resetUserPassword', () => {
     })
     vi.mocked(prisma.user.findUnique)
       .mockResolvedValueOnce({ role: 'BACKOFFICE' } as never) // current user
-      .mockResolvedValueOnce({ id: 'admin-1', role: 'ADMIN', email: 'admin@test.com' } as never) // target is ADMIN
+      .mockResolvedValueOnce({
+        id: 'admin-1',
+        role: 'ADMIN',
+        email: 'admin@test.com',
+      } as never) // target is ADMIN
 
     const result = await resetUserPassword('admin-1', 'newpassword123')
 
@@ -453,7 +489,11 @@ describe('resetUserPassword', () => {
     })
     vi.mocked(prisma.user.findUnique)
       .mockResolvedValueOnce({ role: 'BACKOFFICE' } as never)
-      .mockResolvedValueOnce({ id: 'agent-1', role: 'AGENT', email: 'agent@test.com' } as never)
+      .mockResolvedValueOnce({
+        id: 'agent-1',
+        role: 'AGENT',
+        email: 'agent@test.com',
+      } as never)
     vi.mocked(prisma.user.update).mockResolvedValue({} as never)
 
     const result = await resetUserPassword('agent-1', 'newpassword123')

@@ -1,5 +1,10 @@
 import prisma from '@/backend/prisma/client'
-import { ToDoStatus, IntakeStatus, PlatformStatus, ExtensionRequestStatus } from '@/types'
+import {
+  ToDoStatus,
+  IntakeStatus,
+  PlatformStatus,
+  ExtensionRequestStatus,
+} from '@/types'
 
 export async function getAgentClients(agentId: string) {
   const clients = await prisma.client.findMany({
@@ -24,12 +29,13 @@ export async function getAgentClients(agentId: string) {
 
   return clients.map((client) => {
     const verifiedPlatforms = client.platforms.filter(
-      (p) => p.status === PlatformStatus.VERIFIED
+      (p) => p.status === PlatformStatus.VERIFIED,
     ).length
     const totalPlatforms = client.platforms.length
-    const progress = totalPlatforms > 0
-      ? Math.round((verifiedPlatforms / totalPlatforms) * 100)
-      : 0
+    const progress =
+      totalPlatforms > 0
+        ? Math.round((verifiedPlatforms / totalPlatforms) * 100)
+        : 0
 
     return {
       id: client.id,
@@ -55,66 +61,89 @@ export async function getAgentClientStats(agentId: string) {
   })
 
   const total = clients.length
-  const inProgress = clients.filter((c) =>
-    c.intakeStatus === IntakeStatus.PHONE_ISSUED || c.intakeStatus === IntakeStatus.IN_EXECUTION
+  const inProgress = clients.filter(
+    (c) =>
+      c.intakeStatus === IntakeStatus.PHONE_ISSUED ||
+      c.intakeStatus === IntakeStatus.IN_EXECUTION,
   ).length
   const pendingApproval = clients.filter(
-    (c) => c.intakeStatus === IntakeStatus.READY_FOR_APPROVAL
+    (c) => c.intakeStatus === IntakeStatus.READY_FOR_APPROVAL,
   ).length
-  const verificationNeeded = clients.filter((c) =>
-    c.intakeStatus === IntakeStatus.NEEDS_MORE_INFO || c.intakeStatus === IntakeStatus.PENDING_EXTERNAL
+  const verificationNeeded = clients.filter(
+    (c) =>
+      c.intakeStatus === IntakeStatus.NEEDS_MORE_INFO ||
+      c.intakeStatus === IntakeStatus.PENDING_EXTERNAL,
   ).length
   const approved = clients.filter(
-    (c) => c.intakeStatus === IntakeStatus.APPROVED
+    (c) => c.intakeStatus === IntakeStatus.APPROVED,
   ).length
   const rejected = clients.filter(
-    (c) => c.intakeStatus === IntakeStatus.REJECTED
+    (c) => c.intakeStatus === IntakeStatus.REJECTED,
   ).length
 
-  return { total, inProgress, pendingApproval, verificationNeeded, approved, rejected }
+  return {
+    total,
+    inProgress,
+    pendingApproval,
+    verificationNeeded,
+    approved,
+    rejected,
+  }
 }
 
 export async function getAgentDashboardStats(agentId: string) {
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
 
-  const [clients, earnings, pendingTodos, lastApprovedClient] = await Promise.all([
-    prisma.client.findMany({
-      where: { agentId },
-      select: { intakeStatus: true, statusChangedAt: true },
-    }),
-    prisma.earning.findMany({
-      where: { client: { agentId } },
-      select: { amount: true, status: true, createdAt: true },
-    }),
-    prisma.toDo.count({
-      where: {
-        assignedToId: agentId,
-        status: { in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS, ToDoStatus.OVERDUE] },
-      },
-    }),
-    prisma.client.findFirst({
-      where: { agentId, intakeStatus: IntakeStatus.APPROVED },
-      orderBy: { statusChangedAt: 'desc' },
-      select: { statusChangedAt: true },
-    }),
-  ])
+  const [clients, earnings, pendingTodos, lastApprovedClient] =
+    await Promise.all([
+      prisma.client.findMany({
+        where: { agentId },
+        select: { intakeStatus: true, statusChangedAt: true },
+      }),
+      prisma.earning.findMany({
+        where: { client: { agentId } },
+        select: { amount: true, status: true, createdAt: true },
+      }),
+      prisma.toDo.count({
+        where: {
+          assignedToId: agentId,
+          status: {
+            in: [
+              ToDoStatus.PENDING,
+              ToDoStatus.IN_PROGRESS,
+              ToDoStatus.OVERDUE,
+            ],
+          },
+        },
+      }),
+      prisma.client.findFirst({
+        where: { agentId, intakeStatus: IntakeStatus.APPROVED },
+        orderBy: { statusChangedAt: 'desc' },
+        select: { statusChangedAt: true },
+      }),
+    ])
 
   const totalClients = clients.length
   const activeClients = clients.filter(
     (c) =>
       c.intakeStatus === IntakeStatus.PHONE_ISSUED ||
-      c.intakeStatus === IntakeStatus.IN_EXECUTION
+      c.intakeStatus === IntakeStatus.IN_EXECUTION,
   ).length
   const inProgressCount = activeClients
   const pendingApprovalCount = clients.filter(
-    (c) => c.intakeStatus === IntakeStatus.READY_FOR_APPROVAL || c.intakeStatus === IntakeStatus.NEEDS_MORE_INFO
+    (c) =>
+      c.intakeStatus === IntakeStatus.READY_FOR_APPROVAL ||
+      c.intakeStatus === IntakeStatus.NEEDS_MORE_INFO,
   ).length
   const approvedCount = clients.filter(
-    (c) => c.intakeStatus === IntakeStatus.APPROVED
+    (c) => c.intakeStatus === IntakeStatus.APPROVED,
   ).length
   const completedThisMonth = clients.filter(
-    (c) => c.intakeStatus === IntakeStatus.APPROVED && c.statusChangedAt && c.statusChangedAt >= startOfMonth
+    (c) =>
+      c.intakeStatus === IntakeStatus.APPROVED &&
+      c.statusChangedAt &&
+      c.statusChangedAt >= startOfMonth,
   ).length
 
   const totalEarnings = earnings
@@ -129,7 +158,7 @@ export async function getAgentDashboardStats(agentId: string) {
       (e) =>
         e.status === 'paid' &&
         e.createdAt >= lastMonth &&
-        e.createdAt <= endOfLastMonth
+        e.createdAt <= endOfLastMonth,
     )
     .reduce((sum, e) => sum + Number(e.amount), 0)
 
@@ -156,16 +185,19 @@ export async function getAgentDashboardStats(agentId: string) {
 
 export async function getAgentTodaysTasks(agentId: string) {
   const now = new Date()
-  const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+  const endOfDay = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1,
+  )
 
   const todos = await prisma.toDo.findMany({
     where: {
       assignedToId: agentId,
-      status: { in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS, ToDoStatus.OVERDUE] },
-      OR: [
-        { dueDate: { lte: endOfDay } },
-        { status: ToDoStatus.OVERDUE },
-      ],
+      status: {
+        in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS, ToDoStatus.OVERDUE],
+      },
+      OR: [{ dueDate: { lte: endOfDay } }, { status: ToDoStatus.OVERDUE }],
     },
     include: {
       client: {
@@ -181,7 +213,8 @@ export async function getAgentTodaysTasks(agentId: string) {
   })
 
   return todos.map((t) => {
-    const isOverdue = t.status === ToDoStatus.OVERDUE || (t.dueDate ? t.dueDate < now : false)
+    const isOverdue =
+      t.status === ToDoStatus.OVERDUE || (t.dueDate ? t.dueDate < now : false)
     return {
       id: t.id,
       title: t.title,
@@ -189,7 +222,9 @@ export async function getAgentTodaysTasks(agentId: string) {
       priority: t.priority,
       isOverdue,
       clientId: t.client?.id ?? null,
-      clientName: t.client ? `${t.client.firstName} ${t.client.lastName}` : null,
+      clientName: t.client
+        ? `${t.client.firstName} ${t.client.lastName}`
+        : null,
     }
   })
 }
@@ -245,7 +280,9 @@ export async function getAgentTodos(agentId: string) {
   const todos = await prisma.toDo.findMany({
     where: {
       assignedToId: agentId,
-      status: { in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS, ToDoStatus.OVERDUE] },
+      status: {
+        in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS, ToDoStatus.OVERDUE],
+      },
     },
     include: {
       client: {
@@ -264,13 +301,13 @@ export async function getAgentTodos(agentId: string) {
   const endOfWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
 
   const todaysTasks = todos.filter(
-    (t) => t.dueDate && t.dueDate < endOfDay
+    (t) => t.dueDate && t.dueDate < endOfDay,
   ).length
   const thisWeek = todos.filter(
-    (t) => t.dueDate && t.dueDate < endOfWeek
+    (t) => t.dueDate && t.dueDate < endOfWeek,
   ).length
   const overdue = todos.filter(
-    (t) => t.status === ToDoStatus.OVERDUE || (t.dueDate && t.dueDate < now)
+    (t) => t.status === ToDoStatus.OVERDUE || (t.dueDate && t.dueDate < now),
   ).length
 
   // Get completed today count
@@ -287,7 +324,8 @@ export async function getAgentTodos(agentId: string) {
     task: t.title,
     client: t.client ? `${t.client.firstName} ${t.client.lastName}` : 'N/A',
     due: t.dueDate ? formatRelativeTime(t.dueDate) : 'No deadline',
-    overdue: t.status === ToDoStatus.OVERDUE || (t.dueDate ? t.dueDate < now : false),
+    overdue:
+      t.status === ToDoStatus.OVERDUE || (t.dueDate ? t.dueDate < now : false),
   }))
 
   return {
@@ -434,12 +472,13 @@ export async function getClientDetail(clientId: string, agentId: string) {
     state: client.state,
     zipCode: client.zipCode,
     country: client.country,
-    secondaryAddress: (questionnaire.secondaryAddress as {
-      address?: string
-      city?: string
-      state?: string
-      zip?: string
-    }) || null,
+    secondaryAddress:
+      (questionnaire.secondaryAddress as {
+        address?: string
+        city?: string
+        state?: string
+        zip?: string
+      }) || null,
     dateOfBirth: (questionnaire.dateOfBirth as string) || null,
     status: formatIntakeStatus(client.intakeStatus),
     statusColor: getStatusColor(client.intakeStatus),

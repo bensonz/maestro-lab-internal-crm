@@ -15,7 +15,9 @@ export async function requireAdmin() {
     redirect('/login')
   }
 
-  if (!ADMIN_ROLES.includes(session.user.role as typeof ADMIN_ROLES[number])) {
+  if (
+    !ADMIN_ROLES.includes(session.user.role as (typeof ADMIN_ROLES)[number])
+  ) {
     redirect('/agent')
   }
 

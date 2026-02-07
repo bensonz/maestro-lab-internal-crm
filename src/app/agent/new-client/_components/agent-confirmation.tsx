@@ -45,14 +45,13 @@ export function AgentConfirmation({
                 className="text-sm font-medium leading-relaxed text-foreground cursor-pointer"
               >
                 I confirm that I have reviewed all information provided by this
-                client, verified their identity documents, and believe they are a
-                suitable candidate for onboarding. I understand that submitting
-                this application initiates the compliance review process.
+                client, verified their identity documents, and believe they are
+                a suitable candidate for onboarding. I understand that
+                submitting this application initiates the compliance review
+                process.
               </Label>
             </div>
-            {error && (
-              <p className="text-sm text-destructive">{error}</p>
-            )}
+            {error && <p className="text-sm text-destructive">{error}</p>}
           </div>
         </div>
       </CardContent>

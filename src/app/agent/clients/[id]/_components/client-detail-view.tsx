@@ -7,7 +7,14 @@ import { ClientProfile } from './client-profile'
 import { ApplicationProgress } from './application-progress'
 import { ClientTodoList } from './client-todo-list'
 import { EventTimeline } from './event-timeline'
-import { PlatformType, PlatformStatus, ToDoType, ToDoStatus, EventType, IntakeStatus } from '@/types'
+import {
+  PlatformType,
+  PlatformStatus,
+  ToDoType,
+  ToDoStatus,
+  EventType,
+  IntakeStatus,
+} from '@/types'
 
 interface ClientDetailViewProps {
   client: {
@@ -121,9 +128,13 @@ export function ClientDetailView({ client }: ClientDetailViewProps) {
 
         {/* Page Title */}
         <div className="mt-4 flex items-center gap-3">
-          <span className="text-sm text-muted-foreground">Client ID: {client.id.slice(0, 8)}</span>
+          <span className="text-sm text-muted-foreground">
+            Client ID: {client.id.slice(0, 8)}
+          </span>
           <span className="text-muted-foreground/50">•</span>
-          <span className="text-sm text-primary">Client Lifecycle Control Panel</span>
+          <span className="text-sm text-primary">
+            Client Lifecycle Control Panel
+          </span>
         </div>
       </div>
 

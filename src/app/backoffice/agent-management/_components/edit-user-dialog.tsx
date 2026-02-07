@@ -18,7 +18,11 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Field, FieldLabel, FieldError } from '@/components/ui/field'
-import { updateUser, resetUserPassword, toggleUserActive } from '@/app/actions/user-management'
+import {
+  updateUser,
+  resetUserPassword,
+  toggleUserActive,
+} from '@/app/actions/user-management'
 import { toast } from 'sonner'
 
 interface UserData {
@@ -72,7 +76,8 @@ export function EditUserDialog({
     const form = new FormData(e.currentTarget)
     const errors: Record<string, string> = {}
     if (!form.get('name')?.toString().trim()) errors.name = 'Name is required'
-    if (!form.get('email')?.toString().trim()) errors.email = 'Email is required'
+    if (!form.get('email')?.toString().trim())
+      errors.email = 'Email is required'
     setFieldErrors(errors)
     if (Object.keys(errors).length > 0) return
 
@@ -110,7 +115,9 @@ export function EditUserDialog({
     startTransition(async () => {
       const result = await toggleUserActive(user.id)
       if (result.success) {
-        toast.success(`User ${user.isActive ? 'deactivated' : 'activated'} successfully`)
+        toast.success(
+          `User ${user.isActive ? 'deactivated' : 'activated'} successfully`,
+        )
         onOpenChange(false)
         router.refresh()
       } else {
@@ -166,7 +173,9 @@ export function EditUserDialog({
               </SelectContent>
             </Select>
             {isSelf && (
-              <p className="text-xs text-muted-foreground">Cannot change your own role</p>
+              <p className="text-xs text-muted-foreground">
+                Cannot change your own role
+              </p>
             )}
           </Field>
 
@@ -180,9 +189,7 @@ export function EditUserDialog({
             />
           </Field>
 
-          {error && (
-            <p className="text-sm text-destructive">{error}</p>
-          )}
+          {error && <p className="text-sm text-destructive">{error}</p>}
 
           <Button
             type="submit"

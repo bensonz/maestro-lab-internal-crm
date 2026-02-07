@@ -18,7 +18,10 @@ export interface AIDetection {
 }
 
 // Mock AI detection - returns fake results based on filename patterns
-function mockAIDetection(filename: string, platformType?: string): Omit<AIDetection, 'path'> {
+function mockAIDetection(
+  filename: string,
+  platformType?: string,
+): Omit<AIDetection, 'path'> {
   // Simulate different content types based on filename hints
   const lowerName = filename.toLowerCase()
 
@@ -27,7 +30,8 @@ function mockAIDetection(filename: string, platformType?: string): Omit<AIDetect
       contentType: 'Online Banking Login',
       confidence: 0.94,
       extracted: {
-        platform: platformType === 'BANK' ? 'Chase Bank' : platformType || 'Unknown',
+        platform:
+          platformType === 'BANK' ? 'Chase Bank' : platformType || 'Unknown',
         username: 'sjohnson_ops',
         password: 'securepass123',
       },
@@ -70,7 +74,7 @@ function mockAIDetection(filename: string, platformType?: string): Omit<AIDetect
 
 export async function uploadToDoScreenshots(
   todoId: string,
-  formData: FormData
+  formData: FormData,
 ): Promise<{
   success: boolean
   error?: string
@@ -114,10 +118,16 @@ export async function uploadToDoScreenshots(
   // Validate all files
   for (const file of files) {
     if (!ALLOWED_TYPES.includes(file.type)) {
-      return { success: false, error: `Invalid file type: ${file.name}. Please upload JPG, PNG, or WebP.` }
+      return {
+        success: false,
+        error: `Invalid file type: ${file.name}. Please upload JPG, PNG, or WebP.`,
+      }
     }
     if (file.size > MAX_FILE_SIZE) {
-      return { success: false, error: `File too large: ${file.name}. Maximum size is 5MB.` }
+      return {
+        success: false,
+        error: `File too large: ${file.name}. Maximum size is 5MB.`,
+      }
     }
   }
 
@@ -136,7 +146,10 @@ export async function uploadToDoScreenshots(
       await storage.save(filepath, buffer)
 
       // Mock AI detection
-      const detection = mockAIDetection(file.name, todo.platformType || undefined)
+      const detection = mockAIDetection(
+        file.name,
+        todo.platformType || undefined,
+      )
       detections.push({
         path: filepath,
         ...detection,
@@ -152,7 +165,7 @@ export async function uploadToDoScreenshots(
 
 export async function confirmToDoUpload(
   todoId: string,
-  detections: AIDetection[]
+  detections: AIDetection[],
 ): Promise<{ success: boolean; error?: string }> {
   const session = await auth()
   if (!session?.user?.id) {
@@ -189,7 +202,7 @@ export async function confirmToDoUpload(
         status: ToDoStatus.COMPLETED,
         completedAt: new Date(),
         metadata: {
-          ...(todo.metadata as Record<string, unknown> || {}),
+          ...((todo.metadata as Record<string, unknown>) || {}),
           aiDetections: detections.map((d) => ({
             path: d.path,
             contentType: d.contentType,
@@ -225,7 +238,8 @@ export async function confirmToDoUpload(
           data: {
             screenshots: [...platform.screenshots, ...screenshotPaths],
             status: PlatformStatus.PENDING_REVIEW,
-            username: usernameDetection?.extracted.username || platform.username,
+            username:
+              usernameDetection?.extracted.username || platform.username,
           },
         })
       }
@@ -256,7 +270,7 @@ export async function confirmToDoUpload(
 }
 
 export async function requestToDoExtension(
-  todoId: string
+  todoId: string,
 ): Promise<{ success: boolean; error?: string; newDueDate?: Date }> {
   const session = await auth()
   if (!session?.user?.id) {

@@ -43,7 +43,11 @@ interface ClientsViewProps {
 
 const STATUS_FILTER_MAP: Record<StatusFilter, IntakeStatus[]> = {
   inProgress: [IntakeStatus.PHONE_ISSUED, IntakeStatus.IN_EXECUTION],
-  needsInfo: [IntakeStatus.NEEDS_MORE_INFO, IntakeStatus.PENDING_EXTERNAL, IntakeStatus.EXECUTION_DELAYED],
+  needsInfo: [
+    IntakeStatus.NEEDS_MORE_INFO,
+    IntakeStatus.PENDING_EXTERNAL,
+    IntakeStatus.EXECUTION_DELAYED,
+  ],
   pendingApproval: [IntakeStatus.READY_FOR_APPROVAL],
   approved: [IntakeStatus.APPROVED],
   rejected: [IntakeStatus.REJECTED],
@@ -108,14 +112,18 @@ export function ClientsView({ clients, stats }: ClientsViewProps) {
     // Sort
     result = [...result].sort((a, b) => {
       if (sort === 'priority') {
-        return (STATUS_PRIORITY[a.intakeStatus] ?? 99) - (STATUS_PRIORITY[b.intakeStatus] ?? 99)
+        return (
+          (STATUS_PRIORITY[a.intakeStatus] ?? 99) -
+          (STATUS_PRIORITY[b.intakeStatus] ?? 99)
+        )
       }
       if (sort === 'newest') {
         return b.updatedAt.localeCompare(a.updatedAt)
       }
       if (sort === 'deadline') {
         // Clients with deadlines first (ascending), then those without
-        if (a.deadline && b.deadline) return a.deadline.localeCompare(b.deadline)
+        if (a.deadline && b.deadline)
+          return a.deadline.localeCompare(b.deadline)
         if (a.deadline) return -1
         if (b.deadline) return 1
         return 0
@@ -153,8 +161,15 @@ export function ClientsView({ clients, stats }: ClientsViewProps) {
           </div>
           <div className="flex items-center gap-3">
             <span className="text-sm text-muted-foreground">
-              Showing <span className="font-medium text-foreground">{filteredClients.length}</span> of{' '}
-              <span className="font-medium text-foreground">{clients.length}</span> clients
+              Showing{' '}
+              <span className="font-medium text-foreground">
+                {filteredClients.length}
+              </span>{' '}
+              of{' '}
+              <span className="font-medium text-foreground">
+                {clients.length}
+              </span>{' '}
+              clients
             </span>
             <div className="relative">
               <Button
@@ -179,7 +194,7 @@ export function ClientsView({ clients, stats }: ClientsViewProps) {
                         'flex w-full items-center rounded-md px-3 py-2 text-sm transition-colors',
                         sort === option
                           ? 'bg-primary/20 text-primary'
-                          : 'text-foreground hover:bg-muted/50'
+                          : 'text-foreground hover:bg-muted/50',
                       )}
                     >
                       {SORT_LABELS[option]}
@@ -199,7 +214,9 @@ export function ClientsView({ clients, stats }: ClientsViewProps) {
                 <Users className="h-8 w-8 text-muted-foreground" />
               </div>
               <h3 className="mb-2 font-display text-lg font-semibold text-foreground">
-                {clients.length === 0 ? 'No clients yet' : 'No matching clients'}
+                {clients.length === 0
+                  ? 'No clients yet'
+                  : 'No matching clients'}
               </h3>
               <p className="mb-6 text-sm text-muted-foreground">
                 {clients.length === 0
@@ -223,8 +240,9 @@ export function ClientsView({ clients, stats }: ClientsViewProps) {
                 <Card
                   className={cn(
                     'group h-full border-l-2 border-border/50 bg-card/80 backdrop-blur-sm transition-all duration-300 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10 card-interactive cursor-pointer',
-                    STATUS_BORDER_COLOR[client.intakeStatus] || 'border-l-slate-500',
-                    isTerminal(client.intakeStatus) && 'opacity-60'
+                    STATUS_BORDER_COLOR[client.intakeStatus] ||
+                      'border-l-slate-500',
+                    isTerminal(client.intakeStatus) && 'opacity-60',
                   )}
                 >
                   <CardHeader className="pb-3">
@@ -253,7 +271,9 @@ export function ClientsView({ clients, stats }: ClientsViewProps) {
                         <span className="font-medium text-muted-foreground">
                           Step {client.step} of {client.totalSteps}
                         </span>
-                        <span className="font-semibold text-foreground">{client.progress}%</span>
+                        <span className="font-semibold text-foreground">
+                          {client.progress}%
+                        </span>
                       </div>
                       <div className="h-2 w-full overflow-hidden rounded-full bg-muted/50">
                         <div
@@ -265,7 +285,10 @@ export function ClientsView({ clients, stats }: ClientsViewProps) {
 
                     {/* Deadline Countdown */}
                     {client.deadline && (
-                      <DeadlineCountdown deadline={client.deadline} variant="badge" />
+                      <DeadlineCountdown
+                        deadline={client.deadline}
+                        variant="badge"
+                      />
                     )}
 
                     {/* Footer */}

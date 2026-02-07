@@ -34,14 +34,14 @@ export function SettlementView({ clients }: SettlementViewProps) {
   const [txFilter, setTxFilter] = useState<TransactionFilter>('all')
 
   const filteredClients = clients.filter((client) =>
-    client.name.toLowerCase().includes(searchQuery.toLowerCase())
+    client.name.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
   const selected = clients.find((c) => c.id === selectedClientId)
 
   const filteredTransactions = selected
     ? selected.recentTransactions.filter(
-        (tx) => txFilter === 'all' || tx.type === txFilter
+        (tx) => txFilter === 'all' || tx.type === txFilter,
       )
     : []
 
@@ -175,7 +175,9 @@ export function SettlementView({ clients }: SettlementViewProps) {
                     </p>
                     <p
                       className={`text-2xl font-bold tracking-tight font-mono ${
-                        selected.netBalance >= 0 ? 'text-chart-4' : 'text-destructive'
+                        selected.netBalance >= 0
+                          ? 'text-chart-4'
+                          : 'text-destructive'
                       }`}
                       data-testid="net-balance"
                     >
@@ -224,12 +226,18 @@ export function SettlementView({ clients }: SettlementViewProps) {
                       <CollapsibleContent>
                         <div className="px-3 pb-3 pt-1">
                           <div className="rounded-lg bg-muted/20 p-3 text-xs text-muted-foreground">
-                            Net: <span className={`font-mono font-semibold ${
-                              platform.deposited - platform.withdrawn >= 0
-                                ? 'text-chart-4'
-                                : 'text-destructive'
-                            }`}>
-                              ${(platform.deposited - platform.withdrawn).toLocaleString()}
+                            Net:{' '}
+                            <span
+                              className={`font-mono font-semibold ${
+                                platform.deposited - platform.withdrawn >= 0
+                                  ? 'text-chart-4'
+                                  : 'text-destructive'
+                              }`}
+                            >
+                              $
+                              {(
+                                platform.deposited - platform.withdrawn
+                              ).toLocaleString()}
                             </span>
                           </div>
                         </div>
@@ -300,7 +308,9 @@ export function SettlementView({ clients }: SettlementViewProps) {
                                 {tx.platform}
                               </Badge>
                             </div>
-                            <p className="text-xs text-muted-foreground">{tx.date}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {tx.date}
+                            </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-3">

@@ -1,25 +1,25 @@
-"use client"
+'use client'
 
-import * as React from "react"
-import { Avatar as AvatarPrimitive } from "radix-ui"
+import * as React from 'react'
+import { Avatar as AvatarPrimitive } from 'radix-ui'
 
-import { cn } from "@/lib/utils"
+import { cn } from '@/lib/utils'
 
 function Avatar({
   className,
-  size = "default",
+  size = 'default',
   ...props
 }: React.ComponentProps<typeof AvatarPrimitive.Root> & {
-  size?: "default" | "sm" | "lg"
+  size?: 'default' | 'sm' | 'lg'
 }) {
   return (
     <AvatarPrimitive.Root
       data-slot="avatar"
       data-size={size}
       className={cn(
-        "group/avatar relative flex shrink-0 overflow-hidden rounded-full select-none ring-2 ring-background",
-        "data-[size=default]:size-8 data-[size=sm]:size-6 data-[size=lg]:size-10",
-        className
+        'group/avatar relative flex shrink-0 overflow-hidden rounded-full select-none ring-2 ring-background',
+        'data-[size=default]:size-8 data-[size=sm]:size-6 data-[size=lg]:size-10',
+        className,
       )}
       {...props}
     />
@@ -33,7 +33,7 @@ function AvatarImage({
   return (
     <AvatarPrimitive.Image
       data-slot="avatar-image"
-      className={cn("aspect-square size-full object-cover", className)}
+      className={cn('aspect-square size-full object-cover', className)}
       {...props}
     />
   )
@@ -47,40 +47,40 @@ function AvatarFallback({
     <AvatarPrimitive.Fallback
       data-slot="avatar-fallback"
       className={cn(
-        "flex size-full items-center justify-center rounded-full text-sm font-medium",
-        "bg-primary/10 text-primary",
-        "group-data-[size=sm]/avatar:text-xs",
-        className
+        'flex size-full items-center justify-center rounded-full text-sm font-medium',
+        'bg-primary/10 text-primary',
+        'group-data-[size=sm]/avatar:text-xs',
+        className,
       )}
       {...props}
     />
   )
 }
 
-function AvatarBadge({ className, ...props }: React.ComponentProps<"span">) {
+function AvatarBadge({ className, ...props }: React.ComponentProps<'span'>) {
   return (
     <span
       data-slot="avatar-badge"
       className={cn(
-        "absolute right-0 bottom-0 z-10 inline-flex items-center justify-center rounded-full ring-2 ring-background select-none",
-        "bg-primary text-primary-foreground",
-        "group-data-[size=sm]/avatar:size-2 group-data-[size=sm]/avatar:[&>svg]:hidden",
-        "group-data-[size=default]/avatar:size-2.5 group-data-[size=default]/avatar:[&>svg]:size-2",
-        "group-data-[size=lg]/avatar:size-3 group-data-[size=lg]/avatar:[&>svg]:size-2",
-        className
+        'absolute right-0 bottom-0 z-10 inline-flex items-center justify-center rounded-full ring-2 ring-background select-none',
+        'bg-primary text-primary-foreground',
+        'group-data-[size=sm]/avatar:size-2 group-data-[size=sm]/avatar:[&>svg]:hidden',
+        'group-data-[size=default]/avatar:size-2.5 group-data-[size=default]/avatar:[&>svg]:size-2',
+        'group-data-[size=lg]/avatar:size-3 group-data-[size=lg]/avatar:[&>svg]:size-2',
+        className,
       )}
       {...props}
     />
   )
 }
 
-function AvatarGroup({ className, ...props }: React.ComponentProps<"div">) {
+function AvatarGroup({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       data-slot="avatar-group"
       className={cn(
-        "group/avatar-group flex -space-x-2 *:data-[slot=avatar]:ring-2 *:data-[slot=avatar]:ring-background",
-        className
+        'group/avatar-group flex -space-x-2 *:data-[slot=avatar]:ring-2 *:data-[slot=avatar]:ring-background',
+        className,
       )}
       {...props}
     />
@@ -90,16 +90,16 @@ function AvatarGroup({ className, ...props }: React.ComponentProps<"div">) {
 function AvatarGroupCount({
   className,
   ...props
-}: React.ComponentProps<"div">) {
+}: React.ComponentProps<'div'>) {
   return (
     <div
       data-slot="avatar-group-count"
       className={cn(
-        "relative flex size-8 shrink-0 items-center justify-center rounded-full text-sm ring-2 ring-background",
-        "bg-muted text-muted-foreground",
-        "group-has-data-[size=lg]/avatar-group:size-10 group-has-data-[size=sm]/avatar-group:size-6",
-        "[&>svg]:size-4 group-has-data-[size=lg]/avatar-group:[&>svg]:size-5 group-has-data-[size=sm]/avatar-group:[&>svg]:size-3",
-        className
+        'relative flex size-8 shrink-0 items-center justify-center rounded-full text-sm ring-2 ring-background',
+        'bg-muted text-muted-foreground',
+        'group-has-data-[size=lg]/avatar-group:size-10 group-has-data-[size=sm]/avatar-group:size-6',
+        '[&>svg]:size-4 group-has-data-[size=lg]/avatar-group:[&>svg]:size-5 group-has-data-[size=sm]/avatar-group:[&>svg]:size-3',
+        className,
       )}
       {...props}
     />

@@ -44,12 +44,12 @@ export const ALL_PLATFORMS: PlatformType[] = [
 
 /** Sports platforms only */
 export const SPORTS_PLATFORMS = ALL_PLATFORMS.filter(
-  (p) => PLATFORM_INFO[p].category === 'sports'
+  (p) => PLATFORM_INFO[p].category === 'sports',
 )
 
 /** Financial platforms only */
 export const FINANCIAL_PLATFORMS = ALL_PLATFORMS.filter(
-  (p) => PLATFORM_INFO[p].category === 'financial'
+  (p) => PLATFORM_INFO[p].category === 'financial',
 )
 
 /** Get display name for a platform */

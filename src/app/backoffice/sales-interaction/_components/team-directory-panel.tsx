@@ -36,7 +36,7 @@ export function TeamDirectoryPanel({
     .map((group) => ({
       ...group,
       agents: group.agents.filter((agent) =>
-        agent.name.toLowerCase().includes(searchQuery.toLowerCase())
+        agent.name.toLowerCase().includes(searchQuery.toLowerCase()),
       ),
     }))
     .filter((group) => group.agents.length > 0)
@@ -91,7 +91,7 @@ export function TeamDirectoryPanel({
                       'w-full flex items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors',
                       selectedAgentId === agent.id
                         ? 'bg-primary/20 text-primary ring-1 ring-primary/30'
-                        : 'hover:bg-muted/50 text-foreground'
+                        : 'hover:bg-muted/50 text-foreground',
                     )}
                   >
                     <div className="flex items-center gap-2">
@@ -105,7 +105,7 @@ export function TeamDirectoryPanel({
                         'text-xs font-medium',
                         selectedAgentId === agent.id
                           ? 'text-primary'
-                          : 'text-muted-foreground'
+                          : 'text-muted-foreground',
                       )}
                     >
                       {agent.clientCount}

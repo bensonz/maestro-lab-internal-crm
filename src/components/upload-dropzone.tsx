@@ -35,7 +35,7 @@ export function UploadDropzone({
       }
       return null
     },
-    [accept, maxSize]
+    [accept, maxSize],
   )
 
   const handleFile = useCallback(
@@ -60,7 +60,7 @@ export function UploadDropzone({
         setIsUploading(false)
       }
     },
-    [onUpload, validateFile]
+    [onUpload, validateFile],
   )
 
   const handleDrop = useCallback(
@@ -75,7 +75,7 @@ export function UploadDropzone({
         handleFile(file)
       }
     },
-    [disabled, isUploading, handleFile]
+    [disabled, isUploading, handleFile],
   )
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -103,7 +103,7 @@ export function UploadDropzone({
       // Reset input so same file can be selected again
       e.target.value = ''
     },
-    [handleFile]
+    [handleFile],
   )
 
   return (
@@ -119,7 +119,7 @@ export function UploadDropzone({
             ? 'border-primary bg-primary/5'
             : 'border-border/60 hover:border-primary/50 hover:bg-muted/20',
           disabled && 'opacity-50 cursor-not-allowed',
-          isUploading && 'pointer-events-none'
+          isUploading && 'pointer-events-none',
         )}
       >
         <input
@@ -169,7 +169,11 @@ interface ScreenshotThumbnailProps {
   isDeleting?: boolean
 }
 
-export function ScreenshotThumbnail({ src, onDelete, isDeleting }: ScreenshotThumbnailProps) {
+export function ScreenshotThumbnail({
+  src,
+  onDelete,
+  isDeleting,
+}: ScreenshotThumbnailProps) {
   const [imageError, setImageError] = useState(false)
 
   return (

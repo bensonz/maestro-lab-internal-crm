@@ -35,14 +35,17 @@ export function ExtensionRequestDialog({
   const [reason, setReason] = useState('')
   const [isPending, startTransition] = useTransition()
 
-  const formattedDeadline = new Date(currentDeadline).toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  })
+  const formattedDeadline = new Date(currentDeadline).toLocaleDateString(
+    'en-US',
+    {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    },
+  )
 
   const isReasonValid = reason.trim().length >= MIN_REASON_LENGTH
 
@@ -52,7 +55,9 @@ export function ExtensionRequestDialog({
     startTransition(async () => {
       const result = await requestDeadlineExtension(clientId, reason)
       if (result.success) {
-        toast.success('Extension request submitted — awaiting backoffice approval')
+        toast.success(
+          'Extension request submitted — awaiting backoffice approval',
+        )
         setReason('')
         onOpenChange(false)
       } else {
@@ -75,7 +80,8 @@ export function ExtensionRequestDialog({
         <DialogHeader>
           <DialogTitle>Request Deadline Extension</DialogTitle>
           <DialogDescription>
-            Submit a request for additional time. This will be reviewed by the backoffice team.
+            Submit a request for additional time. This will be reviewed by the
+            backoffice team.
           </DialogDescription>
         </DialogHeader>
 
@@ -84,7 +90,9 @@ export function ExtensionRequestDialog({
             <p className="text-xs text-muted-foreground uppercase tracking-wide">
               Current Deadline
             </p>
-            <p className="text-sm font-medium text-foreground">{formattedDeadline}</p>
+            <p className="text-sm font-medium text-foreground">
+              {formattedDeadline}
+            </p>
           </div>
 
           <div className="rounded-lg bg-muted/30 p-3 ring-1 ring-border/30">
@@ -94,7 +102,10 @@ export function ExtensionRequestDialog({
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="extension-reason" className="text-sm font-medium text-foreground">
+            <label
+              htmlFor="extension-reason"
+              className="text-sm font-medium text-foreground"
+            >
               Reason for Extension
             </label>
             <Textarea
@@ -120,10 +131,7 @@ export function ExtensionRequestDialog({
           >
             Cancel
           </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={!isReasonValid || isPending}
-          >
+          <Button onClick={handleSubmit} disabled={!isReasonValid || isPending}>
             {isPending ? 'Submitting...' : 'Submit Request'}
           </Button>
         </DialogFooter>

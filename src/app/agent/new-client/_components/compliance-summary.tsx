@@ -39,7 +39,11 @@ export function ComplianceSummary({
     return <AlertCircle className="h-4 w-4 text-amber-500" />
   }
 
-  const getStatusBadge = (status: boolean | null, trueLabel: string, falseLabel: string) => {
+  const getStatusBadge = (
+    status: boolean | null,
+    trueLabel: string,
+    falseLabel: string,
+  ) => {
     if (status === true) {
       return (
         <Badge
@@ -205,7 +209,8 @@ export function ComplianceSummary({
                 : 'border-muted-foreground/50 bg-muted/10 text-muted-foreground'
             }
           >
-            {manualOverridesCount} override{manualOverridesCount !== 1 ? 's' : ''}
+            {manualOverridesCount} override
+            {manualOverridesCount !== 1 ? 's' : ''}
           </Badge>
         </div>
 

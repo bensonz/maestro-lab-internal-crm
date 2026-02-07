@@ -43,7 +43,7 @@ export async function detectAndMarkOverdueClients(): Promise<{
       client.id,
       IntakeStatus.EXECUTION_DELAYED,
       systemUserId,
-      { reason: 'Execution deadline has passed' }
+      { reason: 'Execution deadline has passed' },
     )
 
     if (result.success) {

@@ -102,14 +102,17 @@ export function EventTimeline({ events }: EventTimelineProps) {
   const [isOpen, setIsOpen] = useState(true)
 
   // Group events by date
-  const groupedEvents = events.reduce((groups, event) => {
-    const { date } = formatDateTime(event.createdAt)
-    if (!groups[date]) {
-      groups[date] = []
-    }
-    groups[date].push(event)
-    return groups
-  }, {} as Record<string, Event[]>)
+  const groupedEvents = events.reduce(
+    (groups, event) => {
+      const { date } = formatDateTime(event.createdAt)
+      if (!groups[date]) {
+        groups[date] = []
+      }
+      groups[date].push(event)
+      return groups
+    },
+    {} as Record<string, Event[]>,
+  )
 
   const dateKeys = Object.keys(groupedEvents)
 
@@ -120,7 +123,9 @@ export function EventTimeline({ events }: EventTimelineProps) {
           <CollapsibleTrigger className="flex w-full items-center justify-between">
             <div className="flex items-center gap-2">
               <History className="h-5 w-5 text-primary" />
-              <CardTitle className="text-lg font-semibold">Event Timeline</CardTitle>
+              <CardTitle className="text-lg font-semibold">
+                Event Timeline
+              </CardTitle>
             </div>
             <div className="flex items-center gap-2">
               <Badge
@@ -166,7 +171,7 @@ export function EventTimeline({ events }: EventTimelineProps) {
                             {/* Timeline dot */}
                             <div
                               className={`absolute -left-6 top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full ${getCategoryColor(
-                                category
+                                category,
                               )}`}
                             >
                               <div className="h-1.5 w-1.5 rounded-full bg-background" />
@@ -211,11 +216,15 @@ export function EventTimeline({ events }: EventTimelineProps) {
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="h-2.5 w-2.5 rounded-full bg-chart-4" />
-                  <span className="text-xs text-muted-foreground">Milestone</span>
+                  <span className="text-xs text-muted-foreground">
+                    Milestone
+                  </span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="h-2.5 w-2.5 rounded-full bg-destructive" />
-                  <span className="text-xs text-muted-foreground">Compliance</span>
+                  <span className="text-xs text-muted-foreground">
+                    Compliance
+                  </span>
                 </div>
               </div>
             </div>

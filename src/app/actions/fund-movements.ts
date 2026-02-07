@@ -7,7 +7,7 @@ import { PLATFORM_INFO } from '@/lib/platforms'
 import { revalidatePath } from 'next/cache'
 
 const VALID_PLATFORM_NAMES = new Set(
-  Object.values(PLATFORM_INFO).map((p) => p.name)
+  Object.values(PLATFORM_INFO).map((p) => p.name),
 )
 
 const VALID_METHODS = new Set(['zelle', 'wire', 'transfer'])
@@ -35,8 +35,14 @@ export async function recordFundMovement(data: {
     select: { role: true },
   })
 
-  if (!user || (user.role !== UserRole.ADMIN && user.role !== UserRole.BACKOFFICE)) {
-    return { success: false, error: 'Unauthorized — admin or backoffice role required' }
+  if (
+    !user ||
+    (user.role !== UserRole.ADMIN && user.role !== UserRole.BACKOFFICE)
+  ) {
+    return {
+      success: false,
+      error: 'Unauthorized — admin or backoffice role required',
+    }
   }
 
   // Validate amount
@@ -77,9 +83,15 @@ export async function recordFundMovement(data: {
 
   if (data.flowType === 'same_client') {
     toClientId = data.fromClientId
-  } else if (data.flowType === 'different_clients' || data.flowType === 'external') {
+  } else if (
+    data.flowType === 'different_clients' ||
+    data.flowType === 'external'
+  ) {
     if (!data.toClientId) {
-      return { success: false, error: 'Destination client is required for this flow type' }
+      return {
+        success: false,
+        error: 'Destination client is required for this flow type',
+      }
     }
 
     const toClient = await prisma.client.findUnique({

@@ -47,9 +47,7 @@ import { recordFundMovement } from '@/app/actions/fund-movements'
 
 function mockAuth(userId: string | null, role?: string) {
   vi.mocked(auth).mockResolvedValue(
-    userId
-      ? ({ user: { id: userId, role } } as never)
-      : null
+    userId ? ({ user: { id: userId, role } } as never) : null,
   )
 }
 
@@ -118,7 +116,10 @@ describe('recordFundMovement', () => {
     mockAuth('user-1')
     mockUserRole('BACKOFFICE')
 
-    const result = await recordFundMovement({ ...validData, fromPlatform: 'InvalidPlatform' })
+    const result = await recordFundMovement({
+      ...validData,
+      fromPlatform: 'InvalidPlatform',
+    })
 
     expect(result.success).toBe(false)
     expect(result.error).toContain('Invalid source platform')
@@ -128,7 +129,10 @@ describe('recordFundMovement', () => {
     mockAuth('user-1')
     mockUserRole('BACKOFFICE')
 
-    const result = await recordFundMovement({ ...validData, toPlatform: 'InvalidPlatform' })
+    const result = await recordFundMovement({
+      ...validData,
+      toPlatform: 'InvalidPlatform',
+    })
 
     expect(result.success).toBe(false)
     expect(result.error).toContain('Invalid destination platform')

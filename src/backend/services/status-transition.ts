@@ -11,8 +11,15 @@ import { ALL_PLATFORMS, getPlatformName } from '@/lib/platforms'
 // ─── Allowed Transitions ──────────────────────────────────────────────────────
 
 const ALLOWED_TRANSITIONS: Record<IntakeStatus, IntakeStatus[]> = {
-  [IntakeStatus.PENDING]: [IntakeStatus.PHONE_ISSUED, IntakeStatus.REJECTED, IntakeStatus.INACTIVE],
-  [IntakeStatus.PHONE_ISSUED]: [IntakeStatus.IN_EXECUTION, IntakeStatus.INACTIVE],
+  [IntakeStatus.PENDING]: [
+    IntakeStatus.PHONE_ISSUED,
+    IntakeStatus.REJECTED,
+    IntakeStatus.INACTIVE,
+  ],
+  [IntakeStatus.PHONE_ISSUED]: [
+    IntakeStatus.IN_EXECUTION,
+    IntakeStatus.INACTIVE,
+  ],
   [IntakeStatus.IN_EXECUTION]: [
     IntakeStatus.READY_FOR_APPROVAL,
     IntakeStatus.NEEDS_MORE_INFO,
@@ -20,9 +27,18 @@ const ALLOWED_TRANSITIONS: Record<IntakeStatus, IntakeStatus[]> = {
     IntakeStatus.EXECUTION_DELAYED,
     IntakeStatus.INACTIVE,
   ],
-  [IntakeStatus.NEEDS_MORE_INFO]: [IntakeStatus.IN_EXECUTION, IntakeStatus.INACTIVE],
-  [IntakeStatus.PENDING_EXTERNAL]: [IntakeStatus.IN_EXECUTION, IntakeStatus.INACTIVE],
-  [IntakeStatus.EXECUTION_DELAYED]: [IntakeStatus.IN_EXECUTION, IntakeStatus.INACTIVE],
+  [IntakeStatus.NEEDS_MORE_INFO]: [
+    IntakeStatus.IN_EXECUTION,
+    IntakeStatus.INACTIVE,
+  ],
+  [IntakeStatus.PENDING_EXTERNAL]: [
+    IntakeStatus.IN_EXECUTION,
+    IntakeStatus.INACTIVE,
+  ],
+  [IntakeStatus.EXECUTION_DELAYED]: [
+    IntakeStatus.IN_EXECUTION,
+    IntakeStatus.INACTIVE,
+  ],
   [IntakeStatus.READY_FOR_APPROVAL]: [
     IntakeStatus.APPROVED,
     IntakeStatus.REJECTED,
@@ -65,15 +81,25 @@ interface TodoTemplate {
 
 function getTodosForStatus(
   newStatus: IntakeStatus,
-  executionDeadline: Date
+  executionDeadline: Date,
 ): TodoTemplate[] {
   const now = new Date()
 
   switch (newStatus) {
     case IntakeStatus.PHONE_ISSUED:
       return [
-        { type: ToDoType.VERIFICATION, title: 'Verify client identity documents', priority: 2, dueDate: addDays(now, 1) },
-        { type: ToDoType.VERIFICATION, title: 'Set up bank account', priority: 1, dueDate: addDays(now, 2) },
+        {
+          type: ToDoType.VERIFICATION,
+          title: 'Verify client identity documents',
+          priority: 2,
+          dueDate: addDays(now, 1),
+        },
+        {
+          type: ToDoType.VERIFICATION,
+          title: 'Set up bank account',
+          priority: 1,
+          dueDate: addDays(now, 2),
+        },
       ]
 
     case IntakeStatus.IN_EXECUTION:
@@ -86,18 +112,38 @@ function getTodosForStatus(
           platformType: platform,
           stepNumber: index + 1,
         })),
-        { type: ToDoType.EXECUTION, title: 'Complete all platform registrations', priority: 2, dueDate: executionDeadline },
+        {
+          type: ToDoType.EXECUTION,
+          title: 'Complete all platform registrations',
+          priority: 2,
+          dueDate: executionDeadline,
+        },
       ]
 
     case IntakeStatus.NEEDS_MORE_INFO:
       return [
-        { type: ToDoType.PROVIDE_INFO, title: 'Provide additional information requested', priority: 2, dueDate: addDays(now, 2) },
+        {
+          type: ToDoType.PROVIDE_INFO,
+          title: 'Provide additional information requested',
+          priority: 2,
+          dueDate: addDays(now, 2),
+        },
       ]
 
     case IntakeStatus.APPROVED:
       return [
-        { type: ToDoType.PHONE_SIGNOUT, title: 'Sign out of all platform accounts on phone', priority: 2, dueDate: addDays(now, 1) },
-        { type: ToDoType.PHONE_RETURN, title: 'Return company phone', priority: 1, dueDate: addDays(now, 2) },
+        {
+          type: ToDoType.PHONE_SIGNOUT,
+          title: 'Sign out of all platform accounts on phone',
+          priority: 2,
+          dueDate: addDays(now, 1),
+        },
+        {
+          type: ToDoType.PHONE_RETURN,
+          title: 'Return company phone',
+          priority: 1,
+          dueDate: addDays(now, 2),
+        },
       ]
 
     default:
@@ -115,7 +161,7 @@ export async function transitionClientStatus(
     reason?: string
     metadata?: Record<string, unknown>
     executionDeadlineDays?: number
-  }
+  },
 ): Promise<{ success: boolean; error?: string }> {
   // 1. Fetch client
   const client = await prisma.client.findUnique({
@@ -153,8 +199,7 @@ export async function transitionClientStatus(
   // 4. Determine todos to create
   const todoTemplates = getTodosForStatus(newStatus, executionDeadline)
   const isTerminalStatus =
-    newStatus === IntakeStatus.REJECTED ||
-    newStatus === IntakeStatus.INACTIVE
+    newStatus === IntakeStatus.REJECTED || newStatus === IntakeStatus.INACTIVE
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -230,7 +275,7 @@ export async function transitionClientStatus(
           })
 
           const existingPlatforms = new Set(
-            existingScreenshotTodos.map((t) => t.platformType).filter(Boolean)
+            existingScreenshotTodos.map((t) => t.platformType).filter(Boolean),
           )
 
           const existingExecTodo = await tx.toDo.findFirst({

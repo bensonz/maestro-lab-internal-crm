@@ -1,6 +1,6 @@
 /**
  * Storage Provider Abstraction
- * 
+ *
  * Allows easy migration from local filesystem to cloud storage (S3, R2, GCS).
  * MVP uses LocalStorage, production switches via STORAGE_PROVIDER env var.
  */

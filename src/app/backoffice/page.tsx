@@ -18,7 +18,14 @@ import { RemindersPanel } from './_components/reminders-panel'
 import { RecentActivity } from './_components/recent-activity'
 
 export default async function BackofficeOverviewPage() {
-  const [stats, tasks, reminders, activities, extensionRequests, delayedClients] = await Promise.all([
+  const [
+    stats,
+    tasks,
+    reminders,
+    activities,
+    extensionRequests,
+    delayedClients,
+  ] = await Promise.all([
     getOverviewStats(),
     getPriorityTasks(),
     getReminders(),
@@ -63,30 +70,48 @@ export default async function BackofficeOverviewPage() {
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Left Column - Priority Tasks + Quick Actions */}
         <div className="lg:col-span-3 space-y-6">
-          <div className="animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
+          <div
+            className="animate-fade-in-up"
+            style={{ animationDelay: '0.1s' }}
+          >
             <PriorityTasks tasks={tasks} />
           </div>
           {extensionRequests.length > 0 && (
-            <div className="animate-fade-in-up" style={{ animationDelay: '0.125s' }}>
+            <div
+              className="animate-fade-in-up"
+              style={{ animationDelay: '0.125s' }}
+            >
               <ExtensionRequests requests={extensionRequests} />
             </div>
           )}
           {delayedClients.length > 0 && (
-            <div className="animate-fade-in-up" style={{ animationDelay: '0.135s' }}>
+            <div
+              className="animate-fade-in-up"
+              style={{ animationDelay: '0.135s' }}
+            >
               <DelayedClients clients={delayedClients} />
             </div>
           )}
-          <div className="animate-fade-in-up" style={{ animationDelay: '0.15s' }}>
+          <div
+            className="animate-fade-in-up"
+            style={{ animationDelay: '0.15s' }}
+          >
             <QuickActions />
           </div>
         </div>
 
         {/* Right Column - Reminders + Recent Activity */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
+          <div
+            className="animate-fade-in-up"
+            style={{ animationDelay: '0.1s' }}
+          >
             <RemindersPanel reminders={reminders} />
           </div>
-          <div className="animate-fade-in-up" style={{ animationDelay: '0.15s' }}>
+          <div
+            className="animate-fade-in-up"
+            style={{ animationDelay: '0.15s' }}
+          >
             <RecentActivity activities={activities} />
           </div>
         </div>

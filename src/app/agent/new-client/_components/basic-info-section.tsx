@@ -58,7 +58,10 @@ export function BasicInfoSection({
         {/* Name Fields */}
         <div className="grid gap-5 sm:grid-cols-3">
           <div className="space-y-2">
-            <Label htmlFor="firstName" className="text-sm font-medium text-foreground">
+            <Label
+              htmlFor="firstName"
+              className="text-sm font-medium text-foreground"
+            >
               First Name <span className="text-destructive">*</span>
             </Label>
             <Input
@@ -74,8 +77,12 @@ export function BasicInfoSection({
             <FormError errors={errors?.firstName} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="middleName" className="text-sm font-medium text-foreground">
-              Middle Name <span className="text-muted-foreground text-xs">(optional)</span>
+            <Label
+              htmlFor="middleName"
+              className="text-sm font-medium text-foreground"
+            >
+              Middle Name{' '}
+              <span className="text-muted-foreground text-xs">(optional)</span>
             </Label>
             <Input
               id="middleName"
@@ -89,7 +96,10 @@ export function BasicInfoSection({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="lastName" className="text-sm font-medium text-foreground">
+            <Label
+              htmlFor="lastName"
+              className="text-sm font-medium text-foreground"
+            >
               Last Name <span className="text-destructive">*</span>
             </Label>
             <Input
@@ -108,7 +118,10 @@ export function BasicInfoSection({
 
         {/* Date of Birth */}
         <div className="space-y-2">
-          <Label htmlFor="dateOfBirth" className="text-sm font-medium text-foreground">
+          <Label
+            htmlFor="dateOfBirth"
+            className="text-sm font-medium text-foreground"
+          >
             Date of Birth
           </Label>
           <Input
@@ -126,7 +139,10 @@ export function BasicInfoSection({
         {/* Contact Fields - Always Editable */}
         <div className="grid gap-5 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="phone" className="text-sm font-medium text-foreground">
+            <Label
+              htmlFor="phone"
+              className="text-sm font-medium text-foreground"
+            >
               Phone Number <span className="text-destructive">*</span>
             </Label>
             <Input
@@ -139,8 +155,12 @@ export function BasicInfoSection({
             <FormError errors={errors?.phone} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-sm font-medium text-foreground">
-              Email <span className="text-muted-foreground text-xs">(optional)</span>
+            <Label
+              htmlFor="email"
+              className="text-sm font-medium text-foreground"
+            >
+              Email{' '}
+              <span className="text-muted-foreground text-xs">(optional)</span>
             </Label>
             <Input
               id="email"

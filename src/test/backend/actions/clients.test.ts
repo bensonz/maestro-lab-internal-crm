@@ -6,7 +6,9 @@ vi.mock('@/backend/auth', () => ({
 }))
 
 // Type for mocked auth function
-type MockedAuth = Mock<() => Promise<{ user: { id: string; role: string }; expires: string } | null>>
+type MockedAuth = Mock<
+  () => Promise<{ user: { id: string; role: string }; expires: string } | null>
+>
 
 // Mock the prisma client
 vi.mock('@/backend/prisma/client', () => ({
@@ -146,7 +148,7 @@ describe('createClient', () => {
 
     // createClient should redirect on success, which throws
     await expect(createClient({}, formData)).rejects.toThrow(
-      'REDIRECT:/agent/clients'
+      'REDIRECT:/agent/clients',
     )
 
     expect(prisma.$transaction).toHaveBeenCalled()
@@ -286,7 +288,7 @@ describe('saveDraft', () => {
     })
 
     vi.mocked(prisma.applicationDraft.create).mockRejectedValue(
-      new Error('Database error')
+      new Error('Database error'),
     )
 
     const formData = createFormData({ firstName: 'John' })
@@ -359,7 +361,7 @@ describe('deleteDraft', () => {
     })
 
     vi.mocked(prisma.applicationDraft.delete).mockRejectedValue(
-      new Error('Not found')
+      new Error('Not found'),
     )
 
     const result = await deleteDraft('draft-123')

@@ -31,13 +31,38 @@ type NavItem = {
 }
 
 const navItems: NavItem[] = [
-  { title: 'Overview', href: '/backoffice', icon: LayoutDashboard, exact: true },
-  { title: 'Sales Interaction', href: '/backoffice/sales-interaction', icon: ClipboardList },
-  { title: 'Client Management', href: '/backoffice/client-management', icon: Users },
-  { title: 'Agent Management', href: '/backoffice/agent-management', icon: UserCog },
+  {
+    title: 'Overview',
+    href: '/backoffice',
+    icon: LayoutDashboard,
+    exact: true,
+  },
+  {
+    title: 'Sales Interaction',
+    href: '/backoffice/sales-interaction',
+    icon: ClipboardList,
+  },
+  {
+    title: 'Client Management',
+    href: '/backoffice/client-management',
+    icon: Users,
+  },
+  {
+    title: 'Agent Management',
+    href: '/backoffice/agent-management',
+    icon: UserCog,
+  },
   { title: 'Tasks', href: '/backoffice/todo-list', icon: CheckSquare },
-  { title: 'Fund Allocation', href: '/backoffice/fund-allocation', icon: Wallet },
-  { title: 'Client Settlement', href: '/backoffice/client-settlement', icon: Receipt },
+  {
+    title: 'Fund Allocation',
+    href: '/backoffice/fund-allocation',
+    icon: Wallet,
+  },
+  {
+    title: 'Client Settlement',
+    href: '/backoffice/client-settlement',
+    icon: Receipt,
+  },
   { title: 'Phone Tracking', href: '/backoffice/phone-tracking', icon: Phone },
 ]
 
@@ -59,7 +84,8 @@ export function BackofficeNav() {
                 <Link
                   href={item.href}
                   className={cn(
-                    active && 'bg-accent text-accent-foreground hover:bg-accent/90 hover:text-accent-foreground'
+                    active &&
+                      'bg-accent text-accent-foreground hover:bg-accent/90 hover:text-accent-foreground',
                   )}
                 >
                   <item.icon />

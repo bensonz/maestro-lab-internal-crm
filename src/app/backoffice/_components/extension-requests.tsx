@@ -7,7 +7,10 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Clock, Check, X, AlertTriangle, User } from 'lucide-react'
-import { approveExtensionRequest, rejectExtensionRequest } from '@/app/actions/extensions'
+import {
+  approveExtensionRequest,
+  rejectExtensionRequest,
+} from '@/app/actions/extensions'
 
 interface ExtensionRequest {
   id: string
@@ -136,7 +139,10 @@ export function ExtensionRequests({ requests }: ExtensionRequestsProps) {
                     <span>{formatRelativeTime(request.createdAt)}</span>
                   </div>
                 </div>
-                <Badge variant="outline" className="text-xs whitespace-nowrap shrink-0">
+                <Badge
+                  variant="outline"
+                  className="text-xs whitespace-nowrap shrink-0"
+                >
                   +{request.requestedDays} business days
                 </Badge>
               </div>

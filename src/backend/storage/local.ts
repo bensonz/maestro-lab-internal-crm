@@ -13,7 +13,11 @@ export class LocalStorage implements StorageProvider {
     this.basePath = basePath
   }
 
-  async upload(file: Buffer, path: string, contentType: string): Promise<UploadResult> {
+  async upload(
+    file: Buffer,
+    path: string,
+    contentType: string,
+  ): Promise<UploadResult> {
     const fullPath = join(this.basePath, path)
     const dir = dirname(fullPath)
 

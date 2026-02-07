@@ -43,7 +43,11 @@ const categories = [
 ]
 
 function getInitials(name: string) {
-  return name.split(' ').map((n) => n[0]).join('').toUpperCase()
+  return name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
 }
 
 function getCategoryIcon(category: string) {
@@ -63,39 +67,47 @@ export function TodoListView({ agentTasks }: TodoListViewProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [expandedAgents, setExpandedAgents] = useState<string[]>(
-    agentTasks.map((a) => a.agentId)
+    agentTasks.map((a) => a.agentId),
   )
 
   const toggleAgent = (agentId: string) => {
     setExpandedAgents((prev) =>
-      prev.includes(agentId) ? prev.filter((id) => id !== agentId) : [...prev, agentId]
+      prev.includes(agentId)
+        ? prev.filter((id) => id !== agentId)
+        : [...prev, agentId],
     )
   }
 
-  const filteredAgentTasks = agentTasks.map((agent) => ({
-    ...agent,
-    tasks: agent.tasks.filter((task) => {
-      const matchesSearch =
-        task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        task.client.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        agent.agentName.toLowerCase().includes(searchQuery.toLowerCase())
-      const matchesCategory = selectedCategory === 'all' || task.category === selectedCategory
-      return matchesSearch && matchesCategory
-    }),
-  })).filter((agent) => agent.tasks.length > 0)
+  const filteredAgentTasks = agentTasks
+    .map((agent) => ({
+      ...agent,
+      tasks: agent.tasks.filter((task) => {
+        const matchesSearch =
+          task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          task.client.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          agent.agentName.toLowerCase().includes(searchQuery.toLowerCase())
+        const matchesCategory =
+          selectedCategory === 'all' || task.category === selectedCategory
+        return matchesSearch && matchesCategory
+      }),
+    }))
+    .filter((agent) => agent.tasks.length > 0)
 
   // Calculate category counts
-  const categoryCounts = categories.reduce((acc, cat) => {
-    if (cat.id === 'all') {
-      acc[cat.id] = agentTasks.reduce((sum, a) => sum + a.tasks.length, 0)
-    } else {
-      acc[cat.id] = agentTasks.reduce(
-        (sum, a) => sum + a.tasks.filter((t) => t.category === cat.id).length,
-        0
-      )
-    }
-    return acc
-  }, {} as Record<string, number>)
+  const categoryCounts = categories.reduce(
+    (acc, cat) => {
+      if (cat.id === 'all') {
+        acc[cat.id] = agentTasks.reduce((sum, a) => sum + a.tasks.length, 0)
+      } else {
+        acc[cat.id] = agentTasks.reduce(
+          (sum, a) => sum + a.tasks.filter((t) => t.category === cat.id).length,
+          0,
+        )
+      }
+      return acc
+    },
+    {} as Record<string, number>,
+  )
 
   return (
     <>
@@ -112,7 +124,9 @@ export function TodoListView({ agentTasks }: TodoListViewProps) {
                 <cat.icon className="h-4 w-4 mr-1" />
                 {cat.label}
                 {categoryCounts[cat.id] > 0 && (
-                  <span className="ml-1 text-xs">({categoryCounts[cat.id]})</span>
+                  <span className="ml-1 text-xs">
+                    ({categoryCounts[cat.id]})
+                  </span>
                 )}
               </TabsTrigger>
             ))}
@@ -137,7 +151,9 @@ export function TodoListView({ agentTasks }: TodoListViewProps) {
           <Card className="bg-slate-900 border-slate-800">
             <CardContent className="py-12">
               <p className="text-center text-slate-400">
-                {agentTasks.length === 0 ? 'No tasks assigned' : 'No tasks match your filters'}
+                {agentTasks.length === 0
+                  ? 'No tasks assigned'
+                  : 'No tasks match your filters'}
               </p>
             </CardContent>
           </Card>
@@ -162,7 +178,10 @@ export function TodoListView({ agentTasks }: TodoListViewProps) {
                       Agent: {agent.agentName}
                     </CardTitle>
                   </div>
-                  <Badge variant="outline" className="border-slate-600 text-slate-300">
+                  <Badge
+                    variant="outline"
+                    className="border-slate-600 text-slate-300"
+                  >
                     {agent.tasks.length} tasks
                   </Badge>
                 </div>
@@ -178,12 +197,18 @@ export function TodoListView({ agentTasks }: TodoListViewProps) {
                         {getCategoryIcon(task.category)}
                         <div>
                           <p className="text-white font-medium">{task.title}</p>
-                          <p className="text-xs text-slate-400">{task.client}</p>
+                          <p className="text-xs text-slate-400">
+                            {task.client}
+                          </p>
                         </div>
                       </div>
                       <Badge
                         variant="outline"
-                        className={task.overdue ? 'border-red-600 text-red-500' : 'border-amber-600 text-amber-500'}
+                        className={
+                          task.overdue
+                            ? 'border-red-600 text-red-500'
+                            : 'border-amber-600 text-amber-500'
+                        }
                       >
                         {task.overdue ? `${task.dueIn} overdue` : task.dueIn}
                       </Badge>

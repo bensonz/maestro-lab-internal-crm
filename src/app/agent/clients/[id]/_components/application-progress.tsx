@@ -20,7 +20,13 @@ import {
   FileCheck,
   Sparkles,
 } from 'lucide-react'
-import { IntakeStatus, PlatformType, PlatformStatus, ToDoType, ToDoStatus } from '@/types'
+import {
+  IntakeStatus,
+  PlatformType,
+  PlatformStatus,
+  ToDoType,
+  ToDoStatus,
+} from '@/types'
 import { getPlatformName } from '@/lib/platforms'
 import { PlatformUploadCard } from './platform-upload-card'
 import { DeadlineCountdown } from '@/components/deadline-countdown'
@@ -94,27 +100,32 @@ function getStepStatusBadge(status: StepStatus) {
 }
 
 function getStepIcon(number: number, status: StepStatus) {
-  const baseClass = 'flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold'
+  const baseClass =
+    'flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold'
   const colorClass =
     status === 'completed'
       ? 'bg-chart-4 text-chart-4-foreground'
       : status === 'in_progress'
-      ? 'bg-primary text-primary-foreground'
-      : 'bg-muted text-muted-foreground'
+        ? 'bg-primary text-primary-foreground'
+        : 'bg-muted text-muted-foreground'
 
   return <div className={`${baseClass} ${colorClass}`}>{number}</div>
 }
 
 function formatDateTime(date: Date): string {
-  return new Date(date).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }) + ' ' + new Date(date).toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  })
+  return (
+    new Date(date).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    }) +
+    ' ' +
+    new Date(date).toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    })
+  )
 }
 
 export function ApplicationProgress({ client }: ApplicationProgressProps) {
@@ -124,7 +135,7 @@ export function ApplicationProgress({ client }: ApplicationProgressProps) {
     setOpenSteps((prev) =>
       prev.includes(stepNumber)
         ? prev.filter((s) => s !== stepNumber)
-        : [...prev, stepNumber]
+        : [...prev, stepNumber],
     )
   }
 
@@ -140,9 +151,24 @@ export function ApplicationProgress({ client }: ApplicationProgressProps) {
     const currentIndex = statusOrder.indexOf(client.intakeStatus)
 
     if (step === 1) return currentIndex >= 0 ? 'completed' : 'pending'
-    if (step === 2) return currentIndex >= 1 ? (currentIndex > 1 ? 'completed' : 'in_progress') : 'blocked'
-    if (step === 3) return currentIndex >= 1 ? (currentIndex > 2 ? 'completed' : 'in_progress') : 'blocked'
-    if (step === 4) return currentIndex >= 3 ? (currentIndex > 3 ? 'completed' : 'in_progress') : 'blocked'
+    if (step === 2)
+      return currentIndex >= 1
+        ? currentIndex > 1
+          ? 'completed'
+          : 'in_progress'
+        : 'blocked'
+    if (step === 3)
+      return currentIndex >= 1
+        ? currentIndex > 2
+          ? 'completed'
+          : 'in_progress'
+        : 'blocked'
+    if (step === 4)
+      return currentIndex >= 3
+        ? currentIndex > 3
+          ? 'completed'
+          : 'in_progress'
+        : 'blocked'
     if (step === 5) return currentIndex >= 4 ? 'completed' : 'blocked'
     return 'pending'
   }
@@ -150,28 +176,37 @@ export function ApplicationProgress({ client }: ApplicationProgressProps) {
   // Check for pending todos in each step
   const hasPendingTodosForStep = (step: number): boolean => {
     const pendingTodos = client.toDos.filter(
-      (t) => t.status === ToDoStatus.PENDING || t.status === ToDoStatus.IN_PROGRESS
+      (t) =>
+        t.status === ToDoStatus.PENDING || t.status === ToDoStatus.IN_PROGRESS,
     )
     if (step === 2) {
       return pendingTodos.some((t) => t.type === ToDoType.VERIFICATION)
     }
     if (step === 3) {
       return pendingTodos.some(
-        (t) => t.type === ToDoType.UPLOAD_SCREENSHOT || t.type === ToDoType.EXECUTION
+        (t) =>
+          t.type === ToDoType.UPLOAD_SCREENSHOT ||
+          t.type === ToDoType.EXECUTION,
       )
     }
     return false
   }
 
   // Bank platforms
-  const bankPlatform = client.platforms.find((p) => p.platformType === PlatformType.BANK)
-  const paypalPlatform = client.platforms.find((p) => p.platformType === PlatformType.PAYPAL)
-  const edgeboostPlatform = client.platforms.find((p) => p.platformType === PlatformType.EDGEBOOST)
+  const bankPlatform = client.platforms.find(
+    (p) => p.platformType === PlatformType.BANK,
+  )
+  const paypalPlatform = client.platforms.find(
+    (p) => p.platformType === PlatformType.PAYPAL,
+  )
+  const edgeboostPlatform = client.platforms.find(
+    (p) => p.platformType === PlatformType.EDGEBOOST,
+  )
   const sportsPlatforms = client.platforms.filter(
     (p) =>
       p.platformType !== PlatformType.BANK &&
       p.platformType !== PlatformType.PAYPAL &&
-      p.platformType !== PlatformType.EDGEBOOST
+      p.platformType !== PlatformType.EDGEBOOST,
   )
 
   const steps: Step[] = [
@@ -194,16 +229,20 @@ export function ApplicationProgress({ client }: ApplicationProgressProps) {
           {/* Info Banner */}
           <div className="rounded-lg bg-primary/10 p-3 ring-1 ring-primary/20">
             <p className="text-xs text-primary">
-              <span className="font-semibold">Client MUST</span> use company-issued phone and email
+              <span className="font-semibold">Client MUST</span> use
+              company-issued phone and email
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Phone: {client.phoneAssignment?.phoneNumber || 'Not assigned'} • Email: sarah.j.0101@company-ops.com
+              Phone: {client.phoneAssignment?.phoneNumber || 'Not assigned'} •
+              Email: sarah.j.0101@company-ops.com
             </p>
           </div>
 
           {/* Remind Client Section */}
           <div className="space-y-2">
-            <p className="text-xs text-muted-foreground">Remind client to bring:</p>
+            <p className="text-xs text-muted-foreground">
+              Remind client to bring:
+            </p>
             <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
               <li>SSN</li>
               <li>Proof of Address</li>
@@ -215,29 +254,49 @@ export function ApplicationProgress({ client }: ApplicationProgressProps) {
           <div className="space-y-2">
             <p className="text-xs font-medium text-foreground">Bank Options:</p>
             <div className="flex gap-2">
-              <Badge variant="outline" className="text-xs">Chase</Badge>
-              <Badge variant="outline" className="text-xs">Bank of America</Badge>
-              <Badge variant="outline" className="text-xs">Citi</Badge>
+              <Badge variant="outline" className="text-xs">
+                Chase
+              </Badge>
+              <Badge variant="outline" className="text-xs">
+                Bank of America
+              </Badge>
+              <Badge variant="outline" className="text-xs">
+                Citi
+              </Badge>
             </div>
           </div>
 
           {/* Bank PIN & Online Banking */}
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-lg bg-muted/30 p-3 ring-1 ring-border/30">
-              <p className="text-xs text-muted-foreground mb-1">Bank PIN (dbl-click to edit)</p>
-              <p className="font-mono text-sm font-medium text-foreground">2580</p>
-              <p className="text-xs text-muted-foreground mt-1">Suggested: 2580</p>
+              <p className="text-xs text-muted-foreground mb-1">
+                Bank PIN (dbl-click to edit)
+              </p>
+              <p className="font-mono text-sm font-medium text-foreground">
+                2580
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Suggested: 2580
+              </p>
             </div>
             <div className="rounded-lg bg-muted/30 p-3 ring-1 ring-border/30">
-              <p className="text-xs text-muted-foreground mb-1">Online Banking (dbl-click to edit)</p>
-              <p className="font-mono text-sm font-medium text-foreground">s_johnson_ops</p>
-              <p className="text-xs text-muted-foreground mt-1">Auto-populated from To-Do uploads</p>
+              <p className="text-xs text-muted-foreground mb-1">
+                Online Banking (dbl-click to edit)
+              </p>
+              <p className="font-mono text-sm font-medium text-foreground">
+                s_johnson_ops
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Auto-populated from To-Do uploads
+              </p>
             </div>
           </div>
 
           {/* Completion Criteria */}
           <div className="space-y-2">
-            <p className="text-xs font-medium text-foreground">Completion Criteria (via To-Dos):</p>
+            <p className="text-xs font-medium text-foreground">
+              Completion Criteria (via To-Dos):
+            </p>
             <ul className="text-xs text-muted-foreground space-y-1">
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="h-3 w-3 text-chart-4" />
@@ -260,11 +319,15 @@ export function ApplicationProgress({ client }: ApplicationProgressProps) {
       number: 3,
       title: 'Platform Setup',
       status: getStepStatus(3),
-      date: getStepStatus(3) === 'in_progress' ? formatDateTime(new Date()) : undefined,
+      date:
+        getStepStatus(3) === 'in_progress'
+          ? formatDateTime(new Date())
+          : undefined,
       hasPendingTodos: hasPendingTodosForStep(3),
-      headerExtra: getStepStatus(3) === 'in_progress' && client.deadline ? (
-        <DeadlineCountdown deadline={client.deadline} variant="badge" />
-      ) : undefined,
+      headerExtra:
+        getStepStatus(3) === 'in_progress' && client.deadline ? (
+          <DeadlineCountdown deadline={client.deadline} variant="badge" />
+        ) : undefined,
       content: (
         <div className="space-y-4 pl-10 pt-3">
           {/* Financial Platforms */}
@@ -329,7 +392,9 @@ export function ApplicationProgress({ client }: ApplicationProgressProps) {
       <CardHeader className="pb-4">
         <div className="flex items-center gap-2">
           <ClipboardList className="h-5 w-5 text-primary" />
-          <CardTitle className="text-lg font-semibold">Application Progress</CardTitle>
+          <CardTitle className="text-lg font-semibold">
+            Application Progress
+          </CardTitle>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">

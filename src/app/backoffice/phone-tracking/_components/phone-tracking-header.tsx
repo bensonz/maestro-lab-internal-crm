@@ -15,7 +15,9 @@ interface PhoneTrackingHeaderProps {
   eligibleClients: EligibleClient[]
 }
 
-export function PhoneTrackingHeader({ eligibleClients }: PhoneTrackingHeaderProps) {
+export function PhoneTrackingHeader({
+  eligibleClients,
+}: PhoneTrackingHeaderProps) {
   const [dialogOpen, setDialogOpen] = useState(false)
 
   return (

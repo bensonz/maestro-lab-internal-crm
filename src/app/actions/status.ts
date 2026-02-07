@@ -18,14 +18,19 @@ function revalidateAll(clientId: string) {
 export async function changeClientStatus(
   clientId: string,
   newStatus: IntakeStatus,
-  reason?: string
+  reason?: string,
 ): Promise<{ success: boolean; error?: string }> {
   const session = await auth()
   if (!session?.user?.id || !BACKOFFICE_ROLES.includes(session.user.role)) {
     return { success: false, error: 'Unauthorized' }
   }
 
-  const result = await transitionClientStatus(clientId, newStatus, session.user.id, { reason })
+  const result = await transitionClientStatus(
+    clientId,
+    newStatus,
+    session.user.id,
+    { reason },
+  )
 
   if (result.success) {
     revalidateAll(clientId)
@@ -35,14 +40,18 @@ export async function changeClientStatus(
 }
 
 export async function startExecution(
-  clientId: string
+  clientId: string,
 ): Promise<{ success: boolean; error?: string }> {
   const session = await auth()
   if (!session?.user?.id || !BACKOFFICE_ROLES.includes(session.user.role)) {
     return { success: false, error: 'Unauthorized' }
   }
 
-  const result = await transitionClientStatus(clientId, IntakeStatus.IN_EXECUTION, session.user.id)
+  const result = await transitionClientStatus(
+    clientId,
+    IntakeStatus.IN_EXECUTION,
+    session.user.id,
+  )
 
   if (result.success) {
     revalidateAll(clientId)
@@ -53,7 +62,7 @@ export async function startExecution(
 
 export async function requestClientMoreInfo(
   clientId: string,
-  reason: string
+  reason: string,
 ): Promise<{ success: boolean; error?: string }> {
   const session = await auth()
   if (!session?.user?.id || !BACKOFFICE_ROLES.includes(session.user.role)) {
@@ -64,7 +73,7 @@ export async function requestClientMoreInfo(
     clientId,
     IntakeStatus.NEEDS_MORE_INFO,
     session.user.id,
-    { reason }
+    { reason },
   )
 
   if (result.success) {
@@ -76,7 +85,7 @@ export async function requestClientMoreInfo(
 
 export async function rejectClient(
   clientId: string,
-  reason: string
+  reason: string,
 ): Promise<{ success: boolean; error?: string }> {
   const session = await auth()
   if (!session?.user?.id || !BACKOFFICE_ROLES.includes(session.user.role)) {
@@ -87,7 +96,7 @@ export async function rejectClient(
     clientId,
     IntakeStatus.REJECTED,
     session.user.id,
-    { reason }
+    { reason },
   )
 
   if (result.success) {
@@ -116,13 +125,17 @@ export async function checkOverdueClients(): Promise<{
     return { success: true, marked: result.marked }
   } catch (error) {
     console.error('Check overdue error:', error)
-    return { success: false, marked: 0, error: 'Failed to check overdue clients' }
+    return {
+      success: false,
+      marked: 0,
+      error: 'Failed to check overdue clients',
+    }
   }
 }
 
 export async function resumeExecution(
   clientId: string,
-  newDeadlineDays?: number
+  newDeadlineDays?: number,
 ): Promise<{ success: boolean; error?: string }> {
   const session = await auth()
   if (!session?.user?.id || !BACKOFFICE_ROLES.includes(session.user.role)) {
@@ -138,7 +151,7 @@ export async function resumeExecution(
     {
       reason: `Resumed execution with ${days} business day deadline`,
       executionDeadlineDays: days,
-    }
+    },
   )
 
   if (result.success) {

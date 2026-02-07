@@ -1,7 +1,13 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { FileText, Download, CheckCircle2, XCircle, AlertCircle } from 'lucide-react'
+import {
+  FileText,
+  Download,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
+} from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -76,7 +82,11 @@ export function DocumentReviewModal({
     }
 
     startTransition(async () => {
-      const result = await rejectPlatformScreenshot(clientId, platformType, notes || undefined)
+      const result = await rejectPlatformScreenshot(
+        clientId,
+        platformType,
+        notes || undefined,
+      )
       if (result.success) {
         toast.success('Platform screenshot rejected')
         handleOpenChange(false)
@@ -143,7 +153,9 @@ export function DocumentReviewModal({
           </div>
 
           <div className="border-t border-border pt-4">
-            <p className="mb-2 text-xs text-muted-foreground">Submitted Documents</p>
+            <p className="mb-2 text-xs text-muted-foreground">
+              Submitted Documents
+            </p>
             {screenshots.length === 0 ? (
               <p className="py-4 text-center text-sm text-muted-foreground">
                 No documents uploaded yet
@@ -172,11 +184,23 @@ export function DocumentReviewModal({
                           </div>
                         )}
                         <div>
-                          <p className="text-sm font-medium">{getFilename(filepath)}</p>
+                          <p className="text-sm font-medium">
+                            {getFilename(filepath)}
+                          </p>
                         </div>
                       </div>
-                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0" asChild>
-                        <a href={`/${filepath}`} download target="_blank" rel="noopener noreferrer">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 p-0"
+                        asChild
+                      >
+                        <a
+                          href={`/${filepath}`}
+                          download
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
                           <Download className="h-4 w-4" />
                           <span className="sr-only">Download</span>
                         </a>

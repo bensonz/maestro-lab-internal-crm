@@ -78,7 +78,7 @@ export function UploadModal({
         handleFiles(e.dataTransfer.files)
       }
     },
-    [handleFiles]
+    [handleFiles],
   )
 
   const removeFile = useCallback((index: number) => {
@@ -134,11 +134,11 @@ export function UploadModal({
         prev.map((d, i) =>
           i === index
             ? { ...d, extracted: { ...d.extracted, [field]: value } }
-            : d
-        )
+            : d,
+        ),
       )
     },
-    []
+    [],
   )
 
   const handleDoneEditing = useCallback(() => {
@@ -176,7 +176,8 @@ export function UploadModal({
         {state === 'upload' && (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Uploading for: <span className="text-foreground font-medium">{todoTitle}</span>
+              Uploading for:{' '}
+              <span className="text-foreground font-medium">{todoTitle}</span>
             </p>
 
             {/* Dropzone */}
@@ -195,7 +196,7 @@ export function UploadModal({
                 'flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 transition-all cursor-pointer',
                 isDragging
                   ? 'border-primary bg-primary/5'
-                  : 'border-border/60 hover:border-primary/50 hover:bg-muted/20'
+                  : 'border-border/60 hover:border-primary/50 hover:bg-muted/20',
               )}
             >
               <input
@@ -231,7 +232,9 @@ export function UploadModal({
                       className="group relative flex items-center gap-2 rounded-lg bg-muted/50 px-3 py-2 text-xs"
                     >
                       <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                      <span className="max-w-[120px] truncate">{file.name}</span>
+                      <span className="max-w-[120px] truncate">
+                        {file.name}
+                      </span>
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
@@ -271,7 +274,9 @@ export function UploadModal({
         {state === 'processing' && (
           <div className="flex flex-col items-center justify-center py-12">
             <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
-            <p className="text-sm text-muted-foreground">Analyzing images with AI...</p>
+            <p className="text-sm text-muted-foreground">
+              Analyzing images with AI...
+            </p>
           </div>
         )}
 
@@ -295,7 +300,9 @@ export function UploadModal({
                     }}
                   />
                   <div className="absolute inset-0 flex items-center justify-center bg-muted/80">
-                    <span className="text-xs text-muted-foreground">Preview</span>
+                    <span className="text-xs text-muted-foreground">
+                      Preview
+                    </span>
                   </div>
                 </div>
 
@@ -314,34 +321,42 @@ export function UploadModal({
                     // Editing Mode
                     <div className="space-y-2">
                       <div className="rounded-lg bg-card/50 p-2 ring-1 ring-border/30">
-                        <label className="text-xs text-muted-foreground">Content Type</label>
+                        <label className="text-xs text-muted-foreground">
+                          Content Type
+                        </label>
                         <Input
                           value={detection.contentType}
                           onChange={(e) => {
                             setEditedDetections((prev) =>
                               prev.map((d, i) =>
-                                i === idx ? { ...d, contentType: e.target.value } : d
-                              )
+                                i === idx
+                                  ? { ...d, contentType: e.target.value }
+                                  : d,
+                              ),
                             )
                           }}
                           className="h-8 text-sm mt-1"
                         />
                       </div>
-                      {Object.entries(detection.extracted).map(([key, value]) => (
-                        <div
-                          key={key}
-                          className="rounded-lg bg-card/50 p-2 ring-1 ring-border/30"
-                        >
-                          <label className="text-xs text-muted-foreground capitalize">
-                            {key}
-                          </label>
-                          <Input
-                            value={value}
-                            onChange={(e) => handleSaveEdit(idx, key, e.target.value)}
-                            className="h-8 text-sm mt-1"
-                          />
-                        </div>
-                      ))}
+                      {Object.entries(detection.extracted).map(
+                        ([key, value]) => (
+                          <div
+                            key={key}
+                            className="rounded-lg bg-card/50 p-2 ring-1 ring-border/30"
+                          >
+                            <label className="text-xs text-muted-foreground capitalize">
+                              {key}
+                            </label>
+                            <Input
+                              value={value}
+                              onChange={(e) =>
+                                handleSaveEdit(idx, key, e.target.value)
+                              }
+                              className="h-8 text-sm mt-1"
+                            />
+                          </div>
+                        ),
+                      )}
                       <Button size="sm" onClick={handleDoneEditing}>
                         Done Editing
                       </Button>
@@ -350,22 +365,28 @@ export function UploadModal({
                     // Display Mode
                     <div className="space-y-2">
                       <div className="rounded-lg bg-card/50 p-2 ring-1 ring-border/30">
-                        <span className="text-xs text-muted-foreground">Content Type</span>
+                        <span className="text-xs text-muted-foreground">
+                          Content Type
+                        </span>
                         <p className="text-sm font-medium text-foreground">
                           {detection.contentType}
                         </p>
                       </div>
-                      {Object.entries(detection.extracted).map(([key, value]) => (
-                        <div
-                          key={key}
-                          className="rounded-lg bg-card/50 p-2 ring-1 ring-border/30"
-                        >
-                          <span className="text-xs text-muted-foreground capitalize">
-                            {key}
-                          </span>
-                          <p className="text-sm font-mono text-foreground">{value}</p>
-                        </div>
-                      ))}
+                      {Object.entries(detection.extracted).map(
+                        ([key, value]) => (
+                          <div
+                            key={key}
+                            className="rounded-lg bg-card/50 p-2 ring-1 ring-border/30"
+                          >
+                            <span className="text-xs text-muted-foreground capitalize">
+                              {key}
+                            </span>
+                            <p className="text-sm font-mono text-foreground">
+                              {value}
+                            </p>
+                          </div>
+                        ),
+                      )}
                     </div>
                   )}
                 </div>
@@ -383,7 +404,11 @@ export function UploadModal({
                 Override / Correct
               </Button>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={handleClose} disabled={isPending}>
+                <Button
+                  variant="outline"
+                  onClick={handleClose}
+                  disabled={isPending}
+                >
                   Cancel
                 </Button>
                 <Button

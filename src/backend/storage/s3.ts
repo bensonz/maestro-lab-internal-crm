@@ -1,9 +1,9 @@
 /**
  * S3/R2 Storage Provider (Stub)
- * 
+ *
  * Implement when ready to migrate to cloud storage.
  * Works with AWS S3, Cloudflare R2, or any S3-compatible storage.
- * 
+ *
  * Required env vars:
  *   STORAGE_PROVIDER=s3 (or r2)
  *   STORAGE_BUCKET=your-bucket-name
@@ -33,10 +33,16 @@ export class S3Storage implements StorageProvider {
     //     secretAccessKey: config.secretAccessKey!,
     //   },
     // })
-    throw new Error('S3Storage not implemented. Install @aws-sdk/client-s3 and implement.')
+    throw new Error(
+      'S3Storage not implemented. Install @aws-sdk/client-s3 and implement.',
+    )
   }
 
-  async upload(_file: Buffer, _path: string, _contentType: string): Promise<UploadResult> {
+  async upload(
+    _file: Buffer,
+    _path: string,
+    _contentType: string,
+  ): Promise<UploadResult> {
     // const command = new PutObjectCommand({
     //   Bucket: this.bucket,
     //   Key: path,

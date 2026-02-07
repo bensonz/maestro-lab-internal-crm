@@ -21,7 +21,7 @@ export async function assignPhone(
   clientId: string,
   phoneNumber: string,
   deviceId?: string,
-  notes?: string
+  notes?: string,
 ): Promise<{ success: boolean; error?: string }> {
   const session = await auth()
   if (!session?.user?.id || !BACKOFFICE_ROLES.includes(session.user.role)) {
@@ -43,7 +43,10 @@ export async function assignPhone(
   }
 
   if (client.intakeStatus !== IntakeStatus.PENDING) {
-    return { success: false, error: 'Client must be in PENDING status to assign a phone' }
+    return {
+      success: false,
+      error: 'Client must be in PENDING status to assign a phone',
+    }
   }
 
   if (client.phoneAssignment) {
@@ -69,7 +72,7 @@ export async function assignPhone(
     const result = await transitionClientStatus(
       clientId,
       IntakeStatus.PHONE_ISSUED,
-      session.user.id
+      session.user.id,
     )
 
     if (!result.success) {
@@ -85,7 +88,7 @@ export async function assignPhone(
 }
 
 export async function signOutPhone(
-  assignmentId: string
+  assignmentId: string,
 ): Promise<{ success: boolean; error?: string }> {
   const session = await auth()
   if (!session?.user?.id || !BACKOFFICE_ROLES.includes(session.user.role)) {
@@ -124,7 +127,7 @@ export async function signOutPhone(
 }
 
 export async function returnPhone(
-  assignmentId: string
+  assignmentId: string,
 ): Promise<{ success: boolean; error?: string }> {
   const session = await auth()
   if (!session?.user?.id || !BACKOFFICE_ROLES.includes(session.user.role)) {
@@ -141,7 +144,10 @@ export async function returnPhone(
   }
 
   if (!assignment.signedOutAt) {
-    return { success: false, error: 'Phone must be signed out before returning' }
+    return {
+      success: false,
+      error: 'Phone must be signed out before returning',
+    }
   }
 
   if (assignment.returnedAt) {

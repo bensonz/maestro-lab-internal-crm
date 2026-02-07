@@ -7,9 +7,16 @@ import { revalidatePath } from 'next/cache'
 import bcrypt from 'bcryptjs'
 
 const ALLOWED_ROLES = new Set<UserRole>([UserRole.ADMIN, UserRole.BACKOFFICE])
-const ALL_ROLES = new Set<UserRole>([UserRole.AGENT, UserRole.BACKOFFICE, UserRole.ADMIN, UserRole.FINANCE])
+const ALL_ROLES = new Set<UserRole>([
+  UserRole.AGENT,
+  UserRole.BACKOFFICE,
+  UserRole.ADMIN,
+  UserRole.FINANCE,
+])
 
-export async function createUser(formData: FormData): Promise<{ success: boolean; error?: string }> {
+export async function createUser(
+  formData: FormData,
+): Promise<{ success: boolean; error?: string }> {
   const session = await auth()
   if (!session?.user?.id) {
     return { success: false, error: 'Unauthorized' }
@@ -44,11 +51,16 @@ export async function createUser(formData: FormData): Promise<{ success: boolean
 
   // BACKOFFICE users can only create AGENT accounts
   if (currentUser.role === UserRole.BACKOFFICE && role !== UserRole.AGENT) {
-    return { success: false, error: 'Backoffice users can only create Agent accounts' }
+    return {
+      success: false,
+      error: 'Backoffice users can only create Agent accounts',
+    }
   }
 
   // Check email uniqueness
-  const existing = await prisma.user.findUnique({ where: { email: email.trim() } })
+  const existing = await prisma.user.findUnique({
+    where: { email: email.trim() },
+  })
   if (existing) {
     return { success: false, error: 'Email is already in use' }
   }
@@ -86,7 +98,7 @@ export async function createUser(formData: FormData): Promise<{ success: boolean
 
 export async function updateUser(
   userId: string,
-  formData: FormData
+  formData: FormData,
 ): Promise<{ success: boolean; error?: string }> {
   const session = await auth()
   if (!session?.user?.id) {
@@ -123,7 +135,9 @@ export async function updateUser(
 
   // Check email uniqueness (exclude current user)
   if (email.trim() !== targetUser.email) {
-    const existing = await prisma.user.findUnique({ where: { email: email.trim() } })
+    const existing = await prisma.user.findUnique({
+      where: { email: email.trim() },
+    })
     if (existing) {
       return { success: false, error: 'Email is already in use' }
     }
@@ -140,7 +154,10 @@ export async function updateUser(
     }
     // BACKOFFICE can only set AGENT role
     if (currentUser.role === UserRole.BACKOFFICE && role !== UserRole.AGENT) {
-      return { success: false, error: 'Backoffice users can only assign Agent role' }
+      return {
+        success: false,
+        error: 'Backoffice users can only assign Agent role',
+      }
     }
   }
 
@@ -167,7 +184,7 @@ export async function updateUser(
 }
 
 export async function toggleUserActive(
-  userId: string
+  userId: string,
 ): Promise<{ success: boolean; error?: string }> {
   const session = await auth()
   if (!session?.user?.id) {
@@ -215,7 +232,7 @@ export async function toggleUserActive(
 
 export async function resetUserPassword(
   userId: string,
-  newPassword: string
+  newPassword: string,
 ): Promise<{ success: boolean; error?: string }> {
   const session = await auth()
   if (!session?.user?.id) {
@@ -243,8 +260,14 @@ export async function resetUserPassword(
   }
 
   // BACKOFFICE can only reset AGENT passwords
-  if (currentUser.role === UserRole.BACKOFFICE && targetUser.role !== UserRole.AGENT) {
-    return { success: false, error: 'Backoffice users can only reset Agent passwords' }
+  if (
+    currentUser.role === UserRole.BACKOFFICE &&
+    targetUser.role !== UserRole.AGENT
+  ) {
+    return {
+      success: false,
+      error: 'Backoffice users can only reset Agent passwords',
+    }
   }
 
   const passwordHash = bcrypt.hashSync(newPassword, 10)

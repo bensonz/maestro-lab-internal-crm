@@ -35,43 +35,50 @@ const EMPTY_KPIS: AgentKPIs = {
 }
 
 export async function getAgentKPIs(agentId: string): Promise<AgentKPIs> {
-  const [clients, extensionClientCount, todoStats, initiateEvents, convertEvents] =
-    await Promise.all([
-      prisma.client.findMany({
-        where: { agentId },
-        select: { id: true, intakeStatus: true, createdAt: true },
-      }),
-      prisma.extensionRequest.groupBy({
-        by: ['clientId'],
-        where: { client: { agentId } },
-      }),
-      prisma.toDo.groupBy({
-        by: ['status'],
-        where: {
-          assignedToId: agentId,
-          status: { in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS, ToDoStatus.OVERDUE] },
+  const [
+    clients,
+    extensionClientCount,
+    todoStats,
+    initiateEvents,
+    convertEvents,
+  ] = await Promise.all([
+    prisma.client.findMany({
+      where: { agentId },
+      select: { id: true, intakeStatus: true, createdAt: true },
+    }),
+    prisma.extensionRequest.groupBy({
+      by: ['clientId'],
+      where: { client: { agentId } },
+    }),
+    prisma.toDo.groupBy({
+      by: ['status'],
+      where: {
+        assignedToId: agentId,
+        status: {
+          in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS, ToDoStatus.OVERDUE],
         },
-        _count: true,
-      }),
-      // Events where client transitioned to PHONE_ISSUED
-      prisma.eventLog.findMany({
-        where: {
-          eventType: EventType.STATUS_CHANGE,
-          newValue: IntakeStatus.PHONE_ISSUED,
-          client: { agentId },
-        },
-        select: { clientId: true, createdAt: true },
-      }),
-      // Events where client transitioned to APPROVED
-      prisma.eventLog.findMany({
-        where: {
-          eventType: EventType.STATUS_CHANGE,
-          newValue: IntakeStatus.APPROVED,
-          client: { agentId },
-        },
-        select: { clientId: true, createdAt: true },
-      }),
-    ])
+      },
+      _count: true,
+    }),
+    // Events where client transitioned to PHONE_ISSUED
+    prisma.eventLog.findMany({
+      where: {
+        eventType: EventType.STATUS_CHANGE,
+        newValue: IntakeStatus.PHONE_ISSUED,
+        client: { agentId },
+      },
+      select: { clientId: true, createdAt: true },
+    }),
+    // Events where client transitioned to APPROVED
+    prisma.eventLog.findMany({
+      where: {
+        eventType: EventType.STATUS_CHANGE,
+        newValue: IntakeStatus.APPROVED,
+        client: { agentId },
+      },
+      select: { clientId: true, createdAt: true },
+    }),
+  ])
 
   if (clients.length === 0) {
     return { ...EMPTY_KPIS }
@@ -79,32 +86,36 @@ export async function getAgentKPIs(agentId: string): Promise<AgentKPIs> {
 
   const totalClients = clients.length
   const approvedClients = clients.filter(
-    (c) => c.intakeStatus === IntakeStatus.APPROVED
+    (c) => c.intakeStatus === IntakeStatus.APPROVED,
   ).length
   const rejectedClients = clients.filter(
-    (c) => c.intakeStatus === IntakeStatus.REJECTED
+    (c) => c.intakeStatus === IntakeStatus.REJECTED,
   ).length
   const inProgressClients = clients.filter(
     (c) =>
       c.intakeStatus === IntakeStatus.PHONE_ISSUED ||
-      c.intakeStatus === IntakeStatus.IN_EXECUTION
+      c.intakeStatus === IntakeStatus.IN_EXECUTION,
   ).length
   const delayedClients = clients.filter(
-    (c) => c.intakeStatus === IntakeStatus.EXECUTION_DELAYED
+    (c) => c.intakeStatus === IntakeStatus.EXECUTION_DELAYED,
   ).length
 
   // Success rate: approved / (approved + rejected)
   const completed = approvedClients + rejectedClients
-  const successRate = completed > 0 ? Math.round((approvedClients / completed) * 100) : 0
+  const successRate =
+    completed > 0 ? Math.round((approvedClients / completed) * 100) : 0
 
   // Delay rate: delayed / (inProgress + delayed)
   const activePool = inProgressClients + delayedClients
-  const delayRate = activePool > 0 ? Math.round((delayedClients / activePool) * 100) : 0
+  const delayRate =
+    activePool > 0 ? Math.round((delayedClients / activePool) * 100) : 0
 
   // Extension rate: distinct clients with extensions / totalClients
   const clientsWithExtensions = extensionClientCount.length
   const extensionRate =
-    totalClients > 0 ? Math.round((clientsWithExtensions / totalClients) * 100) : 0
+    totalClients > 0
+      ? Math.round((clientsWithExtensions / totalClients) * 100)
+      : 0
 
   // Build a map of clientId → createdAt for timing calculations
   const clientCreatedAt = new Map(clients.map((c) => [c.id, c.createdAt]))
@@ -118,7 +129,8 @@ export async function getAgentKPIs(agentId: string): Promise<AgentKPIs> {
   // Todo stats
   const pendingTodos = todoStats
     .filter(
-      (s) => s.status === ToDoStatus.PENDING || s.status === ToDoStatus.IN_PROGRESS
+      (s) =>
+        s.status === ToDoStatus.PENDING || s.status === ToDoStatus.IN_PROGRESS,
     )
     .reduce((sum, s) => sum + s._count, 0)
   const overdueTodos = todoStats
@@ -151,7 +163,7 @@ export async function getAllAgentKPIs(): Promise<Record<string, AgentKPIs>> {
     agents.map(async (agent) => {
       const kpis = await getAgentKPIs(agent.id)
       return [agent.id, kpis] as const
-    })
+    }),
   )
 
   return Object.fromEntries(entries)
@@ -159,7 +171,7 @@ export async function getAllAgentKPIs(): Promise<Record<string, AgentKPIs>> {
 
 function computeAvgDays(
   events: { clientId: string | null; createdAt: Date }[],
-  clientCreatedAt: Map<string, Date>
+  clientCreatedAt: Map<string, Date>,
 ): number | null {
   const days: number[] = []
 

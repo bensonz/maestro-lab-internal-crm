@@ -10,7 +10,7 @@ export type DraftActionState = {
 
 export async function saveDraft(
   prevState: DraftActionState,
-  formData: FormData
+  formData: FormData,
 ): Promise<DraftActionState> {
   const session = await auth()
   if (!session?.user?.id) {
@@ -47,7 +47,9 @@ export async function saveDraft(
   }
 }
 
-export async function deleteDraft(draftId: string): Promise<{ success: boolean }> {
+export async function deleteDraft(
+  draftId: string,
+): Promise<{ success: boolean }> {
   const session = await auth()
   if (!session?.user?.id) {
     return { success: false }

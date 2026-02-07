@@ -14,7 +14,7 @@ export type ActionState = {
 
 export async function createClient(
   prevState: ActionState,
-  formData: FormData
+  formData: FormData,
 ): Promise<ActionState> {
   // 1. Auth check - must be logged in
   const session = await auth()

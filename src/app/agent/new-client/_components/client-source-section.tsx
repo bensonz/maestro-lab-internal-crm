@@ -78,7 +78,10 @@ export function ClientSourceSection({
 
         {/* How Met */}
         <div className="space-y-2">
-          <Label htmlFor="howMet" className="text-sm font-medium text-foreground">
+          <Label
+            htmlFor="howMet"
+            className="text-sm font-medium text-foreground"
+          >
             How did we meet this client?
           </Label>
           <Input

@@ -90,7 +90,9 @@ export function PlatformUploadCard({
             {platformAbbrev}
           </div>
           <div>
-            <span className="text-sm font-medium text-foreground">{platformName}</span>
+            <span className="text-sm font-medium text-foreground">
+              {platformName}
+            </span>
             {username && (
               <p className="text-xs text-muted-foreground">@{username}</p>
             )}
@@ -99,7 +101,8 @@ export function PlatformUploadCard({
         <div className="flex items-center gap-2">
           {screenshots.length > 0 && (
             <span className="text-xs text-muted-foreground">
-              {screenshots.length} screenshot{screenshots.length !== 1 ? 's' : ''}
+              {screenshots.length} screenshot
+              {screenshots.length !== 1 ? 's' : ''}
             </span>
           )}
           {getStatusBadge(status)}
@@ -116,7 +119,9 @@ export function PlatformUploadCard({
           {/* Screenshots Grid (read-only) */}
           {screenshots.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground">Uploaded Screenshots</p>
+              <p className="text-xs font-medium text-muted-foreground">
+                Uploaded Screenshots
+              </p>
               <div className="flex flex-wrap gap-2">
                 {screenshots.map((screenshot) => (
                   <div
@@ -125,12 +130,18 @@ export function PlatformUploadCard({
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={screenshot.startsWith('/') ? screenshot : `/${screenshot}`}
+                      src={
+                        screenshot.startsWith('/')
+                          ? screenshot
+                          : `/${screenshot}`
+                      }
                       alt="Screenshot"
                       className="h-full w-full object-cover"
                       onError={(e) => {
                         e.currentTarget.style.display = 'none'
-                        e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                        e.currentTarget.nextElementSibling?.classList.remove(
+                          'hidden',
+                        )
                       }}
                     />
                     <div className="hidden h-full w-full items-center justify-center">
@@ -161,7 +172,8 @@ export function PlatformUploadCard({
             </div>
           )}
 
-          {(status === PlatformStatus.NOT_STARTED || status === PlatformStatus.PENDING_UPLOAD) && (
+          {(status === PlatformStatus.NOT_STARTED ||
+            status === PlatformStatus.PENDING_UPLOAD) && (
             <div className="flex items-center gap-2 rounded-lg bg-muted/30 p-3 ring-1 ring-border/30">
               <Upload className="h-4 w-4 text-muted-foreground" />
               <span className="text-xs text-muted-foreground">

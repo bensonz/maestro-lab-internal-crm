@@ -3,7 +3,7 @@ import { z } from 'zod'
 // Helper to handle null from FormData.get() - converts null to undefined
 const optionalString = z.preprocess(
   (val) => (val === null ? undefined : val),
-  z.string().optional()
+  z.string().optional(),
 )
 
 export const createClientSchema = z.object({
@@ -15,7 +15,7 @@ export const createClientSchema = z.object({
   phone: z.string().min(1, 'Phone is required'),
   email: z.preprocess(
     (val) => (val === null ? '' : val),
-    z.string().email('Invalid email').optional().or(z.literal(''))
+    z.string().email('Invalid email').optional().or(z.literal('')),
   ),
 
   // Primary Address
@@ -27,7 +27,7 @@ export const createClientSchema = z.object({
   // Secondary Address (optional)
   hasSecondAddress: z.preprocess(
     (val) => val === 'true' || val === true,
-    z.boolean().optional()
+    z.boolean().optional(),
   ),
   secondaryAddress: optionalString,
   secondaryCity: optionalString,
@@ -45,7 +45,7 @@ export const createClientSchema = z.object({
     (val) => val === 'true' || val === true,
     z.boolean().refine((val) => val === true, {
       message: 'You must confirm client suitability before submitting',
-    })
+    }),
   ),
 })
 
@@ -65,7 +65,7 @@ export const saveDraftSchema = z.object({
   primaryZip: optionalString,
   hasSecondAddress: z.preprocess(
     (val) => val === 'true' || val === true,
-    z.boolean().optional()
+    z.boolean().optional(),
   ),
   secondaryAddress: optionalString,
   secondaryCity: optionalString,
@@ -75,7 +75,7 @@ export const saveDraftSchema = z.object({
   notes: optionalString,
   agentConfirmsSuitable: z.preprocess(
     (val) => val === 'true' || val === true,
-    z.boolean().optional()
+    z.boolean().optional(),
   ),
 })
 

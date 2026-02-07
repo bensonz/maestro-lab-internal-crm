@@ -22,9 +22,7 @@ export function RemindersPanel({ reminders }: RemindersPanelProps) {
       </CardHeader>
       <CardContent className="space-y-3">
         {reminders.length === 0 ? (
-          <p className="text-center text-muted-foreground py-4">
-            No reminders
-          </p>
+          <p className="text-center text-muted-foreground py-4">No reminders</p>
         ) : (
           reminders.map((reminder, idx) => (
             <div
@@ -44,7 +42,9 @@ export function RemindersPanel({ reminders }: RemindersPanelProps) {
               </p>
               <p
                 className={`text-xs mt-1 ${
-                  reminder.isOverdue ? 'text-destructive' : 'text-muted-foreground'
+                  reminder.isOverdue
+                    ? 'text-destructive'
+                    : 'text-muted-foreground'
                 }`}
               >
                 {reminder.timeLabel}
