@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import NextTopLoader from 'nextjs-toploader'
 import { Toaster } from '@/components/ui/sonner'
-import { teodor, inter } from './fonts'
+import { inter, jetbrainsMono } from './fonts'
 import { Providers } from './providers'
 import './globals.css'
 import { cn } from '@/lib/utils'
@@ -22,12 +22,12 @@ export default function RootLayout({
       <body
         className={cn(
           'min-h-svh bg-background font-inter antialiased',
-          teodor.variable,
           inter.variable,
+          jetbrainsMono.variable,
         )}
       >
         <NextTopLoader
-          color="oklch(0.78 0.16 195)"
+          color="hsl(217, 91%, 60%)"
           showSpinner={false}
           height={3}
         />

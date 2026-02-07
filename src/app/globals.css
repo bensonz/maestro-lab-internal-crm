@@ -1,18 +1,18 @@
-@import "tailwindcss";
-@import "tw-animate-css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
 
 @custom-variant dark (&:is(.dark *));
 
 /* ========================================
-   MIDNIGHT AURORA THEME
-   A refined dark theme with luminous depth
+   LOVABLE-ALIGNED THEME
+   Blue primary, deep navy background
    ======================================== */
 
 @theme inline {
   /* Typography */
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-teodor), ui-serif, Georgia, serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo,
+    Monaco, Consolas, monospace;
 
   /* Color System */
   --color-background: var(--background);
@@ -33,6 +33,10 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+
+  /* Semantic colors */
+  --color-success: var(--success);
+  --color-warning: var(--warning);
 
   /* Sidebar */
   --color-sidebar: var(--sidebar);
@@ -60,95 +64,111 @@
 }
 
 :root {
-  --radius: 0.625rem;
+  --radius: 0.5rem;
 
-  /* Light mode */
+  /* Light mode — kept for completeness */
   --background: oklch(0.985 0.002 250);
   --foreground: oklch(0.145 0.015 250);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0.015 250);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0.015 250);
-  --primary: oklch(0.6 0.18 195);
+  --primary: oklch(0.55 0.2 260);
   --primary-foreground: oklch(0.98 0 0);
   --secondary: oklch(0.96 0.005 250);
   --secondary-foreground: oklch(0.25 0.015 250);
   --muted: oklch(0.96 0.005 250);
   --muted-foreground: oklch(0.45 0.015 250);
-  --accent: oklch(0.72 0.12 25);
-  --accent-foreground: oklch(0.15 0.03 25);
+  --accent: oklch(0.55 0.2 260);
+  --accent-foreground: oklch(0.98 0 0);
   --destructive: oklch(0.55 0.22 25);
+  --success: oklch(0.6 0.19 145);
+  --warning: oklch(0.75 0.15 70);
   --border: oklch(0.91 0.005 250);
   --input: oklch(0.91 0.005 250);
-  --ring: oklch(0.6 0.18 195);
-  --chart-1: oklch(0.6 0.18 195);
-  --chart-2: oklch(0.72 0.12 25);
-  --chart-3: oklch(0.65 0.15 300);
-  --chart-4: oklch(0.68 0.16 145);
+  --ring: oklch(0.55 0.2 260);
+  --chart-1: oklch(0.55 0.2 260);
+  --chart-2: oklch(0.6 0.19 145);
+  --chart-3: oklch(0.75 0.15 70);
+  --chart-4: oklch(0.6 0.19 145);
   --chart-5: oklch(0.55 0.22 25);
   --sidebar: oklch(0.98 0.002 250);
   --sidebar-foreground: oklch(0.145 0.015 250);
-  --sidebar-primary: oklch(0.6 0.18 195);
+  --sidebar-primary: oklch(0.55 0.2 260);
   --sidebar-primary-foreground: oklch(0.98 0 0);
   --sidebar-accent: oklch(0.95 0.005 250);
   --sidebar-accent-foreground: oklch(0.145 0.015 250);
   --sidebar-border: oklch(0.91 0.005 250);
-  --sidebar-ring: oklch(0.6 0.18 195);
+  --sidebar-ring: oklch(0.55 0.2 260);
 }
 
 .dark {
-  /* Base: Rich charcoal with blue undertone - NOT pure black */
-  --background: oklch(0.16 0.02 265);
-  --foreground: oklch(0.95 0.01 250);
+  /* Background: Deep navy — hsl(222, 47%, 6%) */
+  --background: oklch(0.17 0.02 260);
+  --foreground: oklch(0.96 0.005 260);
 
-  /* Cards: Elevated surfaces with glass-like quality */
-  --card: oklch(0.19 0.02 265);
-  --card-foreground: oklch(0.95 0.01 250);
+  /* Cards: Slightly lighter surface — hsl(222, 47%, 8%) */
+  --card: oklch(0.2 0.02 260);
+  --card-foreground: oklch(0.96 0.005 260);
 
-  /* Popover: Slightly lighter for layering */
-  --popover: oklch(0.21 0.025 265);
-  --popover-foreground: oklch(0.95 0.01 250);
+  /* Popover */
+  --popover: oklch(0.2 0.02 260);
+  --popover-foreground: oklch(0.96 0.005 260);
 
-  /* Primary: Electric Cyan - vibrant and energetic */
-  --primary: oklch(0.78 0.16 195);
-  --primary-foreground: oklch(0.12 0.03 195);
+  /* Primary: Blue — hsl(217, 91%, 60%) */
+  --primary: oklch(0.62 0.19 260);
+  --primary-foreground: oklch(0.17 0.02 260);
 
-  /* Secondary: Soft elevated surface */
-  --secondary: oklch(0.24 0.02 265);
-  --secondary-foreground: oklch(0.9 0.01 250);
+  /* Secondary */
+  --secondary: oklch(0.25 0.02 260);
+  --secondary-foreground: oklch(0.96 0.005 260);
 
-  /* Muted: Subdued but readable */
-  --muted: oklch(0.26 0.02 265);
-  --muted-foreground: oklch(0.65 0.02 265);
+  /* Muted — hsl(222, 30%, 14%) / hsl(215, 20%, 55%) */
+  --muted: oklch(0.27 0.015 260);
+  --muted-foreground: oklch(0.6 0.02 260);
 
-  /* Accent: Rose Gold - warm and inviting */
-  --accent: oklch(0.75 0.12 25);
-  --accent-foreground: oklch(0.15 0.03 25);
+  /* Accent = Primary */
+  --accent: oklch(0.62 0.19 260);
+  --accent-foreground: oklch(0.96 0.005 260);
 
-  /* Destructive: Clear warning */
-  --destructive: oklch(0.65 0.22 25);
+  /* Destructive: Red — hsl(0, 84%, 60%) */
+  --destructive: oklch(0.63 0.24 25);
 
-  /* Borders: Subtle but visible */
-  --border: oklch(0.3 0.025 265);
-  --input: oklch(0.22 0.02 265);
-  --ring: oklch(0.78 0.16 195);
+  /* Semantic colors */
+  --success: oklch(0.62 0.19 150);
+  --warning: oklch(0.78 0.16 70);
 
-  /* Charts: Vibrant, distinct palette */
-  --chart-1: oklch(0.78 0.16 195); /* Electric Cyan */
-  --chart-2: oklch(0.75 0.12 25); /* Rose Gold */
-  --chart-3: oklch(0.72 0.14 300); /* Soft Lavender */
-  --chart-4: oklch(0.75 0.15 145); /* Mint Green */
-  --chart-5: oklch(0.78 0.14 60); /* Warm Amber */
+  /* Borders — hsl(222, 30%, 16%) */
+  --border: oklch(0.3 0.02 260);
+  --input: oklch(0.27 0.015 260);
+  --ring: oklch(0.62 0.19 260);
 
-  /* Sidebar: Deeper for contrast */
-  --sidebar: oklch(0.14 0.02 265);
-  --sidebar-foreground: oklch(0.92 0.01 250);
-  --sidebar-primary: oklch(0.78 0.16 195);
-  --sidebar-primary-foreground: oklch(0.12 0.03 195);
-  --sidebar-accent: oklch(0.2 0.025 265);
-  --sidebar-accent-foreground: oklch(0.95 0.01 250);
-  --sidebar-border: oklch(0.26 0.02 265);
-  --sidebar-ring: oklch(0.78 0.16 195);
+  /* Charts */
+  --chart-1: oklch(0.62 0.19 260); /* Blue (primary) */
+  --chart-2: oklch(0.62 0.19 150); /* Green (success) */
+  --chart-3: oklch(0.78 0.16 70); /* Amber (warning) */
+  --chart-4: oklch(0.62 0.19 150); /* Mint/Green */
+  --chart-5: oklch(0.63 0.24 25); /* Red (destructive) */
+
+  /* Sidebar — hsl(222, 47%, 5%) */
+  --sidebar: oklch(0.15 0.02 260);
+  --sidebar-foreground: oklch(0.65 0.02 260);
+  --sidebar-primary: oklch(0.62 0.19 260);
+  --sidebar-primary-foreground: oklch(0.96 0.005 260);
+  --sidebar-accent: oklch(0.22 0.02 260);
+  --sidebar-accent-foreground: oklch(0.96 0.005 260);
+  --sidebar-border: oklch(0.25 0.015 260);
+  --sidebar-ring: oklch(0.62 0.19 260);
+
+  /* Extended variables (Lovable additions) */
+  --card-hover: oklch(0.23 0.02 260);
+  --primary-glow: oklch(0.7 0.17 260);
+  --success-muted: oklch(0.25 0.04 150);
+  --warning-muted: oklch(0.25 0.04 70);
+
+  /* Shadows */
+  --shadow-card: 0 4px 24px -4px oklch(0.1 0.02 260 / 0.5);
+  --shadow-glow: 0 0 20px -5px oklch(0.62 0.19 260 / 0.3);
 }
 
 @layer base {
@@ -158,14 +178,18 @@
 
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    font-feature-settings:
+      'cv02',
+      'cv03',
+      'cv04',
+      'cv11';
   }
 
   html {
     scroll-behavior: smooth;
   }
 
-  /* Premium scrollbar */
+  /* Scrollbar */
   ::-webkit-scrollbar {
     width: 10px;
     height: 10px;
@@ -176,46 +200,112 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: oklch(0.35 0.02 265);
+    background: oklch(0.35 0.02 260);
     border-radius: 5px;
     border: 2px solid transparent;
     background-clip: padding-box;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: oklch(0.45 0.02 265);
+    background: oklch(0.45 0.02 260);
     border: 2px solid transparent;
     background-clip: padding-box;
   }
 
-  /* Selection highlight */
+  /* Selection */
   ::selection {
-    background: oklch(0.78 0.16 195 / 0.35);
+    background: oklch(0.62 0.19 260 / 0.35);
     color: oklch(0.98 0 0);
   }
 }
 
 @layer utilities {
   /* ========================================
+     CARD VARIANTS (Lovable patterns)
+     ======================================== */
+
+  /* Lovable's card-terminal: hover-glow card */
+  .card-terminal {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+    transition: all 0.2s ease;
+  }
+
+  .card-terminal:hover {
+    background: var(--card-hover);
+    border-color: oklch(0.62 0.19 260 / 0.3);
+    box-shadow: var(--shadow-glow);
+  }
+
+  .card-elevated {
+    background: linear-gradient(
+      180deg,
+      oklch(0.23 0.02 260) 0%,
+      oklch(0.2 0.02 260) 100%
+    );
+    border: 1px solid oklch(0.32 0.02 260 / 0.5);
+    box-shadow:
+      0 4px 6px -1px oklch(0 0 0 / 0.2),
+      0 2px 4px -2px oklch(0 0 0 / 0.15),
+      inset 0 1px 0 oklch(1 0 0 / 0.02);
+  }
+
+  .card-interactive {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .card-interactive:hover {
+    border-color: oklch(0.62 0.19 260 / 0.4);
+    box-shadow:
+      0 8px 25px -5px oklch(0.62 0.19 260 / 0.15),
+      0 4px 10px -5px oklch(0 0 0 / 0.2);
+    transform: translateY(-2px);
+  }
+
+  /* ========================================
+     STATUS BADGES (Lovable patterns)
+     ======================================== */
+  .status-badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+
+  .status-approved {
+    background: var(--success-muted);
+    color: var(--success);
+  }
+
+  .status-pending {
+    background: var(--warning-muted);
+    color: var(--warning);
+  }
+
+  .status-blocked,
+  .status-rejected {
+    @apply bg-destructive/20 text-destructive;
+  }
+
+  /* ========================================
+     METRIC DISPLAY (Lovable patterns)
+     ======================================== */
+  .metric-value {
+    @apply font-mono text-2xl font-semibold tracking-tight;
+  }
+
+  .metric-label {
+    @apply text-xs uppercase tracking-wider text-muted-foreground;
+  }
+
+  /* ========================================
      GRADIENT TEXT
      ======================================== */
   .text-gradient {
     background: linear-gradient(
       135deg,
-      oklch(0.78 0.16 195) 0%,
-      oklch(0.72 0.14 300) 50%,
-      oklch(0.75 0.12 25) 100%
-    );
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  .text-gradient-warm {
-    background: linear-gradient(
-      135deg,
-      oklch(0.75 0.12 25) 0%,
-      oklch(0.78 0.14 60) 100%
+      oklch(0.62 0.19 260) 0%,
+      oklch(0.7 0.17 260) 50%,
+      oklch(0.62 0.19 150) 100%
     );
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -226,248 +316,106 @@
      GLASS MORPHISM
      ======================================== */
   .glass {
-    background: oklch(0.19 0.02 265 / 0.7);
+    background: oklch(0.2 0.02 260 / 0.7);
     backdrop-filter: blur(20px) saturate(180%);
-    border: 1px solid oklch(0.35 0.02 265 / 0.4);
+    border: 1px solid oklch(0.35 0.02 260 / 0.4);
   }
 
   .glass-subtle {
-    background: oklch(0.19 0.02 265 / 0.5);
+    background: oklch(0.2 0.02 260 / 0.5);
     backdrop-filter: blur(12px) saturate(150%);
-    border: 1px solid oklch(0.3 0.02 265 / 0.3);
+    border: 1px solid oklch(0.3 0.02 260 / 0.3);
   }
 
   /* ========================================
      GLOW EFFECTS
      ======================================== */
-  .glow-cyan {
-    box-shadow: 0 0 20px oklch(0.78 0.16 195 / 0.25),
-      0 0 60px oklch(0.78 0.16 195 / 0.1);
+  .glow-primary {
+    box-shadow:
+      0 0 20px oklch(0.62 0.19 260 / 0.25),
+      0 0 60px oklch(0.62 0.19 260 / 0.1);
   }
 
-  .glow-rose {
-    box-shadow: 0 0 20px oklch(0.75 0.12 25 / 0.3),
-      0 0 60px oklch(0.75 0.12 25 / 0.1);
+  .glow-success {
+    box-shadow:
+      0 0 20px oklch(0.62 0.19 150 / 0.25),
+      0 0 60px oklch(0.62 0.19 150 / 0.1);
   }
 
-  .glow-lavender {
-    box-shadow: 0 0 20px oklch(0.72 0.14 300 / 0.25),
-      0 0 60px oklch(0.72 0.14 300 / 0.1);
-  }
-
-  .glow-mint {
-    box-shadow: 0 0 20px oklch(0.75 0.15 145 / 0.25),
-      0 0 60px oklch(0.75 0.15 145 / 0.1);
-  }
-
-  /* Interactive glow on hover */
   .hover-glow {
-    transition: box-shadow 0.3s ease, transform 0.3s ease;
+    transition:
+      box-shadow 0.3s ease,
+      transform 0.3s ease;
   }
 
   .hover-glow:hover {
-    box-shadow: 0 4px 24px oklch(0.78 0.16 195 / 0.15),
-      0 0 0 1px oklch(0.78 0.16 195 / 0.1);
+    box-shadow:
+      0 4px 24px oklch(0.62 0.19 260 / 0.15),
+      0 0 0 1px oklch(0.62 0.19 260 / 0.1);
     transform: translateY(-2px);
   }
 
   /* ========================================
-     GRADIENT BORDERS
+     STATUS INDICATORS
      ======================================== */
-  .gradient-border {
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
     position: relative;
-    background: oklch(0.19 0.02 265);
-    border-radius: var(--radius);
   }
 
-  .gradient-border::before {
-    content: "";
+  .status-dot::after {
+    content: '';
     position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    padding: 1px;
-    background: linear-gradient(
-      135deg,
-      oklch(0.78 0.16 195 / 0.6) 0%,
-      oklch(0.72 0.14 300 / 0.4) 50%,
-      oklch(0.75 0.12 25 / 0.6) 100%
-    );
-    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    mask-composite: exclude;
-    -webkit-mask-composite: xor;
-    pointer-events: none;
+    inset: -2px;
+    border-radius: 50%;
+    background: inherit;
+    opacity: 0.4;
+    animation: status-pulse 2s ease-in-out infinite;
   }
 
-  .gradient-border-subtle::before {
-    background: linear-gradient(
-      135deg,
-      oklch(0.78 0.16 195 / 0.3) 0%,
-      oklch(0.72 0.14 300 / 0.2) 50%,
-      oklch(0.75 0.12 25 / 0.3) 100%
-    );
-  }
-
-  /* ========================================
-     AURORA BACKGROUND
-     ======================================== */
-  .aurora-bg {
-    position: relative;
-    overflow: hidden;
-  }
-
-  .aurora-bg::before {
-    content: "";
-    position: absolute;
-    inset: -50%;
-    background: radial-gradient(
-        ellipse at 20% 20%,
-        oklch(0.78 0.16 195 / 0.15) 0%,
-        transparent 50%
-      ),
-      radial-gradient(
-        ellipse at 80% 20%,
-        oklch(0.72 0.14 300 / 0.12) 0%,
-        transparent 50%
-      ),
-      radial-gradient(
-        ellipse at 50% 80%,
-        oklch(0.75 0.12 25 / 0.1) 0%,
-        transparent 50%
-      );
-    animation: aurora-drift 20s ease-in-out infinite;
-    pointer-events: none;
-  }
-
-  @keyframes aurora-drift {
+  @keyframes status-pulse {
     0%,
     100% {
-      transform: translate(0, 0) rotate(0deg);
-    }
-    25% {
-      transform: translate(5%, 5%) rotate(2deg);
+      transform: scale(1);
+      opacity: 0.4;
     }
     50% {
-      transform: translate(-3%, 8%) rotate(-1deg);
-    }
-    75% {
-      transform: translate(-5%, 3%) rotate(1deg);
+      transform: scale(1.5);
+      opacity: 0;
     }
   }
 
   /* ========================================
-     MESH GRADIENT BACKGROUND
+     NAV LINK (Lovable pattern)
      ======================================== */
-  .mesh-bg {
-    background: radial-gradient(
-        at 40% 20%,
-        oklch(0.78 0.16 195 / 0.08) 0px,
-        transparent 50%
-      ),
-      radial-gradient(
-        at 80% 0%,
-        oklch(0.72 0.14 300 / 0.06) 0px,
-        transparent 50%
-      ),
-      radial-gradient(
-        at 0% 50%,
-        oklch(0.75 0.12 25 / 0.05) 0px,
-        transparent 50%
-      ),
-      radial-gradient(
-        at 80% 50%,
-        oklch(0.75 0.15 145 / 0.04) 0px,
-        transparent 50%
-      ),
-      radial-gradient(
-        at 0% 100%,
-        oklch(0.78 0.16 195 / 0.06) 0px,
-        transparent 50%
-      ),
-      oklch(0.16 0.02 265);
+  .nav-link {
+    @apply flex items-center gap-3 rounded-lg px-3 py-2.5 text-sidebar-foreground transition-all duration-200;
+  }
+
+  .nav-link:hover {
+    @apply bg-sidebar-accent text-sidebar-accent-foreground;
+  }
+
+  .nav-link.active {
+    @apply border-l-2 border-primary bg-primary/10 text-primary;
   }
 
   /* ========================================
-     CARD VARIANTS
+     FADE ANIMATIONS
      ======================================== */
-  .card-elevated {
-    background: linear-gradient(
-      180deg,
-      oklch(0.21 0.025 265) 0%,
-      oklch(0.19 0.02 265) 100%
-    );
-    border: 1px solid oklch(0.32 0.025 265 / 0.5);
-    box-shadow: 0 4px 6px -1px oklch(0 0 0 / 0.2),
-      0 2px 4px -2px oklch(0 0 0 / 0.15), inset 0 1px 0 oklch(1 0 0 / 0.02);
-  }
-
-  .card-interactive {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .card-interactive:hover {
-    border-color: oklch(0.78 0.16 195 / 0.4);
-    box-shadow: 0 8px 25px -5px oklch(0.78 0.16 195 / 0.15),
-      0 4px 10px -5px oklch(0 0 0 / 0.2);
-    transform: translateY(-2px);
-  }
-
-  /* ========================================
-     SHIMMER & LOADING
-     ======================================== */
-  .shimmer {
-    background: linear-gradient(
-      90deg,
-      oklch(0.24 0.02 265) 0%,
-      oklch(0.32 0.025 265) 50%,
-      oklch(0.24 0.02 265) 100%
-    );
-    background-size: 200% 100%;
-    animation: shimmer 2s ease-in-out infinite;
-  }
-
-  @keyframes shimmer {
-    0% {
-      background-position: 200% 0;
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
     }
-    100% {
-      background-position: -200% 0;
-    }
-  }
-
-  /* ========================================
-     PULSE ANIMATIONS
-     ======================================== */
-  @keyframes pulse-glow {
-    0%,
-    100% {
-      box-shadow: 0 0 20px oklch(0.78 0.16 195 / 0.3);
-    }
-    50% {
-      box-shadow: 0 0 35px oklch(0.78 0.16 195 / 0.5);
-    }
-  }
-
-  .animate-pulse-glow {
-    animation: pulse-glow 2.5s ease-in-out infinite;
-  }
-
-  @keyframes float {
-    0%,
-    100% {
+    to {
+      opacity: 1;
       transform: translateY(0);
     }
-    50% {
-      transform: translateY(-10px);
-    }
   }
 
-  .animate-float {
-    animation: float 6s ease-in-out infinite;
-  }
-
-  /* ========================================
-     FADE IN ANIMATIONS
-     ======================================== */
   @keyframes fade-in-up {
     from {
       opacity: 0;
@@ -490,6 +438,10 @@
     }
   }
 
+  .animate-fade-in {
+    animation: fade-in 0.3s ease-out forwards;
+  }
+
   .animate-fade-in-up {
     opacity: 0;
     transform: translateY(16px);
@@ -498,6 +450,46 @@
 
   .animate-fade-in-scale {
     animation: fade-in-scale 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  /* ========================================
+     PULSE GLOW
+     ======================================== */
+  @keyframes pulse-glow {
+    0%,
+    100% {
+      box-shadow: 0 0 20px oklch(0.62 0.19 260 / 0.3);
+    }
+    50% {
+      box-shadow: 0 0 35px oklch(0.62 0.19 260 / 0.5);
+    }
+  }
+
+  .animate-pulse-glow {
+    animation: pulse-glow 2.5s ease-in-out infinite;
+  }
+
+  /* ========================================
+     SHIMMER
+     ======================================== */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      oklch(0.24 0.02 260) 0%,
+      oklch(0.32 0.02 260) 50%,
+      oklch(0.24 0.02 260) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s ease-in-out infinite;
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
   }
 
   /* ========================================
@@ -534,86 +526,25 @@
   }
 
   /* ========================================
-     BUTTON ENHANCEMENTS
+     PROGRESS BAR
      ======================================== */
-  .btn-glow {
-    position: relative;
-    overflow: hidden;
+  .progress-bar {
+    @apply h-[1.5px] w-full rounded-full bg-muted;
   }
 
-  .btn-glow::before {
-    content: "";
-    position: absolute;
-    inset: 0;
+  .progress-fill {
+    @apply h-full rounded-full;
     background: linear-gradient(
-      90deg,
-      transparent,
-      oklch(1 0 0 / 0.1),
-      transparent
+      135deg,
+      oklch(0.62 0.19 260),
+      oklch(0.7 0.17 260)
     );
-    transform: translateX(-100%);
-    transition: transform 0.5s ease;
-  }
-
-  .btn-glow:hover::before {
-    transform: translateX(100%);
   }
 
   /* ========================================
-     STATUS INDICATORS
+     GLOW TEXT
      ======================================== */
-  .status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    position: relative;
-  }
-
-  .status-dot::after {
-    content: "";
-    position: absolute;
-    inset: -2px;
-    border-radius: 50%;
-    background: inherit;
-    opacity: 0.4;
-    animation: status-pulse 2s ease-in-out infinite;
-  }
-
-  @keyframes status-pulse {
-    0%,
-    100% {
-      transform: scale(1);
-      opacity: 0.4;
-    }
-    50% {
-      transform: scale(1.5);
-      opacity: 0;
-    }
-  }
-
-  /* ========================================
-     GRID PATTERN OVERLAY
-     ======================================== */
-  .grid-pattern {
-    background-image: linear-gradient(oklch(1 0 0 / 0.02) 1px, transparent 1px),
-      linear-gradient(90deg, oklch(1 0 0 / 0.02) 1px, transparent 1px);
-    background-size: 40px 40px;
-  }
-
-  /* ========================================
-     NOISE TEXTURE
-     ======================================== */
-  .noise {
-    position: relative;
-  }
-
-  .noise::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%' height='100%' filter='url(%23noise)'/%3E%3C/svg%3E");
-    opacity: 0.025;
-    pointer-events: none;
-    mix-blend-mode: overlay;
+  .glow-text {
+    text-shadow: 0 0 20px oklch(0.62 0.19 260 / 0.5);
   }
 }
