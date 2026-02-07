@@ -1,5 +1,4 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Clock } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
 interface Activity {
@@ -15,33 +14,30 @@ interface RecentActivityProps {
 
 export function RecentActivity({ activities }: RecentActivityProps) {
   return (
-    <Card className="border-border/50 bg-card/80 backdrop-blur-sm h-full">
-      <CardHeader className="pb-4">
-        <CardTitle className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          <Clock className="h-4 w-4" />
+    <Card className="card-terminal" data-testid="recent-activity">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
           Recent Activity
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         {activities.length === 0 ? (
-          <p className="text-center text-muted-foreground py-8">
+          <p className="py-8 text-center text-muted-foreground">
             No recent activity
           </p>
         ) : (
           activities.map((activity) => (
             <div
               key={activity.id}
-              className="flex items-start justify-between p-3 rounded-xl bg-muted/30 ring-1 ring-border/30 transition-colors hover:bg-muted/50"
+              className="flex items-center justify-between border-b border-border py-2 last:border-0"
             >
-              <div className="space-y-0.5">
-                <p className="text-sm font-medium text-foreground">
-                  {activity.title}
-                </p>
+              <div>
+                <p className="text-sm">{activity.title}</p>
                 <p className="text-xs text-muted-foreground">
                   {activity.subtitle}
                 </p>
               </div>
-              <span className="text-xs text-muted-foreground whitespace-nowrap ml-4">
+              <span className="ml-4 whitespace-nowrap font-mono text-xs text-muted-foreground">
                 {formatDistanceToNow(new Date(activity.timestamp), {
                   addSuffix: true,
                 })}
