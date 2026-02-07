@@ -57,6 +57,7 @@ interface Stats {
 
 type CategoryFilter = 'all' | 'internal' | 'external'
 type DirectionFilter = 'all' | 'deposit' | 'withdrawal'
+type TimeRange = '1D' | '7D' | '30D'
 
 interface FundAllocationViewProps {
   clients: Client[]
@@ -92,10 +93,20 @@ export function FundAllocationView({
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all')
   const [directionFilter, setDirectionFilter] =
     useState<DirectionFilter>('all')
+  const [timeRange, setTimeRange] = useState<TimeRange>('1D')
 
   // Filter movements
   const filteredMovements = useMemo(() => {
     let result = movements
+
+    // Time range filter
+    const now = new Date()
+    const cutoff = new Date(now)
+    if (timeRange === '1D') cutoff.setDate(cutoff.getDate() - 1)
+    else if (timeRange === '7D') cutoff.setDate(cutoff.getDate() - 7)
+    else cutoff.setDate(cutoff.getDate() - 30)
+    result = result.filter((m) => new Date(m.createdAt) >= cutoff)
+
     if (categoryFilter !== 'all') {
       result = result.filter((m) => m.type === categoryFilter)
     }
@@ -109,7 +120,7 @@ export function FundAllocationView({
       })
     }
     return result
-  }, [movements, categoryFilter, directionFilter])
+  }, [movements, categoryFilter, directionFilter, timeRange])
 
   const handlePlatformClick = (platform: string) => {
     setSelectedPlatform(platform)
@@ -216,7 +227,7 @@ export function FundAllocationView({
               </div>
               <div>
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                  External (Today)
+                  External ({timeRange === '1D' ? 'Today' : timeRange === '7D' ? 'This Week' : 'This Month'})
                 </p>
                 <p className="font-mono text-sm font-semibold">
                   ${stats.externalTotal.toLocaleString()}
@@ -234,7 +245,7 @@ export function FundAllocationView({
               </div>
               <div>
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                  Int. Deposits (Today)
+                  Int. Deposits ({timeRange === '1D' ? 'Today' : timeRange === '7D' ? 'This Week' : 'This Month'})
                 </p>
                 <p className="font-mono text-sm font-semibold">
                   ${stats.internalDeposits.toLocaleString()}
@@ -252,7 +263,7 @@ export function FundAllocationView({
               </div>
               <div>
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                  Int. Withdrawals (Today)
+                  Int. Withdrawals ({timeRange === '1D' ? 'Today' : timeRange === '7D' ? 'This Week' : 'This Month'})
                 </p>
                 <p className="font-mono text-sm font-semibold">$0</p>
               </div>
@@ -383,6 +394,26 @@ export function FundAllocationView({
                     </button>
                   </div>
                 )}
+              </div>
+
+              {/* Time Range Pills */}
+              <div className="flex overflow-hidden rounded-lg border border-border">
+                {(['1D', '7D', '30D'] as const).map((range) => (
+                  <button
+                    key={range}
+                    onClick={() => setTimeRange(range)}
+                    className={cn(
+                      'px-3 py-1.5 text-xs font-medium transition-colors',
+                      range !== '1D' && 'border-l border-border',
+                      timeRange === range
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-transparent text-muted-foreground hover:bg-muted/50',
+                    )}
+                    data-testid={`filter-time-${range.toLowerCase()}`}
+                  >
+                    {range}
+                  </button>
+                ))}
               </div>
             </div>
           </CardHeader>
