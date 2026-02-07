@@ -11,8 +11,9 @@
 @theme inline {
   /* Typography */
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo,
-    Monaco, Consolas, monospace;
+  --font-mono:
+    var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, monospace;
 
   /* Color System */
   --color-background: var(--background);
@@ -178,11 +179,7 @@
 
   body {
     @apply bg-background text-foreground;
-    font-feature-settings:
-      'cv02',
-      'cv03',
-      'cv04',
-      'cv11';
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   }
 
   html {
@@ -223,14 +220,20 @@
   /* ========================================
      CARD VARIANTS (Lovable patterns)
      ======================================== */
-
-  /* Lovable's card-terminal: hover-glow card */
+  /* Lovable's card-terminal: hover-glow card with p-4 padding */
   .card-terminal {
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: var(--radius);
+    padding: 1rem;
     box-shadow: var(--shadow-card);
     transition: all 0.2s ease;
+  }
+
+  /* When card-terminal is on a shadcn Card, override its default py-6/gap-6 */
+  .card-terminal[data-slot='card'] {
+    padding: 0;
+    gap: 0;
   }
 
   .card-terminal:hover {
@@ -284,6 +287,10 @@
   .status-blocked,
   .status-rejected {
     @apply bg-destructive/20 text-destructive;
+  }
+
+  .status-aborted {
+    @apply bg-muted text-muted-foreground;
   }
 
   /* ========================================
