@@ -631,37 +631,179 @@ export async function getPhoneStats() {
 // Client Settlement Data
 // ==========================================
 
-export async function getClientsForSettlement() {
-  const clients = await prisma.client.findMany({
-    where: {
-      intakeStatus: IntakeStatus.APPROVED,
-    },
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      earnings: {
-        select: {
-          amount: true,
-          status: true,
-        },
-      },
-    },
-    orderBy: { lastName: 'asc' },
-  })
+export interface SettlementClient {
+  id: string
+  name: string
+  totalDeposited: number
+  totalWithdrawn: number
+  netBalance: number
+  platforms: {
+    name: string
+    deposited: number
+    withdrawn: number
+  }[]
+  recentTransactions: {
+    id: string
+    date: string
+    type: 'deposit' | 'withdrawal'
+    amount: number
+    platform: string
+    status: string
+  }[]
+}
 
-  return clients.map((c) => {
-    const deposits = c.earnings
-      .filter((e) => e.status === 'paid')
-      .reduce((sum, e) => sum + Number(e.amount), 0)
-    const withdrawals = 0 // Would need withdrawal tracking
+export async function getClientsForSettlement(): Promise<SettlementClient[]> {
+  // Fetch clients that are APPROVED or have any fund movements
+  const [approvedClients, allMovements] = await Promise.all([
+    prisma.client.findMany({
+      where: { intakeStatus: IntakeStatus.APPROVED },
+      select: { id: true, firstName: true, lastName: true },
+      orderBy: { lastName: 'asc' },
+    }),
+    prisma.fundMovement.findMany({
+      select: {
+        id: true,
+        fromClientId: true,
+        toClientId: true,
+        fromPlatform: true,
+        toPlatform: true,
+        amount: true,
+        status: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    }),
+  ])
+
+  // Build a set of all client IDs that have fund movements
+  const clientIdsWithMovements = new Set<string>()
+  for (const m of allMovements) {
+    if (m.fromClientId) clientIdsWithMovements.add(m.fromClientId)
+    if (m.toClientId) clientIdsWithMovements.add(m.toClientId)
+  }
+
+  // Merge: approved clients + any clients with movements not already in the approved list
+  const approvedIds = new Set(approvedClients.map((c) => c.id))
+  const extraClientIds = [...clientIdsWithMovements].filter((id) => !approvedIds.has(id))
+
+  let extraClients: { id: string; firstName: string; lastName: string }[] = []
+  if (extraClientIds.length > 0) {
+    extraClients = await prisma.client.findMany({
+      where: { id: { in: extraClientIds } },
+      select: { id: true, firstName: true, lastName: true },
+      orderBy: { lastName: 'asc' },
+    })
+  }
+
+  const allClients = [...approvedClients, ...extraClients]
+
+  // Group movements by client
+  return allClients.map((client) => {
+    const platformTotals = new Map<string, { deposited: number; withdrawn: number }>()
+
+    // Transactions for this client (both deposit and withdrawal entries)
+    const transactions: {
+      id: string
+      date: string
+      type: 'deposit' | 'withdrawal'
+      amount: number
+      platform: string
+      status: string
+      createdAt: Date
+    }[] = []
+
+    for (const m of allMovements) {
+      const amount = Number(m.amount)
+
+      // Deposit: money coming INTO this client
+      if (m.toClientId === client.id) {
+        const platform = m.toPlatform
+        const entry = platformTotals.get(platform) || { deposited: 0, withdrawn: 0 }
+        entry.deposited += amount
+        platformTotals.set(platform, entry)
+
+        transactions.push({
+          id: m.id,
+          date: formatSettlementDate(m.createdAt),
+          type: 'deposit',
+          amount,
+          platform,
+          status: m.status,
+          createdAt: m.createdAt,
+        })
+      }
+
+      // Withdrawal: money going OUT OF this client
+      if (m.fromClientId === client.id) {
+        const platform = m.fromPlatform
+        const entry = platformTotals.get(platform) || { deposited: 0, withdrawn: 0 }
+        entry.withdrawn += amount
+        platformTotals.set(platform, entry)
+
+        // Avoid duplicate transaction entry for same-client transfers
+        if (m.toClientId !== client.id) {
+          transactions.push({
+            id: m.id,
+            date: formatSettlementDate(m.createdAt),
+            type: 'withdrawal',
+            amount,
+            platform,
+            status: m.status,
+            createdAt: m.createdAt,
+          })
+        } else {
+          // Same-client transfer: add as a separate withdrawal entry with different id suffix
+          transactions.push({
+            id: `${m.id}-w`,
+            date: formatSettlementDate(m.createdAt),
+            type: 'withdrawal',
+            amount,
+            platform,
+            status: m.status,
+            createdAt: m.createdAt,
+          })
+        }
+      }
+    }
+
+    const totalDeposited = [...platformTotals.values()].reduce(
+      (sum, p) => sum + p.deposited,
+      0
+    )
+    const totalWithdrawn = [...platformTotals.values()].reduce(
+      (sum, p) => sum + p.withdrawn,
+      0
+    )
+
+    // Sort transactions by date desc, limit to 20
+    transactions.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    const recentTransactions = transactions.slice(0, 20).map(({ createdAt: _, ...rest }) => rest)
+
+    const platforms = [...platformTotals.entries()]
+      .map(([name, totals]) => ({
+        name,
+        deposited: totals.deposited,
+        withdrawn: totals.withdrawn,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name))
 
     return {
-      id: c.id,
-      name: `${c.firstName} ${c.lastName}`,
-      deposits,
-      withdrawals,
+      id: client.id,
+      name: `${client.firstName} ${client.lastName}`,
+      totalDeposited,
+      totalWithdrawn,
+      netBalance: totalDeposited - totalWithdrawn,
+      platforms,
+      recentTransactions,
     }
+  })
+}
+
+function formatSettlementDate(date: Date): string {
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
   })
 }
 
