@@ -1,4 +1,5 @@
 import { LocalStorage } from './local'
+import { VercelBlobStorage } from './vercel-blob'
 import type { StorageProvider, StorageConfig, StorageProviderType } from './types'
 
 export type { StorageProvider, UploadResult, StorageConfig, StorageProviderType } from './types'
@@ -28,11 +29,14 @@ function createStorageProvider(config: StorageConfig): StorageProvider {
     case 'local':
       return new LocalStorage(config.localPath)
 
+    case 'vercel-blob':
+      return new VercelBlobStorage()
+
     case 's3':
     case 'r2':
       // TODO: Implement S3Storage when needed
       // return new S3Storage(config)
-      throw new Error(`Storage provider "${config.provider}" not yet implemented. Use 'local' for now.`)
+      throw new Error(`Storage provider "${config.provider}" not yet implemented.`)
 
     default:
       throw new Error(`Unknown storage provider: ${config.provider}`)

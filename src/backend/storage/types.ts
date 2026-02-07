@@ -52,7 +52,7 @@ export interface StorageProvider {
 }
 
 /** Supported storage providers */
-export type StorageProviderType = 'local' | 's3' | 'r2'
+export type StorageProviderType = 'local' | 'vercel-blob' | 's3' | 'r2'
 
 /** Storage configuration from environment */
 export interface StorageConfig {

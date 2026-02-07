@@ -16,6 +16,7 @@
     "@hookform/resolvers": "^5.2.2",
     "@prisma/adapter-pg": "^7.3.0",
     "@radix-ui/react-hover-card": "^1.1.15",
+    "@vercel/blob": "^2.2.0",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
