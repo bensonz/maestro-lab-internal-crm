@@ -1,6 +1,7 @@
 import { auth } from '@/backend/auth'
 import prisma from '@/backend/prisma/client'
 import { ClientForm } from './_components/client-form'
+import { DraftSelector } from './_components/draft-selector'
 import { FileText } from 'lucide-react'
 
 interface Props {
@@ -13,10 +14,17 @@ export default async function NewClientPage({ searchParams }: Props) {
 
   let initialData: Record<string, string> | null = null
 
+  // Fetch all drafts for this agent (for the selector)
+  const drafts = session?.user?.id
+    ? await prisma.applicationDraft.findMany({
+        where: { agentId: session.user.id },
+        orderBy: { updatedAt: 'desc' },
+        select: { id: true, formData: true, updatedAt: true },
+      })
+    : []
+
   if (draftId && session?.user?.id) {
-    const draft = await prisma.applicationDraft.findFirst({
-      where: { id: draftId, agentId: session.user.id },
-    })
+    const draft = drafts.find((d) => d.id === draftId)
     if (draft) {
       initialData = draft.formData as Record<string, string>
     }
@@ -31,7 +39,7 @@ export default async function NewClientPage({ searchParams }: Props) {
             <FileText className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
               {draftId ? 'Continue Application' : 'Start Your Application'}
             </h1>
             <p className="text-sm text-muted-foreground">
@@ -40,6 +48,15 @@ export default async function NewClientPage({ searchParams }: Props) {
           </div>
         </div>
       </div>
+
+      {/* Draft Selector */}
+      <DraftSelector
+        drafts={drafts.map((d) => ({
+          ...d,
+          formData: d.formData as Record<string, string>,
+        }))}
+        currentDraftId={draftId}
+      />
 
       <ClientForm initialData={initialData} draftId={draftId} />
     </div>
