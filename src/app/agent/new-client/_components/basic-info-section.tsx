@@ -1,6 +1,5 @@
 'use client'
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
@@ -30,31 +29,21 @@ export function BasicInfoSection({
   defaultValues = {},
 }: BasicInfoSectionProps) {
   return (
-    <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
-      <CardHeader className="pb-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="text-lg font-semibold text-foreground">
-              Basic Information
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              {isIdConfirmed
-                ? 'ID-verified fields are locked. Phone and email can be edited.'
-                : 'Upload ID above to auto-fill, or enter manually.'}
-            </p>
-          </div>
-          {isIdConfirmed && (
-            <Badge
-              variant="outline"
-              className="border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400"
-            >
-              <Lock className="mr-1 h-3 w-3" />
-              Locked from ID
-            </Badge>
-          )}
+    <div className="space-y-5">
+      {isIdConfirmed && (
+        <div className="flex items-center gap-2">
+          <Badge
+            variant="outline"
+            className="border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+          >
+            <Lock className="mr-1 h-3 w-3" />
+            Locked from ID
+          </Badge>
+          <span className="text-xs text-muted-foreground">
+            ID-verified fields are locked
+          </span>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-5">
+      )}
         {/* Name Fields */}
         <div className="grid gap-5 sm:grid-cols-3">
           <div className="space-y-2">
@@ -173,7 +162,6 @@ export function BasicInfoSection({
             <FormError errors={errors?.email} />
           </div>
         </div>
-      </CardContent>
-    </Card>
+    </div>
   )
 }

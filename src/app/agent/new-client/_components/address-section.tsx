@@ -1,11 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
-import { MapPin } from 'lucide-react'
 
 interface AddressSectionProps {
   errors?: Record<string, string[]>
@@ -36,23 +34,7 @@ export function AddressSection({
   )
 
   return (
-    <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
-      <CardHeader className="pb-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-linear-to-br from-primary/20 to-chart-3/20 ring-1 ring-primary/20">
-            <MapPin className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <CardTitle className="text-lg font-semibold text-foreground">
-              Address Information
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Primary and secondary addresses for the client
-            </p>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-6">
+    <div className="space-y-6">
         {/* Primary Address */}
         <div className="space-y-4">
           <p className="text-sm font-medium text-foreground">Primary Address</p>
@@ -211,7 +193,6 @@ export function AddressSection({
             </div>
           </div>
         )}
-      </CardContent>
-    </Card>
+    </div>
   )
 }

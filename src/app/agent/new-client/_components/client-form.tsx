@@ -8,75 +8,24 @@ import {
   useRef,
   useTransition,
 } from 'react'
-import { useFormStatus } from 'react-dom'
 import { createClient, ActionState } from '@/app/actions/clients'
-import { saveDraft, DraftActionState } from '@/app/actions/drafts'
-import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
-import { Loader2, ArrowRight, Save } from 'lucide-react'
+import { saveDraft } from '@/app/actions/drafts'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 
+import { StatusHeader } from './status-header'
+import { StepCard } from './step-card'
+import { DecisionPanel } from './decision-panel'
 import { IdUploadSection } from './id-upload-section'
 import { BasicInfoSection } from './basic-info-section'
 import { AddressSection } from './address-section'
 import { ComplianceGroups } from './compliance-groups'
-import { ClientSourceSection } from './client-source-section'
-import { ComplianceSummary } from './compliance-summary'
-import { AgentConfirmation } from './agent-confirmation'
 
-function SubmitButton() {
-  const { pending } = useFormStatus()
-  return (
-    <Button
-      type="submit"
-      disabled={pending}
-      className="btn-glow group h-12 w-full rounded-xl bg-primary text-primary-foreground font-semibold shadow-lg shadow-primary/30 transition-all duration-300 hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/40 disabled:opacity-50"
-    >
-      {pending ? (
-        <>
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          Submitting...
-        </>
-      ) : (
-        <>
-          Submit & Start Application
-          <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
-        </>
-      )}
-    </Button>
-  )
-}
+type StepStatus = 'complete' | 'pending' | 'blocked' | 'not-started'
 
-function SaveDraftButton({
-  onSave,
-  isSaving,
-}: {
-  onSave: () => void
-  isSaving: boolean
-}) {
-  return (
-    <Button
-      type="button"
-      variant="outline"
-      disabled={isSaving}
-      onClick={onSave}
-      className="h-12 w-full rounded-xl"
-    >
-      {isSaving ? (
-        <>
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          Saving...
-        </>
-      ) : (
-        <>
-          <Save className="mr-2 h-4 w-4" />
-          Save Draft
-        </>
-      )}
-    </Button>
-  )
+interface AgeFlag {
+  message: string
+  severity: 'high-risk' | 'review'
 }
 
 interface ExtractedIdData {
@@ -139,6 +88,7 @@ export function ClientForm({ initialData, draftId }: ClientFormProps) {
   const [isIdConfirmed, setIsIdConfirmed] = useState(
     parsedQuestionnaire?.idVerified ?? false,
   )
+  const [idUploaded, setIdUploaded] = useState(!!initialData?.firstName)
   const [extractedData, setExtractedData] = useState<ExtractedIdData | null>(
     initialData
       ? {
@@ -154,6 +104,7 @@ export function ClientForm({ initialData, draftId }: ClientFormProps) {
         }
       : null,
   )
+  const [overriddenFields, setOverriddenFields] = useState<string[]>([])
 
   // Compliance data state
   const [complianceData, setComplianceData] = useState<ComplianceData>({
@@ -184,8 +135,56 @@ export function ClientForm({ initialData, draftId }: ClientFormProps) {
   // Agent confirmation state
   const [agentConfirms, setAgentConfirms] = useState(false)
 
+  // Decision panel state
+  const [decisionPanelOpen, setDecisionPanelOpen] = useState(false)
+
+  // Age flag state
+  const [ageFlag, setAgeFlag] = useState<AgeFlag | null>(null)
+
   // Form ref for preserving values
   const formRef = useRef<HTMLFormElement>(null)
+
+  // Age compliance check
+  useEffect(() => {
+    const dob = extractedData?.dateOfBirth
+    if (dob) {
+      const birthDate = new Date(dob)
+      const today = new Date()
+      const age = Math.floor(
+        (today.getTime() - birthDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000),
+      )
+
+      const twentyFirstBirthday = new Date(birthDate)
+      twentyFirstBirthday.setFullYear(twentyFirstBirthday.getFullYear() + 21)
+
+      const sixtyDaysAgo = new Date()
+      sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60)
+
+      if (age < 21) {
+        setAgeFlag({
+          message: 'HIGH-RISK: Client is under 21 — not eligible',
+          severity: 'high-risk',
+        })
+      } else if (
+        twentyFirstBirthday >= sixtyDaysAgo &&
+        twentyFirstBirthday <= today
+      ) {
+        setAgeFlag({
+          message: 'REVIEW: Client turned 21 within last 30–60 days',
+          severity: 'review',
+        })
+      } else if (age >= 75) {
+        setAgeFlag({
+          message: 'REVIEW: Client is 75+ — compliance notes required',
+          severity: 'review',
+        })
+      } else {
+        setAgeFlag(null)
+      }
+    } else {
+      setAgeFlag(null)
+    }
+  }, [extractedData?.dateOfBirth])
 
   // Show toast on validation errors
   useEffect(() => {
@@ -218,30 +217,10 @@ export function ClientForm({ initialData, draftId }: ClientFormProps) {
     })
   }, [draftId])
 
-  // Calculate age from DOB
-  const calculateAge = (dob: string): number | null => {
-    if (!dob) return null
-    const birthDate = new Date(dob)
-    const today = new Date()
-    let age = today.getFullYear() - birthDate.getFullYear()
-    const monthDiff = today.getMonth() - birthDate.getMonth()
-    if (
-      monthDiff < 0 ||
-      (monthDiff === 0 && today.getDate() < birthDate.getDate())
-    ) {
-      age--
-    }
-    return age
-  }
-
-  const age = extractedData?.dateOfBirth
-    ? calculateAge(extractedData.dateOfBirth)
-    : null
-  const isAgeCompliant = age !== null ? age >= 21 : null
-
   // Handlers
   const handleIdDataExtracted = useCallback((data: ExtractedIdData) => {
     setExtractedData(data)
+    setIdUploaded(true)
   }, [])
 
   const handleIdConfirm = useCallback(() => {
@@ -252,9 +231,103 @@ export function ClientForm({ initialData, draftId }: ClientFormProps) {
     setComplianceData(data)
   }, [])
 
-  const handleClientSourceChange = useCallback((data: ClientSourceData) => {
-    setClientSourceData(data)
-  }, [])
+  const handleClientSourceFieldChange = useCallback(
+    (field: keyof ClientSourceData, value: string) => {
+      setClientSourceData((prev) => {
+        const updated = { ...prev, [field]: value }
+        return updated
+      })
+    },
+    [],
+  )
+
+  // Step status computation (matching Lovable's computeSteps)
+  const computeSteps = (): { status: StepStatus; missingItems: string[] }[] => {
+    // Step 1: Identity
+    const step1Status: StepStatus = isIdConfirmed
+      ? 'complete'
+      : idUploaded
+        ? 'pending'
+        : 'not-started'
+    const step1Missing: string[] = []
+    if (!idUploaded) step1Missing.push('Upload ID')
+    else if (!isIdConfirmed) step1Missing.push('Confirm ID data')
+
+    // Step 2: Basic Info
+    const hasName = extractedData?.firstName && extractedData?.lastName
+    const step2Status: StepStatus =
+      ageFlag?.severity === 'high-risk'
+        ? 'blocked'
+        : hasName && extractedData?.dateOfBirth
+          ? 'complete'
+          : 'pending'
+    const step2Missing: string[] = []
+    if (!hasName) step2Missing.push('Name required')
+    if (!extractedData?.dateOfBirth) step2Missing.push('DOB required')
+    if (ageFlag?.severity === 'high-risk') step2Missing.push('Under 21')
+
+    // Step 3: Address
+    const hasPrimary =
+      extractedData?.address &&
+      extractedData?.city &&
+      extractedData?.state &&
+      extractedData?.zip
+    const step3Status: StepStatus = hasPrimary ? 'complete' : 'pending'
+    const step3Missing: string[] = []
+    if (!hasPrimary) step3Missing.push('Primary address required')
+
+    // Step 4: Compliance
+    const hasRecord = complianceData.hasCriminalRecord !== ''
+    const hasId = complianceData.idType !== ''
+    const hasPayPal = complianceData.hasPayPal !== ''
+    const hasBetting = complianceData.hasBettingHistory !== ''
+    const step4Status: StepStatus =
+      complianceData.hasCriminalRecord === 'yes'
+        ? 'blocked'
+        : hasRecord && hasId && hasPayPal && hasBetting
+          ? 'complete'
+          : 'pending'
+    const step4Missing: string[] = []
+    if (!hasRecord) step4Missing.push('Criminal record')
+    if (!hasId) step4Missing.push('ID type')
+    if (!hasPayPal) step4Missing.push('PayPal status')
+    if (!hasBetting) step4Missing.push('Betting history')
+    if (complianceData.hasCriminalRecord === 'yes')
+      step4Missing.push('Criminal record blocks submission')
+
+    return [
+      { status: step1Status, missingItems: step1Missing },
+      { status: step2Status, missingItems: step2Missing },
+      { status: step3Status, missingItems: step3Missing },
+      { status: step4Status, missingItems: step4Missing },
+    ]
+  }
+
+  const steps = computeSteps()
+
+  // Overall status
+  const getOverallStatus = () => {
+    if (steps.some((s) => s.status === 'blocked')) return 'Blocked'
+    const completed = steps.filter((s) => s.status === 'complete').length
+    if (completed === steps.length) return 'Ready for Review'
+    if (completed > 0) return 'In Progress'
+    return 'Pending ID'
+  }
+
+  const getRiskLevel = (): 'low' | 'medium' | 'high' => {
+    if (
+      ageFlag?.severity === 'high-risk' ||
+      complianceData.hasCriminalRecord === 'yes'
+    )
+      return 'high'
+    if (
+      ageFlag ||
+      complianceData.hasCriminalRecord === 'prefer-not' ||
+      overriddenFields.length > 0
+    )
+      return 'medium'
+    return 'low'
+  }
 
   // Combine all questionnaire data into JSON
   const questionnaireJson = JSON.stringify({
@@ -265,169 +338,173 @@ export function ClientForm({ initialData, draftId }: ClientFormProps) {
   })
 
   return (
-    <form ref={formRef} action={formAction}>
-      {/* Hidden fields */}
-      <input type="hidden" name="questionnaire" value={questionnaireJson} />
-      {draftId && <input type="hidden" name="draftId" value={draftId} />}
+    <>
+      {/* Sticky Status Header */}
+      <StatusHeader
+        clientName={
+          extractedData?.firstName && extractedData?.lastName
+            ? `${extractedData.firstName} ${extractedData.lastName}`
+            : ''
+        }
+        overallStatus={getOverallStatus()}
+        riskLevel={getRiskLevel()}
+        lastAction={
+          isIdConfirmed
+            ? 'ID confirmed'
+            : idUploaded
+              ? 'ID uploaded'
+              : 'No actions yet'
+        }
+        steps={steps}
+        onSubmit={() => formRef.current?.requestSubmit()}
+        submitDisabled={!agentConfirms}
+        onSaveDraft={handleSaveDraft}
+        isSaving={isSavingDraft}
+      />
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Left Column - ID, Basic Info, Address */}
-        <div className="space-y-6">
-          {/* ID Upload & Verification */}
-          <div className="animate-fade-in-up">
-            <IdUploadSection
-              onDataExtracted={handleIdDataExtracted}
-              onConfirm={handleIdConfirm}
-              isConfirmed={isIdConfirmed}
-            />
-          </div>
+      {/* Main Content */}
+      <div
+        className={`transition-all ${decisionPanelOpen ? 'mr-[380px]' : ''}`}
+      >
+        <form ref={formRef} action={formAction}>
+          {/* Hidden fields */}
+          <input
+            type="hidden"
+            name="questionnaire"
+            value={questionnaireJson}
+          />
+          <input
+            type="hidden"
+            name="agentConfirmsSuitable"
+            value={agentConfirms ? 'true' : 'false'}
+          />
+          {draftId && <input type="hidden" name="draftId" value={draftId} />}
 
-          {/* Basic Information */}
-          <div
-            className="animate-fade-in-up"
-            style={{ animationDelay: '0.05s' }}
-          >
-            <BasicInfoSection
-              isIdConfirmed={isIdConfirmed}
-              errors={state.errors}
-              defaultValues={{
-                firstName: extractedData?.firstName ?? initialData?.firstName,
-                middleName:
-                  extractedData?.middleName ?? initialData?.middleName,
-                lastName: extractedData?.lastName ?? initialData?.lastName,
-                dateOfBirth:
-                  extractedData?.dateOfBirth ?? initialData?.dateOfBirth,
-                phone: initialData?.phone,
-                email: initialData?.email,
-              }}
-            />
-          </div>
+          <div className="mx-auto max-w-3xl space-y-4 px-6 py-6">
+            {/* Step 1: Identity */}
+            <StepCard
+              stepNumber={1}
+              title="Identity Verification"
+              status={steps[0].status}
+              missingItems={steps[0].missingItems}
+              defaultOpen={steps[0].status !== 'complete'}
+              onReview={() => setDecisionPanelOpen(true)}
+            >
+              <IdUploadSection
+                onDataExtracted={handleIdDataExtracted}
+                onConfirm={handleIdConfirm}
+                isConfirmed={isIdConfirmed}
+              />
+            </StepCard>
 
-          {/* Address Information */}
-          <div
-            className="animate-fade-in-up"
-            style={{ animationDelay: '0.1s' }}
-          >
-            <AddressSection
-              errors={state.errors}
-              defaultValues={{
-                primaryAddress:
-                  extractedData?.address ?? initialData?.primaryAddress,
-                primaryCity: extractedData?.city ?? initialData?.primaryCity,
-                primaryState: extractedData?.state ?? initialData?.primaryState,
-                primaryZip: extractedData?.zip ?? initialData?.primaryZip,
-                hasSecondAddress: initialData?.hasSecondAddress === 'true',
-                secondaryAddress: initialData?.secondaryAddress,
-                secondaryCity: initialData?.secondaryCity,
-                secondaryState: initialData?.secondaryState,
-                secondaryZip: initialData?.secondaryZip,
-              }}
-            />
-          </div>
-
-          {/* Application Notes */}
-          <Card
-            className="border-border/50 bg-card/80 backdrop-blur-sm animate-fade-in-up"
-            style={{ animationDelay: '0.15s' }}
-          >
-            <CardContent className="pt-6">
-              <div className="space-y-2">
-                <Label
-                  htmlFor="notes"
-                  className="text-sm font-medium text-foreground"
+            {/* Step 2: Basic Info */}
+            <StepCard
+              stepNumber={2}
+              title="Basic Information"
+              status={steps[1].status}
+              missingItems={steps[1].missingItems}
+              defaultOpen={
+                steps[0].status === 'complete' && steps[1].status !== 'complete'
+              }
+              onReview={() => setDecisionPanelOpen(true)}
+            >
+              <BasicInfoSection
+                isIdConfirmed={isIdConfirmed}
+                errors={state.errors}
+                defaultValues={{
+                  firstName:
+                    extractedData?.firstName ?? initialData?.firstName,
+                  middleName:
+                    extractedData?.middleName ?? initialData?.middleName,
+                  lastName:
+                    extractedData?.lastName ?? initialData?.lastName,
+                  dateOfBirth:
+                    extractedData?.dateOfBirth ?? initialData?.dateOfBirth,
+                  phone: initialData?.phone,
+                  email: initialData?.email,
+                }}
+              />
+              {ageFlag && (
+                <div
+                  className={cn(
+                    'mt-3 rounded-lg border p-3 text-sm',
+                    ageFlag.severity === 'high-risk'
+                      ? 'border-destructive/30 bg-destructive/10 text-destructive'
+                      : 'border-warning/30 bg-warning/10 text-warning',
+                  )}
                 >
-                  Application Notes{' '}
-                  <span className="text-muted-foreground text-xs">
-                    (internal)
-                  </span>
-                </Label>
-                <Textarea
-                  id="notes"
-                  name="notes"
-                  defaultValue={initialData?.notes}
-                  className="min-h-[100px] rounded-xl border-border/50 bg-input px-4 py-3 text-foreground placeholder:text-muted-foreground transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 focus:bg-input/80 resize-none"
-                  placeholder="Add any relevant notes about this client..."
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                  {ageFlag.message}
+                </div>
+              )}
+            </StepCard>
 
-        {/* Right Column - Compliance, Source, Summary */}
-        <div className="space-y-6">
-          {/* Compliance Groups */}
-          <div
-            className="animate-fade-in-up"
-            style={{ animationDelay: '0.05s' }}
-          >
-            <ComplianceGroups
-              onChange={handleComplianceChange}
-              defaultValues={complianceData}
-            />
+            {/* Step 3: Address */}
+            <StepCard
+              stepNumber={3}
+              title="Address Information"
+              status={steps[2].status}
+              missingItems={steps[2].missingItems}
+              defaultOpen={
+                steps[1].status === 'complete' && steps[2].status !== 'complete'
+              }
+              onReview={() => setDecisionPanelOpen(true)}
+            >
+              <AddressSection
+                errors={state.errors}
+                defaultValues={{
+                  primaryAddress:
+                    extractedData?.address ?? initialData?.primaryAddress,
+                  primaryCity:
+                    extractedData?.city ?? initialData?.primaryCity,
+                  primaryState:
+                    extractedData?.state ?? initialData?.primaryState,
+                  primaryZip:
+                    extractedData?.zip ?? initialData?.primaryZip,
+                  hasSecondAddress: initialData?.hasSecondAddress === 'true',
+                  secondaryAddress: initialData?.secondaryAddress,
+                  secondaryCity: initialData?.secondaryCity,
+                  secondaryState: initialData?.secondaryState,
+                  secondaryZip: initialData?.secondaryZip,
+                }}
+              />
+            </StepCard>
+
+            {/* Step 4: Compliance */}
+            <StepCard
+              stepNumber={4}
+              title="Compliance & Background"
+              status={steps[3].status}
+              missingItems={steps[3].missingItems}
+              defaultOpen={
+                steps[2].status === 'complete' && steps[3].status !== 'complete'
+              }
+              onReview={() => setDecisionPanelOpen(true)}
+            >
+              <ComplianceGroups
+                onChange={handleComplianceChange}
+                defaultValues={complianceData}
+              />
+            </StepCard>
+
+            {/* Bottom spacing */}
+            <div className="h-8" />
           </div>
-
-          {/* Client Source Section */}
-          <div
-            className="animate-fade-in-up"
-            style={{ animationDelay: '0.1s' }}
-          >
-            <ClientSourceSection
-              onChange={handleClientSourceChange}
-              defaultValues={clientSourceData}
-            />
-          </div>
-
-          {/* Compliance Summary */}
-          <div
-            className="animate-fade-in-up"
-            style={{ animationDelay: '0.15s' }}
-          >
-            <ComplianceSummary
-              isIdVerified={isIdConfirmed}
-              isAgeCompliant={isAgeCompliant}
-              age={age}
-              manualOverridesCount={0}
-              hasCriminalRecord={complianceData.hasCriminalRecord}
-              riskLevel={complianceData.riskLevel}
-            />
-          </div>
-
-          {/* Agent Confirmation */}
-          <div
-            className="animate-fade-in-up"
-            style={{ animationDelay: '0.2s' }}
-          >
-            <AgentConfirmation
-              checked={agentConfirms}
-              onCheckedChange={setAgentConfirms}
-              error={state.errors?.agentConfirmsSuitable?.[0]}
-            />
-          </div>
-
-          {/* Error Message */}
-          {state.message && (
-            <Card className="border-destructive/50 bg-destructive/10 animate-fade-in-up">
-              <CardContent className="py-4">
-                <p className="text-sm font-medium text-destructive">
-                  {state.message}
-                </p>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Action Buttons */}
-          <div
-            className="grid gap-3 sm:grid-cols-2 animate-fade-in-up"
-            style={{ animationDelay: '0.25s' }}
-          >
-            <SaveDraftButton
-              onSave={handleSaveDraft}
-              isSaving={isSavingDraft}
-            />
-            <SubmitButton />
-          </div>
-        </div>
+        </form>
       </div>
-    </form>
+
+      {/* Decision Panel (slide-in) */}
+      <DecisionPanel
+        open={decisionPanelOpen}
+        onClose={() => setDecisionPanelOpen(false)}
+        idConfirmed={isIdConfirmed}
+        ageFlag={ageFlag}
+        overriddenFields={overriddenFields}
+        complianceData={complianceData}
+        clientSourceData={clientSourceData}
+        agentConfirms={agentConfirms}
+        onClientSourceChange={handleClientSourceFieldChange}
+        onAgentConfirmChange={setAgentConfirms}
+      />
+    </>
   )
 }

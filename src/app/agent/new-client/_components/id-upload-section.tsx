@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -137,29 +136,16 @@ export function IdUploadSection({
     : null
 
   return (
-    <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
-      <CardHeader className="pb-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="text-lg font-semibold text-foreground">
-              ID Upload & Verification
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Upload a valid government ID to auto-fill client information
-            </p>
-          </div>
-          {isConfirmed && (
-            <Badge
-              variant="outline"
-              className="border-success/50 bg-success/10 text-success"
-            >
-              <CheckCircle2 className="mr-1 h-3 w-3" />
-              Verified
-            </Badge>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <div className="space-y-4">
+      {isConfirmed && (
+        <Badge
+          variant="outline"
+          className="border-success/50 bg-success/10 text-success"
+        >
+          <CheckCircle2 className="mr-1 h-3 w-3" />
+          Verified
+        </Badge>
+      )}
         {!uploadedFile ? (
           <div
             onDrop={handleDrop}
@@ -321,7 +307,6 @@ export function IdUploadSection({
             )}
           </div>
         )}
-      </CardContent>
-    </Card>
+    </div>
   )
 }

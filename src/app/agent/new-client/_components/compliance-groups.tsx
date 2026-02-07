@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Textarea } from '@/components/ui/textarea'
@@ -76,16 +75,7 @@ export function ComplianceGroups({
   }
 
   return (
-    <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
-      <CardHeader className="pb-4">
-        <CardTitle className="text-lg font-semibold text-foreground">
-          Compliance Questionnaire
-        </CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Complete all sections for compliance review
-        </p>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <div className="space-y-3">
         {/* Group A: Quick Assessment */}
         <Collapsible
           open={openGroups.includes('groupA')}
@@ -473,7 +463,6 @@ export function ComplianceGroups({
             </div>
           </CollapsibleContent>
         </Collapsible>
-      </CardContent>
-    </Card>
+    </div>
   )
 }
