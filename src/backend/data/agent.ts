@@ -150,6 +150,10 @@ export async function getAgentDashboardStats(agentId: string) {
     .filter((e) => e.status === 'paid')
     .reduce((sum, e) => sum + Number(e.amount), 0)
 
+  const pendingPayout = earnings
+    .filter((e) => e.status === 'pending')
+    .reduce((sum, e) => sum + Number(e.amount), 0)
+
   // Calculate previous month earnings for comparison
   const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
   const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0)
@@ -173,6 +177,7 @@ export async function getAgentDashboardStats(agentId: string) {
     completedThisMonth,
     pendingTasks: pendingTodos,
     earnings: totalEarnings,
+    pendingPayout,
     earningsChange: Math.round(earningsChange * 10) / 10,
     inProgressCount,
     pendingApprovalCount,

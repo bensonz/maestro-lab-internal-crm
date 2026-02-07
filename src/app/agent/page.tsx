@@ -143,8 +143,9 @@ export default async function AgentDashboard() {
               </div>
             </div>
             <p className="metric-label mb-1">Pending Payout</p>
-            {/* TODO: wire real pending payout data */}
-            <p className="metric-value">$0</p>
+            <p className="metric-value">
+              ${stats.pendingPayout.toLocaleString()}
+            </p>
           </div>
 
           {/* Monthly Growth */}
@@ -244,12 +245,16 @@ export default async function AgentDashboard() {
               <ListTodo className="h-4 w-4" />
               To-Dos
             </h3>
-            <Link
-              href="/agent/clients"
-              className="text-xs font-mono text-primary transition-colors hover:text-primary/80"
-            >
-              View All →
-            </Link>
+            <span className="text-xs font-mono text-primary">
+              {
+                recentClients.filter(
+                  (c) =>
+                    c.intakeStatus === 'NEEDS_MORE_INFO' ||
+                    c.intakeStatus === 'PENDING_EXTERNAL',
+                ).length
+              }{' '}
+              urgent
+            </span>
           </div>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {recentClients.map((client) => {
@@ -344,9 +349,9 @@ export default async function AgentDashboard() {
       {/* ── Agent Info Footer ── */}
       <section className="border-t border-border pt-4">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span className="font-mono">
-            Total Clients: {stats.totalClients}
-          </span>
+          <span className="font-mono">Agent #{session.user.id.slice(-4)}</span>
+          <span>&bull;</span>
+          <span>Total Clients: {stats.totalClients}</span>
           <span>&bull;</span>
           <span>{stats.pendingTasks} pending tasks</span>
         </div>
