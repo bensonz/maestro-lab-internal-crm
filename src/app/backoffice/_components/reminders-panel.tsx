@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Bell } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 interface Reminder {
   message: string
@@ -13,39 +14,37 @@ interface RemindersPanelProps {
 
 export function RemindersPanel({ reminders }: RemindersPanelProps) {
   return (
-    <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
-      <CardHeader className="pb-4">
-        <CardTitle className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+    <Card className="card-terminal" data-testid="reminders-panel">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-sm font-medium uppercase tracking-wider text-muted-foreground">
           <Bell className="h-4 w-4" />
           Reminders
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         {reminders.length === 0 ? (
-          <p className="text-center text-muted-foreground py-4">No reminders</p>
+          <p className="py-4 text-center text-muted-foreground">
+            No reminders
+          </p>
         ) : (
           reminders.map((reminder, idx) => (
             <div
               key={idx}
-              className={`p-4 rounded-xl ring-1 transition-colors ${
+              className={cn(
+                'rounded-lg border p-3',
                 reminder.isOverdue
-                  ? 'bg-destructive/10 ring-destructive/30'
-                  : 'bg-muted/30 ring-border/30 hover:bg-muted/50'
-              }`}
+                  ? 'border-destructive/30 bg-destructive/5'
+                  : 'border-border bg-muted/20',
+              )}
             >
+              <p className="text-sm">{reminder.message}</p>
               <p
-                className={`text-sm font-medium ${
-                  reminder.isOverdue ? 'text-foreground' : 'text-foreground'
-                }`}
-              >
-                {reminder.message}
-              </p>
-              <p
-                className={`text-xs mt-1 ${
+                className={cn(
+                  'mt-1 font-mono text-xs',
                   reminder.isOverdue
                     ? 'text-destructive'
-                    : 'text-muted-foreground'
-                }`}
+                    : 'text-muted-foreground',
+                )}
               >
                 {reminder.timeLabel}
               </p>
