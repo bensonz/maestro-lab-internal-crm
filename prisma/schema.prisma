@@ -129,6 +129,31 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  // ── Hierarchy ──
+  supervisorId    String?
+  supervisor      User?    @relation("AgentHierarchy", fields: [supervisorId], references: [id])
+  subordinates    User[]   @relation("AgentHierarchy")
+
+  // ── Tier & Star Level ──
+  tier            String   @default("rookie")
+  starLevel       Int      @default(0)
+
+  // ── Profile (for Agent Detail page) ──
+  gender          String?
+  dateOfBirth     DateTime?
+  idNumber        String?
+  idExpiry        DateTime?
+  idDocument      String?
+  ssn             String?
+  citizenship     String?
+  personalEmail   String?
+  personalPhone   String?
+  companyPhone    String?
+  carrier         String?
+  zelle           String?
+  address         String?
+  loginAccount    String?
+
   agentClients      Client[]           @relation("AgentClients")
   assignedToDos     ToDo[]             @relation("AssignedToDos")
   createdToDos      ToDo[]             @relation("CreatedToDos")
@@ -140,6 +165,7 @@ model User {
   extensionReviews  ExtensionRequest[] @relation("ExtensionReviews")
   fundMovements     FundMovement[]
 
+  @@index([supervisorId])
   @@index([role])
   @@index([email])
 }
