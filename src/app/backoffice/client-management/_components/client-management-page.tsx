@@ -26,6 +26,7 @@ function mapIntakeStatusToClientStatus(
       return 'active'
     case 'REJECTED':
     case 'INACTIVE':
+    case 'PARTNERSHIP_ENDED':
       return 'closed'
     case 'NEEDS_MORE_INFO':
     case 'PENDING_EXTERNAL':
@@ -82,6 +83,7 @@ function mapServerClientToClient(serverClient: ServerClientData): Client {
     personalPhone: '\u2014', // TODO: Wire from client model
     startDate: serverClient.start,
     status: mapIntakeStatusToClientStatus(serverClient.intakeStatus),
+    intakeStatus: serverClient.intakeStatus,
     totalFunds: 0, // TODO: Wire to real fund data
     financePlatforms: [
       // TODO: Wire from real platform data

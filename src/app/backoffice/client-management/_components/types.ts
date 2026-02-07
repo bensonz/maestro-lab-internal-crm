@@ -135,6 +135,7 @@ export interface Client {
   startDate: string
   closeDate?: string
   status: ClientStatus
+  intakeStatus?: string
   totalFunds: number
   financePlatforms: FinancePlatform[]
   bettingPlatforms: BettingPlatform[]

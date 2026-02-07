@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils'
 import { EditableField } from './editable-field'
 import { PlatformSection } from './platform-section'
 import { ClientModals } from './client-modals'
+import { CloseClientDialog } from './close-client-dialog'
 import type { Client, ClientStatus, TimelineEvent } from './types'
 
 // ============================================================================
@@ -91,6 +92,7 @@ interface ClientDetailProps {
   allClients: Client[]
   onBack: () => void
   onNavigateToClient: (clientId: string) => void
+  isAdmin?: boolean
 }
 
 export function ClientDetail({
@@ -98,8 +100,10 @@ export function ClientDetail({
   allClients,
   onBack,
   onNavigateToClient,
+  isAdmin = false,
 }: ClientDetailProps) {
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null)
+  const [closeDialogOpen, setCloseDialogOpen] = useState(false)
   const [expandedPlatforms, setExpandedPlatforms] = useState<string[]>([])
   const [showIdModal, setShowIdModal] = useState(false)
   const [showSsnModal, setShowSsnModal] = useState(false)
@@ -170,6 +174,18 @@ export function ClientDetail({
             <Images className="h-3.5 w-3.5" />
             View All Screenshots
           </Button>
+          {client.intakeStatus === 'APPROVED' && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 gap-1.5 text-xs border-destructive/30 text-destructive hover:bg-destructive/10"
+              onClick={() => setCloseDialogOpen(true)}
+              data-testid="close-partnership-btn"
+            >
+              <AlertTriangle className="h-3.5 w-3.5" />
+              Close Partnership
+            </Button>
+          )}
           <Badge className={cn(getStatusColor(client.status))}>
             {client.status.replace('_', ' ')}
           </Badge>
@@ -562,6 +578,15 @@ export function ClientDetail({
         showAllTransactionsModal={showAllTransactionsModal}
         onShowAllTransactionsModalChange={setShowAllTransactionsModal}
         onViewDocument={(url, type) => setShowDocumentModal({ url, type })}
+      />
+
+      {/* Close Partnership Dialog */}
+      <CloseClientDialog
+        open={closeDialogOpen}
+        onOpenChange={setCloseDialogOpen}
+        clientId={client.id}
+        clientName={client.name}
+        isAdmin={isAdmin}
       />
     </div>
   )
