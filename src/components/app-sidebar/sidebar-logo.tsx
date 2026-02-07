@@ -13,8 +13,8 @@ export function SidebarLogo({ variant = 'agent' }: SidebarLogoProps) {
 
   const isAgent = variant === 'agent'
   const Icon = isAgent ? Zap : Shield
-  const title = isAgent ? 'AgentFlow' : 'Back Office'
-  const subtitle = isAgent ? 'Terminal' : 'Admin Panel'
+  const title = 'Maestro L.A.B'
+  const subtitle = isAgent ? 'Agent Portal' : 'Back Office'
   const accentClass = isAgent ? 'text-primary bg-primary/10' : 'text-accent bg-accent/10'
 
   return (

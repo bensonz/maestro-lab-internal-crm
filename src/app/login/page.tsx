@@ -76,7 +76,7 @@ export default function LoginPage() {
             Welcome back
           </h1>
           <p className="mt-3 text-base text-muted-foreground">
-            Sign in to continue to AgentFlow
+            Sign in to continue to Maestro L.A.B
           </p>
         </div>
 

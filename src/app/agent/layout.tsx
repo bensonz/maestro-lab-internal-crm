@@ -30,7 +30,7 @@ export default async function AgentLayout({
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
           <span className="text-sm font-medium text-muted-foreground">
-            Agent Portal
+            Maestro L.A.B — Agent Portal
           </span>
         </header>
         <main className="flex-1 overflow-auto">{children}</main>

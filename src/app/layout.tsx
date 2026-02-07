@@ -7,8 +7,8 @@ import "./globals.css"
 import { cn } from "@/lib/utils"
 
 export const metadata: Metadata = {
-  title: "AgentFlow | CRM & Operations",
-  description: "Client workflow and operations management",
+  title: "Maestro L.A.B | CRM & Operations",
+  description: "Maestro L.A.B internal client workflow and operations management",
 }
 
 export default function RootLayout({
