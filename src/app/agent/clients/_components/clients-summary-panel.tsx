@@ -6,6 +6,7 @@ import {
   AlertCircle,
   CheckCircle2,
   XCircle,
+  Ban,
   Hourglass,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
@@ -17,6 +18,7 @@ export type StatusFilter =
   | 'pendingApproval'
   | 'approved'
   | 'rejected'
+  | 'aborted'
 
 interface ClientsSummaryPanelProps {
   stats: {
@@ -26,6 +28,7 @@ interface ClientsSummaryPanelProps {
     verificationNeeded: number
     approved: number
     rejected: number
+    aborted: number
   }
   activeFilter: StatusFilter | null
   onFilterChange: (filter: StatusFilter | null) => void
@@ -79,6 +82,14 @@ const statusRows: {
     activeClass: 'bg-destructive/10 text-destructive',
     statKey: 'rejected',
   },
+  {
+    key: 'aborted',
+    label: 'Aborted',
+    icon: Ban,
+    colorClass: 'text-muted-foreground',
+    activeClass: 'bg-muted/50 text-foreground',
+    statKey: 'aborted',
+  },
 ]
 
 export function ClientsSummaryPanel({
@@ -86,10 +97,15 @@ export function ClientsSummaryPanel({
   activeFilter,
   onFilterChange,
 }: ClientsSummaryPanelProps) {
-  const totalResolved = stats.approved + stats.rejected
+  const totalResolved = stats.approved + stats.rejected + stats.aborted
   const successRate =
     totalResolved > 0 ? Math.round((stats.approved / totalResolved) * 100) : 0
-  const failureRate = totalResolved > 0 ? 100 - successRate : 0
+  const failureRate =
+    totalResolved > 0
+      ? Math.round(
+          ((stats.rejected + stats.aborted) / totalResolved) * 100,
+        )
+      : 0
 
   return (
     <div
