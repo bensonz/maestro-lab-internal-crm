@@ -113,6 +113,15 @@ enum EventType {
   EXPORT
 }
 
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  INTERNAL_TRANSFER
+  COMMISSION_PAYOUT
+  FEE
+  ADJUSTMENT
+}
+
 // ============================================
 // MODELS
 // ============================================
@@ -170,6 +179,9 @@ model User {
   bonusAllocations    BonusAllocation[]
   leadershipPayouts   LeadershipPayout[]
 
+  // ── Transaction relations ──
+  recordedTransactions Transaction[]     @relation("RecordedTransactions")
+
   @@index([supervisorId])
   @@index([role])
   @@index([email])
@@ -208,6 +220,7 @@ model Client {
   fundMovementsFrom  FundMovement[]   @relation("FundMovementsFrom")
   fundMovementsTo    FundMovement[]   @relation("FundMovementsTo")
   bonusPool          BonusPool?
+  transactions       Transaction[]
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
 
@@ -504,4 +517,36 @@ model LeadershipPayout {
   @@index([agentId])
   @@index([tier])
   @@index([status])
+}
+
+// ── Append-only financial ledger ──
+model Transaction {
+  id              String          @id @default(cuid())
+  type            TransactionType
+  amount          Decimal         @db.Decimal(10, 2)
+  currency        String          @default("USD")
+  status          String          @default("completed")
+
+  clientId        String?
+  client          Client?         @relation(fields: [clientId], references: [id])
+  platformType    PlatformType?
+  fundMovementId  String?
+  bonusPoolId     String?
+
+  description     String?
+  reference       String?
+  documentUrl     String?
+
+  recordedById    String
+  recordedBy      User            @relation("RecordedTransactions", fields: [recordedById], references: [id])
+  metadata        Json?
+
+  createdAt       DateTime        @default(now())
+
+  @@index([clientId])
+  @@index([platformType])
+  @@index([type])
+  @@index([createdAt])
+  @@index([recordedById])
+  @@index([fundMovementId])
 }
