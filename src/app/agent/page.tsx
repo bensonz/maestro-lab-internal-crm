@@ -130,9 +130,7 @@ export default async function AgentDashboard() {
               )}
             </div>
             <p className="metric-label mb-1">Accumulated Revenue</p>
-            <p className="metric-value">
-              ${stats.earnings.toLocaleString()}
-            </p>
+            <p className="metric-value">${stats.earnings.toLocaleString()}</p>
           </div>
 
           {/* Pending Payout */}
@@ -180,9 +178,7 @@ export default async function AgentDashboard() {
 
         {todaysTasks.length === 0 ? (
           <div className="card-terminal flex items-center justify-center py-8">
-            <p className="text-sm text-muted-foreground">
-              No tasks due today
-            </p>
+            <p className="text-sm text-muted-foreground">No tasks due today</p>
           </div>
         ) : (
           <div className="card-terminal space-y-3">
@@ -292,9 +288,7 @@ export default async function AgentDashboard() {
                         )}
                       </div>
                       <div className={cn('status-badge', statusClass)}>
-                        {isBlocked && (
-                          <AlertCircle className="mr-1 h-3 w-3" />
-                        )}
+                        {isBlocked && <AlertCircle className="mr-1 h-3 w-3" />}
                         {isApproved && (
                           <CheckCircle2 className="mr-1 h-3 w-3" />
                         )}
