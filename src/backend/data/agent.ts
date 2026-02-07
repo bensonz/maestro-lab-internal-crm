@@ -80,6 +80,9 @@ export async function getAgentClientStats(agentId: string) {
   const rejected = clients.filter(
     (c) => c.intakeStatus === IntakeStatus.REJECTED,
   ).length
+  const aborted = clients.filter(
+    (c) => c.intakeStatus === IntakeStatus.INACTIVE,
+  ).length
 
   return {
     total,
@@ -88,6 +91,7 @@ export async function getAgentClientStats(agentId: string) {
     verificationNeeded,
     approved,
     rejected,
+    aborted,
   }
 }
 
