@@ -1,5 +1,4 @@
 import { getClientsForSettlement } from '@/backend/data/operations'
-import { ExportCSVButton } from '@/components/export-csv-button'
 import { SettlementView } from './_components/settlement-view'
 
 export default async function ClientSettlementPage() {
@@ -17,10 +16,6 @@ export default async function ClientSettlementPage() {
             View deposits, withdrawals, and platform breakdowns per client
           </p>
         </div>
-        <ExportCSVButton
-          href="/api/export/settlements"
-          data-testid="export-settlements-csv"
-        />
       </div>
 
       {/* Interactive Settlement View */}
