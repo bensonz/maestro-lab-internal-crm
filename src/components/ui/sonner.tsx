@@ -19,12 +19,12 @@ const Toaster = ({ ...props }: ToasterProps) => {
           cancelButton:
             'group-[.toast]:bg-muted group-[.toast]:text-muted-foreground',
           success:
-            'group-[.toaster]:border-chart-4/30 group-[.toaster]:bg-chart-4/5',
+            'group-[.toaster]:border-success/30 group-[.toaster]:bg-success/5',
           error:
             'group-[.toaster]:border-destructive/30 group-[.toaster]:bg-destructive/5',
           info: 'group-[.toaster]:border-primary/30 group-[.toaster]:bg-primary/5',
           warning:
-            'group-[.toaster]:border-accent/30 group-[.toaster]:bg-accent/5',
+            'group-[.toaster]:border-warning/30 group-[.toaster]:bg-warning/5',
         },
       }}
       {...props}

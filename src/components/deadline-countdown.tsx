@@ -54,7 +54,7 @@ function getDeadlineInfo(deadline: Date | string) {
 }
 
 const URGENCY_STYLES: Record<Urgency, string> = {
-  safe: 'bg-chart-4/20 text-chart-4 border-chart-4/30',
+  safe: 'bg-success/20 text-success border-success/30',
   warning: 'bg-yellow-500/20 text-yellow-500 border-yellow-500/30',
   urgent:
     'bg-destructive/20 text-destructive border-destructive/30 animate-pulse',

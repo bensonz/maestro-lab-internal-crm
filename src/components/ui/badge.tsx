@@ -20,9 +20,9 @@ const badgeVariants = cva(
         ghost:
           'border-transparent [a&]:hover:bg-primary/10 [a&]:hover:text-foreground',
         success:
-          'border-transparent bg-chart-4/20 text-chart-4 dark:bg-chart-4/15',
+          'border-transparent bg-success/20 text-success dark:bg-success/15',
         warning:
-          'border-transparent bg-accent/20 text-accent dark:bg-accent/15',
+          'border-transparent bg-warning/20 text-warning dark:bg-warning/15',
         info: 'border-transparent bg-primary/20 text-primary dark:bg-primary/15',
       },
     },

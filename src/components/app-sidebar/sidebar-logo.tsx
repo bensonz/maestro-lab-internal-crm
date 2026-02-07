@@ -17,7 +17,7 @@ export function SidebarLogo({ variant = 'agent' }: SidebarLogoProps) {
   const subtitle = isAgent ? 'Agent Portal' : 'Back Office'
   const accentClass = isAgent
     ? 'text-primary bg-primary/10'
-    : 'text-accent bg-accent/10'
+    : 'text-warning bg-warning/10'
 
   return (
     <div className="flex items-center gap-3 px-2">
