@@ -405,6 +405,28 @@ export async function getClientStats() {
   return { total, active, closed, furtherVerification }
 }
 
+export async function getAllUsers() {
+  const users = await prisma.user.findMany({
+    include: {
+      agentClients: {
+        select: { id: true },
+      },
+    },
+    orderBy: [{ role: 'asc' }, { name: 'asc' }],
+  })
+
+  return users.map((user) => ({
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    phone: user.phone ?? '',
+    isActive: user.isActive,
+    createdAt: formatDate(user.createdAt),
+    clientCount: user.agentClients.length,
+  }))
+}
+
 export async function getAllAgents() {
   const [agents, kpisMap] = await Promise.all([
     prisma.user.findMany({
