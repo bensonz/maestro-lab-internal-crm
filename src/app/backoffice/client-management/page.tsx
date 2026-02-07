@@ -1,5 +1,6 @@
 import { getAllClients, getClientStats } from '@/backend/data/backoffice'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ExportCSVButton } from '@/components/export-csv-button'
 import { ClientList } from './_components/client-list'
 
 export default async function ClientManagementPage() {
@@ -10,7 +11,13 @@ export default async function ClientManagementPage() {
 
   return (
     <div className="p-6 text-white">
-      <h1 className="mb-6 text-2xl font-bold">Client Management</h1>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Client Management</h1>
+        <ExportCSVButton
+          href="/api/export/clients"
+          data-testid="export-clients-csv"
+        />
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-4">
         {/* Stats Sidebar */}
