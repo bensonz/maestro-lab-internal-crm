@@ -1,41 +1,35 @@
-import NextAuth from "next-auth";
-import { NextResponse } from "next/server";
-import { authConfig } from "@/backend/auth.config";
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 
 /**
- * Edge-safe middleware using auth.config.ts (no Prisma/pg imports).
- * This reads the JWT session cookie without hitting the database.
+ * Edge-safe proxy/middleware. No NextAuth or Prisma imports.
+ * Checks for the session cookie to gate access. Actual session
+ * validation happens server-side in layout guards (requireAgent/requireAdmin).
  */
-const { auth } = NextAuth(authConfig);
+export default function proxy(req: NextRequest) {
+  const { pathname } = req.nextUrl
 
-export default auth((req) => {
-  const { pathname } = req.nextUrl;
-  const isLoggedIn = !!req.auth;
+  // Check for session cookie (NextAuth v5 JWT strategy)
+  const hasSession =
+    req.cookies.has('authjs.session-token') ||
+    req.cookies.has('__Secure-authjs.session-token')
 
-  // Public routes
-  if (pathname === "/login") {
-    if (isLoggedIn) {
-      return NextResponse.redirect(new URL("/agent", req.url));
+  // Public routes — let /login through if not logged in
+  if (pathname === '/login') {
+    if (hasSession) {
+      return NextResponse.redirect(new URL('/agent', req.url))
     }
-    return NextResponse.next();
+    return NextResponse.next()
   }
 
-  // Protected routes
-  if (!isLoggedIn) {
-    return NextResponse.redirect(new URL("/login", req.url));
+  // Protected routes — redirect to login if no session cookie
+  if (!hasSession) {
+    return NextResponse.redirect(new URL('/login', req.url))
   }
 
-  // Role-based access for backoffice
-  if (pathname.startsWith("/backoffice")) {
-    const role = req.auth?.user?.role;
-    if (role !== "BACKOFFICE" && role !== "FINANCE" && role !== "ADMIN") {
-      return NextResponse.redirect(new URL("/agent", req.url));
-    }
-  }
-
-  return NextResponse.next();
-});
+  return NextResponse.next()
+}
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
-};
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
+}
