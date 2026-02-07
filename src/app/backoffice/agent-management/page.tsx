@@ -6,6 +6,7 @@ import {
 import { auth } from '@/backend/auth'
 import { redirect } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ExportCSVButton } from '@/components/export-csv-button'
 import { AgentList } from './_components/agent-list'
 import { CreateUserDialog } from './_components/create-user-dialog'
 
@@ -30,7 +31,13 @@ export default async function AgentManagementPage() {
             Monitor agent performance and manage your team
           </p>
         </div>
-        <CreateUserDialog currentUserRole={session.user.role} />
+        <div className="flex items-center gap-2">
+          <ExportCSVButton
+            href="/api/export/agents"
+            data-testid="export-agents-csv"
+          />
+          <CreateUserDialog currentUserRole={session.user.role} />
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-4">
