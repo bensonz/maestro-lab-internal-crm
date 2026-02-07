@@ -1,8 +1,8 @@
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { FileText, ArrowRight } from 'lucide-react'
+import { FileCheck } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 interface PriorityTask {
   id: string
@@ -19,69 +19,69 @@ interface PriorityTasksProps {
 
 export function PriorityTasks({ tasks }: PriorityTasksProps) {
   return (
-    <Card className="border-border/50 bg-card/80 backdrop-blur-sm h-full">
-      <CardHeader className="pb-4">
-        <CardTitle className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          <FileText className="h-4 w-4" />
+    <Card className="card-terminal lg:col-span-2" data-testid="priority-tasks">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-sm font-medium uppercase tracking-wider text-muted-foreground">
+          <FileCheck className="h-4 w-4" />
           Today&apos;s Priority Tasks
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
         {tasks.length === 0 ? (
-          <p className="text-center text-muted-foreground py-8">
+          <p className="py-8 text-center text-muted-foreground">
             No priority tasks for today
           </p>
         ) : (
           tasks.map((task) => (
             <div
               key={task.id}
-              className="flex items-center justify-between p-4 rounded-xl bg-muted/30 ring-1 ring-border/30 transition-colors hover:bg-muted/50"
+              className={cn(
+                'flex items-center justify-between rounded-lg border p-3 transition-all hover:bg-muted/30',
+                task.isUrgent
+                  ? 'border-warning/30 bg-warning/5'
+                  : 'border-border',
+              )}
+              data-testid={`task-${task.id}`}
             >
-              <div className="space-y-1">
+              <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="font-medium text-foreground">
+                  <span className="truncate text-sm font-medium">
                     {task.title}
                   </span>
                   {task.isUrgent && (
-                    <Badge className="bg-warning/20 text-warning border-warning/30 text-xs font-medium">
-                      URGENT
-                    </Badge>
+                    <span className="rounded bg-warning/20 px-1.5 py-0.5 font-mono text-[10px] uppercase text-warning">
+                      Urgent
+                    </span>
                   )}
                 </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="text-muted-foreground">{task.type}</span>
+                <div className="mt-1 flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    {task.type}
+                  </span>
                   {task.clientName && (
                     <>
-                      <span className="text-muted-foreground/50">•</span>
-                      {task.clientId ? (
-                        <Link
-                          href={`/backoffice/clients/${task.clientId}`}
-                          className="text-primary hover:underline"
-                        >
-                          {task.clientName}
-                        </Link>
-                      ) : (
-                        <span className="text-primary">{task.clientName}</span>
-                      )}
+                      <span className="text-muted-foreground">&bull;</span>
+                      <span className="text-xs text-primary">
+                        {task.clientName}
+                      </span>
                     </>
                   )}
                 </div>
               </div>
               <Button
-                variant="ghost"
                 size="sm"
-                className="text-muted-foreground hover:text-foreground"
+                variant="ghost"
+                className="text-xs"
                 asChild
               >
                 <Link
                   href={
                     task.clientId
-                      ? `/backoffice/clients/${task.clientId}`
+                      ? `/backoffice/client-management/${task.clientId}`
                       : '/backoffice/fund-allocation'
                   }
                 >
-                  Review
-                  <ArrowRight className="ml-1 h-4 w-4" />
+                  Review &rarr;
                 </Link>
               </Button>
             </div>
