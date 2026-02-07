@@ -42,10 +42,10 @@ export function TeamDirectoryPanel({
     .filter((group) => group.agents.length > 0)
 
   return (
-    <div className="w-64 shrink-0 border-r border-border/50 bg-card/50 flex flex-col">
+    <div className="w-64 shrink-0 border-r border-sidebar-border bg-sidebar flex flex-col">
       {/* Header */}
       <div className="p-4 border-b border-border/30">
-        <h2 className="font-display text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">
           Team Directory
         </h2>
         <div className="relative">
@@ -95,7 +95,7 @@ export function TeamDirectoryPanel({
                     )}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-accent">
+                      <span className="text-xs text-warning">
                         {'★'.repeat(agent.stars)}
                       </span>
                       <span className="truncate">{agent.name}</span>

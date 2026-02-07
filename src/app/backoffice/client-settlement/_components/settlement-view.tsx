@@ -51,7 +51,7 @@ export function SettlementView({ clients }: SettlementViewProps) {
       <div>
         <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
           <CardHeader>
-            <CardTitle className="font-display text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
               Clients
             </CardTitle>
           </CardHeader>
@@ -101,7 +101,7 @@ export function SettlementView({ clients }: SettlementViewProps) {
                         </span>
                       </div>
                       <div className="flex gap-3 text-xs font-mono">
-                        <span className="text-chart-4">
+                        <span className="text-success">
                           +${client.totalDeposited.toLocaleString()}
                         </span>
                         <span className="text-destructive">
@@ -126,15 +126,15 @@ export function SettlementView({ clients }: SettlementViewProps) {
               {/* Total Deposited */}
               <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
                 <CardContent className="flex items-center gap-3 py-5">
-                  <div className="rounded-xl bg-chart-4/10 p-3 ring-1 ring-chart-4/20">
-                    <ArrowDownRight className="h-5 w-5 text-chart-4" />
+                  <div className="rounded-xl bg-success/10 p-3 ring-1 ring-success/20">
+                    <ArrowDownRight className="h-5 w-5 text-success" />
                   </div>
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">
                       Total Deposited
                     </p>
                     <p
-                      className="text-2xl font-bold tracking-tight font-mono text-chart-4"
+                      className="text-2xl font-bold tracking-tight font-mono text-success"
                       data-testid="total-deposited"
                     >
                       +${selected.totalDeposited.toLocaleString()}
@@ -176,7 +176,7 @@ export function SettlementView({ clients }: SettlementViewProps) {
                     <p
                       className={`text-2xl font-bold tracking-tight font-mono ${
                         selected.netBalance >= 0
-                          ? 'text-chart-4'
+                          ? 'text-success'
                           : 'text-destructive'
                       }`}
                       data-testid="net-balance"
@@ -191,7 +191,7 @@ export function SettlementView({ clients }: SettlementViewProps) {
             {/* Platform Breakdown */}
             <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
               <CardHeader>
-                <CardTitle className="font-display text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                   Platform Breakdown
                 </CardTitle>
               </CardHeader>
@@ -214,7 +214,7 @@ export function SettlementView({ clients }: SettlementViewProps) {
                           </span>
                         </div>
                         <div className="flex items-center gap-4">
-                          <span className="text-xs font-mono text-chart-4">
+                          <span className="text-xs font-mono text-success">
                             +${platform.deposited.toLocaleString()}
                           </span>
                           <span className="text-xs font-mono text-destructive">
@@ -230,7 +230,7 @@ export function SettlementView({ clients }: SettlementViewProps) {
                             <span
                               className={`font-mono font-semibold ${
                                 platform.deposited - platform.withdrawn >= 0
-                                  ? 'text-chart-4'
+                                  ? 'text-success'
                                   : 'text-destructive'
                               }`}
                             >
@@ -251,7 +251,7 @@ export function SettlementView({ clients }: SettlementViewProps) {
             {/* Transaction Timeline */}
             <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
               <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="font-display text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                   Recent Transactions
                 </CardTitle>
                 <div className="flex gap-1">
@@ -288,8 +288,8 @@ export function SettlementView({ clients }: SettlementViewProps) {
                       >
                         <div className="flex items-center gap-3">
                           {tx.type === 'deposit' ? (
-                            <div className="rounded-lg bg-chart-4/10 p-2">
-                              <ArrowDownRight className="h-4 w-4 text-chart-4" />
+                            <div className="rounded-lg bg-success/10 p-2">
+                              <ArrowDownRight className="h-4 w-4 text-success" />
                             </div>
                           ) : (
                             <div className="rounded-lg bg-destructive/10 p-2">
@@ -317,7 +317,7 @@ export function SettlementView({ clients }: SettlementViewProps) {
                           <span
                             className={`text-sm font-semibold font-mono ${
                               tx.type === 'deposit'
-                                ? 'text-chart-4'
+                                ? 'text-success'
                                 : 'text-destructive'
                             }`}
                           >
@@ -328,8 +328,8 @@ export function SettlementView({ clients }: SettlementViewProps) {
                             variant="outline"
                             className={
                               tx.status === 'completed'
-                                ? 'bg-chart-4/10 text-chart-4 border-chart-4/30'
-                                : 'bg-accent/10 text-accent border-accent/30'
+                                ? 'bg-success/10 text-success border-success/30'
+                                : 'bg-warning/10 text-warning border-warning/30'
                             }
                           >
                             {tx.status}

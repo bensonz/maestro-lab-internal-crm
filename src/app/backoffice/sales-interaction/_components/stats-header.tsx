@@ -23,7 +23,7 @@ export function StatsHeader({
       {/* Title and Add Button */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
             Sales Interaction
           </h1>
           <p className="text-sm text-muted-foreground">Operations Console</p>
@@ -44,7 +44,7 @@ export function StatsHeader({
           </span>
         </div>
         <div className="flex items-center gap-2 rounded-full bg-muted/50 px-4 py-2 ring-1 ring-border/30">
-          <UserCheck className="h-4 w-4 text-chart-4" />
+          <UserCheck className="h-4 w-4 text-success" />
           <span className="text-sm text-muted-foreground">Agents</span>
           <span className="font-semibold text-foreground">
             {stats.agentCount}
@@ -58,9 +58,9 @@ export function StatsHeader({
           </span>
         </div>
         <div className="flex items-center gap-2 rounded-full bg-muted/50 px-4 py-2 ring-1 ring-border/30">
-          <Clock className="h-4 w-4 text-accent" />
+          <Clock className="h-4 w-4 text-warning" />
           <span className="text-sm text-muted-foreground">Pending</span>
-          <span className="font-semibold text-accent">
+          <span className="font-semibold text-warning">
             {stats.pendingCount}
           </span>
         </div>

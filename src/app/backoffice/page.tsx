@@ -41,7 +41,7 @@ export default async function BackofficeOverviewPage() {
       {/* Header */}
       <div className="flex items-start justify-between animate-fade-in-up">
         <div>
-          <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
             Overview
           </h1>
           <p className="text-sm text-muted-foreground mt-1">

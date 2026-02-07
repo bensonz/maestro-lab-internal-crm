@@ -68,7 +68,7 @@ export function DelayedClients({ clients }: DelayedClientsProps) {
   return (
     <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
       <CardHeader className="pb-4">
-        <CardTitle className="flex items-center gap-2 font-display text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        <CardTitle className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           <AlertTriangle className="h-4 w-4 text-yellow-500" />
           Delayed Clients
           {clients.length > 0 && (
@@ -123,7 +123,7 @@ export function DelayedClients({ clients }: DelayedClientsProps) {
                 <div className="flex items-center gap-2">
                   <Button
                     size="sm"
-                    className="h-8 text-xs bg-chart-4 hover:bg-chart-4/90 text-white"
+                    className="h-8 text-xs bg-success hover:bg-success/90 text-white"
                     onClick={() => handleResume(client.id)}
                     disabled={isPending}
                     data-testid={`resume-client-${client.id}`}

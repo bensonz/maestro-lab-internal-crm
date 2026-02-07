@@ -24,22 +24,22 @@ export function OverviewStats({
       label: 'PENDING REVIEWS',
       value: pendingReviews,
       icon: Clock,
-      iconBg: 'bg-accent/10',
-      iconRing: 'ring-accent/20',
-      iconColor: 'text-accent',
-      hoverBorder: 'hover:border-accent/40',
-      hoverShadow: 'hover:shadow-accent/10',
+      iconBg: 'bg-warning/10',
+      iconRing: 'ring-warning/20',
+      iconColor: 'text-warning',
+      hoverBorder: 'hover:border-warning/40',
+      hoverShadow: 'hover:shadow-warning/10',
       badge: null as string | null,
     },
     {
       label: 'APPROVED TODAY',
       value: approvedToday,
       icon: CheckCircle,
-      iconBg: 'bg-chart-4/10',
-      iconRing: 'ring-chart-4/20',
-      iconColor: 'text-chart-4',
-      hoverBorder: 'hover:border-chart-4/40',
-      hoverShadow: 'hover:shadow-chart-4/10',
+      iconBg: 'bg-success/10',
+      iconRing: 'ring-success/20',
+      iconColor: 'text-success',
+      hoverBorder: 'hover:border-success/40',
+      hoverShadow: 'hover:shadow-success/10',
       badge: null as string | null,
     },
     {
@@ -91,7 +91,7 @@ export function OverviewStats({
                   {stat.value}
                 </p>
                 {stat.badge && (
-                  <Badge className="bg-accent/20 text-accent border-accent/30 text-xs font-medium mt-1">
+                  <Badge className="bg-warning/20 text-warning border-warning/30 text-xs font-medium mt-1">
                     {stat.badge}
                   </Badge>
                 )}

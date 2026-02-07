@@ -23,9 +23,9 @@ export default async function FundAllocationPage() {
 
   // Platform balances would need proper tracking - showing zeros for now
   const platformBalances = [
-    { name: 'Bank', balance: 0, icon: Building2, color: 'text-chart-4' },
-    { name: 'PayPal', balance: 0, icon: Wallet, color: 'text-chart-4' },
-    { name: 'EdgeBoost', balance: 0, icon: Zap, color: 'text-chart-4' },
+    { name: 'Bank', balance: 0, icon: Building2, color: 'text-success' },
+    { name: 'PayPal', balance: 0, icon: Wallet, color: 'text-success' },
+    { name: 'EdgeBoost', balance: 0, icon: Zap, color: 'text-success' },
   ]
 
   const sportsbooks = [
@@ -44,8 +44,8 @@ export default async function FundAllocationPage() {
       label: 'External (Today)',
       value: `$${stats.externalTotal.toLocaleString()}`,
       icon: DollarSign,
-      color: 'text-chart-4',
-      bg: 'bg-chart-4/10 ring-1 ring-chart-4/20',
+      color: 'text-success',
+      bg: 'bg-success/10 ring-1 ring-success/20',
     },
     {
       label: 'Int. Deposits (Today)',
@@ -58,8 +58,8 @@ export default async function FundAllocationPage() {
       label: 'Pending Review',
       value: stats.pendingCount > 0 ? String(stats.pendingCount) : '0',
       icon: Clock,
-      color: 'text-accent',
-      bg: 'bg-accent/10 ring-1 ring-accent/20',
+      color: 'text-warning',
+      bg: 'bg-warning/10 ring-1 ring-warning/20',
     },
   ]
 
@@ -67,7 +67,7 @@ export default async function FundAllocationPage() {
     <div className="p-6 lg:p-8 space-y-6">
       {/* Header */}
       <div>
-        <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
           Fund Allocation
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
@@ -77,7 +77,7 @@ export default async function FundAllocationPage() {
 
       {/* Platform Balances */}
       <div>
-        <h2 className="font-display text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
           Platform Balances (Current Totals)
         </h2>
         <div className="grid grid-cols-3 gap-4 mb-4">

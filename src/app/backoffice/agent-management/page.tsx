@@ -24,7 +24,7 @@ export default async function AgentManagementPage() {
     <div className="p-6 lg:p-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
             Agent Management
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
@@ -63,7 +63,7 @@ export default async function AgentManagementPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold tracking-tight text-chart-4">
+              <div className="text-3xl font-bold tracking-tight text-success">
                 {stats.initiatedApps}
               </div>
             </CardContent>

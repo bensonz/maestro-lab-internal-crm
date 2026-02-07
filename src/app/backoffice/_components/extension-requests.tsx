@@ -97,11 +97,11 @@ export function ExtensionRequests({ requests }: ExtensionRequestsProps) {
   return (
     <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
       <CardHeader className="pb-4">
-        <CardTitle className="flex items-center gap-2 font-display text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        <CardTitle className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           <Clock className="h-4 w-4" />
           Extension Requests
           {requests.length > 0 && (
-            <Badge className="bg-accent/20 text-accent border-accent/30 text-xs font-medium ml-1">
+            <Badge className="bg-warning/20 text-warning border-warning/30 text-xs font-medium ml-1">
               {requests.length}
             </Badge>
           )}
@@ -196,7 +196,7 @@ export function ExtensionRequests({ requests }: ExtensionRequestsProps) {
                   <>
                     <Button
                       size="sm"
-                      className="h-8 text-xs bg-chart-4 hover:bg-chart-4/90 text-white"
+                      className="h-8 text-xs bg-success hover:bg-success/90 text-white"
                       onClick={() => handleApprove(request.id)}
                       disabled={isPending}
                     >

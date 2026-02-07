@@ -21,7 +21,7 @@ export function PriorityTasks({ tasks }: PriorityTasksProps) {
   return (
     <Card className="border-border/50 bg-card/80 backdrop-blur-sm h-full">
       <CardHeader className="pb-4">
-        <CardTitle className="flex items-center gap-2 font-display text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        <CardTitle className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           <FileText className="h-4 w-4" />
           Today&apos;s Priority Tasks
         </CardTitle>
@@ -43,7 +43,7 @@ export function PriorityTasks({ tasks }: PriorityTasksProps) {
                     {task.title}
                   </span>
                   {task.isUrgent && (
-                    <Badge className="bg-accent/20 text-accent border-accent/30 text-xs font-medium">
+                    <Badge className="bg-warning/20 text-warning border-warning/30 text-xs font-medium">
                       URGENT
                     </Badge>
                   )}

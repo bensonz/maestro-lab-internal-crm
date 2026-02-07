@@ -40,7 +40,7 @@ export function ClientIntakeList({
     <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
       <CardHeader className="pb-4">
         <CardTitle className="flex items-center justify-between">
-          <div className="flex items-center gap-2 font-display text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             <Users className="h-4 w-4" />
             New Client Intake
           </div>
@@ -111,7 +111,7 @@ export function ClientIntakeList({
                       size="sm"
                       onClick={() => handleApprove(client.id, client.name)}
                       disabled={isPending}
-                      className="bg-chart-4/20 text-chart-4 hover:bg-chart-4/30 border-chart-4/30"
+                      className="bg-success/20 text-success hover:bg-success/30 border-success/30"
                     >
                       <Check className="h-4 w-4 mr-1" />
                       Approve

@@ -44,13 +44,13 @@ function getStatusBadge(status: string) {
   switch (status) {
     case 'active':
       return (
-        <Badge className="bg-chart-4/20 text-chart-4 border-chart-4/30">
+        <Badge className="bg-success/20 text-success border-success/30">
           Active
         </Badge>
       )
     case 'pending':
       return (
-        <Badge className="bg-accent/20 text-accent border-accent/30">
+        <Badge className="bg-warning/20 text-warning border-warning/30">
           Pending
         </Badge>
       )

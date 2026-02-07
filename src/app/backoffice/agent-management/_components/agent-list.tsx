@@ -56,20 +56,20 @@ type TabKey = 'agents' | 'users'
 
 const ROLE_BADGE_STYLES: Record<string, string> = {
   AGENT: 'bg-primary/20 text-primary border-primary/30',
-  BACKOFFICE: 'bg-accent/20 text-accent border-accent/30',
+  BACKOFFICE: 'bg-warning/20 text-warning border-warning/30',
   ADMIN: 'bg-chart-5/20 text-chart-5 border-chart-5/30',
   FINANCE: 'bg-chart-3/20 text-chart-3 border-chart-3/30',
 }
 
 function getSuccessRateBg(rate: number): string {
-  if (rate >= 80) return 'bg-chart-4/20 text-chart-4 border-chart-4/30'
-  if (rate >= 60) return 'bg-accent/20 text-accent border-accent/30'
+  if (rate >= 80) return 'bg-success/20 text-success border-success/30'
+  if (rate >= 60) return 'bg-warning/20 text-warning border-warning/30'
   return 'bg-destructive/20 text-destructive border-destructive/30'
 }
 
 function getDelayRateBg(rate: number): string {
-  if (rate <= 10) return 'bg-chart-4/20 text-chart-4 border-chart-4/30'
-  if (rate <= 20) return 'bg-accent/20 text-accent border-accent/30'
+  if (rate <= 10) return 'bg-success/20 text-success border-success/30'
+  if (rate <= 20) return 'bg-warning/20 text-warning border-warning/30'
   return 'bg-destructive/20 text-destructive border-destructive/30'
 }
 
@@ -260,7 +260,7 @@ export function AgentList({
                         <Badge
                           className={`text-xs ${
                             user.isActive
-                              ? 'bg-chart-4/20 text-chart-4 border-chart-4/30'
+                              ? 'bg-success/20 text-success border-success/30'
                               : 'bg-destructive/20 text-destructive border-destructive/30'
                           }`}
                           data-testid={`user-status-badge-${user.id}`}

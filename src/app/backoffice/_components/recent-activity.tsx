@@ -17,7 +17,7 @@ export function RecentActivity({ activities }: RecentActivityProps) {
   return (
     <Card className="border-border/50 bg-card/80 backdrop-blur-sm h-full">
       <CardHeader className="pb-4">
-        <CardTitle className="flex items-center gap-2 font-display text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        <CardTitle className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           <Clock className="h-4 w-4" />
           Recent Activity
         </CardTitle>

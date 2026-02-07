@@ -158,7 +158,7 @@ export function FundAllocationForm({
       {/* New Fund Allocation Form */}
       <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
         <CardHeader>
-          <CardTitle className="font-display text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             New Fund Allocation
           </CardTitle>
         </CardHeader>
@@ -378,7 +378,7 @@ export function FundAllocationForm({
       {/* Fund Movements */}
       <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="font-display text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             Fund Movements ({filteredMovements.length})
           </CardTitle>
           <Tabs value={movementFilter} onValueChange={setMovementFilter}>
@@ -413,7 +413,7 @@ export function FundAllocationForm({
                     className={
                       movement.type === 'internal'
                         ? 'bg-primary/10 text-primary border-primary/30'
-                        : 'bg-accent/10 text-accent border-accent/30'
+                        : 'bg-warning/10 text-warning border-warning/30'
                     }
                   >
                     {movement.type === 'internal' ? 'INT' : 'EXT'}
@@ -449,8 +449,8 @@ export function FundAllocationForm({
                       variant="outline"
                       className={
                         movement.status === 'completed'
-                          ? 'bg-chart-4/10 text-chart-4 border-chart-4/30'
-                          : 'bg-accent/10 text-accent border-accent/30'
+                          ? 'bg-success/10 text-success border-success/30'
+                          : 'bg-warning/10 text-warning border-warning/30'
                       }
                     >
                       {movement.status}

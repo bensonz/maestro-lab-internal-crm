@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { Search } from 'lucide-react'
 
 interface Client {
   id: string
@@ -21,14 +22,14 @@ interface ClientListProps {
 }
 
 const platformColors: Record<string, string> = {
-  DK: 'bg-green-600',
-  FD: 'bg-blue-600',
-  CZR: 'bg-yellow-600',
-  MGM: 'bg-amber-600',
-  BB: 'bg-purple-600',
-  FAN: 'bg-red-600',
-  BR: 'bg-teal-600',
-  '365': 'bg-emerald-600',
+  DK: 'bg-success/20 text-success border-success/30',
+  FD: 'bg-primary/20 text-primary border-primary/30',
+  CZR: 'bg-warning/20 text-warning border-warning/30',
+  MGM: 'bg-warning/20 text-warning border-warning/30',
+  BB: 'bg-primary/20 text-primary border-primary/30',
+  FAN: 'bg-destructive/20 text-destructive border-destructive/30',
+  BR: 'bg-primary/20 text-primary border-primary/30',
+  '365': 'bg-success/20 text-success border-success/30',
 }
 
 export function ClientList({ clients }: ClientListProps) {
@@ -43,21 +44,26 @@ export function ClientList({ clients }: ClientListProps) {
   )
 
   return (
-    <Card className="border-slate-800 bg-slate-900 lg:col-span-3">
-      <CardHeader>
-        <CardTitle className="text-white">
-          Client Registry ({filteredClients.length})
-        </CardTitle>
-        <Input
-          className="border-slate-700 bg-slate-800 text-white"
-          placeholder="Search clients..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
+    <Card className="card-terminal lg:col-span-3">
+      <CardHeader className="py-3 px-4 border-b border-border">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
+            Client Registry ({filteredClients.length})
+          </span>
+        </div>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search clients..."
+            className="pl-9 bg-background/50"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-0">
         {filteredClients.length === 0 ? (
-          <p className="text-center text-slate-400 py-8">
+          <p className="text-center text-muted-foreground py-8">
             {clients.length === 0
               ? 'No clients yet'
               : 'No clients match your search'}
@@ -66,59 +72,73 @@ export function ClientList({ clients }: ClientListProps) {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-slate-400">
-                  <th className="pb-3">Name</th>
-                  <th className="pb-3">Phone / Email</th>
-                  <th className="pb-3">Start</th>
-                  <th className="pb-3">Funds</th>
-                  <th className="pb-3">Active</th>
-                  <th className="pb-3">Limited</th>
-                  <th className="pb-3">Pipeline</th>
+                <tr className="border-b border-border bg-muted/30 text-xs text-muted-foreground">
+                  <th className="text-left p-2 font-medium">Name</th>
+                  <th className="text-left p-2 font-medium">Phone / Email</th>
+                  <th className="text-left p-2 font-medium">Start</th>
+                  <th className="text-left p-2 font-medium">Funds</th>
+                  <th className="text-left p-2 font-medium">Active</th>
+                  <th className="text-left p-2 font-medium">Limited</th>
+                  <th className="text-left p-2 font-medium">Pipeline</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredClients.map((client) => (
-                  <tr key={client.id} className="border-t border-slate-800">
-                    <td className="py-4">
-                      <p className="font-medium text-white">{client.name}</p>
+                  <tr
+                    key={client.id}
+                    className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
+                  >
+                    <td className="p-2">
+                      <p className="font-medium text-foreground">
+                        {client.name}
+                      </p>
                     </td>
-                    <td>
-                      <p className="text-slate-300">{client.phone || '—'}</p>
+                    <td className="p-2">
+                      <p className="text-foreground">{client.phone || '—'}</p>
                       {client.email && (
-                        <p className="text-xs text-slate-400">{client.email}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {client.email}
+                        </p>
                       )}
                     </td>
-                    <td className="text-slate-400">{client.start}</td>
-                    <td className="font-medium text-white">{client.funds}</td>
-                    <td>
+                    <td className="p-2 text-muted-foreground">{client.start}</td>
+                    <td className="p-2 font-medium font-mono text-foreground">
+                      {client.funds}
+                    </td>
+                    <td className="p-2">
                       <div className="flex flex-wrap gap-1">
                         {client.activePlatforms.map((p) => (
                           <Badge
                             key={p}
-                            className={`${platformColors[p] || 'bg-slate-600'} text-xs`}
+                            variant="outline"
+                            className={`text-[9px] px-1 py-0.5 font-medium ${platformColors[p] || 'bg-muted text-muted-foreground'}`}
                           >
                             {p}
                           </Badge>
                         ))}
                         {client.activePlatforms.length === 0 && (
-                          <span className="text-slate-500">—</span>
+                          <span className="text-muted-foreground">—</span>
                         )}
                       </div>
                     </td>
-                    <td className="text-slate-500">—</td>
-                    <td>
+                    <td className="p-2 text-muted-foreground">—</td>
+                    <td className="p-2">
                       <div className="flex flex-wrap gap-1">
                         {client.platforms
                           .filter((p) => !client.activePlatforms.includes(p))
                           .map((p) => (
-                            <Badge key={p} className="bg-slate-700 text-xs">
+                            <Badge
+                              key={p}
+                              variant="outline"
+                              className="text-[9px] px-1 py-0.5 font-medium bg-primary/20 text-primary border-primary/30"
+                            >
                               {p}
                             </Badge>
                           ))}
                         {client.platforms.filter(
                           (p) => !client.activePlatforms.includes(p),
                         ).length === 0 && (
-                          <span className="text-slate-500">—</span>
+                          <span className="text-muted-foreground">—</span>
                         )}
                       </div>
                     </td>

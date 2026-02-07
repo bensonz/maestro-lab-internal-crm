@@ -30,7 +30,7 @@ export function VerificationTasksTable({
       <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
         <CardHeader className="pb-4">
           <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-2 font-display text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
               <CheckCircle className="h-4 w-4" />
               Active Client Verification
             </div>
@@ -108,8 +108,8 @@ export function VerificationTasksTable({
                           className={cn(
                             'text-xs',
                             task.status === 'Done'
-                              ? 'bg-chart-4/20 text-chart-4 border-chart-4/30'
-                              : 'bg-accent/20 text-accent border-accent/30',
+                              ? 'bg-success/20 text-success border-success/30'
+                              : 'bg-warning/20 text-warning border-warning/30',
                           )}
                         >
                           {task.status}
