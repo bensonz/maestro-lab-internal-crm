@@ -1,6 +1,6 @@
 'use client'
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import {
   Target,
   TrendingDown,
@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   Users,
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import type { AgentKPIs } from '@/backend/services/agent-kpis'
 
 interface PerformancePanelProps {
@@ -69,10 +70,10 @@ const metrics = [
   },
   {
     key: 'inProgressClients',
-    label: 'Clients In Progress',
+    label: 'In Progress',
     icon: Users,
     format: (kpis: AgentKPIs) => String(kpis.inProgressClients),
-    color: () => 'text-foreground',
+    color: () => 'text-warning',
   },
   {
     key: 'pendingTodos',
@@ -94,41 +95,40 @@ const metrics = [
 export function PerformancePanel({ kpis }: PerformancePanelProps) {
   return (
     <Card
-      className="border-border/50 bg-card/80 backdrop-blur-sm"
+      className="border-border/50 bg-card/80"
       data-testid="performance-panel"
     >
-      <CardHeader>
-        <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          Performance Metrics
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-0">
-        {metrics.map((metric, index) => {
-          const Icon = metric.icon
-          const value = metric.format(kpis)
-          const colorClass = metric.color(kpis)
-          const isLast = index === metrics.length - 1
+      <CardContent className="p-0">
+        <div className="border-b border-border/50 px-3 py-2.5">
+          <h3 className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+            Performance Metrics
+          </h3>
+        </div>
+        <div className="divide-y divide-border/30">
+          {metrics.map((metric) => {
+            const Icon = metric.icon
+            const value = metric.format(kpis)
+            const colorClass = metric.color(kpis)
 
-          return (
-            <div
-              key={metric.key}
-              className={`flex items-center justify-between py-3 ${
-                !isLast ? 'border-b border-border/30' : ''
-              }`}
-              data-testid={`metric-${metric.key}`}
-            >
-              <div className="flex items-center gap-2.5">
-                <Icon className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">
-                  {metric.label}
+            return (
+              <div
+                key={metric.key}
+                className="flex items-center justify-between px-3 py-2"
+                data-testid={`metric-${metric.key}`}
+              >
+                <div className="flex items-center gap-2">
+                  <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">
+                    {metric.label}
+                  </span>
+                </div>
+                <span className={cn('font-mono text-sm font-medium', colorClass)}>
+                  {value}
                 </span>
               </div>
-              <span className={`text-sm font-semibold font-mono ${colorClass}`}>
-                {value}
-              </span>
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
       </CardContent>
     </Card>
   )

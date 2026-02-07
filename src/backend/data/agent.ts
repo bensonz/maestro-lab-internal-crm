@@ -266,6 +266,7 @@ export async function getAgentEarnings(agentId: string) {
     amount: Number(e.amount),
     status: e.status === 'paid' ? 'Paid' : 'Pending',
     date: formatDate(e.createdAt),
+    rawDate: e.createdAt.toISOString(),
   }))
 
   return {

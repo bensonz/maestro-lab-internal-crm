@@ -180,7 +180,7 @@ export function ToDoCard({ todo, onUpdate }: ToDoCardProps) {
         <div className="flex items-center gap-2">
           <Button
             onClick={() => setIsUploadModalOpen(true)}
-            className="flex-1 h-9"
+            className="h-9"
           >
             <Upload className="h-4 w-4 mr-2" />
             Upload / Submit

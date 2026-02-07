@@ -3,9 +3,11 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Bell, ListTodo } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Upload, ListTodo } from 'lucide-react'
 import { ToDoCard } from './todo-card'
 import { ToDoStatus, PlatformType } from '@/types'
+import { cn } from '@/lib/utils'
 
 interface Todo {
   id: string
@@ -61,7 +63,7 @@ export function ClientTodoList({ toDos }: ClientTodoListProps) {
       (todo as Todo & { maxExtensions?: number }).maxExtensions || 3,
   }))
 
-  // Sort by urgency: Overdue → Due ≤24h → Normal
+  // Sort by urgency: Overdue -> Due <=24h -> Normal
   const sortedTodos = [...normalizedTodos].sort((a, b) => {
     const urgencyA = getUrgencyLevel(a.dueDate, a.status)
     const urgencyB = getUrgencyLevel(b.dueDate, b.status)
@@ -85,74 +87,105 @@ export function ClientTodoList({ toDos }: ClientTodoListProps) {
     (t) => getUrgencyLevel(t.dueDate, t.status) === 'due_soon',
   ).length
   const normalCount = sortedTodos.length - overdueCount - dueSoonCount
+  const completedCount = toDos.filter(
+    (t) => t.status === ToDoStatus.COMPLETED,
+  ).length
 
   const handleUpdate = () => {
     router.refresh()
   }
 
   return (
-    <Card className="border-border/50 bg-card/80 backdrop-blur-sm h-full">
-      <CardHeader className="pb-4">
-        <div className="flex items-center gap-2">
-          <Bell className="h-5 w-5 text-primary" />
-          <CardTitle className="text-lg font-semibold uppercase tracking-wide">
-            Auto-Generated To-Dos
+    <Card className="flex h-full flex-col border-border/50 bg-card/80">
+      <CardHeader className="px-3 pb-2 pt-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+            <Upload className="h-3.5 w-3.5" />
+            Uploads & To-Dos
           </CardTitle>
+          <div className="flex items-center gap-2 text-xs">
+            <Badge
+              variant="outline"
+              className="h-5 px-1.5 font-mono text-[10px] text-success border-success/30"
+            >
+              {completedCount} done
+            </Badge>
+            {overdueCount > 0 && (
+              <Badge
+                variant="outline"
+                className="h-5 px-1.5 font-mono text-[10px] text-destructive border-destructive/30"
+              >
+                {overdueCount} overdue
+              </Badge>
+            )}
+            <Badge
+              variant="outline"
+              className="h-5 px-1.5 font-mono text-[10px]"
+            >
+              {sortedTodos.length} total
+            </Badge>
+          </div>
         </div>
 
         {/* Filter Pills */}
-        <div className="flex items-center gap-2 pt-3">
-          <button
-            onClick={() => setFilter('overdue')}
-            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
-              filter === 'overdue'
-                ? 'bg-destructive/20 text-destructive ring-1 ring-destructive/30'
-                : 'bg-muted/50 text-muted-foreground hover:bg-destructive/10 hover:text-destructive'
-            }`}
-          >
-            <span className="h-2 w-2 rounded-full bg-destructive" />
-            Overdue
-            {overdueCount > 0 && <span>({overdueCount})</span>}
-          </button>
-          <button
-            onClick={() => setFilter('due_soon')}
-            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
-              filter === 'due_soon'
-                ? 'bg-warning/20 text-warning ring-1 ring-warning/30'
-                : 'bg-muted/50 text-muted-foreground hover:bg-warning/10 hover:text-warning'
-            }`}
-          >
-            <span className="h-2 w-2 rounded-full bg-warning" />
-            Due ≤24h
-            {dueSoonCount > 0 && <span>({dueSoonCount})</span>}
-          </button>
-          <button
-            onClick={() => setFilter('normal')}
-            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
-              filter === 'normal'
-                ? 'bg-muted text-foreground ring-1 ring-border'
-                : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'
-            }`}
-          >
-            <span className="h-2 w-2 rounded-full bg-muted-foreground" />
-            Normal
-            {normalCount > 0 && <span>({normalCount})</span>}
-          </button>
+        <div className="mt-2 flex items-center gap-1.5">
+          {[
+            {
+              key: 'overdue' as FilterType,
+              label: 'Overdue',
+              count: overdueCount,
+              color: 'destructive',
+            },
+            {
+              key: 'due_soon' as FilterType,
+              label: 'Due Soon',
+              count: dueSoonCount,
+              color: 'warning',
+            },
+            {
+              key: 'normal' as FilterType,
+              label: 'Normal',
+              count: normalCount,
+              color: 'muted-foreground',
+            },
+          ].map(({ key, label, count, color }) => (
+            <button
+              key={key}
+              onClick={() => setFilter(filter === key ? 'all' : key)}
+              className={cn(
+                'flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium transition-all',
+                filter === key
+                  ? `bg-${color}/20 text-${color} ring-1 ring-${color}/30`
+                  : 'bg-muted/50 text-muted-foreground hover:bg-muted',
+              )}
+            >
+              <span
+                className={cn(
+                  'h-1.5 w-1.5 rounded-full',
+                  color === 'destructive' && 'bg-destructive',
+                  color === 'warning' && 'bg-warning',
+                  color === 'muted-foreground' && 'bg-muted-foreground',
+                )}
+              />
+              {label}
+              {count > 0 && <span>({count})</span>}
+            </button>
+          ))}
           {filter !== 'all' && (
             <button
               onClick={() => setFilter('all')}
-              className="text-xs text-muted-foreground hover:text-foreground ml-2"
+              className="ml-1 text-[10px] text-muted-foreground hover:text-foreground"
             >
-              Clear filter
+              Clear
             </button>
           )}
         </div>
       </CardHeader>
 
-      <CardContent>
+      <CardContent className="min-h-0 flex-1 p-2.5 pt-0">
         {filteredTodos.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <ListTodo className="h-8 w-8 mx-auto mb-2 opacity-50" />
+          <div className="py-8 text-center text-muted-foreground">
+            <ListTodo className="mx-auto mb-2 h-8 w-8 opacity-50" />
             <p className="text-sm">
               {filter === 'all'
                 ? 'No pending to-dos'
@@ -160,7 +193,7 @@ export function ClientTodoList({ toDos }: ClientTodoListProps) {
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {filteredTodos.map((todo) => (
               <ToDoCard key={todo.id} todo={todo} onUpdate={handleUpdate} />
             ))}
@@ -168,8 +201,8 @@ export function ClientTodoList({ toDos }: ClientTodoListProps) {
         )}
 
         {/* Footer */}
-        <p className="text-xs text-muted-foreground text-center mt-4 pt-4 border-t border-border/30 italic">
-          System-generated only • Hover ⓘ for detailed instructions
+        <p className="mt-3 border-t border-border/30 pt-3 text-center text-[10px] italic text-muted-foreground">
+          System-generated only
         </p>
       </CardContent>
     </Card>

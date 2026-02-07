@@ -141,7 +141,7 @@ function ClientRow({ client }: { client: AgentClient }) {
     <Link href={`/agent/clients/${client.id}`}>
       <div
         className={cn(
-          'grid grid-cols-[1fr,120px,100px,140px,40px] items-center gap-4 border-b border-border/50 bg-card/50 px-4 py-3 transition-colors hover:bg-card',
+          'grid grid-cols-[1fr_120px_100px_140px_40px] items-center gap-4 border-b border-border/50 bg-card/50 px-4 py-3 transition-colors hover:bg-card',
           'cursor-pointer group',
           isTerminal && 'opacity-60',
         )}
@@ -273,7 +273,7 @@ export function ClientsGroupedList({ clients }: ClientsGroupedListProps) {
   return (
     <div className="space-y-1">
       {/* Table header */}
-      <div className="mb-2 grid grid-cols-[1fr,120px,100px,140px,40px] gap-4 border-b border-border px-4 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+      <div className="mb-2 grid grid-cols-[1fr_120px_100px_140px_40px] gap-4 border-b border-border px-4 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
         <span>Client</span>
         <span>Status</span>
         <span>Step</span>

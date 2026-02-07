@@ -251,6 +251,34 @@ app/
 
 ---
 
+## Tailwind CSS v4 Notes
+
+This project uses **Tailwind CSS v4** (`@tailwindcss/postcss` v4). Key differences from v3:
+
+### Arbitrary Value Syntax
+
+In arbitrary values, **use underscores `_` to represent spaces**, not commas.
+
+```tsx
+// CORRECT (Tailwind v4) — underscores become spaces in CSS output
+<div className="grid grid-cols-[1fr_120px_100px_140px_40px]" />
+// → grid-template-columns: 1fr 120px 100px 140px 40px;
+
+// WRONG (Tailwind v3 syntax) — commas produce invalid CSS, grid silently fails
+<div className="grid grid-cols-[1fr,120px,100px,140px,40px]" />
+// → grid-template-columns: 1fr,120px,100px,140px,40px; ← INVALID
+```
+
+This applies to all arbitrary CSS values: `grid-cols-[...]`, `grid-rows-[...]`, `translate-[...]`, etc.
+
+The card component (`src/components/ui/card.tsx`) already uses correct v4 syntax as reference:
+```
+grid-cols-[1fr_auto]
+grid-rows-[auto_auto]
+```
+
+---
+
 ## Current Violations to Fix
 
 ### 1. API Route for Internal Data ❌
