@@ -2,33 +2,28 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Users, Search, ArrowUpDown, ChevronDown } from 'lucide-react'
+import {
+  Users,
+  Search,
+  ChevronDown,
+  LayoutGrid,
+  List,
+  Eye,
+  EyeOff,
+} from 'lucide-react'
 import { IntakeStatus } from '@/types'
 import { cn } from '@/lib/utils'
 import { ClientsSummaryPanel, type StatusFilter } from './clients-summary-panel'
-import { DeadlineCountdown } from '@/components/deadline-countdown'
+import { ClientsGroupedList } from './clients-grouped-list'
+import { ClientsCardView } from './clients-card-view'
+import type { AgentClient } from './types'
 
 type SortOption = 'priority' | 'newest' | 'oldest' | 'deadline'
-
-interface AgentClient {
-  id: string
-  name: string
-  intakeStatus: IntakeStatus
-  status: string
-  statusColor: string
-  nextTask: string | null
-  step: number
-  totalSteps: number
-  progress: number
-  lastUpdated: string
-  updatedAt: string
-  deadline: string | null
-}
+type ViewMode = 'list' | 'card'
 
 interface ClientsViewProps {
   clients: AgentClient[]
@@ -67,36 +62,34 @@ const STATUS_PRIORITY: Record<string, number> = {
   [IntakeStatus.REJECTED]: 9,
 }
 
-const STATUS_BORDER_COLOR: Record<string, string> = {
-  [IntakeStatus.IN_EXECUTION]: 'border-l-primary',
-  [IntakeStatus.PHONE_ISSUED]: 'border-l-blue-500',
-  [IntakeStatus.NEEDS_MORE_INFO]: 'border-l-orange-500',
-  [IntakeStatus.PENDING_EXTERNAL]: 'border-l-orange-500',
-  [IntakeStatus.EXECUTION_DELAYED]: 'border-l-yellow-500',
-  [IntakeStatus.READY_FOR_APPROVAL]: 'border-l-accent',
-  [IntakeStatus.PENDING]: 'border-l-slate-500',
-  [IntakeStatus.INACTIVE]: 'border-l-slate-600',
-  [IntakeStatus.APPROVED]: 'border-l-success',
-  [IntakeStatus.REJECTED]: 'border-l-destructive',
-}
-
 const SORT_LABELS: Record<SortOption, string> = {
   priority: 'Priority',
-  newest: 'Newest Updated',
-  oldest: 'Oldest Updated',
+  newest: 'Newest',
+  oldest: 'Oldest',
   deadline: 'Deadline',
 }
 
 const SORT_OPTIONS: SortOption[] = ['priority', 'newest', 'oldest', 'deadline']
+
+const TERMINAL_STATUSES: IntakeStatus[] = [IntakeStatus.APPROVED, IntakeStatus.REJECTED]
 
 export function ClientsView({ clients, stats }: ClientsViewProps) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter | null>(null)
   const [sort, setSort] = useState<SortOption>('priority')
   const [sortOpen, setSortOpen] = useState(false)
+  const [viewMode, setViewMode] = useState<ViewMode>('list')
+  const [hideCompleted, setHideCompleted] = useState(false)
 
   const filteredClients = useMemo(() => {
     let result = clients
+
+    // Hide completed toggle
+    if (hideCompleted) {
+      result = result.filter(
+        (c) => !TERMINAL_STATUSES.includes(c.intakeStatus),
+      )
+    }
 
     // Status filter from sidebar
     if (statusFilter) {
@@ -122,7 +115,6 @@ export function ClientsView({ clients, stats }: ClientsViewProps) {
         return b.updatedAt.localeCompare(a.updatedAt)
       }
       if (sort === 'deadline') {
-        // Clients with deadlines first (ascending), then those without
         if (a.deadline && b.deadline)
           return a.deadline.localeCompare(b.deadline)
         if (a.deadline) return -1
@@ -133,10 +125,7 @@ export function ClientsView({ clients, stats }: ClientsViewProps) {
     })
 
     return result
-  }, [clients, statusFilter, search, sort])
-
-  const isTerminal = (status: IntakeStatus) =>
-    status === IntakeStatus.APPROVED || status === IntakeStatus.REJECTED
+  }, [clients, statusFilter, search, sort, hideCompleted])
 
   return (
     <div className="flex flex-1 overflow-hidden">
@@ -148,26 +137,31 @@ export function ClientsView({ clients, stats }: ClientsViewProps) {
       />
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex min-w-0 flex-1 flex-col">
         {/* Toolbar */}
-        <div className="flex items-center gap-3 p-4 border-b border-border flex-wrap">
-          <div className="relative flex-1 max-w-md min-w-[200px]">
+        <div className="flex flex-wrap items-center gap-3 border-b border-border p-4">
+          {/* Search */}
+          <div className="relative min-w-[200px] max-w-md flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search clients..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 bg-card border-border"
+              className="border-border bg-card pl-9"
+              data-testid="clients-search"
             />
           </div>
+
+          {/* Sort dropdown */}
           <div className="relative">
             <Button
               variant="outline"
               className="gap-2"
               onClick={() => setSortOpen(!sortOpen)}
+              data-testid="sort-dropdown"
             >
               Sort: {SORT_LABELS[sort]}
-              <ChevronDown className="w-4 h-4" />
+              <ChevronDown className="h-4 w-4" />
             </Button>
             {sortOpen && (
               <div className="absolute right-0 top-full z-10 mt-1 w-48 rounded-lg border border-border bg-card p-1 shadow-lg">
@@ -191,10 +185,53 @@ export function ClientsView({ clients, stats }: ClientsViewProps) {
               </div>
             )}
           </div>
+
+          {/* View toggle */}
+          <div className="ml-auto flex items-center gap-2">
+            {/* Hide completed toggle */}
+            <Button
+              variant={hideCompleted ? 'default' : 'outline'}
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setHideCompleted(!hideCompleted)}
+              data-testid="hide-completed-toggle"
+            >
+              {hideCompleted ? (
+                <EyeOff className="h-3.5 w-3.5" />
+              ) : (
+                <Eye className="h-3.5 w-3.5" />
+              )}
+              <span className="hidden text-xs sm:inline">
+                {hideCompleted ? 'Showing active' : 'Hide completed'}
+              </span>
+            </Button>
+
+            {/* View mode buttons */}
+            <div className="flex items-center rounded-md border border-border">
+              <Button
+                variant={viewMode === 'list' ? 'default' : 'ghost'}
+                size="icon"
+                className="rounded-r-none"
+                onClick={() => setViewMode('list')}
+                data-testid="view-list-btn"
+              >
+                <List className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'card' ? 'default' : 'ghost'}
+                size="icon"
+                className="rounded-l-none"
+                onClick={() => setViewMode('card')}
+                data-testid="view-card-btn"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
         </div>
 
         {/* Results count strip */}
-        <div className="px-4 py-2 border-b border-border bg-muted/30">
+        <div className="border-b border-border bg-muted/30 px-4 py-2">
           <p className="text-xs text-muted-foreground">
             Showing{' '}
             <span className="font-mono font-medium text-foreground">
@@ -208,7 +245,7 @@ export function ClientsView({ clients, stats }: ClientsViewProps) {
           </p>
         </div>
 
-        {/* Scrollable Client Cards */}
+        {/* Client List/Grid */}
         <ScrollArea className="flex-1">
           <div className="p-4">
             {filteredClients.length === 0 ? (
@@ -229,85 +266,17 @@ export function ClientsView({ clients, stats }: ClientsViewProps) {
                   </p>
                   {clients.length === 0 && (
                     <Link href="/agent/new-client">
-                      <Button className="h-11 rounded-xl bg-primary px-6 text-primary-foreground font-medium shadow-lg shadow-primary/25 transition-all duration-300 hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/30">
+                      <Button data-testid="add-first-client-btn">
                         Add Your First Client
                       </Button>
                     </Link>
                   )}
                 </CardContent>
               </Card>
+            ) : viewMode === 'list' ? (
+              <ClientsGroupedList clients={filteredClients} />
             ) : (
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {filteredClients.map((client) => (
-                  <Link key={client.id} href={`/agent/clients/${client.id}`}>
-                    <Card
-                      className={cn(
-                        'group h-full border-l-2 border-border/50 bg-card/80 backdrop-blur-sm card-interactive cursor-pointer',
-                        STATUS_BORDER_COLOR[client.intakeStatus] ||
-                          'border-l-slate-500',
-                        isTerminal(client.intakeStatus) && 'opacity-60',
-                      )}
-                    >
-                      <CardHeader className="pb-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0 flex-1">
-                            <CardTitle className="truncate text-lg font-semibold text-foreground">
-                              {client.name}
-                            </CardTitle>
-                            {client.nextTask && (
-                              <p className="mt-1 truncate text-sm text-muted-foreground">
-                                Next: {client.nextTask}
-                              </p>
-                            )}
-                          </div>
-                          <Badge
-                            className={`shrink-0 rounded-lg px-2.5 py-1 text-xs font-medium ${client.statusColor}`}
-                          >
-                            {client.status}
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        {/* Progress Bar */}
-                        <div>
-                          <div className="mb-2 flex items-center justify-between text-xs">
-                            <span className="font-medium text-muted-foreground">
-                              Step {client.step} of {client.totalSteps}
-                            </span>
-                            <span className="font-semibold font-mono text-foreground">
-                              {client.progress}%
-                            </span>
-                          </div>
-                          <div className="progress-bar">
-                            <div
-                              className="progress-fill transition-all duration-500"
-                              style={{ width: `${client.progress}%` }}
-                            />
-                          </div>
-                        </div>
-
-                        {/* Deadline Countdown */}
-                        {client.deadline && (
-                          <DeadlineCountdown
-                            deadline={client.deadline}
-                            variant="badge"
-                          />
-                        )}
-
-                        {/* Footer */}
-                        <div className="flex items-center justify-between border-t border-border/40 pt-4">
-                          <p className="text-xs text-muted-foreground">
-                            Updated {client.lastUpdated}
-                          </p>
-                          <span className="text-xs text-muted-foreground transition-colors group-hover:text-primary">
-                            View Details →
-                          </span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                ))}
-              </div>
+              <ClientsCardView clients={filteredClients} />
             )}
           </div>
         </ScrollArea>

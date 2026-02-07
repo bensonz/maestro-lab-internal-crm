@@ -1,12 +1,14 @@
 'use client'
 
 import {
+  Users,
   Clock,
   AlertCircle,
   CheckCircle2,
   XCircle,
   Hourglass,
 } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 
 export type StatusFilter =
@@ -42,31 +44,31 @@ const statusRows: {
     label: 'In Progress',
     icon: Clock,
     colorClass: 'text-primary',
-    activeClass: 'bg-primary/20 text-primary ring-1 ring-primary/30',
+    activeClass: 'bg-primary/10 text-primary',
     statKey: 'inProgress',
-  },
-  {
-    key: 'needsInfo',
-    label: 'Needs Info',
-    icon: AlertCircle,
-    colorClass: 'text-orange-400',
-    activeClass: 'bg-orange-500/20 text-orange-400 ring-1 ring-orange-500/30',
-    statKey: 'verificationNeeded',
   },
   {
     key: 'pendingApproval',
     label: 'Pending Approval',
     icon: Hourglass,
     colorClass: 'text-warning',
-    activeClass: 'bg-warning/20 text-warning ring-1 ring-warning/30',
+    activeClass: 'bg-warning/10 text-warning',
     statKey: 'pendingApproval',
+  },
+  {
+    key: 'needsInfo',
+    label: 'Verification Needed',
+    icon: AlertCircle,
+    colorClass: 'text-destructive',
+    activeClass: 'bg-destructive/10 text-destructive',
+    statKey: 'verificationNeeded',
   },
   {
     key: 'approved',
     label: 'Approved',
     icon: CheckCircle2,
     colorClass: 'text-success',
-    activeClass: 'bg-success/20 text-success ring-1 ring-success/30',
+    activeClass: 'bg-success/10 text-success',
     statKey: 'approved',
   },
   {
@@ -74,8 +76,7 @@ const statusRows: {
     label: 'Rejected',
     icon: XCircle,
     colorClass: 'text-destructive',
-    activeClass:
-      'bg-destructive/20 text-destructive ring-1 ring-destructive/30',
+    activeClass: 'bg-destructive/10 text-destructive',
     statKey: 'rejected',
   },
 ]
@@ -91,14 +92,54 @@ export function ClientsSummaryPanel({
   const failureRate = totalResolved > 0 ? 100 - successRate : 0
 
   return (
-    <div className="w-56 min-w-56 shrink-0 border-r border-sidebar-border bg-sidebar flex flex-col">
-      <div className="p-4 border-b border-sidebar-border">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Status Overview
-        </h3>
+    <div
+      className="hidden w-56 min-w-56 shrink-0 flex-col border-r border-sidebar-border bg-sidebar lg:flex"
+      data-testid="clients-summary-panel"
+    >
+      {/* Header */}
+      <div className="border-b border-sidebar-border p-4">
+        <h2 className="text-lg font-semibold">My Clients</h2>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Manage applications
+        </p>
       </div>
 
-      <div className="flex-1 p-2 space-y-1">
+      {/* Summary status list */}
+      <div className="space-y-1 border-b border-sidebar-border p-3">
+        <p className="px-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+          Summary
+        </p>
+
+        {/* Total row */}
+        <button
+          onClick={() => onFilterChange(null)}
+          className={cn(
+            'flex w-full items-center justify-between rounded-md px-3 py-2 text-sm transition-colors',
+            activeFilter === null
+              ? 'bg-primary/10 text-primary'
+              : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+          )}
+          data-testid="filter-total"
+        >
+          <div className="flex items-center gap-2">
+            <Users
+              className={cn(
+                'h-4 w-4',
+                activeFilter === null ? 'text-primary' : 'text-primary',
+              )}
+            />
+            <span className="text-xs">Total Clients</span>
+          </div>
+          <span
+            className={cn(
+              'rounded px-1.5 py-0.5 font-mono text-sm font-semibold',
+              activeFilter === null ? 'bg-primary/20 text-primary' : 'bg-muted',
+            )}
+          >
+            {stats.total}
+          </span>
+        </button>
+
         {statusRows.map((row) => {
           const Icon = row.icon
           const count = stats[row.statKey]
@@ -109,22 +150,23 @@ export function ClientsSummaryPanel({
               key={row.key}
               onClick={() => onFilterChange(isActive ? null : row.key)}
               className={cn(
-                'flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors',
+                'flex w-full items-center justify-between rounded-md px-3 py-2 text-sm transition-colors',
                 isActive
                   ? row.activeClass
-                  : 'text-foreground hover:bg-muted/50',
+                  : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
               )}
+              data-testid={`filter-${row.key}`}
             >
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-2">
                 <Icon
                   className={cn('h-4 w-4', isActive ? '' : row.colorClass)}
                 />
-                <span className="font-medium">{row.label}</span>
+                <span className="text-xs">{row.label}</span>
               </div>
               <span
                 className={cn(
-                  'font-mono text-sm',
-                  isActive ? '' : 'text-muted-foreground',
+                  'rounded px-1.5 py-0.5 font-mono text-sm font-semibold',
+                  isActive ? `${row.activeClass.split(' ')[0]}/20` : 'bg-muted',
                 )}
               >
                 {count}
@@ -134,19 +176,36 @@ export function ClientsSummaryPanel({
         })}
       </div>
 
-      <div className="border-t border-sidebar-border p-4 space-y-3">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">Success Rate</span>
-          <span className="font-semibold font-mono text-success">
-            {successRate}%
-          </span>
-        </div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">Failure Rate</span>
-          <span className="font-semibold font-mono text-destructive">
-            {failureRate}%
-          </span>
-        </div>
+      {/* Performance Rates */}
+      <div className="space-y-3 p-3">
+        <p className="px-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+          Performance
+        </p>
+
+        <Card className="border-border/50 bg-card/80">
+          <CardContent className="space-y-2 p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">
+                Success Rate
+              </span>
+              <span className="font-mono text-sm font-semibold text-success">
+                {successRate}%
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">
+                Failure Rate
+              </span>
+              <span className="font-mono text-sm font-semibold text-destructive">
+                {failureRate}%
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <p className="px-1 text-[10px] text-muted-foreground/60">
+          Based on completed applications
+        </p>
       </div>
     </div>
   )

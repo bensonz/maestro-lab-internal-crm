@@ -1,12 +1,11 @@
 import { cookies } from 'next/headers'
-import { Separator } from '@/components/ui/separator'
 import {
   SidebarInset,
   SidebarProvider,
-  SidebarTrigger,
 } from '@/components/ui/sidebar'
 import { BackofficeSidebar } from '@/components/app-sidebar'
 import { requireAdmin } from './_require-admin'
+import { BackofficeTopBar } from './_components/backoffice-top-bar'
 
 const SIDEBAR_COOKIE_NAME = 'sidebar_state'
 
@@ -26,11 +25,7 @@ export default async function BackofficeLayout({
     <SidebarProvider defaultOpen={defaultOpen}>
       <BackofficeSidebar user={user} />
       <SidebarInset>
-        <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border/50 px-4">
-          <span className="text-sm font-medium text-muted-foreground">
-            Maestro L.A.B — Back Office
-          </span>
-        </header>
+        <BackofficeTopBar />
         <main className="flex-1 overflow-auto">{children}</main>
       </SidebarInset>
     </SidebarProvider>
