@@ -1,154 +1,319 @@
 'use client'
 
-import { useState } from 'react'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { Search, ChevronRight } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Search } from 'lucide-react'
-
-interface Client {
-  id: string
-  name: string
-  phone: string
-  email: string | null
-  start: string
-  funds: string
-  platforms: string[]
-  activePlatforms: string[]
-}
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import { cn } from '@/lib/utils'
+import type { Client } from './types'
 
 interface ClientListProps {
   clients: Client[]
+  searchQuery: string
+  onSearchChange: (q: string) => void
+  onSelectClient: (client: Client) => void
 }
 
-const platformColors: Record<string, string> = {
-  DK: 'bg-success/20 text-success border-success/30',
-  FD: 'bg-primary/20 text-primary border-primary/30',
-  CZR: 'bg-warning/20 text-warning border-warning/30',
-  MGM: 'bg-warning/20 text-warning border-warning/30',
-  BB: 'bg-primary/20 text-primary border-primary/30',
-  FAN: 'bg-destructive/20 text-destructive border-destructive/30',
-  BR: 'bg-primary/20 text-primary border-primary/30',
-  '365': 'bg-success/20 text-success border-success/30',
-}
-
-export function ClientList({ clients }: ClientListProps) {
-  const [searchQuery, setSearchQuery] = useState('')
-
-  const filteredClients = clients.filter(
-    (client) =>
-      client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      client.phone.includes(searchQuery) ||
-      (client.email &&
-        client.email.toLowerCase().includes(searchQuery.toLowerCase())),
-  )
-
+export function ClientList({
+  clients,
+  searchQuery,
+  onSearchChange,
+  onSelectClient,
+}: ClientListProps) {
   return (
-    <Card className="card-terminal lg:col-span-3">
-      <CardHeader className="py-3 px-4 border-b border-border">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
-            Client Registry ({filteredClients.length})
-          </span>
-        </div>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search clients..."
-            className="pl-9 bg-background/50"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        {filteredClients.length === 0 ? (
-          <p className="text-center text-muted-foreground py-8">
-            {clients.length === 0
-              ? 'No clients yet'
-              : 'No clients match your search'}
-          </p>
-        ) : (
+    <div
+      className="flex-1 space-y-4 overflow-auto p-6"
+      data-testid="client-list-section"
+    >
+      {/* Search */}
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Search clients..."
+          value={searchQuery}
+          onChange={(e) => onSearchChange(e.target.value)}
+          className="bg-background/50 pl-10"
+          data-testid="client-search"
+        />
+      </div>
+
+      {/* Client Directory */}
+      <Card className="card-terminal">
+        <CardHeader className="border-b border-border px-4 py-3">
+          <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
+            Client Registry ({clients.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border bg-muted/30 text-xs text-muted-foreground">
-                  <th className="text-left p-2 font-medium">Name</th>
-                  <th className="text-left p-2 font-medium">Phone / Email</th>
-                  <th className="text-left p-2 font-medium">Start</th>
-                  <th className="text-left p-2 font-medium">Funds</th>
-                  <th className="text-left p-2 font-medium">Active</th>
-                  <th className="text-left p-2 font-medium">Limited</th>
-                  <th className="text-left p-2 font-medium">Pipeline</th>
+                <tr className="border-b border-border text-xs text-muted-foreground">
+                  <th className="p-2 text-left font-medium">Name</th>
+                  <th className="p-2 text-left font-medium">Phone / Email</th>
+                  <th className="p-2 text-left font-medium">Start</th>
+                  <th className="p-2 text-right font-medium">Funds</th>
+                  <th className="p-2 text-left font-medium">
+                    <span className="text-success">Active</span>
+                  </th>
+                  <th className="p-2 text-left font-medium">
+                    <span className="text-warning">Limited</span>
+                  </th>
+                  <th className="p-2 text-left font-medium">
+                    <span className="text-primary">Pipeline</span>
+                  </th>
+                  <th className="p-2 text-right font-medium" />
                 </tr>
               </thead>
               <tbody>
-                {filteredClients.map((client) => (
-                  <tr
-                    key={client.id}
-                    className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
-                  >
-                    <td className="p-2">
-                      <p className="font-medium text-foreground">
-                        {client.name}
-                      </p>
-                    </td>
-                    <td className="p-2">
-                      <p className="text-foreground">{client.phone || '—'}</p>
-                      {client.email && (
-                        <p className="text-xs text-muted-foreground">
-                          {client.email}
-                        </p>
-                      )}
-                    </td>
-                    <td className="p-2 text-muted-foreground">{client.start}</td>
-                    <td className="p-2 font-medium font-mono text-foreground">
-                      {client.funds}
-                    </td>
-                    <td className="p-2">
-                      <div className="flex flex-wrap gap-1">
-                        {client.activePlatforms.map((p) => (
-                          <Badge
-                            key={p}
-                            variant="outline"
-                            className={`text-[9px] px-1 py-0.5 font-medium ${platformColors[p] || 'bg-muted text-muted-foreground'}`}
-                          >
-                            {p}
-                          </Badge>
-                        ))}
-                        {client.activePlatforms.length === 0 && (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="p-2 text-muted-foreground">—</td>
-                    <td className="p-2">
-                      <div className="flex flex-wrap gap-1">
-                        {client.platforms
-                          .filter((p) => !client.activePlatforms.includes(p))
-                          .map((p) => (
-                            <Badge
-                              key={p}
-                              variant="outline"
-                              className="text-[9px] px-1 py-0.5 font-medium bg-primary/20 text-primary border-primary/30"
+                <TooltipProvider delayDuration={200}>
+                  {clients.map((client) => {
+                    const activePlatforms = client.bettingPlatforms.filter(
+                      (p) => p.status === 'active',
+                    )
+                    const limitedPlatforms = client.bettingPlatforms.filter(
+                      (p) => p.status === 'limited',
+                    )
+                    const pipelinePlatforms = client.bettingPlatforms.filter(
+                      (p) => p.status === 'pipeline',
+                    )
+
+                    return (
+                      <tr
+                        key={client.id}
+                        className="group cursor-pointer border-b border-border last:border-0 hover:bg-muted/30"
+                        onClick={() => onSelectClient(client)}
+                        data-testid={`client-row-${client.id}`}
+                      >
+                        {/* Name with quick-info tooltip */}
+                        <td className="p-2">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="cursor-help font-medium">
+                                {client.name}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent
+                              side="right"
+                              className="space-y-1.5 p-3"
                             >
-                              {p}
-                            </Badge>
-                          ))}
-                        {client.platforms.filter(
-                          (p) => !client.activePlatforms.includes(p),
-                        ).length === 0 && (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                              <p className="text-sm font-semibold">
+                                {client.name}
+                              </p>
+                              <div className="space-y-1 text-xs text-muted-foreground">
+                                <p>
+                                  <span className="font-medium text-foreground">
+                                    Zelle:
+                                  </span>{' '}
+                                  {client.quickInfo.zellePhone}
+                                </p>
+                                <p>
+                                  <span className="font-medium text-foreground">
+                                    EdgeBoost:
+                                  </span>{' '}
+                                  {client.quickInfo.edgeboostDebit}
+                                </p>
+                                <p>
+                                  <span className="font-medium text-foreground">
+                                    Bank:
+                                  </span>{' '}
+                                  {client.quickInfo.bankDebit}
+                                </p>
+                                <p>
+                                  <span className="font-medium text-foreground">
+                                    State:
+                                  </span>{' '}
+                                  {client.quickInfo.state}
+                                </p>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </td>
+
+                        {/* Phone / Email */}
+                        <td className="p-2">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="font-mono text-xs">
+                              {client.companyPhone}{' '}
+                              <span className="text-[10px] text-muted-foreground">
+                                ({client.carrier})
+                              </span>
+                            </span>
+                            <span className="max-w-[140px] truncate text-[10px] text-muted-foreground">
+                              {client.companyEmail}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* Start */}
+                        <td className="p-2 font-mono text-xs">
+                          {client.startDate}
+                        </td>
+
+                        {/* Funds */}
+                        <td className="p-2 text-right font-mono text-xs font-semibold">
+                          ${client.totalFunds.toLocaleString()}
+                        </td>
+
+                        {/* Active Platforms */}
+                        <td className="p-2">
+                          <div className="flex flex-wrap gap-0.5">
+                            {activePlatforms.map((platform) => (
+                              <Tooltip key={platform.id}>
+                                <TooltipTrigger asChild>
+                                  <span
+                                    className="cursor-help rounded border border-success/30 bg-success/20 px-1 py-0.5 text-[9px] font-medium text-success"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {platform.abbr}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent
+                                  side="top"
+                                  className="space-y-1 p-2"
+                                >
+                                  <p className="text-xs font-semibold">
+                                    {platform.name}
+                                  </p>
+                                  <div className="space-y-0.5 text-[10px] text-muted-foreground">
+                                    <p>
+                                      <span className="text-foreground">
+                                        Balance:
+                                      </span>{' '}
+                                      ${platform.balance.toLocaleString()}
+                                    </p>
+                                    <p>
+                                      <span className="text-foreground">
+                                        Started:
+                                      </span>{' '}
+                                      {platform.startDate}
+                                    </p>
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
+                            ))}
+                            {activePlatforms.length === 0 && (
+                              <span className="text-[9px] text-muted-foreground">
+                                &mdash;
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Limited Platforms */}
+                        <td className="p-2">
+                          <div className="flex flex-wrap gap-0.5">
+                            {limitedPlatforms.map((platform) => {
+                              const pnl =
+                                (platform.deposits || 0) -
+                                (platform.withdrawals || 0)
+                              return (
+                                <Tooltip key={platform.id}>
+                                  <TooltipTrigger asChild>
+                                    <span
+                                      className="cursor-help rounded border border-warning/30 bg-warning/20 px-1 py-0.5 text-[9px] font-medium text-warning"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      {platform.abbr}
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent
+                                    side="top"
+                                    className="space-y-1 p-2"
+                                  >
+                                    <p className="text-xs font-semibold">
+                                      {platform.name}
+                                    </p>
+                                    <div className="space-y-0.5 text-[10px] text-muted-foreground">
+                                      <p>
+                                        <span className="text-foreground">
+                                          Balance:
+                                        </span>{' '}
+                                        ${platform.balance.toLocaleString()}
+                                      </p>
+                                      <p>
+                                        <span className="text-foreground">
+                                          PnL:
+                                        </span>{' '}
+                                        <span
+                                          className={
+                                            pnl >= 0
+                                              ? 'text-success'
+                                              : 'text-destructive'
+                                          }
+                                        >
+                                          {pnl >= 0 ? '+' : ''}
+                                          {pnl.toLocaleString()}
+                                        </span>
+                                      </p>
+                                      <p>
+                                        <span className="text-foreground">
+                                          Started:
+                                        </span>{' '}
+                                        {platform.startDate}
+                                      </p>
+                                      {platform.endDate && (
+                                        <p>
+                                          <span className="text-foreground">
+                                            Ended:
+                                          </span>{' '}
+                                          {platform.endDate}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
+                              )
+                            })}
+                            {limitedPlatforms.length === 0 && (
+                              <span className="text-[9px] text-muted-foreground">
+                                &mdash;
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Pipeline Platforms */}
+                        <td className="p-2">
+                          <div className="flex flex-wrap gap-0.5">
+                            {pipelinePlatforms.map((platform) => (
+                              <span
+                                key={platform.id}
+                                className="rounded border border-primary/30 bg-primary/20 px-1 py-0.5 text-[9px] font-medium text-primary"
+                              >
+                                {platform.abbr}
+                              </span>
+                            ))}
+                            {pipelinePlatforms.length === 0 && (
+                              <span className="text-[9px] text-muted-foreground">
+                                &mdash;
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        <td className="p-2 text-right">
+                          <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground transition-colors group-hover:text-foreground" />
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </TooltipProvider>
               </tbody>
             </table>
           </div>
-        )}
-      </CardContent>
-    </Card>
+          {clients.length === 0 && (
+            <p className="py-8 text-center text-muted-foreground">
+              No clients match your search
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   )
 }
