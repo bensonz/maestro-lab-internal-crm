@@ -1,0 +1,4 @@
+node_modules
+.next
+prisma/generated
+pnpm-lock.yaml
