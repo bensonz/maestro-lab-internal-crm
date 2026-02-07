@@ -7,6 +7,7 @@ import {
   PlatformType,
 } from '@/types'
 import { ALL_PLATFORMS, getPlatformName } from '@/lib/platforms'
+import { createBonusPool } from '@/backend/services/commission'
 
 // ─── Allowed Transitions ──────────────────────────────────────────────────────
 
@@ -324,6 +325,11 @@ export async function transitionClientStatus(
         }
       }
     })
+
+    // Create bonus pool when client is approved
+    if (newStatus === IntakeStatus.APPROVED) {
+      await createBonusPool(clientId)
+    }
 
     return { success: true }
   } catch (error) {
