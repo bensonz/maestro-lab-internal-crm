@@ -1,28 +1,40 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Switch } from '@/components/ui/switch'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import {
   Users,
   Search,
   ChevronDown,
   LayoutGrid,
   List,
-  Eye,
-  EyeOff,
 } from 'lucide-react'
 import { IntakeStatus } from '@/types'
-import { cn } from '@/lib/utils'
 import { ClientsSummaryPanel, type StatusFilter } from './clients-summary-panel'
 import { ClientsGroupedList } from './clients-grouped-list'
 import { ClientsCardView } from './clients-card-view'
 import type { AgentClient } from './types'
 
-type SortOption = 'priority' | 'newest' | 'oldest' | 'deadline'
+type SortOption = 'priority' | 'newest' | 'oldest'
 type ViewMode = 'list' | 'card'
 
 interface ClientsViewProps {
@@ -34,6 +46,7 @@ interface ClientsViewProps {
     verificationNeeded: number
     approved: number
     rejected: number
+    aborted: number
   }
 }
 
@@ -47,6 +60,7 @@ const STATUS_FILTER_MAP: Record<StatusFilter, IntakeStatus[]> = {
   pendingApproval: [IntakeStatus.READY_FOR_APPROVAL],
   approved: [IntakeStatus.APPROVED],
   rejected: [IntakeStatus.REJECTED],
+  aborted: [IntakeStatus.INACTIVE],
 }
 
 const STATUS_PRIORITY: Record<string, number> = {
@@ -62,24 +76,52 @@ const STATUS_PRIORITY: Record<string, number> = {
   [IntakeStatus.REJECTED]: 9,
 }
 
-const SORT_LABELS: Record<SortOption, string> = {
-  priority: 'Priority',
-  newest: 'Newest',
-  oldest: 'Oldest',
-  deadline: 'Deadline',
+const TERMINAL_STATUSES: IntakeStatus[] = [
+  IntakeStatus.APPROVED,
+  IntakeStatus.REJECTED,
+  IntakeStatus.INACTIVE,
+]
+
+const STATUS_FILTER_LABELS: Record<StatusFilter, string> = {
+  inProgress: 'In Progress',
+  needsInfo: 'Verification Needed',
+  pendingApproval: 'Pending Approval',
+  approved: 'Active',
+  rejected: 'Rejected',
+  aborted: 'Aborted',
 }
 
-const SORT_OPTIONS: SortOption[] = ['priority', 'newest', 'oldest', 'deadline']
-
-const TERMINAL_STATUSES: IntakeStatus[] = [IntakeStatus.APPROVED, IntakeStatus.REJECTED]
+const STATUS_FILTER_OPTIONS: StatusFilter[] = [
+  'inProgress',
+  'needsInfo',
+  'pendingApproval',
+  'approved',
+  'rejected',
+  'aborted',
+]
 
 export function ClientsView({ clients, stats }: ClientsViewProps) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter | null>(null)
   const [sort, setSort] = useState<SortOption>('priority')
-  const [sortOpen, setSortOpen] = useState(false)
   const [viewMode, setViewMode] = useState<ViewMode>('list')
   const [hideCompleted, setHideCompleted] = useState(false)
+
+  // Keyboard shortcut for Active Only toggle (A key)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      )
+        return
+      if (e.key.toLowerCase() === 'a' && !e.metaKey && !e.ctrlKey) {
+        setHideCompleted((prev) => !prev)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   const filteredClients = useMemo(() => {
     let result = clients
@@ -91,7 +133,7 @@ export function ClientsView({ clients, stats }: ClientsViewProps) {
       )
     }
 
-    // Status filter from sidebar
+    // Status filter from sidebar or toolbar dropdown
     if (statusFilter) {
       const allowedStatuses = STATUS_FILTER_MAP[statusFilter]
       result = result.filter((c) => allowedStatuses.includes(c.intakeStatus))
@@ -106,20 +148,14 @@ export function ClientsView({ clients, stats }: ClientsViewProps) {
     // Sort
     result = [...result].sort((a, b) => {
       if (sort === 'priority') {
-        return (
+        const priorityDiff =
           (STATUS_PRIORITY[a.intakeStatus] ?? 99) -
           (STATUS_PRIORITY[b.intakeStatus] ?? 99)
-        )
+        if (priorityDiff !== 0) return priorityDiff
+        return b.updatedAt.localeCompare(a.updatedAt)
       }
       if (sort === 'newest') {
         return b.updatedAt.localeCompare(a.updatedAt)
-      }
-      if (sort === 'deadline') {
-        if (a.deadline && b.deadline)
-          return a.deadline.localeCompare(b.deadline)
-        if (a.deadline) return -1
-        if (b.deadline) return 1
-        return 0
       }
       return a.updatedAt.localeCompare(b.updatedAt)
     })
@@ -152,81 +188,119 @@ export function ClientsView({ clients, stats }: ClientsViewProps) {
             />
           </div>
 
-          {/* Sort dropdown */}
-          <div className="relative">
-            <Button
-              variant="outline"
-              className="gap-2"
-              onClick={() => setSortOpen(!sortOpen)}
-              data-testid="sort-dropdown"
-            >
-              Sort: {SORT_LABELS[sort]}
-              <ChevronDown className="h-4 w-4" />
-            </Button>
-            {sortOpen && (
-              <div className="absolute right-0 top-full z-10 mt-1 w-48 rounded-lg border border-border bg-card p-1 shadow-lg">
-                {SORT_OPTIONS.map((option) => (
-                  <button
-                    key={option}
-                    onClick={() => {
-                      setSort(option)
-                      setSortOpen(false)
-                    }}
-                    className={cn(
-                      'flex w-full items-center rounded-md px-3 py-2 text-sm transition-colors',
-                      sort === option
-                        ? 'bg-primary/10 text-primary'
-                        : 'text-foreground hover:bg-muted/50',
-                    )}
-                  >
-                    {SORT_LABELS[option]}
-                  </button>
-                ))}
+          {/* Status Filter Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                className="gap-2"
+                data-testid="status-filter-dropdown"
+              >
+                Status:{' '}
+                {statusFilter
+                  ? STATUS_FILTER_LABELS[statusFilter]
+                  : 'All'}
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setStatusFilter(null)}>
+                All Statuses
+              </DropdownMenuItem>
+              {STATUS_FILTER_OPTIONS.map((key) => (
+                <DropdownMenuItem
+                  key={key}
+                  onClick={() => setStatusFilter(key)}
+                >
+                  {STATUS_FILTER_LABELS[key]}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Sort Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                className="gap-2"
+                data-testid="sort-dropdown"
+              >
+                Sort:{' '}
+                {sort === 'priority'
+                  ? 'Priority'
+                  : sort === 'newest'
+                    ? 'Newest'
+                    : 'Oldest'}
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setSort('priority')}>
+                Priority (Default)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSort('newest')}>
+                Most Recently Updated
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSort('oldest')}>
+                Oldest Updated
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Active Only Toggle */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-1.5">
+                <Switch
+                  id="hide-completed"
+                  checked={hideCompleted}
+                  onCheckedChange={setHideCompleted}
+                  data-testid="hide-completed-toggle"
+                />
+                <Label
+                  htmlFor="hide-completed"
+                  className="cursor-pointer text-sm text-muted-foreground"
+                >
+                  Active Only
+                </Label>
               </div>
-            )}
-          </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>
+                Press{' '}
+                <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
+                  A
+                </kbd>{' '}
+                to toggle
+              </p>
+            </TooltipContent>
+          </Tooltip>
 
-          {/* View toggle */}
-          <div className="ml-auto flex items-center gap-2">
-            {/* Hide completed toggle */}
+          {/* View Toggle */}
+          <div className="ml-auto flex items-center rounded-md border border-border">
             <Button
-              variant={hideCompleted ? 'default' : 'outline'}
-              size="sm"
-              className="gap-1.5"
-              onClick={() => setHideCompleted(!hideCompleted)}
-              data-testid="hide-completed-toggle"
+              variant={viewMode === 'list' ? 'default' : 'ghost'}
+              size="icon"
+              className="rounded-r-none"
+              onClick={() => setViewMode('list')}
+              data-testid="view-list-btn"
             >
-              {hideCompleted ? (
-                <EyeOff className="h-3.5 w-3.5" />
-              ) : (
-                <Eye className="h-3.5 w-3.5" />
-              )}
-              <span className="hidden text-xs sm:inline">
-                {hideCompleted ? 'Showing active' : 'Hide completed'}
-              </span>
+              <List className="h-4 w-4" />
             </Button>
-
-            {/* View mode buttons */}
-            <div className="flex items-center rounded-md border border-border">
-              <Button
-                variant={viewMode === 'list' ? 'default' : 'ghost'}
-                size="icon"
-                className="rounded-r-none"
-                onClick={() => setViewMode('list')}
-                data-testid="view-list-btn"
-              >
-                <List className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={viewMode === 'card' ? 'default' : 'ghost'}
-                size="icon"
-                className="rounded-l-none"
-                onClick={() => setViewMode('card')}
-                data-testid="view-card-btn"
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </Button>
-            </div>
+            <Button
+              variant={viewMode === 'card' ? 'default' : 'ghost'}
+              size="icon"
+              className="rounded-l-none"
+              onClick={() => setViewMode('card')}
+              data-testid="view-card-btn"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
           </div>
         </div>
 
