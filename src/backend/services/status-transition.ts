@@ -45,9 +45,10 @@ const ALLOWED_TRANSITIONS: Record<IntakeStatus, IntakeStatus[]> = {
     IntakeStatus.REJECTED,
     IntakeStatus.NEEDS_MORE_INFO,
   ],
-  [IntakeStatus.APPROVED]: [],
+  [IntakeStatus.APPROVED]: [IntakeStatus.PARTNERSHIP_ENDED],
   [IntakeStatus.REJECTED]: [],
   [IntakeStatus.INACTIVE]: [],
+  [IntakeStatus.PARTNERSHIP_ENDED]: [],
 }
 
 // ─── Business Day Helper ──────────────────────────────────────────────────────
@@ -200,7 +201,9 @@ export async function transitionClientStatus(
   // 4. Determine todos to create
   const todoTemplates = getTodosForStatus(newStatus, executionDeadline)
   const isTerminalStatus =
-    newStatus === IntakeStatus.REJECTED || newStatus === IntakeStatus.INACTIVE
+    newStatus === IntakeStatus.REJECTED ||
+    newStatus === IntakeStatus.INACTIVE ||
+    newStatus === IntakeStatus.PARTNERSHIP_ENDED
 
   try {
     await prisma.$transaction(async (tx) => {
