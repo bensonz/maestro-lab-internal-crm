@@ -6,14 +6,14 @@ export default async function ClientSettlementPage() {
   const clients = await getClientsForSettlement()
 
   return (
-    <div className="p-6 lg:p-8 space-y-6" data-testid="settlement-page">
+    <div className="space-y-6 p-6 animate-fade-in" data-testid="settlement-page">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          <h1 className="text-2xl font-semibold text-foreground">
             Client Settlement
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="mt-1 text-sm text-muted-foreground">
             View deposits, withdrawals, and platform breakdowns per client
           </p>
         </div>

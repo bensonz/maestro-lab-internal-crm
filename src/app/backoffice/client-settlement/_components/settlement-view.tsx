@@ -4,7 +4,13 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Collapsible,
   CollapsibleTrigger,
@@ -12,14 +18,12 @@ import {
 } from '@/components/ui/collapsible'
 import {
   Search,
-  User,
   ArrowDownRight,
   ArrowUpRight,
   ChevronDown,
   DollarSign,
-  TrendingDown,
-  Wallet,
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import type { SettlementClient } from '@/backend/data/operations'
 
 interface SettlementViewProps {
@@ -32,6 +36,7 @@ export function SettlementView({ clients }: SettlementViewProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
   const [txFilter, setTxFilter] = useState<TransactionFilter>('all')
+  const [expandedPlatforms, setExpandedPlatforms] = useState<string[]>([])
 
   const filteredClients = clients.filter((client) =>
     client.name.toLowerCase().includes(searchQuery.toLowerCase()),
@@ -45,194 +50,178 @@ export function SettlementView({ clients }: SettlementViewProps) {
       )
     : []
 
+  const togglePlatform = (name: string) => {
+    setExpandedPlatforms((prev) =>
+      prev.includes(name)
+        ? prev.filter((p) => p !== name)
+        : [...prev, name],
+    )
+  }
+
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
-      {/* Left column — Client List (1/3) */}
-      <div>
-        <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Clients
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search clients..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-                data-testid="settlement-search"
-              />
-            </div>
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      {/* Client List */}
+      <Card className="card-terminal" data-testid="settlement-client-list">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
+            Clients
+          </CardTitle>
+          <div className="relative mt-2">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search clients..."
+              className="pl-9"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              data-testid="settlement-search"
+            />
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {filteredClients.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              {clients.length === 0
+                ? 'No clients with settlement activity'
+                : 'No clients match your search'}
+            </p>
+          ) : (
+            filteredClients.map((client) => (
+              <button
+                key={client.id}
+                onClick={() => {
+                  setSelectedClientId(client.id)
+                  setTxFilter('all')
+                }}
+                className={cn(
+                  'w-full rounded-lg border p-3 text-left transition-all',
+                  selectedClientId === client.id
+                    ? 'border-primary bg-primary/10'
+                    : 'border-border hover:border-muted-foreground',
+                )}
+                data-testid={`client-card-${client.id}`}
+              >
+                <p className="font-medium">{client.name}</p>
+                <div className="mt-1 flex items-center justify-between">
+                  <span className="font-mono text-xs text-success">
+                    +${client.totalDeposited.toLocaleString()}
+                  </span>
+                  <span className="font-mono text-xs text-destructive">
+                    -${client.totalWithdrawn.toLocaleString()}
+                  </span>
+                </div>
+              </button>
+            ))
+          )}
+        </CardContent>
+      </Card>
 
-            {/* Client Cards */}
-            <div className="space-y-2 max-h-[600px] overflow-y-auto">
-              {filteredClients.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8 text-sm">
-                  {clients.length === 0
-                    ? 'No clients with settlement activity'
-                    : 'No clients match your search'}
-                </p>
-              ) : (
-                filteredClients.map((client) => (
-                  <div
-                    key={client.id}
-                    onClick={() => {
-                      setSelectedClientId(client.id)
-                      setTxFilter('all')
-                    }}
-                    className={`p-4 rounded-lg cursor-pointer transition-all duration-200 border ${
-                      selectedClientId === client.id
-                        ? 'border-primary bg-primary/10'
-                        : 'border-border/50 hover:border-muted-foreground'
-                    }`}
-                    data-testid={`client-card-${client.id}`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="rounded-full bg-muted/30 p-2">
-                          <User className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                        <span className="text-sm font-medium text-foreground">
-                          {client.name}
-                        </span>
-                      </div>
-                      <div className="flex gap-3 text-xs font-mono">
-                        <span className="text-success">
-                          +${client.totalDeposited.toLocaleString()}
-                        </span>
-                        <span className="text-destructive">
-                          -${client.totalWithdrawn.toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Right column — Settlement Details (2/3) */}
-      <div className="lg:col-span-2">
+      {/* Settlement Details */}
+      <div className="space-y-6 lg:col-span-2">
         {selected ? (
-          <div className="space-y-6">
+          <>
             {/* Summary Cards */}
-            <div className="grid gap-4 sm:grid-cols-3">
-              {/* Total Deposited */}
-              <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
-                <CardContent className="flex items-center gap-3 py-5">
-                  <div className="rounded-xl bg-success/10 p-3 ring-1 ring-success/20">
-                    <ArrowDownRight className="h-5 w-5 text-success" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Total Deposited
-                    </p>
-                    <p
-                      className="text-2xl font-bold tracking-tight font-mono text-success"
-                      data-testid="total-deposited"
-                    >
-                      +${selected.totalDeposited.toLocaleString()}
-                    </p>
-                  </div>
+            <div className="grid grid-cols-3 gap-4">
+              <Card className="card-terminal">
+                <CardContent className="p-4">
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                    Total Deposited
+                  </p>
+                  <p
+                    className="mt-1 text-2xl font-mono font-semibold text-success"
+                    data-testid="total-deposited"
+                  >
+                    ${selected.totalDeposited.toLocaleString()}
+                  </p>
                 </CardContent>
               </Card>
-
-              {/* Total Withdrawn */}
-              <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
-                <CardContent className="flex items-center gap-3 py-5">
-                  <div className="rounded-xl bg-destructive/10 p-3 ring-1 ring-destructive/20">
-                    <ArrowUpRight className="h-5 w-5 text-destructive" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Total Withdrawn
-                    </p>
-                    <p
-                      className="text-2xl font-bold tracking-tight font-mono text-destructive"
-                      data-testid="total-withdrawn"
-                    >
-                      -${selected.totalWithdrawn.toLocaleString()}
-                    </p>
-                  </div>
+              <Card className="card-terminal">
+                <CardContent className="p-4">
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                    Total Withdrawn
+                  </p>
+                  <p
+                    className="mt-1 text-2xl font-mono font-semibold text-destructive"
+                    data-testid="total-withdrawn"
+                  >
+                    ${selected.totalWithdrawn.toLocaleString()}
+                  </p>
                 </CardContent>
               </Card>
-
-              {/* Net Balance */}
-              <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
-                <CardContent className="flex items-center gap-3 py-5">
-                  <div className="rounded-xl bg-primary/10 p-3 ring-1 ring-primary/20">
-                    <Wallet className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Net Balance
-                    </p>
-                    <p
-                      className={`text-2xl font-bold tracking-tight font-mono ${
-                        selected.netBalance >= 0
-                          ? 'text-success'
-                          : 'text-destructive'
-                      }`}
-                      data-testid="net-balance"
-                    >
-                      ${selected.netBalance.toLocaleString()}
-                    </p>
-                  </div>
+              <Card className="card-terminal">
+                <CardContent className="p-4">
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                    Net Balance
+                  </p>
+                  <p
+                    className="mt-1 text-2xl font-mono font-semibold text-primary"
+                    data-testid="net-balance"
+                  >
+                    ${selected.netBalance.toLocaleString()}
+                  </p>
                 </CardContent>
               </Card>
             </div>
 
             {/* Platform Breakdown */}
-            <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            <Card className="card-terminal">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
                   Platform Breakdown
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-1">
+              <CardContent className="space-y-3">
                 {selected.platforms.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-4 text-sm">
+                  <p className="py-4 text-center text-sm text-muted-foreground">
                     No platform activity
                   </p>
                 ) : (
                   selected.platforms.map((platform) => (
-                    <Collapsible key={platform.name}>
-                      <CollapsibleTrigger
-                        className="flex w-full items-center justify-between rounded-lg p-3 hover:bg-muted/30 transition-colors"
-                        data-testid={`platform-${platform.name}`}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <DollarSign className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm font-medium text-foreground">
-                            {platform.name}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <span className="text-xs font-mono text-success">
-                            +${platform.deposited.toLocaleString()}
-                          </span>
-                          <span className="text-xs font-mono text-destructive">
-                            -${platform.withdrawn.toLocaleString()}
-                          </span>
-                          <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
-                        </div>
+                    <Collapsible
+                      key={platform.name}
+                      open={expandedPlatforms.includes(platform.name)}
+                      onOpenChange={() => togglePlatform(platform.name)}
+                    >
+                      <CollapsibleTrigger asChild>
+                        <button
+                          className="flex w-full items-center justify-between rounded-lg border border-border p-3 transition-all hover:bg-muted/30"
+                          data-testid={`platform-${platform.name}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-8 w-8 items-center justify-center rounded bg-primary/20">
+                              <DollarSign className="h-4 w-4 text-primary" />
+                            </div>
+                            <span className="font-medium">{platform.name}</span>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <span className="font-mono text-sm text-success">
+                              +${platform.deposited.toLocaleString()}
+                            </span>
+                            <span className="font-mono text-sm text-destructive">
+                              -${platform.withdrawn.toLocaleString()}
+                            </span>
+                            <ChevronDown
+                              className={cn(
+                                'h-4 w-4 text-muted-foreground transition-transform',
+                                expandedPlatforms.includes(platform.name) &&
+                                  'rotate-180',
+                              )}
+                            />
+                          </div>
+                        </button>
                       </CollapsibleTrigger>
                       <CollapsibleContent>
-                        <div className="px-3 pb-3 pt-1">
-                          <div className="rounded-lg bg-muted/20 p-3 text-xs text-muted-foreground">
-                            Net:{' '}
+                        <div className="ml-11 mt-2 space-y-1">
+                          <div className="flex items-center justify-between rounded bg-muted/20 p-2 text-sm">
+                            <span className="text-muted-foreground">
+                              Net Balance
+                            </span>
                             <span
-                              className={`font-mono font-semibold ${
+                              className={cn(
+                                'font-mono text-xs font-semibold',
                                 platform.deposited - platform.withdrawn >= 0
                                   ? 'text-success'
-                                  : 'text-destructive'
-                              }`}
+                                  : 'text-destructive',
+                              )}
                             >
                               $
                               {(
@@ -249,108 +238,112 @@ export function SettlementView({ clients }: SettlementViewProps) {
             </Card>
 
             {/* Transaction Timeline */}
-            <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                  Recent Transactions
-                </CardTitle>
-                <div className="flex gap-1">
-                  {(['all', 'deposit', 'withdrawal'] as const).map((filter) => (
-                    <Button
-                      key={filter}
-                      variant={txFilter === filter ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => setTxFilter(filter)}
-                      className="text-xs h-7 px-2.5"
-                      data-testid={`filter-${filter}`}
+            <Card className="card-terminal">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
+                    Transaction Timeline
+                  </CardTitle>
+                  <Select
+                    value={txFilter}
+                    onValueChange={(v) => setTxFilter(v as TransactionFilter)}
+                  >
+                    <SelectTrigger
+                      className="h-8 w-32"
+                      data-testid="tx-filter"
                     >
-                      {filter === 'all'
-                        ? 'All'
-                        : filter === 'deposit'
-                          ? 'Deposits'
-                          : 'Withdrawals'}
-                    </Button>
-                  ))}
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="deposit">Deposits</SelectItem>
+                      <SelectItem value="withdrawal">Withdrawals</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-2">
                 {filteredTransactions.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-6 text-sm">
+                  <p className="py-6 text-center text-sm text-muted-foreground">
                     No transactions found
                   </p>
                 ) : (
-                  <div className="space-y-2">
-                    {filteredTransactions.map((tx) => (
-                      <div
-                        key={tx.id}
-                        className="flex items-center justify-between rounded-lg p-3 border border-border/30 hover:bg-muted/10 transition-colors"
-                        data-testid={`transaction-${tx.id}`}
-                      >
-                        <div className="flex items-center gap-3">
-                          {tx.type === 'deposit' ? (
-                            <div className="rounded-lg bg-success/10 p-2">
-                              <ArrowDownRight className="h-4 w-4 text-success" />
-                            </div>
-                          ) : (
-                            <div className="rounded-lg bg-destructive/10 p-2">
-                              <ArrowUpRight className="h-4 w-4 text-destructive" />
-                            </div>
+                  filteredTransactions.map((tx) => (
+                    <div
+                      key={tx.id}
+                      className="flex items-center justify-between rounded-lg border border-border p-3"
+                      data-testid={`transaction-${tx.id}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={cn(
+                            'flex h-8 w-8 items-center justify-center rounded',
+                            tx.type === 'deposit'
+                              ? 'bg-success/20'
+                              : 'bg-destructive/20',
                           )}
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium text-foreground capitalize">
-                                {tx.type}
-                              </span>
-                              <Badge
-                                variant="outline"
-                                className="text-xs border-border/50 text-muted-foreground"
-                              >
-                                {tx.platform}
-                              </Badge>
-                            </div>
-                            <p className="text-xs text-muted-foreground">
-                              {tx.date}
-                            </p>
-                          </div>
+                        >
+                          {tx.type === 'deposit' ? (
+                            <ArrowDownRight className="h-4 w-4 text-success" />
+                          ) : (
+                            <ArrowUpRight className="h-4 w-4 text-destructive" />
+                          )}
                         </div>
-                        <div className="flex items-center gap-3">
-                          <span
-                            className={`text-sm font-semibold font-mono ${
-                              tx.type === 'deposit'
-                                ? 'text-success'
-                                : 'text-destructive'
-                            }`}
-                          >
-                            {tx.type === 'deposit' ? '+' : '-'}$
-                            {tx.amount.toLocaleString()}
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium capitalize">
+                              {tx.type}
+                            </span>
+                            <Badge
+                              variant="outline"
+                              className="text-[10px]"
+                            >
+                              {tx.platform}
+                            </Badge>
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {tx.date}
                           </span>
-                          <Badge
-                            variant="outline"
-                            className={
-                              tx.status === 'completed'
-                                ? 'bg-success/10 text-success border-success/30'
-                                : 'bg-warning/10 text-warning border-warning/30'
-                            }
-                          >
-                            {tx.status}
-                          </Badge>
                         </div>
                       </div>
-                    ))}
-                  </div>
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={cn(
+                            'font-mono font-semibold',
+                            tx.type === 'deposit'
+                              ? 'text-success'
+                              : 'text-destructive',
+                          )}
+                        >
+                          {tx.type === 'deposit' ? '+' : '-'}$
+                          {tx.amount.toLocaleString()}
+                        </span>
+                        <Badge
+                          className={cn(
+                            'text-[10px]',
+                            tx.status === 'completed' &&
+                              'bg-success/20 text-success',
+                            tx.status === 'pending' &&
+                              'bg-warning/20 text-warning',
+                            tx.status === 'failed' &&
+                              'bg-destructive/20 text-destructive',
+                          )}
+                        >
+                          {tx.status}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))
                 )}
               </CardContent>
             </Card>
-          </div>
+          </>
         ) : (
-          <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
-            <CardContent className="flex items-center justify-center min-h-[400px]">
-              <div className="text-center">
-                <TrendingDown className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
-                <p className="text-muted-foreground">
-                  Select a client to view settlement details
-                </p>
-              </div>
+          <Card className="card-terminal">
+            <CardContent className="p-12 text-center">
+              <p className="text-muted-foreground">
+                Select a client to view settlement details
+              </p>
             </CardContent>
           </Card>
         )}
