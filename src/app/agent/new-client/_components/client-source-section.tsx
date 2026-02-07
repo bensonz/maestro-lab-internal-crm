@@ -49,7 +49,7 @@ export function ClientSourceSection({
             <Users className="h-5 w-5 text-chart-2" />
           </div>
           <div>
-            <CardTitle className="font-display text-lg font-semibold text-foreground">
+            <CardTitle className="text-lg font-semibold text-foreground">
               How do we know this client?
             </CardTitle>
             <p className="text-sm text-muted-foreground">
@@ -124,7 +124,7 @@ export function ClientSourceSection({
               <RadioGroupItem value="yes" id="reliable-yes" />
               <Label
                 htmlFor="reliable-yes"
-                className="cursor-pointer text-chart-4"
+                className="cursor-pointer text-success"
               >
                 Yes
               </Label>
@@ -164,7 +164,7 @@ export function ClientSourceSection({
               <RadioGroupItem value="no" id="flagged-no" />
               <Label
                 htmlFor="flagged-no"
-                className="cursor-pointer text-chart-4"
+                className="cursor-pointer text-success"
               >
                 No
               </Label>

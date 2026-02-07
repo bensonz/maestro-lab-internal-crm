@@ -18,14 +18,14 @@ interface PerformancePanelProps {
 }
 
 function getSuccessRateColor(rate: number) {
-  if (rate >= 80) return 'text-chart-4'
-  if (rate >= 60) return 'text-accent'
+  if (rate >= 80) return 'text-success'
+  if (rate >= 60) return 'text-warning'
   return 'text-destructive'
 }
 
 function getDelayRateColor(rate: number) {
-  if (rate <= 10) return 'text-chart-4'
-  if (rate <= 20) return 'text-accent'
+  if (rate <= 10) return 'text-success'
+  if (rate <= 20) return 'text-warning'
   return 'text-destructive'
 }
 
@@ -98,7 +98,7 @@ export function PerformancePanel({ kpis }: PerformancePanelProps) {
       data-testid="performance-panel"
     >
       <CardHeader>
-        <CardTitle className="font-display text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           Performance Metrics
         </CardTitle>
       </CardHeader>

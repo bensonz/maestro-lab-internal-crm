@@ -76,10 +76,10 @@ function getUrgencyStyles(urgency: UrgencyLevel) {
       }
     case 'due_soon':
       return {
-        card: 'ring-accent/50 bg-accent/5',
-        icon: 'text-accent',
-        progress: 'bg-accent',
-        text: 'text-accent',
+        card: 'ring-warning/50 bg-warning/5',
+        icon: 'text-warning',
+        progress: 'bg-warning',
+        text: 'text-warning',
       }
     default:
       return {

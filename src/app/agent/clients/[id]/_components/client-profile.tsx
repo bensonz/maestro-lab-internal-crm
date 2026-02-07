@@ -401,7 +401,7 @@ export function ClientProfile({ client }: ClientProfileProps) {
                   variant="outline"
                   className={`rounded-md px-2 py-1 text-xs ${
                     flag.type === 'warning'
-                      ? 'border-accent/50 bg-accent/10 text-accent'
+                      ? 'border-warning/50 bg-warning/10 text-warning'
                       : flag.type === 'compliance'
                         ? 'border-destructive/50 bg-destructive/10 text-destructive'
                         : 'border-border bg-muted/50 text-muted-foreground'

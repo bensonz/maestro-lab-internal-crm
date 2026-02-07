@@ -312,7 +312,7 @@ export function UploadModal({
                     <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                       Detected Information
                     </span>
-                    <Badge className="bg-chart-4/20 text-chart-4 text-xs">
+                    <Badge className="bg-success/20 text-success text-xs">
                       {Math.round(detection.confidence * 100)}% confidence
                     </Badge>
                   </div>
@@ -414,7 +414,7 @@ export function UploadModal({
                 <Button
                   onClick={handleConfirm}
                   disabled={state === 'editing' || isPending}
-                  className="bg-chart-4 hover:bg-chart-4/90 text-chart-4-foreground"
+                  className="bg-success hover:bg-success/90 text-success-foreground"
                 >
                   {isPending ? (
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />

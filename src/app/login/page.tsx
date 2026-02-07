@@ -72,7 +72,7 @@ export default function LoginPage() {
           <div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 to-chart-3/20 ring-1 ring-primary/30 shadow-lg shadow-primary/20">
             <Sparkles className="h-8 w-8 text-primary" />
           </div>
-          <h1 className="font-display text-4xl font-semibold tracking-tight text-foreground">
+          <h1 className="text-4xl font-semibold tracking-tight text-foreground">
             Welcome back
           </h1>
           <p className="mt-3 text-base text-muted-foreground">

@@ -24,7 +24,7 @@ export function AgentConfirmation({
     >
       <CardContent className="p-4">
         <div className="flex items-start gap-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-primary/20 to-chart-4/20 ring-1 ring-primary/20">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-primary/20 to-success/20 ring-1 ring-primary/20">
             <ShieldAlert className="h-5 w-5 text-primary" />
           </div>
           <div className="flex-1 space-y-3">

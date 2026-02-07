@@ -141,7 +141,7 @@ export function IdUploadSection({
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="font-display text-lg font-semibold text-foreground">
+            <CardTitle className="text-lg font-semibold text-foreground">
               ID Upload & Verification
             </CardTitle>
             <p className="text-sm text-muted-foreground">
@@ -151,7 +151,7 @@ export function IdUploadSection({
           {isConfirmed && (
             <Badge
               variant="outline"
-              className="border-chart-4/50 bg-chart-4/10 text-chart-4"
+              className="border-success/50 bg-success/10 text-success"
             >
               <CheckCircle2 className="mr-1 h-3 w-3" />
               Verified
@@ -296,13 +296,13 @@ export function IdUploadSection({
 
                 {/* Age OK Badge */}
                 {age !== null && age >= 21 && (
-                  <div className="flex items-center gap-2 rounded-lg border border-chart-4/30 bg-chart-4/5 p-3">
-                    <CheckCircle2 className="h-5 w-5 text-chart-4" />
+                  <div className="flex items-center gap-2 rounded-lg border border-success/30 bg-success/5 p-3">
+                    <CheckCircle2 className="h-5 w-5 text-success" />
                     <div>
-                      <p className="text-sm font-medium text-chart-4">
+                      <p className="text-sm font-medium text-success">
                         Age Verified
                       </p>
-                      <p className="text-xs text-chart-4/80">
+                      <p className="text-xs text-success/80">
                         Client is {age} years old. Meets minimum age
                         requirement.
                       </p>

@@ -59,7 +59,7 @@ function getEventCategory(eventType: EventType): EventCategory {
 function getCategoryColor(category: EventCategory) {
   switch (category) {
     case 'milestone':
-      return 'bg-chart-4'
+      return 'bg-success'
     case 'compliance':
       return 'bg-destructive'
     case 'agent':
@@ -215,7 +215,7 @@ export function EventTimeline({ events }: EventTimelineProps) {
                   <span className="text-xs text-muted-foreground">Agent</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <div className="h-2.5 w-2.5 rounded-full bg-chart-4" />
+                  <div className="h-2.5 w-2.5 rounded-full bg-success" />
                   <span className="text-xs text-muted-foreground">
                     Milestone
                   </span>

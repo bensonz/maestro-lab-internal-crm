@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Plus, Users, Search, ArrowUpDown } from 'lucide-react'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Users, Search, ArrowUpDown, ChevronDown } from 'lucide-react'
 import { IntakeStatus } from '@/types'
 import { cn } from '@/lib/utils'
 import { ClientsSummaryPanel, type StatusFilter } from './clients-summary-panel'
@@ -75,7 +76,7 @@ const STATUS_BORDER_COLOR: Record<string, string> = {
   [IntakeStatus.READY_FOR_APPROVAL]: 'border-l-accent',
   [IntakeStatus.PENDING]: 'border-l-slate-500',
   [IntakeStatus.INACTIVE]: 'border-l-slate-600',
-  [IntakeStatus.APPROVED]: 'border-l-chart-4',
+  [IntakeStatus.APPROVED]: 'border-l-success',
   [IntakeStatus.REJECTED]: 'border-l-destructive',
 }
 
@@ -147,165 +148,169 @@ export function ClientsView({ clients, stats }: ClientsViewProps) {
       />
 
       {/* Main content */}
-      <div className="flex-1 overflow-y-auto p-6 lg:p-8">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Toolbar */}
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative flex-1 max-w-sm">
+        <div className="flex items-center gap-3 p-4 border-b border-border flex-wrap">
+          <div className="relative flex-1 max-w-md min-w-[200px]">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search clients..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="h-9 pl-9 bg-muted/30 border-border/50"
+              className="pl-9 bg-card border-border"
             />
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground">
-              Showing{' '}
-              <span className="font-medium text-foreground">
-                {filteredClients.length}
-              </span>{' '}
-              of{' '}
-              <span className="font-medium text-foreground">
-                {clients.length}
-              </span>{' '}
-              clients
-            </span>
-            <div className="relative">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-9 gap-2"
-                onClick={() => setSortOpen(!sortOpen)}
-              >
-                <ArrowUpDown className="h-3.5 w-3.5" />
-                {SORT_LABELS[sort]}
-              </Button>
-              {sortOpen && (
-                <div className="absolute right-0 top-full z-10 mt-1 w-44 rounded-lg border border-border/50 bg-card p-1 shadow-lg">
-                  {SORT_OPTIONS.map((option) => (
-                    <button
-                      key={option}
-                      onClick={() => {
-                        setSort(option)
-                        setSortOpen(false)
-                      }}
-                      className={cn(
-                        'flex w-full items-center rounded-md px-3 py-2 text-sm transition-colors',
-                        sort === option
-                          ? 'bg-primary/20 text-primary'
-                          : 'text-foreground hover:bg-muted/50',
-                      )}
-                    >
-                      {SORT_LABELS[option]}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+          <div className="relative">
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => setSortOpen(!sortOpen)}
+            >
+              Sort: {SORT_LABELS[sort]}
+              <ChevronDown className="w-4 h-4" />
+            </Button>
+            {sortOpen && (
+              <div className="absolute right-0 top-full z-10 mt-1 w-48 rounded-lg border border-border bg-card p-1 shadow-lg">
+                {SORT_OPTIONS.map((option) => (
+                  <button
+                    key={option}
+                    onClick={() => {
+                      setSort(option)
+                      setSortOpen(false)
+                    }}
+                    className={cn(
+                      'flex w-full items-center rounded-md px-3 py-2 text-sm transition-colors',
+                      sort === option
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-foreground hover:bg-muted/50',
+                    )}
+                  >
+                    {SORT_LABELS[option]}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Client Cards */}
-        {filteredClients.length === 0 ? (
-          <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
-            <CardContent className="flex flex-col items-center justify-center py-16">
-              <div className="mb-4 rounded-2xl bg-muted/50 p-4 ring-1 ring-border/30">
-                <Users className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <h3 className="mb-2 font-display text-lg font-semibold text-foreground">
-                {clients.length === 0
-                  ? 'No clients yet'
-                  : 'No matching clients'}
-              </h3>
-              <p className="mb-6 text-sm text-muted-foreground">
-                {clients.length === 0
-                  ? 'Start by adding your first client'
-                  : 'Try adjusting your search or filters'}
-              </p>
-              {clients.length === 0 && (
-                <Link href="/agent/new-client">
-                  <Button className="btn-glow h-11 rounded-xl bg-primary px-6 text-primary-foreground font-medium shadow-lg shadow-primary/25 transition-all duration-300 hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/30">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Your First Client
-                  </Button>
-                </Link>
-              )}
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {filteredClients.map((client) => (
-              <Link key={client.id} href={`/agent/clients/${client.id}`}>
-                <Card
-                  className={cn(
-                    'group h-full border-l-2 border-border/50 bg-card/80 backdrop-blur-sm transition-all duration-300 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10 card-interactive cursor-pointer',
-                    STATUS_BORDER_COLOR[client.intakeStatus] ||
-                      'border-l-slate-500',
-                    isTerminal(client.intakeStatus) && 'opacity-60',
+        {/* Results count strip */}
+        <div className="px-4 py-2 border-b border-border bg-muted/30">
+          <p className="text-xs text-muted-foreground">
+            Showing{' '}
+            <span className="font-mono font-medium text-foreground">
+              {filteredClients.length}
+            </span>{' '}
+            of{' '}
+            <span className="font-mono font-medium text-foreground">
+              {clients.length}
+            </span>{' '}
+            clients
+          </p>
+        </div>
+
+        {/* Scrollable Client Cards */}
+        <ScrollArea className="flex-1">
+          <div className="p-4">
+            {filteredClients.length === 0 ? (
+              <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
+                <CardContent className="flex flex-col items-center justify-center py-16">
+                  <div className="mb-4 rounded-2xl bg-muted/50 p-4 ring-1 ring-border/30">
+                    <Users className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <h3 className="mb-2 text-lg font-semibold text-foreground">
+                    {clients.length === 0
+                      ? 'No clients yet'
+                      : 'No matching clients'}
+                  </h3>
+                  <p className="mb-6 text-sm text-muted-foreground">
+                    {clients.length === 0
+                      ? 'Start by adding your first client'
+                      : 'Try adjusting your search or filters'}
+                  </p>
+                  {clients.length === 0 && (
+                    <Link href="/agent/new-client">
+                      <Button className="h-11 rounded-xl bg-primary px-6 text-primary-foreground font-medium shadow-lg shadow-primary/25 transition-all duration-300 hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/30">
+                        Add Your First Client
+                      </Button>
+                    </Link>
                   )}
-                >
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <CardTitle className="truncate text-lg font-semibold text-foreground">
-                          {client.name}
-                        </CardTitle>
-                        {client.nextTask && (
-                          <p className="mt-1 truncate text-sm text-muted-foreground">
-                            Next: {client.nextTask}
-                          </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {filteredClients.map((client) => (
+                  <Link key={client.id} href={`/agent/clients/${client.id}`}>
+                    <Card
+                      className={cn(
+                        'group h-full border-l-2 border-border/50 bg-card/80 backdrop-blur-sm card-interactive cursor-pointer',
+                        STATUS_BORDER_COLOR[client.intakeStatus] ||
+                          'border-l-slate-500',
+                        isTerminal(client.intakeStatus) && 'opacity-60',
+                      )}
+                    >
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <CardTitle className="truncate text-lg font-semibold text-foreground">
+                              {client.name}
+                            </CardTitle>
+                            {client.nextTask && (
+                              <p className="mt-1 truncate text-sm text-muted-foreground">
+                                Next: {client.nextTask}
+                              </p>
+                            )}
+                          </div>
+                          <Badge
+                            className={`shrink-0 rounded-lg px-2.5 py-1 text-xs font-medium ${client.statusColor}`}
+                          >
+                            {client.status}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {/* Progress Bar */}
+                        <div>
+                          <div className="mb-2 flex items-center justify-between text-xs">
+                            <span className="font-medium text-muted-foreground">
+                              Step {client.step} of {client.totalSteps}
+                            </span>
+                            <span className="font-semibold font-mono text-foreground">
+                              {client.progress}%
+                            </span>
+                          </div>
+                          <div className="progress-bar">
+                            <div
+                              className="progress-fill transition-all duration-500"
+                              style={{ width: `${client.progress}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Deadline Countdown */}
+                        {client.deadline && (
+                          <DeadlineCountdown
+                            deadline={client.deadline}
+                            variant="badge"
+                          />
                         )}
-                      </div>
-                      <Badge
-                        className={`shrink-0 rounded-lg px-2.5 py-1 text-xs font-medium ${client.statusColor}`}
-                      >
-                        {client.status}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {/* Progress Bar */}
-                    <div>
-                      <div className="mb-2 flex items-center justify-between text-xs">
-                        <span className="font-medium text-muted-foreground">
-                          Step {client.step} of {client.totalSteps}
-                        </span>
-                        <span className="font-semibold text-foreground">
-                          {client.progress}%
-                        </span>
-                      </div>
-                      <div className="h-2 w-full overflow-hidden rounded-full bg-muted/50">
-                        <div
-                          className="h-full rounded-full bg-linear-to-r from-primary to-primary/70 transition-all duration-500"
-                          style={{ width: `${client.progress}%` }}
-                        />
-                      </div>
-                    </div>
 
-                    {/* Deadline Countdown */}
-                    {client.deadline && (
-                      <DeadlineCountdown
-                        deadline={client.deadline}
-                        variant="badge"
-                      />
-                    )}
-
-                    {/* Footer */}
-                    <div className="flex items-center justify-between border-t border-border/40 pt-4">
-                      <p className="text-xs text-muted-foreground">
-                        Updated {client.lastUpdated}
-                      </p>
-                      <span className="text-xs text-muted-foreground transition-colors group-hover:text-primary">
-                        View Details →
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
+                        {/* Footer */}
+                        <div className="flex items-center justify-between border-t border-border/40 pt-4">
+                          <p className="text-xs text-muted-foreground">
+                            Updated {client.lastUpdated}
+                          </p>
+                          <span className="text-xs text-muted-foreground transition-colors group-hover:text-primary">
+                            View Details →
+                          </span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
-        )}
+        </ScrollArea>
       </div>
     </div>
   )

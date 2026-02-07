@@ -34,7 +34,7 @@ export function BasicInfoSection({
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="font-display text-lg font-semibold text-foreground">
+            <CardTitle className="text-lg font-semibold text-foreground">
               Basic Information
             </CardTitle>
             <p className="text-sm text-muted-foreground">

@@ -29,7 +29,7 @@ function getStatusBadge(status: PlatformStatus) {
   switch (status) {
     case PlatformStatus.VERIFIED:
       return (
-        <Badge className="bg-chart-4/20 text-chart-4 text-xs rounded-md">
+        <Badge className="bg-success/20 text-success text-xs rounded-md">
           <CheckCircle2 className="h-3 w-3 mr-1" />
           Verified
         </Badge>
@@ -43,7 +43,7 @@ function getStatusBadge(status: PlatformStatus) {
       )
     case PlatformStatus.NEEDS_MORE_INFO:
       return (
-        <Badge className="bg-accent/20 text-accent text-xs rounded-md">
+        <Badge className="bg-warning/20 text-warning text-xs rounded-md">
           <AlertCircle className="h-3 w-3 mr-1" />
           Needs Info
         </Badge>
@@ -57,7 +57,7 @@ function getStatusBadge(status: PlatformStatus) {
       )
     case PlatformStatus.PENDING_UPLOAD:
       return (
-        <Badge className="bg-accent/20 text-accent text-xs rounded-md">
+        <Badge className="bg-warning/20 text-warning text-xs rounded-md">
           <Upload className="h-3 w-3 mr-1" />
           Pending Upload
         </Badge>
@@ -155,9 +155,9 @@ export function PlatformUploadCard({
 
           {/* Status Messages */}
           {status === PlatformStatus.VERIFIED && (
-            <div className="flex items-center gap-2 rounded-lg bg-chart-4/10 p-3 ring-1 ring-chart-4/20">
-              <CheckCircle2 className="h-4 w-4 text-chart-4" />
-              <span className="text-xs text-chart-4">
+            <div className="flex items-center gap-2 rounded-lg bg-success/10 p-3 ring-1 ring-success/20">
+              <CheckCircle2 className="h-4 w-4 text-success" />
+              <span className="text-xs text-success">
                 Platform verified by backoffice
               </span>
             </div>
@@ -183,9 +183,9 @@ export function PlatformUploadCard({
           )}
 
           {status === PlatformStatus.NEEDS_MORE_INFO && (
-            <div className="flex items-center gap-2 rounded-lg bg-accent/10 p-3 ring-1 ring-accent/20">
-              <AlertCircle className="h-4 w-4 text-accent" />
-              <span className="text-xs text-accent">
+            <div className="flex items-center gap-2 rounded-lg bg-warning/10 p-3 ring-1 ring-warning/20">
+              <AlertCircle className="h-4 w-4 text-warning" />
+              <span className="text-xs text-warning">
                 Additional information required - check your To-Dos
               </span>
             </div>

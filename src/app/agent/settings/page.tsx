@@ -19,7 +19,7 @@ export default function SettingsPage() {
             <Settings className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
               Settings
             </h1>
             <p className="text-sm text-muted-foreground">
@@ -37,7 +37,7 @@ export default function SettingsPage() {
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/20">
                 <User className="h-4 w-4 text-primary" />
               </div>
-              <CardTitle className="font-display text-lg font-semibold text-foreground">
+              <CardTitle className="text-lg font-semibold text-foreground">
                 Profile Information
               </CardTitle>
             </div>
@@ -93,10 +93,10 @@ export default function SettingsPage() {
         >
           <CardHeader className="pb-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10 ring-1 ring-accent/20">
-                <Bell className="h-4 w-4 text-accent" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-warning/10 ring-1 ring-warning/20">
+                <Bell className="h-4 w-4 text-warning" />
               </div>
-              <CardTitle className="font-display text-lg font-semibold text-foreground">
+              <CardTitle className="text-lg font-semibold text-foreground">
                 Notification Preferences
               </CardTitle>
             </div>

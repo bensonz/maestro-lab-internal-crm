@@ -31,7 +31,7 @@ export function ComplianceSummary({
 }: ComplianceSummaryProps) {
   const getStatusIcon = (status: boolean | null) => {
     if (status === true) {
-      return <CheckCircle2 className="h-4 w-4 text-chart-4" />
+      return <CheckCircle2 className="h-4 w-4 text-success" />
     }
     if (status === false) {
       return <XCircle className="h-4 w-4 text-destructive" />
@@ -48,7 +48,7 @@ export function ComplianceSummary({
       return (
         <Badge
           variant="outline"
-          className="border-chart-4/50 bg-chart-4/10 text-chart-4"
+          className="border-success/50 bg-success/10 text-success"
         >
           {trueLabel}
         </Badge>
@@ -80,7 +80,7 @@ export function ComplianceSummary({
         return (
           <Badge
             variant="outline"
-            className="border-chart-4/50 bg-chart-4/10 text-chart-4"
+            className="border-success/50 bg-success/10 text-success"
           >
             Low Risk
           </Badge>
@@ -121,7 +121,7 @@ export function ComplianceSummary({
         return (
           <Badge
             variant="outline"
-            className="border-chart-4/50 bg-chart-4/10 text-chart-4"
+            className="border-success/50 bg-success/10 text-success"
           >
             Clear
           </Badge>
@@ -150,7 +150,7 @@ export function ComplianceSummary({
   return (
     <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
       <CardHeader className="pb-4">
-        <CardTitle className="font-display text-lg font-semibold text-foreground">
+        <CardTitle className="text-lg font-semibold text-foreground">
           Compliance Review Summary
         </CardTitle>
         <p className="text-sm text-muted-foreground">
@@ -192,7 +192,7 @@ export function ComplianceSummary({
             {manualOverridesCount > 0 ? (
               <AlertCircle className="h-4 w-4 text-amber-500" />
             ) : (
-              <CheckCircle2 className="h-4 w-4 text-chart-4" />
+              <CheckCircle2 className="h-4 w-4 text-success" />
             )}
             <div className="flex items-center gap-2">
               <Edit3 className="h-4 w-4 text-muted-foreground" />
@@ -218,7 +218,7 @@ export function ComplianceSummary({
         <div className="flex items-center justify-between rounded-lg border border-border/50 bg-muted/20 p-3">
           <div className="flex items-center gap-3">
             {hasCriminalRecord === 'no' ? (
-              <CheckCircle2 className="h-4 w-4 text-chart-4" />
+              <CheckCircle2 className="h-4 w-4 text-success" />
             ) : hasCriminalRecord === 'yes' ? (
               <XCircle className="h-4 w-4 text-destructive" />
             ) : (
@@ -238,7 +238,7 @@ export function ComplianceSummary({
         <div className="flex items-center justify-between rounded-lg border border-border/50 bg-muted/20 p-3">
           <div className="flex items-center gap-3">
             {riskLevel === 'low' ? (
-              <CheckCircle2 className="h-4 w-4 text-chart-4" />
+              <CheckCircle2 className="h-4 w-4 text-success" />
             ) : riskLevel === 'high' ? (
               <XCircle className="h-4 w-4 text-destructive" />
             ) : riskLevel === 'medium' ? (

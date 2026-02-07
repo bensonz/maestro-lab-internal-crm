@@ -51,7 +51,7 @@ export default async function AgentDashboard() {
             <Sparkles className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
               Welcome back, {firstName}
             </h1>
             <p className="text-sm text-muted-foreground">
@@ -79,10 +79,10 @@ export default async function AgentDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="group border-border/50 bg-card/80 backdrop-blur-sm transition-all duration-300 hover:border-accent/40 hover:shadow-lg hover:shadow-accent/10 card-interactive">
+        <Card className="group border-border/50 bg-card/80 backdrop-blur-sm transition-all duration-300 hover:border-warning/40 hover:shadow-lg hover:shadow-warning/10 card-interactive">
           <CardContent className="flex items-center gap-4 py-5">
-            <div className="rounded-xl bg-accent/10 p-3 ring-1 ring-accent/20">
-              <Hourglass className="h-5 w-5 text-accent" />
+            <div className="rounded-xl bg-warning/10 p-3 ring-1 ring-warning/20">
+              <Hourglass className="h-5 w-5 text-warning" />
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">
@@ -95,10 +95,10 @@ export default async function AgentDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="group border-border/50 bg-card/80 backdrop-blur-sm transition-all duration-300 hover:border-chart-4/40 hover:shadow-lg hover:shadow-chart-4/10 card-interactive">
+        <Card className="group border-border/50 bg-card/80 backdrop-blur-sm transition-all duration-300 hover:border-success/40 hover:shadow-lg hover:shadow-success/10 card-interactive">
           <CardContent className="flex items-center gap-4 py-5">
-            <div className="rounded-xl bg-chart-4/10 p-3 ring-1 ring-chart-4/20">
-              <CheckCircle2 className="h-5 w-5 text-chart-4" />
+            <div className="rounded-xl bg-success/10 p-3 ring-1 ring-success/20">
+              <CheckCircle2 className="h-5 w-5 text-success" />
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">
@@ -120,25 +120,25 @@ export default async function AgentDashboard() {
       {/* KPI Metrics */}
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4 stagger-children">
         <Card
-          className="group border-border/50 bg-card/80 backdrop-blur-sm transition-all duration-300 hover:border-chart-4/40 hover:shadow-lg hover:shadow-chart-4/10 card-interactive"
+          className="group border-border/50 bg-card/80 backdrop-blur-sm transition-all duration-300 hover:border-success/40 hover:shadow-lg hover:shadow-success/10 card-interactive"
           data-testid="kpi-success-rate"
         >
           <CardContent className="flex items-center gap-4 py-5">
             <div
               className={`rounded-xl p-3 ring-1 ${
                 kpis.successRate >= 80
-                  ? 'bg-chart-4/10 ring-chart-4/20'
+                  ? 'bg-success/10 ring-success/20'
                   : kpis.successRate >= 60
-                    ? 'bg-accent/10 ring-accent/20'
+                    ? 'bg-warning/10 ring-warning/20'
                     : 'bg-destructive/10 ring-destructive/20'
               }`}
             >
               <Target
                 className={`h-5 w-5 ${
                   kpis.successRate >= 80
-                    ? 'text-chart-4'
+                    ? 'text-success'
                     : kpis.successRate >= 60
-                      ? 'text-accent'
+                      ? 'text-warning'
                       : 'text-destructive'
                 }`}
               />
@@ -176,25 +176,25 @@ export default async function AgentDashboard() {
         </Card>
 
         <Card
-          className="group border-border/50 bg-card/80 backdrop-blur-sm transition-all duration-300 hover:border-accent/40 hover:shadow-lg hover:shadow-accent/10 card-interactive"
+          className="group border-border/50 bg-card/80 backdrop-blur-sm transition-all duration-300 hover:border-warning/40 hover:shadow-lg hover:shadow-warning/10 card-interactive"
           data-testid="kpi-delay-rate"
         >
           <CardContent className="flex items-center gap-4 py-5">
             <div
               className={`rounded-xl p-3 ring-1 ${
                 kpis.delayRate <= 10
-                  ? 'bg-chart-4/10 ring-chart-4/20'
+                  ? 'bg-success/10 ring-success/20'
                   : kpis.delayRate <= 20
-                    ? 'bg-accent/10 ring-accent/20'
+                    ? 'bg-warning/10 ring-warning/20'
                     : 'bg-destructive/10 ring-destructive/20'
               }`}
             >
               <TrendingDown
                 className={`h-5 w-5 ${
                   kpis.delayRate <= 10
-                    ? 'text-chart-4'
+                    ? 'text-success'
                     : kpis.delayRate <= 20
-                      ? 'text-accent'
+                      ? 'text-warning'
                       : 'text-destructive'
                 }`}
               />
@@ -258,14 +258,14 @@ export default async function AgentDashboard() {
         </Card>
 
         {/* Completed This Month */}
-        <Card className="group relative overflow-hidden border-border/50 bg-card/80 backdrop-blur-sm transition-all duration-300 hover:border-chart-4/40 hover:shadow-lg hover:shadow-chart-4/10 card-interactive">
-          <div className="absolute inset-0 bg-gradient-to-br from-chart-4/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+        <Card className="group relative overflow-hidden border-border/50 bg-card/80 backdrop-blur-sm transition-all duration-300 hover:border-success/40 hover:shadow-lg hover:shadow-success/10 card-interactive">
+          <div className="absolute inset-0 bg-gradient-to-br from-success/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
           <CardHeader className="relative flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Completed
             </CardTitle>
-            <div className="rounded-lg bg-chart-4/10 p-2.5 ring-1 ring-chart-4/20 transition-all group-hover:bg-chart-4/15 group-hover:ring-chart-4/30">
-              <CheckCircle2 className="h-4 w-4 text-chart-4" />
+            <div className="rounded-lg bg-success/10 p-2.5 ring-1 ring-success/20 transition-all group-hover:bg-success/15 group-hover:ring-success/30">
+              <CheckCircle2 className="h-4 w-4 text-success" />
             </div>
           </CardHeader>
           <CardContent className="relative">
@@ -277,14 +277,14 @@ export default async function AgentDashboard() {
         </Card>
 
         {/* Pending Tasks */}
-        <Card className="group relative overflow-hidden border-border/50 bg-card/80 backdrop-blur-sm transition-all duration-300 hover:border-accent/40 hover:shadow-lg hover:shadow-accent/10 card-interactive">
+        <Card className="group relative overflow-hidden border-border/50 bg-card/80 backdrop-blur-sm transition-all duration-300 hover:border-warning/40 hover:shadow-lg hover:shadow-warning/10 card-interactive">
           <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
           <CardHeader className="relative flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Pending Tasks
             </CardTitle>
-            <div className="rounded-lg bg-accent/10 p-2.5 ring-1 ring-accent/20 transition-all group-hover:bg-accent/15 group-hover:ring-accent/30">
-              <Clock className="h-4 w-4 text-accent" />
+            <div className="rounded-lg bg-warning/10 p-2.5 ring-1 ring-warning/20 transition-all group-hover:bg-warning/15 group-hover:ring-warning/30">
+              <Clock className="h-4 w-4 text-warning" />
             </div>
           </CardHeader>
           <CardContent className="relative">
@@ -313,8 +313,8 @@ export default async function AgentDashboard() {
               ${stats.earnings.toLocaleString()}
             </div>
             <p className="mt-1 flex items-center gap-1.5 text-sm">
-              <TrendingUp className="h-3.5 w-3.5 text-chart-4" />
-              <span className="font-medium text-chart-4">
+              <TrendingUp className="h-3.5 w-3.5 text-success" />
+              <span className="font-medium text-success">
                 +{stats.earningsChange}%
               </span>
               <span className="text-muted-foreground">from last month</span>
@@ -331,14 +331,14 @@ export default async function AgentDashboard() {
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <ListTodo className="h-5 w-5 text-muted-foreground" />
-            <h2 className="font-display text-lg font-semibold text-foreground">
+            <h2 className="text-lg font-semibold text-foreground">
               Today&apos;s Tasks
             </h2>
           </div>
           {todaysTasks.length > 0 && (
             <Badge
               variant="outline"
-              className="bg-accent/10 text-accent border-accent/30"
+              className="bg-warning/10 text-warning border-warning/30"
             >
               {todaysTasks.length} pending
             </Badge>
@@ -406,7 +406,7 @@ export default async function AgentDashboard() {
         className="mb-8 animate-fade-in-up"
         style={{ animationDelay: '0.25s' }}
       >
-        <h2 className="mb-4 font-display text-lg font-semibold text-foreground">
+        <h2 className="mb-4 text-lg font-semibold text-foreground">
           Quick Actions
         </h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -446,18 +446,18 @@ export default async function AgentDashboard() {
 
           <Link
             href="/agent/todo-list"
-            className="group flex items-center justify-between rounded-xl border border-border/50 bg-card/60 p-5 backdrop-blur-sm transition-all duration-300 hover:border-accent/40 hover:bg-card/90 hover:shadow-lg hover:shadow-accent/10"
+            className="group flex items-center justify-between rounded-xl border border-border/50 bg-card/60 p-5 backdrop-blur-sm transition-all duration-300 hover:border-warning/40 hover:bg-card/90 hover:shadow-lg hover:shadow-warning/10"
           >
             <div>
-              <h3 className="font-semibold text-foreground group-hover:text-accent transition-colors">
+              <h3 className="font-semibold text-foreground group-hover:text-warning transition-colors">
                 Tasks
               </h3>
               <p className="text-sm text-muted-foreground">
                 {stats.pendingTasks} pending items
               </p>
             </div>
-            <div className="rounded-lg bg-accent/10 p-2 ring-1 ring-accent/20 transition-all group-hover:bg-accent/20 group-hover:ring-accent/30">
-              <ArrowUpRight className="h-4 w-4 text-accent transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            <div className="rounded-lg bg-warning/10 p-2 ring-1 ring-warning/20 transition-all group-hover:bg-warning/20 group-hover:ring-warning/30">
+              <ArrowUpRight className="h-4 w-4 text-warning transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             </div>
           </Link>
         </div>
@@ -467,7 +467,7 @@ export default async function AgentDashboard() {
       {recentClients.length > 0 && (
         <div className="animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-display text-lg font-semibold text-foreground">
+            <h2 className="text-lg font-semibold text-foreground">
               Recent Clients
             </h2>
             <Link

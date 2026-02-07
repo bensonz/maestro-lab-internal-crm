@@ -71,7 +71,7 @@ function getStepStatusBadge(status: StepStatus) {
   switch (status) {
     case 'completed':
       return (
-        <Badge className="bg-chart-4/20 text-chart-4 rounded-md px-2 py-0.5 text-xs">
+        <Badge className="bg-success/20 text-success rounded-md px-2 py-0.5 text-xs">
           <CheckCircle2 className="h-3 w-3 mr-1" />
           Completed
         </Badge>
@@ -104,7 +104,7 @@ function getStepIcon(number: number, status: StepStatus) {
     'flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold'
   const colorClass =
     status === 'completed'
-      ? 'bg-chart-4 text-chart-4-foreground'
+      ? 'bg-success text-success-foreground'
       : status === 'in_progress'
         ? 'bg-primary text-primary-foreground'
         : 'bg-muted text-muted-foreground'
@@ -299,11 +299,11 @@ export function ApplicationProgress({ client }: ApplicationProgressProps) {
             </p>
             <ul className="text-xs text-muted-foreground space-y-1">
               <li className="flex items-center gap-2">
-                <CheckCircle2 className="h-3 w-3 text-chart-4" />
+                <CheckCircle2 className="h-3 w-3 text-success" />
                 Online banking username & password detected
               </li>
               <li className="flex items-center gap-2">
-                <CheckCircle2 className="h-3 w-3 text-chart-4" />
+                <CheckCircle2 className="h-3 w-3 text-success" />
                 Successful login screenshot uploaded
               </li>
               <li className="flex items-center gap-2">
@@ -423,7 +423,7 @@ export function ApplicationProgress({ client }: ApplicationProgressProps) {
                       Step {step.number}: {step.title}
                     </span>
                     {step.hasPendingTodos && (
-                      <Bell className="h-4 w-4 text-accent animate-pulse" />
+                      <Bell className="h-4 w-4 text-warning animate-pulse" />
                     )}
                     {step.headerExtra}
                   </div>

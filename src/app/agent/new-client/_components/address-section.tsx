@@ -43,7 +43,7 @@ export function AddressSection({
             <MapPin className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <CardTitle className="font-display text-lg font-semibold text-foreground">
+            <CardTitle className="text-lg font-semibold text-foreground">
               Address Information
             </CardTitle>
             <p className="text-sm text-muted-foreground">

@@ -69,7 +69,7 @@ export function ToDoHoverPopover({
                   key={idx}
                   className="flex items-start gap-2 text-xs text-foreground"
                 >
-                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-chart-4 mt-0.5" />
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-success mt-0.5" />
                   <span>{item}</span>
                 </li>
               ))}
@@ -114,7 +114,7 @@ export function ToDoHoverPopover({
                 </span>
               </div>
               <div className="flex gap-2">
-                <span className="text-chart-4">Success:</span>
+                <span className="text-success">Success:</span>
                 <span className="text-foreground">
                   {instructions.screenshotGuidance.success}
                 </span>

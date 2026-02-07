@@ -17,10 +17,10 @@ export default async function EarningsPage() {
   ])
 
   return (
-    <div className="p-6 lg:p-8 space-y-6">
+    <div className="p-6 lg:p-8 space-y-5 animate-fade-in max-w-6xl">
       {/* Header */}
       <div>
-        <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
           My Earnings
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
@@ -31,14 +31,14 @@ export default async function EarningsPage() {
       {/* Top KPI Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Total Earned */}
-        <Card className="group relative overflow-hidden border-border/50 bg-card/80 backdrop-blur-sm transition-all duration-300 hover:border-chart-4/40 hover:shadow-lg hover:shadow-chart-4/10 card-interactive">
-          <div className="absolute inset-0 bg-gradient-to-br from-chart-4/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+        <Card className="group relative overflow-hidden border-border/50 bg-card/80 backdrop-blur-sm transition-all duration-300 hover:border-success/40 hover:shadow-lg hover:shadow-success/10 card-interactive">
+          <div className="absolute inset-0 bg-gradient-to-br from-success/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
           <CardHeader className="relative flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Total Earned
             </CardTitle>
-            <div className="rounded-lg bg-chart-4/10 p-2.5 ring-1 ring-chart-4/20 transition-all group-hover:bg-chart-4/15 group-hover:ring-chart-4/30">
-              <DollarSign className="h-4 w-4 text-chart-4" />
+            <div className="rounded-lg bg-success/10 p-2.5 ring-1 ring-success/20 transition-all group-hover:bg-success/15 group-hover:ring-success/30">
+              <DollarSign className="h-4 w-4 text-success" />
             </div>
           </CardHeader>
           <CardContent className="relative">
@@ -79,14 +79,14 @@ export default async function EarningsPage() {
         </Card>
 
         {/* Pending Payout */}
-        <Card className="group relative overflow-hidden border-border/50 bg-card/80 backdrop-blur-sm transition-all duration-300 hover:border-accent/40 hover:shadow-lg hover:shadow-accent/10 card-interactive">
-          <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+        <Card className="group relative overflow-hidden border-border/50 bg-card/80 backdrop-blur-sm transition-all duration-300 hover:border-warning/40 hover:shadow-lg hover:shadow-warning/10 card-interactive">
+          <div className="absolute inset-0 bg-gradient-to-br from-warning/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
           <CardHeader className="relative flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Pending Payout
             </CardTitle>
-            <div className="rounded-lg bg-accent/10 p-2.5 ring-1 ring-accent/20 transition-all group-hover:bg-accent/15 group-hover:ring-accent/30">
-              <Wallet className="h-4 w-4 text-accent" />
+            <div className="rounded-lg bg-warning/10 p-2.5 ring-1 ring-warning/20 transition-all group-hover:bg-warning/15 group-hover:ring-warning/30">
+              <Wallet className="h-4 w-4 text-warning" />
             </div>
           </CardHeader>
           <CardContent className="relative">
@@ -133,7 +133,7 @@ export default async function EarningsPage() {
         <div className="lg:col-span-2">
           <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
             <CardHeader>
-              <CardTitle className="font-display text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                 Recent Transactions
               </CardTitle>
             </CardHeader>
@@ -182,7 +182,7 @@ export default async function EarningsPage() {
                             </span>
                           </td>
                           <td className="py-3 pr-4 text-right">
-                            <span className="text-sm font-semibold font-mono text-chart-4">
+                            <span className="text-sm font-semibold font-mono text-success">
                               +${tx.amount.toLocaleString()}
                             </span>
                           </td>
@@ -191,8 +191,8 @@ export default async function EarningsPage() {
                               variant="outline"
                               className={
                                 tx.status === 'Paid'
-                                  ? 'bg-chart-4/10 text-chart-4 border-chart-4/30'
-                                  : 'bg-accent/10 text-accent border-accent/30'
+                                  ? 'bg-success/10 text-success border-success/30'
+                                  : 'bg-warning/10 text-warning border-warning/30'
                               }
                             >
                               {tx.status}

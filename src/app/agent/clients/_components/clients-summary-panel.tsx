@@ -57,16 +57,16 @@ const statusRows: {
     key: 'pendingApproval',
     label: 'Pending Approval',
     icon: Hourglass,
-    colorClass: 'text-accent',
-    activeClass: 'bg-accent/20 text-accent ring-1 ring-accent/30',
+    colorClass: 'text-warning',
+    activeClass: 'bg-warning/20 text-warning ring-1 ring-warning/30',
     statKey: 'pendingApproval',
   },
   {
     key: 'approved',
     label: 'Approved',
     icon: CheckCircle2,
-    colorClass: 'text-chart-4',
-    activeClass: 'bg-chart-4/20 text-chart-4 ring-1 ring-chart-4/30',
+    colorClass: 'text-success',
+    activeClass: 'bg-success/20 text-success ring-1 ring-success/30',
     statKey: 'approved',
   },
   {
@@ -91,9 +91,9 @@ export function ClientsSummaryPanel({
   const failureRate = totalResolved > 0 ? 100 - successRate : 0
 
   return (
-    <div className="w-56 shrink-0 border-r border-border/50 bg-card/50 flex flex-col">
-      <div className="p-4 border-b border-border/30">
-        <h3 className="font-display text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+    <div className="w-56 min-w-56 shrink-0 border-r border-sidebar-border bg-sidebar flex flex-col">
+      <div className="p-4 border-b border-sidebar-border">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Status Overview
         </h3>
       </div>
@@ -134,14 +134,18 @@ export function ClientsSummaryPanel({
         })}
       </div>
 
-      <div className="border-t border-border/30 p-4 space-y-3">
+      <div className="border-t border-sidebar-border p-4 space-y-3">
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">Success Rate</span>
-          <span className="font-semibold text-chart-4">{successRate}%</span>
+          <span className="font-semibold font-mono text-success">
+            {successRate}%
+          </span>
         </div>
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">Failure Rate</span>
-          <span className="font-semibold text-destructive">{failureRate}%</span>
+          <span className="font-semibold font-mono text-destructive">
+            {failureRate}%
+          </span>
         </div>
       </div>
     </div>

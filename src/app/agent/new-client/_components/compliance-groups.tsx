@@ -78,7 +78,7 @@ export function ComplianceGroups({
   return (
     <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
       <CardHeader className="pb-4">
-        <CardTitle className="font-display text-lg font-semibold text-foreground">
+        <CardTitle className="text-lg font-semibold text-foreground">
           Compliance Questionnaire
         </CardTitle>
         <p className="text-sm text-muted-foreground">
@@ -401,8 +401,8 @@ export function ComplianceGroups({
         >
           <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border border-border/50 bg-muted/30 p-4 transition-colors hover:bg-muted/50">
             <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-chart-4/10">
-                <AlertTriangle className="h-4 w-4 text-chart-4" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-success/10">
+                <AlertTriangle className="h-4 w-4 text-success" />
               </div>
               <div className="text-left">
                 <p className="font-medium text-foreground">
@@ -433,7 +433,7 @@ export function ComplianceGroups({
                   <RadioGroupItem value="low" id="risk-low" />
                   <Label
                     htmlFor="risk-low"
-                    className="cursor-pointer text-chart-4"
+                    className="cursor-pointer text-success"
                   >
                     Low Risk
                   </Label>

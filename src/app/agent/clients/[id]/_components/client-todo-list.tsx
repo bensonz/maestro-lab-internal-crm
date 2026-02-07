@@ -118,11 +118,11 @@ export function ClientTodoList({ toDos }: ClientTodoListProps) {
             onClick={() => setFilter('due_soon')}
             className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
               filter === 'due_soon'
-                ? 'bg-accent/20 text-accent ring-1 ring-accent/30'
-                : 'bg-muted/50 text-muted-foreground hover:bg-accent/10 hover:text-accent'
+                ? 'bg-warning/20 text-warning ring-1 ring-warning/30'
+                : 'bg-muted/50 text-muted-foreground hover:bg-warning/10 hover:text-warning'
             }`}
           >
-            <span className="h-2 w-2 rounded-full bg-accent" />
+            <span className="h-2 w-2 rounded-full bg-warning" />
             Due ≤24h
             {dueSoonCount > 0 && <span>({dueSoonCount})</span>}
           </button>
