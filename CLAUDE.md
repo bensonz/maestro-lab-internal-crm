@@ -59,6 +59,8 @@ if (!session?.user) redirect("/login");
 
 **Platform Utilities**: `@/lib/platforms` provides metadata (names, abbreviations, categories) for the 11 supported platforms.
 
+**CSV Export**: `@/backend/utils/csv` provides `generateCSV()` and `csvResponse()`. Export API routes at `/api/export/{clients,settlements,agents}` require ADMIN or BACKOFFICE role. Pages use the `ExportCSVButton` client component for download triggers.
+
 **UI Components**: shadcn/ui (new-york style) in `@/components/ui/`. Icons from `lucide-react`.
 
 **Form Fields**: Use `Field` component from `@/components/ui/field` instead of raw `Label` + `Input` combinations. The Field component provides consistent spacing, error handling, and accessibility.
@@ -188,6 +190,7 @@ pnpm test src/test/backend/actions/phones.test.ts  # Specific file
 - `src/test/backend/actions/clients.test.ts` — createClient, saveDraft, deleteDraft actions
 - `src/test/backend/validations/client.test.ts` — client form validation
 - `src/test/backend/lib/platforms.test.ts` — platform utilities
+- `src/test/backend/utils/csv.test.ts` — CSV generation utility (escaping, BOM, edge cases)
 
 ---
 
