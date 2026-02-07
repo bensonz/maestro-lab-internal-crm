@@ -10,6 +10,9 @@ export type {
   Earning,
   FundAllocation,
   FundMovement,
+  BonusPool,
+  BonusAllocation,
+  LeadershipPayout,
 } from '@prisma/generated/browser'
 
 export {
