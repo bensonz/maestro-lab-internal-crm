@@ -3,7 +3,8 @@
 import { useTransition } from 'react'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Phone, DollarSign, FileText, AlertTriangle } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Phone, Wallet, FileCheck, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { checkOverdueClients } from '@/app/actions/status'
 
@@ -11,24 +12,28 @@ const actions = [
   {
     label: 'Issue Phone',
     icon: Phone,
+    iconColor: 'text-primary',
     href: '/backoffice/phone-tracking',
     action: null as string | null,
   },
   {
     label: 'Allocate Funds',
-    icon: DollarSign,
+    icon: Wallet,
+    iconColor: 'text-success',
     href: '/backoffice/fund-allocation',
     action: null as string | null,
   },
   {
     label: 'Review Docs',
-    icon: FileText,
+    icon: FileCheck,
+    iconColor: 'text-warning',
     href: '/backoffice/sales-interaction',
     action: null as string | null,
   },
   {
     label: 'Check Overdue',
-    icon: AlertTriangle,
+    icon: TrendingUp,
+    iconColor: 'text-primary',
     href: null,
     action: 'checkOverdue' as string | null,
   },
@@ -61,9 +66,9 @@ export function QuickActions() {
   }
 
   return (
-    <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
-      <CardHeader className="pb-4">
-        <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+    <Card className="card-terminal" data-testid="quick-actions">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
           Quick Actions
         </CardTitle>
       </CardHeader>
@@ -71,30 +76,32 @@ export function QuickActions() {
         <div className="grid grid-cols-2 gap-3">
           {actions.map((item) =>
             item.href ? (
-              <Link
+              <Button
                 key={item.label}
-                href={item.href}
-                className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-muted/30 ring-1 ring-border/30 transition-all hover:bg-muted/50 hover:ring-primary/30 hover:scale-[1.02]"
+                variant="outline"
+                className="h-auto flex-col items-center gap-2 py-4"
+                asChild
               >
-                <item.icon className="h-6 w-6 text-primary" />
-                <span className="text-sm font-medium text-foreground">
-                  {item.label}
-                </span>
-              </Link>
+                <Link href={item.href}>
+                  <item.icon className={`h-5 w-5 ${item.iconColor}`} />
+                  <span className="text-xs">{item.label}</span>
+                </Link>
+              </Button>
             ) : (
-              <button
+              <Button
                 key={item.label}
+                variant="outline"
+                className="h-auto flex-col items-center gap-2 py-4"
                 onClick={() => handleAction(item.action)}
                 disabled={isPending}
-                className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-muted/30 ring-1 ring-border/30 transition-all hover:bg-muted/50 hover:ring-primary/30 hover:scale-[1.02] disabled:opacity-50"
               >
-                <item.icon className="h-6 w-6 text-primary" />
-                <span className="text-sm font-medium text-foreground">
+                <item.icon className={`h-5 w-5 ${item.iconColor}`} />
+                <span className="text-xs">
                   {isPending && item.action === 'checkOverdue'
                     ? 'Checking...'
                     : item.label}
                 </span>
-              </button>
+              </Button>
             ),
           )}
         </div>
