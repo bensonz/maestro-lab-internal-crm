@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import {
   Select,
   SelectContent,
@@ -121,18 +120,6 @@ export function TodoListView({ agentTasks }: TodoListViewProps) {
     }))
     .filter((agent) => agent.tasks.length > 0)
 
-  // Calculate type counts
-  const typeCounts = Object.keys(typeConfig).reduce(
-    (acc, key) => {
-      acc[key] = agentTasks.reduce(
-        (sum, a) => sum + a.tasks.filter((t) => t.category === key).length,
-        0,
-      )
-      return acc
-    },
-    {} as Record<string, number>,
-  )
-
   return (
     <>
       {/* Filters */}
@@ -182,33 +169,6 @@ export function TodoListView({ agentTasks }: TodoListViewProps) {
             <SelectItem value="other">Other</SelectItem>
           </SelectContent>
         </Select>
-      </div>
-
-      {/* Type Filter Buttons */}
-      <div className="flex flex-wrap gap-2">
-        <Button
-          size="sm"
-          variant={typeFilter === 'all' ? 'default' : 'outline'}
-          onClick={() => setTypeFilter('all')}
-          className="text-xs"
-        >
-          All Tasks
-        </Button>
-        {Object.entries(typeConfig).map(([key, config]) => {
-          const TypeIcon = config.icon
-          return (
-            <Button
-              key={key}
-              size="sm"
-              variant={typeFilter === key ? 'default' : 'outline'}
-              onClick={() => setTypeFilter(key as TypeFilter)}
-              className="gap-1 text-xs"
-            >
-              <TypeIcon className={cn('h-3 w-3', config.color)} />
-              {config.label} ({typeCounts[key] || 0})
-            </Button>
-          )
-        })}
       </div>
 
       {/* Agent Task Groups */}
