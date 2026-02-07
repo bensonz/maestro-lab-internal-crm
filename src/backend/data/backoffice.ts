@@ -9,7 +9,7 @@ import {
   EventType,
   ExtensionRequestStatus,
 } from '@/types'
-import { getAllAgentKPIs } from '@/backend/services/agent-kpis'
+import { getAllAgentKPIs, getAgentKPIs } from '@/backend/services/agent-kpis'
 
 export async function getDashboardStats() {
   const [clientCount, agentCount] = await Promise.all([
@@ -563,6 +563,114 @@ export async function getAgentStats() {
     avgDaysToOpen,
   }
 }
+
+// ============================================================================
+// Agent Detail
+// ============================================================================
+
+export async function getAgentDetail(agentId: string) {
+  const now = new Date()
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+
+  const [user, kpis, newClientsThisMonth] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: agentId },
+      include: {
+        agentClients: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            intakeStatus: true,
+            createdAt: true,
+          },
+        },
+      },
+    }),
+    getAgentKPIs(agentId),
+    prisma.client.count({
+      where: { agentId, createdAt: { gte: startOfMonth } },
+    }),
+  ])
+
+  if (!user) return null
+
+  // Compute monthly client breakdown for last 5 months
+  const monthlyClients: { month: string; count: number }[] = []
+  const monthNames = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ]
+  for (let i = 4; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const end = new Date(d.getFullYear(), d.getMonth() + 1, 1)
+    const count = user.agentClients.filter(
+      (c) => c.createdAt >= d && c.createdAt < end,
+    ).length
+    monthlyClients.push({ month: monthNames[d.getMonth()], count })
+  }
+
+  return {
+    id: user.id,
+    name: user.name || 'Unknown',
+    gender: '—',
+    age: 0,
+    idNumber: '—',
+    idExpiry: '—',
+    ssn: '—',
+    citizenship: '—',
+    startDate: user.createdAt.toISOString().split('T')[0],
+    tier: '1-Star',
+    stars: 1,
+    companyPhone: user.phone ?? '—',
+    carrier: '—',
+    companyEmail: user.email || '—',
+    personalEmail: '—',
+    personalPhone: '—',
+    zelle: '—',
+    address: '—',
+    loginAccount: user.email?.split('@')[0] || '—',
+    loginEmail: user.email || '—',
+    totalClients: kpis.totalClients,
+    totalEarned: 0,
+    thisMonthEarned: 0,
+    newClientsThisMonth,
+    newClientsGrowth: 0,
+    avgDaysToInitiate: kpis.avgDaysToInitiate ?? 0,
+    avgDaysToConvert: kpis.avgDaysToConvert ?? 0,
+    successRate: kpis.successRate,
+    referralRate: 0,
+    extensionRate: kpis.extensionRate,
+    resubmissionRate: 0,
+    avgAccountsPerClient: 0,
+    clientsInProgress: kpis.inProgressClients,
+    avgDailyTodos: 0,
+    delayRate: kpis.delayRate,
+    monthlyClients,
+    supervisor: null as { id: string; name: string } | null,
+    directReports: [] as { id: string; name: string }[],
+    timeline: [] as {
+      date: string
+      event: string
+      type: 'info' | 'success' | 'warning'
+    }[],
+    idDocumentUrl: undefined as string | undefined,
+  }
+}
+
+export type AgentDetailData = NonNullable<
+  Awaited<ReturnType<typeof getAgentDetail>>
+>
 
 function formatRelativeTime(date: Date): string {
   const now = new Date()
