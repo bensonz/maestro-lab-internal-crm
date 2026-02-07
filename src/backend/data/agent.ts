@@ -359,6 +359,7 @@ function formatIntakeStatus(status: IntakeStatus): string {
     [IntakeStatus.READY_FOR_APPROVAL]: 'Ready for Approval',
     [IntakeStatus.APPROVED]: 'Approved',
     [IntakeStatus.REJECTED]: 'Rejected',
+    [IntakeStatus.PARTNERSHIP_ENDED]: 'Partnership Ended',
   }
   return map[status] || status
 }
@@ -375,6 +376,7 @@ function getStatusColor(status: IntakeStatus): string {
     [IntakeStatus.READY_FOR_APPROVAL]: 'bg-yellow-500',
     [IntakeStatus.APPROVED]: 'bg-emerald-500',
     [IntakeStatus.REJECTED]: 'bg-red-500',
+    [IntakeStatus.PARTNERSHIP_ENDED]: 'bg-slate-400',
   }
   return map[status] || 'bg-slate-500'
 }
@@ -439,6 +441,9 @@ export async function getClientDetail(clientId: string, agentId: string) {
         },
       },
       phoneAssignment: true,
+      closedBy: {
+        select: { id: true, name: true },
+      },
       extensionRequests: {
         where: { status: ExtensionRequestStatus.PENDING },
         orderBy: { createdAt: 'desc' },
@@ -552,6 +557,10 @@ export async function getClientDetail(clientId: string, agentId: string) {
     createdAt: client.createdAt,
     updatedAt: client.updatedAt,
     statusChangedAt: client.statusChangedAt,
+    closedAt: client.closedAt,
+    closureReason: client.closureReason,
+    closureProof: client.closureProof,
+    closedBy: client.closedBy,
   }
 }
 

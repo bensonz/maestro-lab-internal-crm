@@ -902,6 +902,7 @@ function formatIntakeStatusLabel(status: IntakeStatus): string {
     [IntakeStatus.READY_FOR_APPROVAL]: 'Ready to Approve',
     [IntakeStatus.APPROVED]: 'Approved',
     [IntakeStatus.REJECTED]: 'Rejected',
+    [IntakeStatus.PARTNERSHIP_ENDED]: 'Partnership Ended',
   }
   return map[status] || status
 }
@@ -918,6 +919,7 @@ function getIntakeStatusColor(status: IntakeStatus): string {
     [IntakeStatus.READY_FOR_APPROVAL]: 'bg-emerald-500',
     [IntakeStatus.APPROVED]: 'bg-emerald-500',
     [IntakeStatus.REJECTED]: 'bg-red-500',
+    [IntakeStatus.PARTNERSHIP_ENDED]: 'bg-slate-400',
   }
   return map[status] || 'bg-slate-500'
 }

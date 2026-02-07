@@ -59,6 +59,10 @@ const statusBadgeConfig: Record<
     icon: null,
     className: 'bg-muted text-muted-foreground border-muted',
   },
+  [IntakeStatus.PARTNERSHIP_ENDED]: {
+    icon: null,
+    className: 'bg-muted text-muted-foreground border-muted',
+  },
 }
 
 const STATUS_BORDER_COLOR: Record<string, string> = {
@@ -72,6 +76,7 @@ const STATUS_BORDER_COLOR: Record<string, string> = {
   [IntakeStatus.INACTIVE]: 'border-l-muted-foreground',
   [IntakeStatus.APPROVED]: 'border-l-success',
   [IntakeStatus.REJECTED]: 'border-l-destructive',
+  [IntakeStatus.PARTNERSHIP_ENDED]: 'border-l-muted-foreground',
 }
 
 interface ClientsCardViewProps {

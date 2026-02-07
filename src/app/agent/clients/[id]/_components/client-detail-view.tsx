@@ -17,6 +17,7 @@ import {
   HoverCardTrigger,
 } from '@/components/ui/hover-card'
 import {
+  AlertTriangle,
   ArrowLeft,
   Upload,
   Eye,
@@ -365,6 +366,10 @@ interface ClientDetailViewProps {
     createdAt: Date
     updatedAt: Date
     statusChangedAt: Date
+    closedAt: Date | null
+    closureReason: string | null
+    closureProof: string[]
+    closedBy: { id: string; name: string } | null
   }
 }
 
@@ -468,6 +473,7 @@ export function ClientDetailView({ client }: ClientDetailViewProps) {
     [IntakeStatus.IN_EXECUTION]: 3,
     [IntakeStatus.READY_FOR_APPROVAL]: 4,
     [IntakeStatus.APPROVED]: 5,
+    [IntakeStatus.PARTNERSHIP_ENDED]: 5,
   }
   const currentStep = stepMap[client.intakeStatus] ?? 1
 
@@ -509,6 +515,34 @@ export function ClientDetailView({ client }: ClientDetailViewProps) {
           Step {currentStep}/5 · {client.status}
         </Badge>
       </div>
+
+      {/* Closure Info Banner */}
+      {client.intakeStatus === IntakeStatus.PARTNERSHIP_ENDED && (
+        <Card className="border-destructive/20 bg-destructive/5" data-testid="closure-banner">
+          <CardContent className="flex items-start gap-3 p-4">
+            <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
+            <div>
+              <p className="text-sm font-medium">Partnership Ended</p>
+              {client.closedAt && (
+                <p className="text-xs text-muted-foreground">
+                  Closed on {new Date(client.closedAt).toLocaleDateString()}
+                  {client.closedBy?.name && ` by ${client.closedBy.name}`}
+                </p>
+              )}
+              {client.closureReason && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Reason: {client.closureReason}
+                </p>
+              )}
+              {client.closureProof.length > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {client.closureProof.length} proof screenshot(s) attached
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Profile Summary — full width */}
       <ClientProfile

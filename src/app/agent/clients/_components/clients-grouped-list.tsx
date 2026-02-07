@@ -67,6 +67,10 @@ const statusBadgeConfig: Record<
     icon: null,
     className: 'bg-muted text-muted-foreground border-muted',
   },
+  [IntakeStatus.PARTNERSHIP_ENDED]: {
+    icon: null,
+    className: 'bg-muted text-muted-foreground border-muted',
+  },
 }
 
 /* ─── Status groups ─── */
@@ -122,6 +126,14 @@ const statusGroups: StatusGroup[] = [
     icon: XCircle,
     headerColor: 'text-destructive',
     statuses: [IntakeStatus.REJECTED],
+    collapsedByDefault: true,
+  },
+  {
+    key: 'partnership-ended',
+    label: 'Partnership Ended',
+    icon: XCircle,
+    headerColor: 'text-muted-foreground',
+    statuses: [IntakeStatus.PARTNERSHIP_ENDED],
     collapsedByDefault: true,
   },
 ]
