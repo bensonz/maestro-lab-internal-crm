@@ -4,16 +4,23 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Search,
   DollarSign,
-  FileText,
-  Users,
-  Folder,
-  ChevronDown,
-  ChevronRight,
+  MessageSquare,
+  UserCog,
+  ClipboardList,
+  CheckCircle2,
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 interface Task {
   id: string
@@ -34,12 +41,44 @@ interface TodoListViewProps {
   agentTasks: AgentTasks[]
 }
 
-const categories = [
-  { id: 'all', label: 'All Tasks', icon: Folder },
-  { id: 'transaction', label: 'Transaction', icon: DollarSign },
-  { id: 'sales', label: 'Sales Interaction', icon: FileText },
-  { id: 'manager', label: 'Manager Assigned', icon: Users },
-  { id: 'other', label: 'Other', icon: Folder },
+type TimeFilter = '1day' | '3days' | '7days' | 'all'
+type TypeFilter = 'all' | 'transaction' | 'sales' | 'manager' | 'other'
+
+const typeConfig: Record<
+  string,
+  {
+    label: string
+    icon: typeof DollarSign
+    color: string
+  }
+> = {
+  transaction: {
+    label: 'Transaction',
+    icon: DollarSign,
+    color: 'text-success',
+  },
+  sales: {
+    label: 'Sales Interaction',
+    icon: MessageSquare,
+    color: 'text-primary',
+  },
+  manager: {
+    label: 'Manager Assigned',
+    icon: UserCog,
+    color: 'text-warning',
+  },
+  other: {
+    label: 'Other',
+    icon: ClipboardList,
+    color: 'text-muted-foreground',
+  },
+}
+
+const timeFilters: { value: TimeFilter; label: string }[] = [
+  { value: '1day', label: '1 day' },
+  { value: '3days', label: '3 days' },
+  { value: '7days', label: '7 days' },
+  { value: 'all', label: 'all' },
 ]
 
 function getInitials(name: string) {
@@ -50,33 +89,22 @@ function getInitials(name: string) {
     .toUpperCase()
 }
 
-function getCategoryIcon(category: string) {
-  switch (category) {
-    case 'transaction':
-      return <DollarSign className="h-4 w-4 text-emerald-500" />
-    case 'sales':
-      return <FileText className="h-4 w-4 text-blue-500" />
-    case 'manager':
-      return <Users className="h-4 w-4 text-purple-500" />
-    default:
-      return <Folder className="h-4 w-4 text-slate-400" />
-  }
+function getDueColor(dueIn: string, overdue: boolean) {
+  if (overdue) return 'bg-destructive/20 text-destructive'
+  // Parse hours from dueIn string
+  const match = dueIn.match(/(\d+)/)
+  if (!match) return 'bg-muted text-muted-foreground'
+  const num = parseInt(match[1])
+  if (dueIn.includes('h') && num < 12) return 'bg-destructive/20 text-destructive'
+  if (dueIn.includes('h') && num < 24) return 'bg-warning/20 text-warning'
+  if (dueIn.includes('d') && num <= 3) return 'bg-primary/20 text-primary'
+  return 'bg-muted text-muted-foreground'
 }
 
 export function TodoListView({ agentTasks }: TodoListViewProps) {
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState('all')
-  const [expandedAgents, setExpandedAgents] = useState<string[]>(
-    agentTasks.map((a) => a.agentId),
-  )
-
-  const toggleAgent = (agentId: string) => {
-    setExpandedAgents((prev) =>
-      prev.includes(agentId)
-        ? prev.filter((id) => id !== agentId)
-        : [...prev, agentId],
-    )
-  }
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>('1day')
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
 
   const filteredAgentTasks = agentTasks
     .map((agent) => ({
@@ -86,24 +114,20 @@ export function TodoListView({ agentTasks }: TodoListViewProps) {
           task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
           task.client.toLowerCase().includes(searchQuery.toLowerCase()) ||
           agent.agentName.toLowerCase().includes(searchQuery.toLowerCase())
-        const matchesCategory =
-          selectedCategory === 'all' || task.category === selectedCategory
-        return matchesSearch && matchesCategory
+        const matchesType =
+          typeFilter === 'all' || task.category === typeFilter
+        return matchesSearch && matchesType
       }),
     }))
     .filter((agent) => agent.tasks.length > 0)
 
-  // Calculate category counts
-  const categoryCounts = categories.reduce(
-    (acc, cat) => {
-      if (cat.id === 'all') {
-        acc[cat.id] = agentTasks.reduce((sum, a) => sum + a.tasks.length, 0)
-      } else {
-        acc[cat.id] = agentTasks.reduce(
-          (sum, a) => sum + a.tasks.filter((t) => t.category === cat.id).length,
-          0,
-        )
-      }
+  // Calculate type counts
+  const typeCounts = Object.keys(typeConfig).reduce(
+    (acc, key) => {
+      acc[key] = agentTasks.reduce(
+        (sum, a) => sum + a.tasks.filter((t) => t.category === key).length,
+        0,
+      )
       return acc
     },
     {} as Record<string, number>,
@@ -112,45 +136,88 @@ export function TodoListView({ agentTasks }: TodoListViewProps) {
   return (
     <>
       {/* Filters */}
-      <div className="flex gap-4 items-center">
-        <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
-          <TabsList className="bg-slate-800">
-            {categories.map((cat) => (
-              <TabsTrigger
-                key={cat.id}
-                value={cat.id}
-                className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white"
-              >
-                <cat.icon className="h-4 w-4 mr-1" />
-                {cat.label}
-                {categoryCounts[cat.id] > 0 && (
-                  <span className="ml-1 text-xs">
-                    ({categoryCounts[cat.id]})
-                  </span>
-                )}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search tasks, clients, or agents..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+            data-testid="todo-search-input"
+          />
+        </div>
+
+        {/* Time filter pills */}
+        <div className="flex items-center gap-1">
+          {timeFilters.map((tf) => (
+            <button
+              key={tf.value}
+              onClick={() => setTimeFilter(tf.value)}
+              className={cn(
+                'rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+                timeFilter === tf.value
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted/50 hover:bg-muted',
+              )}
+            >
+              {tf.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Type filter */}
+        <Select
+          value={typeFilter}
+          onValueChange={(v) => setTypeFilter(v as TypeFilter)}
+        >
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="All Types" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="transaction">Transaction</SelectItem>
+            <SelectItem value="sales">Sales Interaction</SelectItem>
+            <SelectItem value="manager">Manager Assigned</SelectItem>
+            <SelectItem value="other">Other</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-        <Input
-          placeholder="Search tasks, clients, or agents..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-9 bg-slate-900 border-slate-700 text-white max-w-md"
-        />
+      {/* Type Filter Buttons */}
+      <div className="flex flex-wrap gap-2">
+        <Button
+          size="sm"
+          variant={typeFilter === 'all' ? 'default' : 'outline'}
+          onClick={() => setTypeFilter('all')}
+          className="text-xs"
+        >
+          All Tasks
+        </Button>
+        {Object.entries(typeConfig).map(([key, config]) => {
+          const TypeIcon = config.icon
+          return (
+            <Button
+              key={key}
+              size="sm"
+              variant={typeFilter === key ? 'default' : 'outline'}
+              onClick={() => setTypeFilter(key as TypeFilter)}
+              className="gap-1 text-xs"
+            >
+              <TypeIcon className={cn('h-3 w-3', config.color)} />
+              {config.label} ({typeCounts[key] || 0})
+            </Button>
+          )
+        })}
       </div>
 
       {/* Agent Task Groups */}
       <div className="space-y-4">
         {filteredAgentTasks.length === 0 ? (
-          <Card className="bg-slate-900 border-slate-800">
-            <CardContent className="py-12">
-              <p className="text-center text-slate-400">
+          <Card className="card-terminal">
+            <CardContent className="p-8 text-center">
+              <CheckCircle2 className="mx-auto mb-3 h-12 w-12 text-success" />
+              <p className="text-muted-foreground">
                 {agentTasks.length === 0
                   ? 'No tasks assigned'
                   : 'No tasks match your filters'}
@@ -159,63 +226,67 @@ export function TodoListView({ agentTasks }: TodoListViewProps) {
           </Card>
         ) : (
           filteredAgentTasks.map((agent) => (
-            <Card key={agent.agentId} className="bg-slate-900 border-slate-800">
-              <CardHeader
-                className="cursor-pointer hover:bg-slate-800/50 transition-colors"
-                onClick={() => toggleAgent(agent.agentId)}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    {expandedAgents.includes(agent.agentId) ? (
-                      <ChevronDown className="h-4 w-4 text-slate-400" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4 text-slate-400" />
-                    )}
-                    <div className="flex items-center justify-center h-8 w-8 rounded-full bg-emerald-600 text-white text-sm font-medium">
+            <Card key={agent.agentId} className="card-terminal">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/20">
+                    <span className="text-[10px] font-medium text-primary">
                       {getInitials(agent.agentName)}
-                    </div>
-                    <CardTitle className="text-white">
-                      Agent: {agent.agentName}
-                    </CardTitle>
+                    </span>
                   </div>
-                  <Badge
-                    variant="outline"
-                    className="border-slate-600 text-slate-300"
-                  >
+                  Agent: {agent.agentName} ({agent.agentId})
+                  <Badge variant="outline" className="ml-auto text-xs">
                     {agent.tasks.length} tasks
                   </Badge>
-                </div>
+                </CardTitle>
               </CardHeader>
-              {expandedAgents.includes(agent.agentId) && (
-                <CardContent className="space-y-2 pt-0">
-                  {agent.tasks.map((task) => (
-                    <div
-                      key={task.id}
-                      className="flex items-center justify-between p-3 rounded-lg bg-slate-800 hover:bg-slate-700 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        {getCategoryIcon(task.category)}
-                        <div>
-                          <p className="text-white font-medium">{task.title}</p>
-                          <p className="text-xs text-slate-400">
-                            {task.client}
-                          </p>
-                        </div>
-                      </div>
-                      <Badge
-                        variant="outline"
-                        className={
-                          task.overdue
-                            ? 'border-red-600 text-red-500'
-                            : 'border-amber-600 text-amber-500'
-                        }
+              <CardContent className="p-0">
+                <div className="divide-y divide-border">
+                  {agent.tasks.map((task) => {
+                    const config = typeConfig[task.category]
+                    const TypeIcon = config?.icon || ClipboardList
+                    const typeColor =
+                      config?.color || 'text-muted-foreground'
+
+                    return (
+                      <div
+                        key={task.id}
+                        className={cn(
+                          'flex items-center justify-between p-2.5 transition-colors hover:bg-muted/30',
+                          task.overdue && 'border-l-2 border-l-destructive',
+                        )}
                       >
-                        {task.overdue ? `${task.dueIn} overdue` : task.dueIn}
-                      </Badge>
-                    </div>
-                  ))}
-                </CardContent>
-              )}
+                        <div className="flex min-w-0 flex-1 items-center gap-3">
+                          <TypeIcon
+                            className={cn(
+                              'h-4 w-4 flex-shrink-0',
+                              typeColor,
+                            )}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <span className="text-sm font-medium truncate">
+                              {task.title}
+                            </span>
+                            <p className="text-[11px] text-muted-foreground truncate">
+                              {task.client}
+                            </p>
+                          </div>
+                        </div>
+                        <Badge
+                          className={cn(
+                            'flex-shrink-0 font-mono text-[10px]',
+                            getDueColor(task.dueIn, task.overdue),
+                          )}
+                        >
+                          {task.overdue
+                            ? `${task.dueIn} overdue`
+                            : task.dueIn}
+                        </Badge>
+                      </div>
+                    )
+                  })}
+                </div>
+              </CardContent>
             </Card>
           ))
         )}
