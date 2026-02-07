@@ -1,22 +1,32 @@
-import { getAllAgents, getAgentStats } from '@/backend/data/backoffice'
+import { getAllAgents, getAllUsers, getAgentStats } from '@/backend/data/backoffice'
+import { auth } from '@/backend/auth'
+import { redirect } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { AgentList } from './_components/agent-list'
+import { CreateUserDialog } from './_components/create-user-dialog'
 
 export default async function AgentManagementPage() {
-  const [agents, stats] = await Promise.all([
+  const session = await auth()
+  if (!session?.user) redirect('/login')
+
+  const [agents, users, stats] = await Promise.all([
     getAllAgents(),
+    getAllUsers(),
     getAgentStats(),
   ])
 
   return (
     <div className="p-6 lg:p-8 space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">
-          Agent Management
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Monitor agent performance and manage your team
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">
+            Agent Management
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Monitor agent performance and manage your team
+          </p>
+        </div>
+        <CreateUserDialog currentUserRole={session.user.role} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-4">
@@ -61,8 +71,13 @@ export default async function AgentManagementPage() {
           </Card>
         </div>
 
-        {/* Agent Directory */}
-        <AgentList agents={agents} />
+        {/* Agent Directory & User Management */}
+        <AgentList
+          agents={agents}
+          users={users}
+          currentUserRole={session.user.role}
+          currentUserId={session.user.id}
+        />
       </div>
     </div>
   )
