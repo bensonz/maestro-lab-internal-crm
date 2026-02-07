@@ -2,8 +2,15 @@ import NextAuth from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { prisma } from './prisma/client'
+import { authConfig } from './auth.config'
 
+/**
+ * Full auth configuration with Prisma-backed authorize.
+ * This file is used by server components, server actions, and API routes.
+ * Do NOT import this in proxy.ts (middleware) — use auth.config.ts instead.
+ */
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  ...authConfig,
   providers: [
     Credentials({
       name: 'credentials',
@@ -51,25 +58,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
     }),
   ],
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.role = user.role
-        token.id = user.id
-      }
-      return token
-    },
-    async session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.id as string
-        session.user.role = token.role as string
-      }
-      return session
-    },
-  },
-  pages: {
-    signIn: '/login',
-  },
 })
 
 // Type augmentation for next-auth
