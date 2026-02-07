@@ -1,5 +1,12 @@
-import { auth } from "@/backend/auth";
+import NextAuth from "next-auth";
 import { NextResponse } from "next/server";
+import { authConfig } from "@/backend/auth.config";
+
+/**
+ * Edge-safe middleware using auth.config.ts (no Prisma/pg imports).
+ * This reads the JWT session cookie without hitting the database.
+ */
+const { auth } = NextAuth(authConfig);
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
