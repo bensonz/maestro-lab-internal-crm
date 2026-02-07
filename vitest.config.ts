@@ -11,8 +11,10 @@ export default defineConfig({
     include: ['src/**/*.{test,spec}.{js,ts,jsx,tsx}'],
   },
   resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
+    alias: [
+      { find: '@prisma/generated/browser', replacement: path.resolve(__dirname, './prisma/generated/prisma/browser') },
+      { find: '@prisma/generated', replacement: path.resolve(__dirname, './prisma/generated/prisma/client') },
+      { find: '@', replacement: path.resolve(__dirname, './src') },
+    ],
   },
 })
