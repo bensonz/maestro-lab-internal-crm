@@ -4,7 +4,7 @@ import {
   getEligibleClientsForPhone,
 } from '@/backend/data/operations'
 import { Card, CardContent } from '@/components/ui/card'
-import { Phone, CheckCircle, Clock, XCircle } from 'lucide-react'
+import { Phone, CheckCircle2, Clock, XCircle } from 'lucide-react'
 import { PhoneTable } from './_components/phone-table'
 import { PhoneTrackingHeader } from './_components/phone-tracking-header'
 
@@ -21,61 +21,59 @@ export default async function PhoneTrackingPage() {
       value: stats.total,
       icon: Phone,
       iconColor: 'text-primary',
-      iconBg: 'bg-primary/10',
-      iconRing: 'ring-primary/20',
+      iconBg: 'bg-primary/20',
     },
     {
       label: 'Active',
       value: stats.active,
-      icon: CheckCircle,
+      valueColor: 'text-success',
+      icon: CheckCircle2,
       iconColor: 'text-success',
-      iconBg: 'bg-success/10',
-      iconRing: 'ring-success/20',
+      iconBg: 'bg-success/20',
     },
     {
       label: 'Pending',
       value: stats.pending,
+      valueColor: 'text-warning',
       icon: Clock,
       iconColor: 'text-warning',
-      iconBg: 'bg-warning/10',
-      iconRing: 'ring-warning/20',
+      iconBg: 'bg-warning/20',
     },
     {
-      label: 'Signed Out',
+      label: 'Suspended',
       value: stats.suspended,
+      valueColor: 'text-destructive',
       icon: XCircle,
       iconColor: 'text-destructive',
-      iconBg: 'bg-destructive/10',
-      iconRing: 'ring-destructive/20',
+      iconBg: 'bg-destructive/20',
     },
   ]
 
   return (
-    <div className="p-6 lg:p-8 space-y-6">
+    <div className="space-y-6 p-6 animate-fade-in">
       {/* Header */}
       <PhoneTrackingHeader eligibleClients={eligibleClients} />
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {statItems.map((stat) => (
-          <Card
-            key={stat.label}
-            className="border-border/50 bg-card/80 backdrop-blur-sm"
-          >
-            <CardContent className="p-5">
+          <Card key={stat.label} className="card-terminal">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground">
                     {stat.label}
                   </p>
-                  <p className="text-3xl font-bold tracking-tight text-foreground">
+                  <p
+                    className={`mt-1 text-2xl font-mono font-semibold ${stat.valueColor || ''}`}
+                  >
                     {stat.value}
                   </p>
                 </div>
                 <div
-                  className={`rounded-lg p-3 ring-1 ${stat.iconBg} ${stat.iconRing}`}
+                  className={`flex h-10 w-10 items-center justify-center rounded-lg ${stat.iconBg}`}
                 >
-                  <stat.icon className={`h-6 w-6 ${stat.iconColor}`} />
+                  <stat.icon className={`h-5 w-5 ${stat.iconColor}`} />
                 </div>
               </div>
             </CardContent>
