@@ -141,6 +141,15 @@ Key rules:
 - Every FundMovement automatically creates matching Transaction(s) via hook in `src/app/actions/fund-movements.ts`
 - TransactionType enum: DEPOSIT, WITHDRAWAL, INTERNAL_TRANSFER, COMMISSION_PAYOUT, FEE, ADJUSTMENT
 
+### Team Hierarchy
+
+`src/backend/data/hierarchy.ts` — Agent hierarchy queries:
+- `getAgentHierarchy(agentId)` — Returns supervisor chain (upward) + subordinate tree (downward)
+- `getTeamRollup(agentId)` — Aggregates metrics across entire subordinate tree
+- `getAllSubordinateIds(agentId)` — BFS to get all descendant agent IDs
+
+Team page at `/agent/team` shows supervisor chain, expandable subordinate tree, and team stats.
+
 ### Path Aliases
 
 - `@/*` → `./src/*`
@@ -227,6 +236,7 @@ pnpm test src/test/backend/actions/phones.test.ts  # Specific file
 - `src/test/backend/services/commission.test.ts` — Commission distribution algorithm, star level calculation
 - `src/test/backend/data/agent-detail.test.ts` — Agent detail data query
 - `src/test/backend/services/transaction.test.ts` — Transaction ledger: record, balance, reversal, history
+- `src/test/backend/data/hierarchy.test.ts` — Team hierarchy: supervisor chain, subordinate tree, rollup
 
 ---
 
