@@ -104,12 +104,13 @@ enum EventType {
   // Financial
   TRANSACTION_CREATED
   SETTLEMENT_CREATED
-  // System
-  CONFIG_CHANGED
-  EXPORT
   // User management
   USER_CREATED
   USER_UPDATED
+  USER_DEACTIVATED
+  // System
+  CONFIG_CHANGED
+  EXPORT
 }
 
 // ============================================
