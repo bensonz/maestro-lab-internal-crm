@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Card } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -20,7 +20,17 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Phone, Search, LogOut, RotateCcw } from 'lucide-react'
+import {
+  Phone,
+  Search,
+  LogOut,
+  RotateCcw,
+  Calendar,
+  User,
+  CheckCircle2,
+  Clock,
+  XCircle,
+} from 'lucide-react'
 import { signOutPhone, returnPhone } from '@/app/actions/phones'
 import { toast } from 'sonner'
 
@@ -40,35 +50,34 @@ interface PhoneTableProps {
   phoneNumbers: PhoneAssignment[]
 }
 
-function getStatusBadge(status: string) {
-  switch (status) {
-    case 'active':
-      return (
-        <Badge className="bg-success/20 text-success border-success/30">
-          Active
-        </Badge>
-      )
-    case 'pending':
-      return (
-        <Badge className="bg-warning/20 text-warning border-warning/30">
-          Pending
-        </Badge>
-      )
-    case 'suspended':
-      return (
-        <Badge className="bg-destructive/20 text-destructive border-destructive/30">
-          Signed Out
-        </Badge>
-      )
-    case 'inactive':
-      return (
-        <Badge className="bg-muted text-muted-foreground border-border">
-          Returned
-        </Badge>
-      )
-    default:
-      return <Badge variant="outline">{status}</Badge>
+const statusConfig: Record<
+  string,
+  {
+    label: string
+    color: string
+    icon: typeof CheckCircle2
   }
+> = {
+  active: {
+    label: 'Active',
+    color: 'bg-success/20 text-success',
+    icon: CheckCircle2,
+  },
+  pending: {
+    label: 'Pending',
+    color: 'bg-warning/20 text-warning',
+    icon: Clock,
+  },
+  suspended: {
+    label: 'Signed Out',
+    color: 'bg-destructive/20 text-destructive',
+    icon: XCircle,
+  },
+  inactive: {
+    label: 'Returned',
+    color: 'bg-muted text-muted-foreground',
+    icon: XCircle,
+  },
 }
 
 export function PhoneTable({ phoneNumbers }: PhoneTableProps) {
@@ -111,8 +120,8 @@ export function PhoneTable({ phoneNumbers }: PhoneTableProps) {
   return (
     <>
       {/* Filters */}
-      <div className="flex gap-4">
-        <div className="relative flex-1">
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search by phone, client name, or ID..."
@@ -137,101 +146,137 @@ export function PhoneTable({ phoneNumbers }: PhoneTableProps) {
       </div>
 
       {/* Table */}
-      <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
-        {filteredNumbers.length === 0 ? (
-          <div className="py-12 text-center text-muted-foreground">
-            {phoneNumbers.length === 0
-              ? 'No phone assignments'
-              : 'No phone numbers match your filters'}
-          </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Phone Number</TableHead>
-                <TableHead>Client</TableHead>
-                <TableHead>Device ID</TableHead>
-                <TableHead>Issued Date</TableHead>
-                <TableHead>Issued By</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Notes</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredNumbers.map((phone) => (
-                <TableRow key={phone.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-primary" />
-                      <span className="font-mono font-medium">
-                        {phone.number}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{phone.client}</p>
-                      {phone.clientId && (
-                        <p className="text-xs text-muted-foreground">
-                          {phone.clientId}
-                        </p>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {phone.deviceId ? (
-                      <span className="font-mono text-sm">
-                        {phone.deviceId}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground/50">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {phone.issuedDate || '—'}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {phone.issuedBy}
-                  </TableCell>
-                  <TableCell>{getStatusBadge(phone.status)}</TableCell>
-                  <TableCell className="text-muted-foreground max-w-[200px] truncate">
-                    {phone.notes || '—'}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {phone.status === 'active' && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-xs"
-                        onClick={() => handleSignOut(phone.id)}
-                        disabled={isPending}
-                        data-testid={`sign-out-${phone.id}`}
-                      >
-                        <LogOut className="h-3 w-3 mr-1" />
-                        Sign Out
-                      </Button>
-                    )}
-                    {phone.status === 'suspended' && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-xs"
-                        onClick={() => handleReturn(phone.id)}
-                        disabled={isPending}
-                        data-testid={`return-${phone.id}`}
-                      >
-                        <RotateCcw className="h-3 w-3 mr-1" />
-                        Return
-                      </Button>
-                    )}
-                  </TableCell>
+      <Card className="card-terminal">
+        <CardContent className="p-0">
+          {filteredNumbers.length === 0 ? (
+            <div className="py-12 text-center text-muted-foreground">
+              {phoneNumbers.length === 0
+                ? 'No phone assignments'
+                : 'No phone numbers match your filters'}
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Phone Number</TableHead>
+                  <TableHead>Client</TableHead>
+                  <TableHead>Device ID</TableHead>
+                  <TableHead>Issued Date</TableHead>
+                  <TableHead>Issued By</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Notes</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
+              </TableHeader>
+              <TableBody>
+                {filteredNumbers.map((phone) => {
+                  const config = statusConfig[phone.status]
+                  return (
+                    <TableRow key={phone.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Phone className="h-4 w-4 text-primary" />
+                          <span className="font-mono font-medium">
+                            {phone.number}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{phone.client}</p>
+                          {phone.clientId && (
+                            <p className="text-xs text-muted-foreground">
+                              {phone.clientId}
+                            </p>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {phone.deviceId ? (
+                          <Badge variant="outline">{phone.deviceId}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground/50">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                          <Calendar className="h-3 w-3" />
+                          {phone.issuedDate || '—'}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1 text-sm">
+                          <User className="h-3 w-3 text-muted-foreground" />
+                          {phone.issuedBy}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {config ? (
+                          <Badge className={config.color}>
+                            <config.icon className="mr-1 h-3 w-3" />
+                            {config.label}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline">{phone.status}</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="max-w-[200px] truncate">
+                        {phone.notes ? (
+                          <span className="text-sm text-muted-foreground">
+                            {phone.notes}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-muted-foreground/50">
+                            —
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {phone.status === 'active' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs"
+                            onClick={() => handleSignOut(phone.id)}
+                            disabled={isPending}
+                            data-testid={`sign-out-${phone.id}`}
+                          >
+                            <LogOut className="mr-1 h-3 w-3" />
+                            Sign Out
+                          </Button>
+                        )}
+                        {phone.status === 'suspended' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs"
+                            onClick={() => handleReturn(phone.id)}
+                            disabled={isPending}
+                            data-testid={`return-${phone.id}`}
+                          >
+                            <RotateCcw className="mr-1 h-3 w-3" />
+                            Return
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
       </Card>
+
+      {/* Results Footer */}
+      <div className="flex items-center justify-between text-sm text-muted-foreground">
+        <span>
+          Showing {filteredNumbers.length} of {phoneNumbers.length} records
+        </span>
+        <span className="font-mono">
+          Last updated: {new Date().toLocaleTimeString()}
+        </span>
+      </div>
     </>
   )
 }
