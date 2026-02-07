@@ -213,6 +213,22 @@ export function SettlementView({ clients }: SettlementViewProps) {
                         <div className="ml-11 mt-2 space-y-1">
                           <div className="flex items-center justify-between rounded bg-muted/20 p-2 text-sm">
                             <span className="text-muted-foreground">
+                              Deposited
+                            </span>
+                            <span className="font-mono text-xs text-success">
+                              +${platform.deposited.toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between rounded bg-muted/20 p-2 text-sm">
+                            <span className="text-muted-foreground">
+                              Withdrawn
+                            </span>
+                            <span className="font-mono text-xs text-destructive">
+                              -${platform.withdrawn.toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between rounded bg-muted/20 p-2 text-sm">
+                            <span className="text-muted-foreground">
                               Net Balance
                             </span>
                             <span
