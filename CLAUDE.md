@@ -124,6 +124,23 @@ Key rules:
 - Star levels frozen at distribution time (immutable)
 - Leadership (5★+) uses separate `LeadershipPayout` model (P&L revenue share)
 
+### Transaction System
+
+`src/backend/services/transaction.ts` — Append-only financial ledger:
+- `recordTransaction(data)` — Single entry point for creating transactions (never use prisma.transaction.create directly)
+- `recordTransactionFromFundMovement(fm, userId)` — Converts FundMovement into 1-2 Transaction entries
+- `recordCommissionTransaction(allocation, userId)` — Records commission payouts
+- `getClientBalance(clientId, platform?)` — Calculates balance from transaction history
+- `getClientBalanceBreakdown(clientId)` — Per-platform balance breakdown
+- `reverseTransaction(id, reason, userId)` — Creates offsetting ADJUSTMENT (never deletes)
+- `getTransactionHistory(filters)` — Paginated query with type/platform/date filters
+
+Key rules:
+- Transactions are NEVER updated or deleted (append-only)
+- To reverse: mark original as "reversed" + create ADJUSTMENT entry
+- Every FundMovement automatically creates matching Transaction(s) via hook in `src/app/actions/fund-movements.ts`
+- TransactionType enum: DEPOSIT, WITHDRAWAL, INTERNAL_TRANSFER, COMMISSION_PAYOUT, FEE, ADJUSTMENT
+
 ### Path Aliases
 
 - `@/*` → `./src/*`
@@ -209,6 +226,7 @@ pnpm test src/test/backend/actions/phones.test.ts  # Specific file
 - `src/test/backend/utils/csv.test.ts` — CSV generation utility (escaping, BOM, edge cases)
 - `src/test/backend/services/commission.test.ts` — Commission distribution algorithm, star level calculation
 - `src/test/backend/data/agent-detail.test.ts` — Agent detail data query
+- `src/test/backend/services/transaction.test.ts` — Transaction ledger: record, balance, reversal, history
 
 ---
 
