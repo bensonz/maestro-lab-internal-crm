@@ -165,6 +165,11 @@ model User {
   extensionReviews  ExtensionRequest[] @relation("ExtensionReviews")
   fundMovements     FundMovement[]
 
+  // ── Commission relations ──
+  bonusPoolsAsCloser  BonusPool[]        @relation("BonusPoolCloser")
+  bonusAllocations    BonusAllocation[]
+  leadershipPayouts   LeadershipPayout[]
+
   @@index([supervisorId])
   @@index([role])
   @@index([email])
@@ -202,6 +207,7 @@ model Client {
   extensionRequests  ExtensionRequest[]
   fundMovementsFrom  FundMovement[]   @relation("FundMovementsFrom")
   fundMovementsTo    FundMovement[]   @relation("FundMovementsTo")
+  bonusPool          BonusPool?
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
 
@@ -420,4 +426,82 @@ model FundMovement {
   @@index([toClientId])
   @@index([recordedById])
   @@index([createdAt])
+}
+
+// ── Per-client bonus pool ($400 per approved client) ──
+model BonusPool {
+  id                String            @id @default(cuid())
+  clientId          String            @unique
+  client            Client            @relation(fields: [clientId], references: [id])
+  closerId          String
+  closer            User              @relation("BonusPoolCloser", fields: [closerId], references: [id])
+
+  totalAmount       Decimal           @db.Decimal(10, 2) @default(400)
+  directAmount      Decimal           @db.Decimal(10, 2) @default(200)
+  starPoolAmount    Decimal           @db.Decimal(10, 2) @default(200)
+
+  totalSlices       Int               @default(4)
+  sliceValue        Decimal           @db.Decimal(10, 2) @default(50)
+  distributedSlices Int               @default(0)
+  recycledSlices    Int               @default(0)
+  status            String            @default("pending")
+
+  hierarchySnapshot Json?
+
+  allocations       BonusAllocation[]
+
+  createdAt         DateTime          @default(now())
+
+  @@index([closerId])
+  @@index([status])
+}
+
+// ── Individual allocation from a pool ──
+model BonusAllocation {
+  id              String    @id @default(cuid())
+  bonusPoolId     String
+  bonusPool       BonusPool @relation(fields: [bonusPoolId], references: [id])
+  agentId         String
+  agent           User      @relation(fields: [agentId], references: [id])
+
+  type            String
+  slices          Int       @default(0)
+  amount          Decimal   @db.Decimal(10, 2)
+  starLevelAtTime Int
+
+  status          String    @default("pending")
+  paidAt          DateTime?
+  payoutRef       String?
+
+  createdAt       DateTime  @default(now())
+
+  @@index([bonusPoolId])
+  @@index([agentId])
+  @@index([status])
+}
+
+// ── Leadership tier payouts (5★+ only) ──
+model LeadershipPayout {
+  id              String    @id @default(cuid())
+  agentId         String
+  agent           User      @relation(fields: [agentId], references: [id])
+
+  type            String
+  tier            String
+
+  bonusAmount     Decimal?  @db.Decimal(10, 2)
+  sharePercent    Decimal?  @db.Decimal(5, 2)
+  periodStart     DateTime?
+  periodEnd       DateTime?
+  teamRevenue     Decimal?  @db.Decimal(12, 2)
+  payoutAmount    Decimal?  @db.Decimal(10, 2)
+
+  status          String    @default("pending")
+  paidAt          DateTime?
+
+  createdAt       DateTime  @default(now())
+
+  @@index([agentId])
+  @@index([tier])
+  @@index([status])
 }
