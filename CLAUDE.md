@@ -108,6 +108,22 @@ Add `data-testid` attributes to all interactive and significant UI elements for 
 
 This enables reliable UI automation. Always add `data-testid` to: buttons, form inputs, modals/dialogs, cards, table rows, nav links, and status badges.
 
+### Commission System
+
+`src/backend/services/commission.ts` — Core commission logic:
+- `createBonusPool(clientId)` — Creates $400 pool when client is approved, distributes immediately
+- `distributeStarPool(poolId)` — Walks hierarchy upward, assigns $50 slices capped by star level
+- `recalculateStarLevel(agentId)` — Updates agent tier based on approved client count
+- `getAgentCommissionSummary(agentId)` — Query for UI: total earned, pending, paid
+
+Key rules:
+- $200 direct bonus always goes to closer
+- $200 star pool = 4 slices × $50, distributed up hierarchy
+- Each agent takes min(starLevel, remainingSlices)
+- Leftover slices → backfill to highest-star ancestor, then recycle to company
+- Star levels frozen at distribution time (immutable)
+- Leadership (5★+) uses separate `LeadershipPayout` model (P&L revenue share)
+
 ### Path Aliases
 
 - `@/*` → `./src/*`
@@ -191,6 +207,8 @@ pnpm test src/test/backend/actions/phones.test.ts  # Specific file
 - `src/test/backend/validations/client.test.ts` — client form validation
 - `src/test/backend/lib/platforms.test.ts` — platform utilities
 - `src/test/backend/utils/csv.test.ts` — CSV generation utility (escaping, BOM, edge cases)
+- `src/test/backend/services/commission.test.ts` — Commission distribution algorithm, star level calculation
+- `src/test/backend/data/agent-detail.test.ts` — Agent detail data query
 
 ---
 
