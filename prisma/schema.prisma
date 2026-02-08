@@ -123,6 +123,12 @@ enum TransactionType {
   ADJUSTMENT
 }
 
+enum SettlementStatus {
+  PENDING_REVIEW
+  CONFIRMED
+  REJECTED
+}
+
 // ============================================
 // MODELS
 // ============================================
@@ -173,7 +179,8 @@ model User {
   applicationDrafts ApplicationDraft[]
   extensionRequests ExtensionRequest[] @relation("ExtensionRequests")
   extensionReviews  ExtensionRequest[] @relation("ExtensionReviews")
-  fundMovements     FundMovement[]
+  fundMovements        FundMovement[]
+  fundMovementReviews  FundMovement[] @relation("FundMovementReviewer")
 
   // ── Commission relations ──
   bonusPoolsAsCloser  BonusPool[]        @relation("BonusPoolCloser")
@@ -440,6 +447,13 @@ model FundMovement {
   status       String   @default("completed") // "pending" | "completed"
   notes        String?
 
+  // Settlement confirmation
+  settlementStatus SettlementStatus @default(PENDING_REVIEW)
+  reviewedById     String?
+  reviewedBy       User?    @relation("FundMovementReviewer", fields: [reviewedById], references: [id])
+  reviewedAt       DateTime?
+  reviewNotes      String?
+
   // Audit
   recordedById String
   recordedBy   User     @relation(fields: [recordedById], references: [id])
@@ -450,6 +464,7 @@ model FundMovement {
   @@index([fromClientId])
   @@index([toClientId])
   @@index([recordedById])
+  @@index([settlementStatus])
   @@index([createdAt])
 }
 
