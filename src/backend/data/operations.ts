@@ -1,5 +1,9 @@
 import prisma from '@/backend/prisma/client'
 import { ToDoStatus, IntakeStatus, UserRole, PlatformType } from '@/types'
+import {
+  getPlatformTypeFromName,
+  PLATFORM_INFO,
+} from '@/lib/platforms'
 
 // ==========================================
 // Sales Interaction Data
@@ -705,6 +709,8 @@ export interface SettlementClient {
   netBalance: number
   platforms: {
     name: string
+    abbrev: string
+    category: 'sports' | 'financial' | 'other'
     deposited: number
     withdrawn: number
   }[]
@@ -859,12 +865,24 @@ export async function getClientsForSettlement(): Promise<SettlementClient[]> {
       .map(({ createdAt: _, ...rest }) => rest)
 
     const platforms = [...platformTotals.entries()]
-      .map(([name, totals]) => ({
-        name,
-        deposited: totals.deposited,
-        withdrawn: totals.withdrawn,
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(([name, totals]) => {
+        const platformType = getPlatformTypeFromName(name)
+        const info = platformType ? PLATFORM_INFO[platformType] : null
+        return {
+          name,
+          abbrev: info?.abbrev ?? name.slice(0, 3).toUpperCase(),
+          category: (info?.category ?? 'other') as 'sports' | 'financial' | 'other',
+          deposited: totals.deposited,
+          withdrawn: totals.withdrawn,
+        }
+      })
+      .sort((a, b) => {
+        // Sort by category (sports first, then financial, then other)
+        const order = { sports: 0, financial: 1, other: 2 }
+        const catDiff = order[a.category] - order[b.category]
+        if (catDiff !== 0) return catDiff
+        return a.name.localeCompare(b.name)
+      })
 
     return {
       id: client.id,
