@@ -22,6 +22,7 @@ import {
   ArrowUpRight,
   ChevronDown,
   DollarSign,
+  Layers,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { SettlementClient } from '@/backend/data/operations'
@@ -31,6 +32,166 @@ interface SettlementViewProps {
 }
 
 type TransactionFilter = 'all' | 'deposit' | 'withdrawal'
+
+type Platform = SettlementClient['platforms'][number]
+type Transaction = SettlementClient['recentTransactions'][number]
+
+function renderPlatformGroup(
+  label: string,
+  platforms: Platform[],
+  allTransactions: Transaction[],
+  expandedPlatforms: string[],
+  togglePlatform: (name: string) => void,
+) {
+  if (platforms.length === 0) return null
+
+  return (
+    <div data-testid={`platform-group-${label.toLowerCase().replace(/\s/g, '-')}`}>
+      <div className="mb-2 flex items-center gap-2">
+        <Layers className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          {label}
+        </span>
+      </div>
+      <div className="space-y-2">
+        {platforms.map((platform) => {
+          const platformTxs = allTransactions.filter(
+            (tx) => tx.platform === platform.name,
+          )
+          const net = platform.deposited - platform.withdrawn
+
+          return (
+            <Collapsible
+              key={platform.name}
+              open={expandedPlatforms.includes(platform.name)}
+              onOpenChange={() => togglePlatform(platform.name)}
+            >
+              <CollapsibleTrigger asChild>
+                <button
+                  className="flex w-full items-center justify-between rounded-lg border border-border p-3 transition-all hover:bg-muted/30"
+                  data-testid={`platform-${platform.name}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded bg-primary/20">
+                      <span className="text-xs font-bold text-primary">
+                        {platform.abbrev}
+                      </span>
+                    </div>
+                    <span className="font-medium">{platform.name}</span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="font-mono text-sm text-success">
+                      +${platform.deposited.toLocaleString()}
+                    </span>
+                    <span className="font-mono text-sm text-destructive">
+                      -${platform.withdrawn.toLocaleString()}
+                    </span>
+                    <ChevronDown
+                      className={cn(
+                        'h-4 w-4 text-muted-foreground transition-transform',
+                        expandedPlatforms.includes(platform.name) &&
+                          'rotate-180',
+                      )}
+                    />
+                  </div>
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="ml-11 mt-2 space-y-1">
+                  {/* Summary row */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="rounded bg-muted/20 p-2 text-center">
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                        Deposited
+                      </p>
+                      <p className="font-mono text-sm font-semibold text-success">
+                        +${platform.deposited.toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="rounded bg-muted/20 p-2 text-center">
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                        Withdrawn
+                      </p>
+                      <p className="font-mono text-sm font-semibold text-destructive">
+                        -${platform.withdrawn.toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="rounded bg-muted/20 p-2 text-center">
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                        Net
+                      </p>
+                      <p
+                        className={cn(
+                          'font-mono text-sm font-semibold',
+                          net >= 0 ? 'text-success' : 'text-destructive',
+                        )}
+                      >
+                        ${net.toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Per-platform transactions */}
+                  {platformTxs.length > 0 && (
+                    <div className="mt-2 space-y-1" data-testid={`platform-txs-${platform.name}`}>
+                      <p className="px-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                        Transactions ({platformTxs.length})
+                      </p>
+                      {platformTxs.map((tx) => (
+                        <div
+                          key={tx.id}
+                          className="flex items-center justify-between rounded bg-muted/10 px-2 py-1.5 text-sm"
+                        >
+                          <div className="flex items-center gap-2">
+                            {tx.type === 'deposit' ? (
+                              <ArrowDownRight className="h-3 w-3 text-success" />
+                            ) : (
+                              <ArrowUpRight className="h-3 w-3 text-destructive" />
+                            )}
+                            <span className="text-xs text-muted-foreground">
+                              {tx.date}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={cn(
+                                'font-mono text-xs font-medium',
+                                tx.type === 'deposit'
+                                  ? 'text-success'
+                                  : 'text-destructive',
+                              )}
+                            >
+                              {tx.type === 'deposit' ? '+' : '-'}$
+                              {tx.amount.toLocaleString()}
+                            </span>
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                'text-[9px]',
+                                tx.status === 'completed' &&
+                                  'border-success/50 text-success',
+                                tx.status === 'pending' &&
+                                  'border-warning/50 text-warning',
+                                tx.status === 'failed' &&
+                                  'border-destructive/50 text-destructive',
+                              )}
+                            >
+                              {tx.status}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
 export function SettlementView({ clients }: SettlementViewProps) {
   const [searchQuery, setSearchQuery] = useState('')
@@ -163,92 +324,47 @@ export function SettlementView({ clients }: SettlementViewProps) {
             </div>
 
             {/* Platform Breakdown */}
-            <Card className="card-terminal">
+            <Card className="card-terminal" data-testid="platform-breakdown">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
                   Platform Breakdown
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-4">
                 {selected.platforms.length === 0 ? (
                   <p className="py-4 text-center text-sm text-muted-foreground">
                     No platform activity
                   </p>
                 ) : (
-                  selected.platforms.map((platform) => (
-                    <Collapsible
-                      key={platform.name}
-                      open={expandedPlatforms.includes(platform.name)}
-                      onOpenChange={() => togglePlatform(platform.name)}
-                    >
-                      <CollapsibleTrigger asChild>
-                        <button
-                          className="flex w-full items-center justify-between rounded-lg border border-border p-3 transition-all hover:bg-muted/30"
-                          data-testid={`platform-${platform.name}`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-8 w-8 items-center justify-center rounded bg-primary/20">
-                              <DollarSign className="h-4 w-4 text-primary" />
-                            </div>
-                            <span className="font-medium">{platform.name}</span>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <span className="font-mono text-sm text-success">
-                              +${platform.deposited.toLocaleString()}
-                            </span>
-                            <span className="font-mono text-sm text-destructive">
-                              -${platform.withdrawn.toLocaleString()}
-                            </span>
-                            <ChevronDown
-                              className={cn(
-                                'h-4 w-4 text-muted-foreground transition-transform',
-                                expandedPlatforms.includes(platform.name) &&
-                                  'rotate-180',
-                              )}
-                            />
-                          </div>
-                        </button>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent>
-                        <div className="ml-11 mt-2 space-y-1">
-                          <div className="flex items-center justify-between rounded bg-muted/20 p-2 text-sm">
-                            <span className="text-muted-foreground">
-                              Deposited
-                            </span>
-                            <span className="font-mono text-xs text-success">
-                              +${platform.deposited.toLocaleString()}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between rounded bg-muted/20 p-2 text-sm">
-                            <span className="text-muted-foreground">
-                              Withdrawn
-                            </span>
-                            <span className="font-mono text-xs text-destructive">
-                              -${platform.withdrawn.toLocaleString()}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between rounded bg-muted/20 p-2 text-sm">
-                            <span className="text-muted-foreground">
-                              Net Balance
-                            </span>
-                            <span
-                              className={cn(
-                                'font-mono text-xs font-semibold',
-                                platform.deposited - platform.withdrawn >= 0
-                                  ? 'text-success'
-                                  : 'text-destructive',
-                              )}
-                            >
-                              $
-                              {(
-                                platform.deposited - platform.withdrawn
-                              ).toLocaleString()}
-                            </span>
-                          </div>
-                        </div>
-                      </CollapsibleContent>
-                    </Collapsible>
-                  ))
+                  <>
+                    {renderPlatformGroup(
+                      'Sports Betting',
+                      selected.platforms.filter(
+                        (p) => p.category === 'sports',
+                      ),
+                      selected.recentTransactions,
+                      expandedPlatforms,
+                      togglePlatform,
+                    )}
+                    {renderPlatformGroup(
+                      'Financial',
+                      selected.platforms.filter(
+                        (p) => p.category === 'financial',
+                      ),
+                      selected.recentTransactions,
+                      expandedPlatforms,
+                      togglePlatform,
+                    )}
+                    {renderPlatformGroup(
+                      'Other',
+                      selected.platforms.filter(
+                        (p) => p.category === 'other',
+                      ),
+                      selected.recentTransactions,
+                      expandedPlatforms,
+                      togglePlatform,
+                    )}
+                  </>
                 )}
               </CardContent>
             </Card>
