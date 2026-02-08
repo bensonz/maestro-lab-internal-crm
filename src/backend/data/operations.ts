@@ -721,7 +721,17 @@ export interface SettlementClient {
     amount: number
     platform: string
     status: string
+    settlementStatus: string
+    reviewedBy: string | null
+    reviewedAt: string | null
+    reviewNotes: string | null
   }[]
+  /** Count of movements in each settlement status */
+  settlementCounts: {
+    pendingReview: number
+    confirmed: number
+    rejected: number
+  }
 }
 
 export async function getClientsForSettlement(): Promise<SettlementClient[]> {
@@ -741,6 +751,10 @@ export async function getClientsForSettlement(): Promise<SettlementClient[]> {
         toPlatform: true,
         amount: true,
         status: true,
+        settlementStatus: true,
+        reviewedBy: { select: { name: true } },
+        reviewedAt: true,
+        reviewNotes: true,
         createdAt: true,
       },
       orderBy: { createdAt: 'desc' },
@@ -786,11 +800,24 @@ export async function getClientsForSettlement(): Promise<SettlementClient[]> {
       amount: number
       platform: string
       status: string
+      settlementStatus: string
+      reviewedBy: string | null
+      reviewedAt: string | null
+      reviewNotes: string | null
       createdAt: Date
     }[] = []
 
+    // Settlement status counters
+    const statusCounts = { pendingReview: 0, confirmed: 0, rejected: 0 }
+
     for (const m of allMovements) {
       const amount = Number(m.amount)
+      const settlementFields = {
+        settlementStatus: m.settlementStatus,
+        reviewedBy: m.reviewedBy?.name ?? null,
+        reviewedAt: m.reviewedAt ? formatSettlementDate(m.reviewedAt) : null,
+        reviewNotes: m.reviewNotes ?? null,
+      }
 
       // Deposit: money coming INTO this client
       if (m.toClientId === client.id) {
@@ -802,6 +829,11 @@ export async function getClientsForSettlement(): Promise<SettlementClient[]> {
         entry.deposited += amount
         platformTotals.set(platform, entry)
 
+        // Count settlement status (only once per movement per client)
+        if (m.settlementStatus === 'PENDING_REVIEW') statusCounts.pendingReview++
+        else if (m.settlementStatus === 'CONFIRMED') statusCounts.confirmed++
+        else if (m.settlementStatus === 'REJECTED') statusCounts.rejected++
+
         transactions.push({
           id: m.id,
           date: formatSettlementDate(m.createdAt),
@@ -809,6 +841,7 @@ export async function getClientsForSettlement(): Promise<SettlementClient[]> {
           amount,
           platform,
           status: m.status,
+          ...settlementFields,
           createdAt: m.createdAt,
         })
       }
@@ -823,6 +856,13 @@ export async function getClientsForSettlement(): Promise<SettlementClient[]> {
         entry.withdrawn += amount
         platformTotals.set(platform, entry)
 
+        // Count settlement status only if not already counted as deposit for this client
+        if (m.toClientId !== client.id) {
+          if (m.settlementStatus === 'PENDING_REVIEW') statusCounts.pendingReview++
+          else if (m.settlementStatus === 'CONFIRMED') statusCounts.confirmed++
+          else if (m.settlementStatus === 'REJECTED') statusCounts.rejected++
+        }
+
         // Avoid duplicate transaction entry for same-client transfers
         if (m.toClientId !== client.id) {
           transactions.push({
@@ -832,6 +872,7 @@ export async function getClientsForSettlement(): Promise<SettlementClient[]> {
             amount,
             platform,
             status: m.status,
+            ...settlementFields,
             createdAt: m.createdAt,
           })
         } else {
@@ -843,6 +884,7 @@ export async function getClientsForSettlement(): Promise<SettlementClient[]> {
             amount,
             platform,
             status: m.status,
+            ...settlementFields,
             createdAt: m.createdAt,
           })
         }
@@ -892,6 +934,7 @@ export async function getClientsForSettlement(): Promise<SettlementClient[]> {
       netBalance: totalDeposited - totalWithdrawn,
       platforms,
       recentTransactions,
+      settlementCounts: statusCounts,
     }
   })
 }
