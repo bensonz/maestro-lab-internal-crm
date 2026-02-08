@@ -191,7 +191,7 @@ describe('getClientsForSettlement', () => {
 
     const result = await getClientsForSettlement()
 
-    // Platforms sorted alphabetically
+    // Platforms sorted by category then alphabetically (both are sports here)
     expect(result[0].platforms).toHaveLength(2)
     expect(result[0].platforms[0].name).toBe('DraftKings')
     expect(result[0].platforms[0].deposited).toBe(300)
@@ -243,6 +243,103 @@ describe('getClientsForSettlement', () => {
     const result = await getClientsForSettlement()
 
     expect(result[0].recentTransactions[0].date).toBe('Feb 7, 2026')
+  })
+
+  it('includes platform abbrev and category from PLATFORM_INFO', async () => {
+    vi.mocked(prisma.client.findMany).mockResolvedValueOnce([
+      { id: 'c1', firstName: 'Info', lastName: 'Test' },
+    ] as never)
+    vi.mocked(prisma.fundMovement.findMany).mockResolvedValueOnce([
+      makeMovement({
+        id: 'm1',
+        toClientId: 'c1',
+        toPlatform: 'DraftKings',
+        amount: 100,
+      }),
+      makeMovement({
+        id: 'm2',
+        toClientId: 'c1',
+        toPlatform: 'Bank',
+        amount: 50,
+      }),
+    ] as never)
+
+    const result = await getClientsForSettlement()
+
+    const dk = result[0].platforms.find((p) => p.name === 'DraftKings')
+    const bank = result[0].platforms.find((p) => p.name === 'Bank')
+
+    expect(dk?.abbrev).toBe('DK')
+    expect(dk?.category).toBe('sports')
+    expect(bank?.abbrev).toBe('BNK')
+    expect(bank?.category).toBe('financial')
+  })
+
+  it('sorts platforms by category (sports first) then alphabetically', async () => {
+    vi.mocked(prisma.client.findMany).mockResolvedValueOnce([
+      { id: 'c1', firstName: 'Sort', lastName: 'Test' },
+    ] as never)
+    vi.mocked(prisma.fundMovement.findMany).mockResolvedValueOnce([
+      makeMovement({
+        id: 'm1',
+        toClientId: 'c1',
+        toPlatform: 'Bank',
+        amount: 50,
+      }),
+      makeMovement({
+        id: 'm2',
+        toClientId: 'c1',
+        toPlatform: 'FanDuel',
+        amount: 100,
+      }),
+      makeMovement({
+        id: 'm3',
+        toClientId: 'c1',
+        toPlatform: 'DraftKings',
+        amount: 75,
+      }),
+    ] as never)
+
+    const result = await getClientsForSettlement()
+
+    // Sports platforms first, then financial
+    expect(result[0].platforms.map((p) => p.name)).toEqual([
+      'DraftKings',
+      'FanDuel',
+      'Bank',
+    ])
+  })
+
+  it('falls back to abbreviated name and "other" category for unknown platforms', async () => {
+    vi.mocked(prisma.client.findMany).mockResolvedValueOnce([
+      { id: 'c1', firstName: 'Unknown', lastName: 'Platform' },
+    ] as never)
+    vi.mocked(prisma.fundMovement.findMany).mockResolvedValueOnce([
+      makeMovement({
+        id: 'm1',
+        toClientId: 'c1',
+        toPlatform: 'Venmo',
+        amount: 25,
+      }),
+      makeMovement({
+        id: 'm2',
+        toClientId: 'c1',
+        toPlatform: 'DraftKings',
+        amount: 100,
+      }),
+    ] as never)
+
+    const result = await getClientsForSettlement()
+
+    const venmo = result[0].platforms.find((p) => p.name === 'Venmo')
+    expect(venmo?.abbrev).toBe('VEN')
+    expect(venmo?.category).toBe('other')
+
+    // Unknown platforms sorted after known ones (sports → financial → other)
+    expect(result[0].platforms.map((p) => p.name)).toEqual([
+      'DraftKings',
+      'Venmo',
+    ])
   })
 
   it('includes non-approved clients that have fund movements', async () => {
