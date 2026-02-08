@@ -15,11 +15,16 @@ pnpm test                   # Run Vitest in watch mode
 pnpm test:run               # Run tests once (CI mode)
 pnpm test src/lib/platforms.test.ts  # Run specific test file
 
-# Database
+# Database (local)
 docker compose up -d       # Start PostgreSQL (port 5432)
 pnpm prisma migrate dev    # Apply migrations
 pnpm prisma generate       # Regenerate Prisma client
 pnpm db:seed               # Seed database (tsx prisma/seed.ts)
+
+# Database (production — Neon)
+DATABASE_URL="<neon-url>" pnpm prisma db push       # Push schema changes
+DATABASE_URL="<neon-url>" pnpm prisma studio         # Browse production data
+DATABASE_URL="<neon-url>" pnpm prisma migrate deploy # Apply migrations (when using migrate workflow)
 ```
 
 ## Architecture
@@ -306,6 +311,37 @@ app/
 - **Middleware** for route protection
 - **Server-side session checks** in layouts/pages
 - **Don't expose sensitive data** in Client Components
+
+---
+
+## Production Deployment
+
+**Live site:** https://maestro-lab-internal-crm.vercel.app (Vercel, private access only)
+
+**Database:** Neon PostgreSQL (auto-provisioned by Vercel)
+
+### Schema Changes
+
+After modifying `prisma/schema.prisma`, the production database must be updated. Since the site is currently private/dev-only, use `db push`:
+
+```bash
+DATABASE_URL="<neon-url>" pnpm prisma db push
+```
+
+**Important:** Every schema change (new columns, enums, relations) requires syncing production. If you forget, the deployed app will get Prisma errors like `The column (not available) does not exist in the current database`, which NextAuth surfaces as `error=Configuration` on login.
+
+When the app goes to real production with user data, switch to `prisma migrate dev` locally + `prisma migrate deploy` in CI/CD to get proper migration history and rollback safety.
+
+### Environment Variables (Vercel)
+
+| Variable | Required | Notes |
+|----------|----------|-------|
+| `DATABASE_URL` | Yes | Auto-set by Neon integration |
+| `AUTH_SECRET` | Yes | Must be 32+ characters (`openssl rand -base64 32`) |
+| `STORAGE_PROVIDER` | Yes | `vercel-blob` for production |
+| `BLOB_READ_WRITE_TOKEN` | Yes | Auto-set by Vercel Blob integration |
+
+Do NOT set `AUTH_URL` on Vercel — NextAuth v5 auto-detects from `VERCEL_URL`.
 
 ---
 
