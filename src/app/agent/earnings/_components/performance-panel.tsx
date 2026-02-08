@@ -1,135 +1,147 @@
 'use client'
 
-import { Card, CardContent } from '@/components/ui/card'
+import { useState } from 'react'
 import {
-  Target,
-  TrendingDown,
-  Percent,
-  Timer,
-  Hourglass,
-  ListTodo,
-  AlertTriangle,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  CheckCircle2,
   Users,
+  ArrowRight,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible'
+import { useToast } from '@/hooks/use-toast'
 import type { AgentKPIs } from '@/backend/services/agent-kpis'
 
 interface PerformancePanelProps {
   kpis: AgentKPIs
 }
 
-function getSuccessRateColor(rate: number) {
-  if (rate >= 80) return 'text-success'
-  if (rate >= 60) return 'text-warning'
-  return 'text-destructive'
-}
-
-function getDelayRateColor(rate: number) {
-  if (rate <= 10) return 'text-success'
-  if (rate <= 20) return 'text-warning'
-  return 'text-destructive'
-}
-
-const metrics = [
-  {
-    key: 'successRate',
-    label: 'Success Rate',
-    icon: Target,
-    format: (kpis: AgentKPIs) => `${kpis.successRate}%`,
-    color: (kpis: AgentKPIs) => getSuccessRateColor(kpis.successRate),
-  },
-  {
-    key: 'delayRate',
-    label: 'Delay Rate',
-    icon: TrendingDown,
-    format: (kpis: AgentKPIs) => `${kpis.delayRate}%`,
-    color: (kpis: AgentKPIs) => getDelayRateColor(kpis.delayRate),
-  },
-  {
-    key: 'extensionRate',
-    label: 'Extension Rate',
-    icon: Percent,
-    format: (kpis: AgentKPIs) => `${kpis.extensionRate}%`,
-    color: () => 'text-foreground',
-  },
-  {
-    key: 'avgDaysToConvert',
-    label: 'Avg Days to Convert',
-    icon: Timer,
-    format: (kpis: AgentKPIs) =>
-      kpis.avgDaysToConvert !== null ? `${kpis.avgDaysToConvert}d` : '\u2014',
-    color: () => 'text-foreground',
-  },
-  {
-    key: 'avgDaysToInitiate',
-    label: 'Avg Days to Initiate',
-    icon: Hourglass,
-    format: (kpis: AgentKPIs) =>
-      kpis.avgDaysToInitiate !== null ? `${kpis.avgDaysToInitiate}d` : '\u2014',
-    color: () => 'text-foreground',
-  },
-  {
-    key: 'inProgressClients',
-    label: 'In Progress',
-    icon: Users,
-    format: (kpis: AgentKPIs) => String(kpis.inProgressClients),
-    color: () => 'text-warning',
-  },
-  {
-    key: 'pendingTodos',
-    label: 'Pending Todos',
-    icon: ListTodo,
-    format: (kpis: AgentKPIs) => String(kpis.pendingTodos),
-    color: () => 'text-foreground',
-  },
-  {
-    key: 'overdueTodos',
-    label: 'Overdue Todos',
-    icon: AlertTriangle,
-    format: (kpis: AgentKPIs) => String(kpis.overdueTodos),
-    color: (kpis: AgentKPIs) =>
-      kpis.overdueTodos > 0 ? 'text-destructive' : 'text-foreground',
-  },
-] as const
-
 export function PerformancePanel({ kpis }: PerformancePanelProps) {
-  return (
-    <Card
-      className="border-border/50 bg-card/80"
-      data-testid="performance-panel"
-    >
-      <CardContent className="p-0">
-        <div className="border-b border-border/50 px-3 py-2.5">
-          <h3 className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-            Performance Metrics
-          </h3>
-        </div>
-        <div className="divide-y divide-border/30">
-          {metrics.map((metric) => {
-            const Icon = metric.icon
-            const value = metric.format(kpis)
-            const colorClass = metric.color(kpis)
+  const [isOpen, setIsOpen] = useState(false)
+  const { toast } = useToast()
 
-            return (
-              <div
-                key={metric.key}
-                className="flex items-center justify-between px-3 py-2"
-                data-testid={`metric-${metric.key}`}
-              >
-                <div className="flex items-center gap-2">
-                  <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">
-                    {metric.label}
-                  </span>
-                </div>
-                <span className={cn('font-mono text-sm font-medium', colorClass)}>
-                  {value}
-                </span>
+  const avgConvert =
+    kpis.avgDaysToConvert !== null ? `${kpis.avgDaysToConvert}` : '\u2014'
+  const approvalRate = kpis.successRate
+  const activeClients = kpis.inProgressClients
+
+  const handleViewDetails = () => {
+    toast({
+      title: 'Coming Soon',
+      description:
+        'Detailed performance analytics will be available in a future update.',
+    })
+  }
+
+  return (
+    <Card className="card-terminal" data-testid="performance-panel">
+      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+        <CollapsibleTrigger className="w-full">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                {isOpen ? (
+                  <ChevronDown className="h-4 w-4 text-primary" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                )}
+                <span>Performance Snapshot</span>
               </div>
-            )
-          })}
-        </div>
-      </CardContent>
+
+              {/* Collapsed Preview */}
+              {!isOpen && (
+                <div className="flex items-center gap-6 text-sm">
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <Clock className="h-3.5 w-3.5" />
+                    <span>Avg Convert:</span>
+                    <span className="font-mono text-foreground">
+                      {avgConvert} days
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    <span>Approval:</span>
+                    <span className="font-mono text-success">
+                      {approvalRate}%
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <Users className="h-3.5 w-3.5" />
+                    <span>Active:</span>
+                    <span className="font-mono text-foreground">
+                      {activeClients}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </CollapsibleTrigger>
+
+        <CollapsibleContent>
+          <div className="px-4 pb-4 pt-0">
+            <div className="rounded-lg border border-border/50 bg-muted/20 p-4">
+              <div className="grid grid-cols-3 gap-6">
+                <div className="text-center">
+                  <div className="mb-2 flex items-center justify-center gap-2">
+                    <Clock className="h-5 w-5 text-primary" />
+                  </div>
+                  <p className="font-mono text-2xl font-bold">{avgConvert}</p>
+                  <p className="mt-1 text-xs uppercase tracking-wider text-muted-foreground">
+                    Avg Days to Convert
+                  </p>
+                </div>
+
+                <div className="text-center">
+                  <div className="mb-2 flex items-center justify-center gap-2">
+                    <CheckCircle2 className="h-5 w-5 text-success" />
+                  </div>
+                  <p className="font-mono text-2xl font-bold text-success">
+                    {approvalRate}%
+                  </p>
+                  <p className="mt-1 text-xs uppercase tracking-wider text-muted-foreground">
+                    Approval Rate
+                  </p>
+                </div>
+
+                <div className="text-center">
+                  <div className="mb-2 flex items-center justify-center gap-2">
+                    <Users className="h-5 w-5 text-primary" />
+                  </div>
+                  <p className="font-mono text-2xl font-bold">
+                    {activeClients}
+                  </p>
+                  <p className="mt-1 text-xs uppercase tracking-wider text-muted-foreground">
+                    Active Clients
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 flex justify-center border-t border-border/50 pt-4">
+                <Button
+                  variant="link"
+                  className="text-primary"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleViewDetails()
+                  }}
+                  data-testid="view-detailed-performance"
+                >
+                  View Detailed Performance
+                  <ArrowRight className="ml-1 h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
     </Card>
   )
 }
