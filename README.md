@@ -132,10 +132,36 @@ pnpm prisma studio     # Open Prisma Studio
 
 ## Deployment
 
+**Live site:** https://maestro-lab-internal-crm.vercel.app (private access only)
+
 Deployed on Vercel with:
-- **Database:** Vercel Postgres (Neon) — `DATABASE_URL` auto-configured
+- **Database:** Neon PostgreSQL — `DATABASE_URL` auto-configured by Neon integration
 - **Storage:** Vercel Blob — set `STORAGE_PROVIDER=vercel-blob`
-- **Auth:** Set `AUTH_URL` and `AUTH_SECRET` in Vercel env vars
+- **Auth:** Set `AUTH_SECRET` (32+ chars) in Vercel env vars. Do NOT set `AUTH_URL` — NextAuth v5 auto-detects from `VERCEL_URL`
+
+### Schema Changes in Production
+
+The production Neon database must be kept in sync with `prisma/schema.prisma`. After any schema change (new columns, enums, relations), push the schema to production:
+
+```bash
+# Current approach (private/dev-only — no migration history needed)
+DATABASE_URL="<neon-url>" pnpm prisma db push
+
+# Future approach (when real users exist — proper migration tracking)
+DATABASE_URL="<neon-url>" pnpm prisma migrate deploy
+```
+
+If you forget to sync, the deployed app will crash with Prisma errors (columns not found), which NextAuth surfaces as `error=Configuration` on the login page.
+
+### Useful Production Commands
+
+```bash
+# Browse production data
+DATABASE_URL="<neon-url>" pnpm prisma studio
+
+# Seed production database (if empty)
+DATABASE_URL="<neon-url>" pnpm prisma db seed
+```
 
 ## License
 
