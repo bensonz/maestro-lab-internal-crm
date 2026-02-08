@@ -26,6 +26,7 @@ export {
   EventType,
   ExtensionRequestStatus,
   TransactionType,
+  SettlementStatus,
 } from '@prisma/generated/browser'
 
 // UI-specific types
