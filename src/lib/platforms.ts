@@ -72,5 +72,20 @@ export function isFinancialPlatform(platform: PlatformType): boolean {
   return PLATFORM_INFO[platform].category === 'financial'
 }
 
+/** Reverse lookup: display name → PlatformType (e.g., "DraftKings" → "DRAFTKINGS") */
+const NAME_TO_PLATFORM = new Map<string, PlatformType>(
+  Object.entries(PLATFORM_INFO).map(([key, info]) => [
+    info.name,
+    key as PlatformType,
+  ]),
+)
+
+/** Look up PlatformType from a display name string (used by FundMovement data) */
+export function getPlatformTypeFromName(
+  name: string,
+): PlatformType | undefined {
+  return NAME_TO_PLATFORM.get(name)
+}
+
 /** Total platform count */
 export const PLATFORM_COUNT = ALL_PLATFORMS.length // 11
