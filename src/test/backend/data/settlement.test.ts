@@ -18,6 +18,10 @@ function makeMovement(overrides: {
   toPlatform?: string
   amount?: number
   status?: string
+  settlementStatus?: string
+  reviewedBy?: { name: string } | null
+  reviewedAt?: Date | null
+  reviewNotes?: string | null
   createdAt?: Date
 }) {
   return {
@@ -28,6 +32,10 @@ function makeMovement(overrides: {
     toPlatform: overrides.toPlatform ?? 'DraftKings',
     amount: overrides.amount ?? 100,
     status: overrides.status ?? 'completed',
+    settlementStatus: overrides.settlementStatus ?? 'PENDING_REVIEW',
+    reviewedBy: overrides.reviewedBy ?? null,
+    reviewedAt: overrides.reviewedAt ?? null,
+    reviewNotes: overrides.reviewNotes ?? null,
     createdAt: overrides.createdAt ?? new Date(2026, 1, 7),
   }
 }
@@ -358,5 +366,106 @@ describe('getClientsForSettlement', () => {
     expect(result).toHaveLength(1)
     expect(result[0].name).toBe('Extra Client')
     expect(result[0].totalDeposited).toBe(100)
+  })
+
+  it('includes settlement status fields in transactions', async () => {
+    vi.mocked(prisma.client.findMany).mockResolvedValueOnce([
+      { id: 'c1', firstName: 'Review', lastName: 'Test' },
+    ] as never)
+    vi.mocked(prisma.fundMovement.findMany).mockResolvedValueOnce([
+      makeMovement({
+        id: 'm1',
+        toClientId: 'c1',
+        toPlatform: 'DraftKings',
+        amount: 100,
+        settlementStatus: 'CONFIRMED',
+        reviewedBy: { name: 'Admin User' },
+        reviewedAt: new Date(2026, 1, 8),
+        reviewNotes: 'Looks good',
+      }),
+    ] as never)
+
+    const result = await getClientsForSettlement()
+
+    const tx = result[0].recentTransactions[0]
+    expect(tx.settlementStatus).toBe('CONFIRMED')
+    expect(tx.reviewedBy).toBe('Admin User')
+    expect(tx.reviewedAt).toBe('Feb 8, 2026')
+    expect(tx.reviewNotes).toBe('Looks good')
+  })
+
+  it('returns null for reviewer fields when not reviewed', async () => {
+    vi.mocked(prisma.client.findMany).mockResolvedValueOnce([
+      { id: 'c1', firstName: 'Pending', lastName: 'Test' },
+    ] as never)
+    vi.mocked(prisma.fundMovement.findMany).mockResolvedValueOnce([
+      makeMovement({
+        id: 'm1',
+        toClientId: 'c1',
+        toPlatform: 'DraftKings',
+        amount: 50,
+        settlementStatus: 'PENDING_REVIEW',
+      }),
+    ] as never)
+
+    const result = await getClientsForSettlement()
+
+    const tx = result[0].recentTransactions[0]
+    expect(tx.settlementStatus).toBe('PENDING_REVIEW')
+    expect(tx.reviewedBy).toBeNull()
+    expect(tx.reviewedAt).toBeNull()
+    expect(tx.reviewNotes).toBeNull()
+  })
+
+  it('counts settlement statuses correctly per client', async () => {
+    vi.mocked(prisma.client.findMany).mockResolvedValueOnce([
+      { id: 'c1', firstName: 'Count', lastName: 'Test' },
+    ] as never)
+    vi.mocked(prisma.fundMovement.findMany).mockResolvedValueOnce([
+      makeMovement({
+        id: 'm1',
+        toClientId: 'c1',
+        toPlatform: 'DraftKings',
+        amount: 100,
+        settlementStatus: 'PENDING_REVIEW',
+      }),
+      makeMovement({
+        id: 'm2',
+        toClientId: 'c1',
+        toPlatform: 'FanDuel',
+        amount: 200,
+        settlementStatus: 'CONFIRMED',
+      }),
+      makeMovement({
+        id: 'm3',
+        fromClientId: 'c1',
+        fromPlatform: 'Bank',
+        amount: 50,
+        settlementStatus: 'REJECTED',
+      }),
+    ] as never)
+
+    const result = await getClientsForSettlement()
+
+    expect(result[0].settlementCounts).toEqual({
+      pendingReview: 1,
+      confirmed: 1,
+      rejected: 1,
+    })
+  })
+
+  it('returns zero settlement counts when no movements exist', async () => {
+    vi.mocked(prisma.client.findMany).mockResolvedValueOnce([
+      { id: 'c1', firstName: 'Empty', lastName: 'Counts' },
+    ] as never)
+    vi.mocked(prisma.fundMovement.findMany).mockResolvedValueOnce([] as never)
+
+    const result = await getClientsForSettlement()
+
+    expect(result[0].settlementCounts).toEqual({
+      pendingReview: 0,
+      confirmed: 0,
+      rejected: 0,
+    })
   })
 })
