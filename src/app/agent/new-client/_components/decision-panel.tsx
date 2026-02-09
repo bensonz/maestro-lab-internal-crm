@@ -129,7 +129,7 @@ export function DecisionPanel({
 
   return (
     <div
-      className="fixed inset-y-0 right-0 w-[380px] border-l border-border bg-card z-30 shadow-xl animate-fade-in"
+      className="absolute inset-y-0 right-0 w-[380px] border-l border-border bg-card z-30 shadow-xl animate-fade-in"
       data-testid="decision-panel"
     >
       <div className="flex items-center justify-between border-b border-border px-5 py-3">
@@ -147,7 +147,7 @@ export function DecisionPanel({
         </Button>
       </div>
 
-      <ScrollArea className="h-[calc(100vh-52px)]">
+      <ScrollArea className="h-[calc(100%-52px)]">
         <div className="space-y-6 p-5">
           {/* Compliance Summary */}
           <div>

@@ -213,6 +213,9 @@ model Client {
   country            String?
   questionnaire      String?
   applicationNotes   String?
+  gmailAccount       String?
+  gmailPassword      String?
+  prequalCompleted   Boolean          @default(false)
   intakeStatus       IntakeStatus     @default(PENDING)
   statusChangedAt    DateTime         @default(now())
   complianceReview   String?
@@ -392,10 +395,13 @@ model ApplicationDraft {
   formData  Json
   agentId   String
   agent     User     @relation(fields: [agentId], references: [id])
+  clientId  String?
+  phase     Int      @default(1)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([agentId])
+  @@index([clientId])
 }
 
 model ExtensionRequest {

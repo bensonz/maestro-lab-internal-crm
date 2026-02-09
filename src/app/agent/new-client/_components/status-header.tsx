@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Save } from 'lucide-react'
+import { ArrowLeft, Save, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type StepStatus = 'complete' | 'pending' | 'blocked' | 'not-started'
@@ -30,7 +30,7 @@ function getStatusColor(status: string): string {
   if (status.includes('Blocked') || status.includes('Missing')) {
     return 'bg-destructive/15 text-destructive border-destructive/30'
   }
-  if (status.includes('Review') || status.includes('Ready')) {
+  if (status.includes('Review') || status.includes('Ready') || status.includes('Awaiting')) {
     return 'bg-warning/15 text-warning border-warning/30'
   }
   return 'bg-muted text-muted-foreground border-border'
@@ -59,6 +59,9 @@ interface StatusHeaderProps {
   submitDisabled: boolean
   onSaveDraft: () => void
   isSaving: boolean
+  phase: 1 | 2
+  betmgmVerified: boolean
+  prequalSubmitted: boolean
 }
 
 export function StatusHeader({
@@ -71,13 +74,26 @@ export function StatusHeader({
   submitDisabled,
   onSaveDraft,
   isSaving,
+  phase,
+  betmgmVerified,
+  prequalSubmitted,
 }: StatusHeaderProps) {
   const risk = riskConfig[riskLevel]
   const completedSteps = steps.filter((s) => s.status === 'complete').length
 
+  const getSubmitLabel = () => {
+    if (phase === 1) {
+      if (prequalSubmitted && !betmgmVerified) return 'Awaiting Verification'
+      return 'Submit Phase 1'
+    }
+    return 'Submit Application'
+  }
+
+  const isAwaitingVerification = prequalSubmitted && !betmgmVerified
+
   return (
     <div className="sticky top-0 z-20 border-b border-border bg-card/95 backdrop-blur-sm">
-      <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-3">
+      <div className="flex items-center justify-between px-6 py-3">
         {/* Left side */}
         <div className="flex items-center gap-3 min-w-0">
           <Link href="/agent/clients">
@@ -97,6 +113,18 @@ export function StatusHeader({
                 {clientName}
               </span>
             )}
+            <Badge
+              variant="outline"
+              className={cn(
+                'text-[10px] h-5 shrink-0 font-mono',
+                phase === 1
+                  ? 'bg-primary/10 text-primary border-primary/30'
+                  : 'bg-success/10 text-success border-success/30',
+              )}
+              data-testid="phase-badge"
+            >
+              Phase {phase}
+            </Badge>
             <Badge
               variant="outline"
               className={cn('text-[10px] h-5 shrink-0', getStatusColor(overallStatus))}
@@ -146,12 +174,19 @@ export function StatusHeader({
           </Button>
           <Button
             size="sm"
-            className="h-8 text-xs"
+            className={cn(
+              'h-8 text-xs',
+              isAwaitingVerification &&
+                'bg-warning text-warning-foreground hover:bg-warning/90',
+            )}
             onClick={onSubmit}
-            disabled={submitDisabled}
+            disabled={submitDisabled || isAwaitingVerification}
             data-testid="submit-application-btn"
           >
-            Submit Application
+            {isAwaitingVerification && (
+              <Clock className="mr-1 h-3 w-3" />
+            )}
+            {getSubmitLabel()}
           </Button>
         </div>
       </div>

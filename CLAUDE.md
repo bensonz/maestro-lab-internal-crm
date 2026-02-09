@@ -48,6 +48,31 @@ Clients progress through `IntakeStatus` states:
 
 Each client is onboarded to 11 platforms (8 sports betting + 3 financial), tracked via `ClientPlatform` with individual `PlatformStatus`.
 
+### Client Onboarding (2-Phase Workflow)
+
+Client onboarding at `/agent/new-client` uses a 2-phase workflow:
+
+**Phase 1: Pre-qualification** — Agent uploads client ID (with OCR extraction), records company-created Gmail/password, and submits. This creates the Client record with `prequalCompleted: true` and 11 ClientPlatform records (BetMGM = `PENDING_REVIEW`, others = `NOT_STARTED`). The page stays (no redirect) and starts polling for BetMGM verification.
+
+**Phase 2: Full Application** — Unlocked only after BetMGM is verified (backoffice manual review via `verifyBetmgmManual()`). Agent fills Basic Info, Address, and Compliance sections. Submit updates the existing Client and redirects to `/agent/clients`.
+
+**Key files:**
+- `src/app/actions/prequal.ts` — `submitPrequalification()`, `updateGmailCredentials()`
+- `src/app/actions/betmgm-verification.ts` — `verifyBetmgmManual()` (backoffice), `checkBetmgmStatus()` (agent polling)
+- `src/lib/validations/prequal.ts` — Zod schema for Phase 1 data
+- `src/app/agent/new-client/_components/phase-header.tsx` — Visual phase label divider
+- `src/app/agent/new-client/_components/prequal-section.tsx` — Gmail/password inputs + BetMGM status
+- `src/app/agent/new-client/_components/phase-gate.tsx` — Locked/unlocked divider between phases
+- `src/app/agent/new-client/_components/prequal-draft-sidebar.tsx` — Pipeline sidebar (drafts, awaiting verification, ready for Phase 2)
+
+**Schema additions:** `Client.gmailAccount`, `Client.gmailPassword`, `Client.prequalCompleted`; `ApplicationDraft.clientId`, `ApplicationDraft.phase`
+
+**ID Expiration Check:** During ID upload, if the ID expiry date is within 75 days a warning is shown. If expired (<=0 days), Phase 1 submission is blocked.
+
+**BetMGM Polling:** After Phase 1 submit, the client page polls `checkBetmgmStatus()` every 15 seconds. When verified, a toast notification appears and Phase 2 unlocks.
+
+**Phase 2 URL:** `?client=<clientId>` — page.tsx fetches Client + BetMGM status and passes to ClientForm.
+
 ### Key Patterns
 
 **Authentication**: NextAuth v5 beta with credentials provider. Session includes `user.id` and `user.role`. Auth check pattern:
@@ -246,7 +271,10 @@ pnpm test src/test/backend/actions/phones.test.ts  # Specific file
 ### Existing Tests (Reference)
 
 - `src/test/backend/actions/clients.test.ts` — createClient, saveDraft, deleteDraft actions
+- `src/test/backend/actions/prequal.test.ts` — submitPrequalification, updateGmailCredentials actions
+- `src/test/backend/actions/betmgm-verification.test.ts` — verifyBetmgmManual, checkBetmgmStatus actions
 - `src/test/backend/validations/client.test.ts` — client form validation
+- `src/test/backend/validations/prequal.test.ts` — prequal form validation
 - `src/test/backend/lib/platforms.test.ts` — platform utilities
 - `src/test/backend/utils/csv.test.ts` — CSV generation utility (escaping, BOM, edge cases)
 - `src/test/backend/services/commission.test.ts` — Commission distribution algorithm, star level calculation

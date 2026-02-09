@@ -25,18 +25,26 @@ export async function saveDraft(
 
   // Check if updating existing draft
   const draftId = formData.get('draftId') as string | null
+  const clientId = formData.get('clientId') as string | null
+  const phase = parseInt(formData.get('phase') as string) || 1
 
   try {
     if (draftId) {
       await prisma.applicationDraft.update({
         where: { id: draftId, agentId: session.user.id },
-        data: { formData: formDataObj },
+        data: {
+          formData: formDataObj,
+          clientId: clientId || null,
+          phase,
+        },
       })
     } else {
       await prisma.applicationDraft.create({
         data: {
           formData: formDataObj,
           agentId: session.user.id,
+          clientId: clientId || null,
+          phase,
         },
       })
     }

@@ -8,7 +8,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Lock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type StepStatus = 'complete' | 'pending' | 'blocked' | 'not-started'
@@ -42,6 +42,7 @@ interface StepCardProps {
   children: React.ReactNode
   defaultOpen?: boolean
   onReview?: () => void
+  locked?: boolean
 }
 
 export function StepCard({
@@ -54,9 +55,34 @@ export function StepCard({
   children,
   defaultOpen = false,
   onReview,
+  locked = false,
 }: StepCardProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen)
   const config = statusConfig[status]
+
+  if (locked) {
+    return (
+      <div
+        className="rounded-lg border border-border bg-card opacity-50 pointer-events-none"
+        data-testid={`step-card-${stepNumber}`}
+      >
+        <div className="flex w-full items-center justify-between px-5 py-4">
+          <div className="flex items-center gap-3">
+            <span className="w-5 text-xs font-mono text-muted-foreground">
+              {stepNumber}
+            </span>
+            <span className="text-sm font-medium text-foreground">{title}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">
+              Complete Phase 1 to unlock
+            </span>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div

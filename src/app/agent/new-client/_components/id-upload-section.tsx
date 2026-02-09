@@ -3,11 +3,14 @@
 import { useState, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Field, FieldLabel } from '@/components/ui/field'
 import {
   Upload,
   Camera,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
   FileText,
   X,
   Loader2,
@@ -22,6 +25,7 @@ interface ExtractedData {
   city?: string
   state?: string
   zip?: string
+  idExpiry?: string
 }
 
 interface IdUploadSectionProps {
@@ -39,6 +43,7 @@ export function IdUploadSection({
   const [isProcessing, setIsProcessing] = useState(false)
   const [extractedData, setExtractedData] = useState<ExtractedData | null>(null)
   const [dragActive, setDragActive] = useState(false)
+  const [manualExpiry, setManualExpiry] = useState('')
 
   // Simulated OCR - in production this would call an actual OCR API
   const simulateOCR = useCallback(
@@ -56,6 +61,7 @@ export function IdUploadSection({
         city: 'Austin',
         state: 'TX',
         zip: '78701',
+        // OCR may or may not extract expiry — leave undefined to trigger manual entry
       }
     },
     [],
@@ -115,7 +121,20 @@ export function IdUploadSection({
   const handleRemoveFile = useCallback(() => {
     setUploadedFile(null)
     setExtractedData(null)
+    setManualExpiry('')
   }, [])
+
+  const handleManualExpiryChange = useCallback(
+    (value: string) => {
+      setManualExpiry(value)
+      if (extractedData) {
+        const updated = { ...extractedData, idExpiry: value }
+        setExtractedData(updated)
+        onDataExtracted(updated)
+      }
+    },
+    [extractedData, onDataExtracted],
+  )
 
   const calculateAge = (dob: string): number => {
     const birthDate = new Date(dob)
@@ -134,6 +153,17 @@ export function IdUploadSection({
   const age = extractedData?.dateOfBirth
     ? calculateAge(extractedData.dateOfBirth)
     : null
+
+  // ID expiration check
+  const idExpiryDate = extractedData?.idExpiry || manualExpiry
+  const daysUntilExpiry = idExpiryDate
+    ? Math.floor(
+        (new Date(idExpiryDate).getTime() - Date.now()) / 86400000,
+      )
+    : null
+  const isExpired = daysUntilExpiry !== null && daysUntilExpiry <= 0
+  const isExpiringSoon =
+    daysUntilExpiry !== null && daysUntilExpiry > 0 && daysUntilExpiry <= 75
 
   return (
     <div className="space-y-4">
@@ -261,8 +291,76 @@ export function IdUploadSection({
                         </span>
                       </div>
                     )}
+                    {extractedData.idExpiry && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">ID Expiry:</span>
+                        <span className="font-medium text-foreground">
+                          {extractedData.idExpiry}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
+
+                {/* Manual ID Expiration Date if not extracted */}
+                {!extractedData.idExpiry && (
+                  <Field>
+                    <FieldLabel htmlFor="idExpiry">
+                      ID Expiration Date
+                    </FieldLabel>
+                    <Input
+                      id="idExpiry"
+                      name="idExpiry"
+                      type="date"
+                      value={manualExpiry}
+                      onChange={(e) => handleManualExpiryChange(e.target.value)}
+                      disabled={isConfirmed}
+                      data-testid="id-expiry-input"
+                    />
+                  </Field>
+                )}
+                {/* Hidden field for idExpiry to include in form submission */}
+                {extractedData.idExpiry && (
+                  <input type="hidden" name="idExpiry" value={extractedData.idExpiry} />
+                )}
+
+                {/* ID Expired Banner */}
+                {isExpired && (
+                  <div
+                    className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3"
+                    data-testid="id-expired-banner"
+                  >
+                    <AlertCircle className="h-5 w-5 shrink-0 text-destructive" />
+                    <div>
+                      <p className="text-sm font-medium text-destructive">
+                        ID EXPIRED
+                      </p>
+                      <p className="text-xs text-destructive/80">
+                        This ID has expired and cannot be used for onboarding.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* ID Expiring Soon Banner */}
+                {isExpiringSoon && (
+                  <div
+                    className="flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/5 p-3"
+                    data-testid="id-expiring-banner"
+                  >
+                    <AlertTriangle className="h-5 w-5 shrink-0 text-warning" />
+                    <div>
+                      <p className="text-sm font-medium text-warning">
+                        ID EXPIRING SOON
+                      </p>
+                      <p className="text-xs text-warning/80">
+                        This ID expires in {daysUntilExpiry} day
+                        {daysUntilExpiry !== 1 ? 's' : ''}. Consider requesting
+                        a renewed ID.
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Age Compliance Warning */}
                 {age !== null && age < 21 && (
@@ -298,7 +396,12 @@ export function IdUploadSection({
 
                 {/* Confirm Button */}
                 {!isConfirmed && (
-                  <Button type="button" onClick={onConfirm} className="w-full">
+                  <Button
+                    type="button"
+                    onClick={onConfirm}
+                    className="w-full"
+                    disabled={isExpired}
+                  >
                     <CheckCircle2 className="mr-2 h-4 w-4" />
                     Confirm & Save ID Data
                   </Button>
