@@ -172,6 +172,30 @@ export interface ServerClientData {
   platforms: string[]
   activePlatforms: string[]
   intakeStatus: string
+  // Profile fields
+  address: string | null
+  city: string | null
+  state: string | null
+  zipCode: string | null
+  country: string | null
+  questionnaire: string | null
+  // Recent transactions
+  transactions: Array<{
+    id: string
+    type: string
+    amount: number
+    description: string
+    date: string
+    platformType: string | null
+  }>
+  // Recent event logs
+  eventLogs: Array<{
+    id: string
+    eventType: string
+    description: string
+    userName: string
+    createdAt: string
+  }>
 }
 
 export interface ServerClientStats {
