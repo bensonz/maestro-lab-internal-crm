@@ -7,6 +7,7 @@ import {
   PLATFORM_COUNT,
   getPlatformName,
   getPlatformAbbrev,
+  getPlatformLogoPath,
   isSportsPlatform,
   isFinancialPlatform,
 } from '@/lib/platforms'
@@ -72,5 +73,41 @@ describe('Platform Configuration', () => {
     expect(isFinancialPlatform('PAYPAL')).toBe(true)
     expect(isFinancialPlatform('EDGEBOOST')).toBe(true)
     expect(isFinancialPlatform('DRAFTKINGS')).toBe(false)
+  })
+
+  it('should have logoPath field for all platforms', () => {
+    for (const platform of ALL_PLATFORMS) {
+      expect(PLATFORM_INFO[platform]).toHaveProperty('logoPath')
+    }
+  })
+
+  it('should have SVG logos for 7 sports platforms', () => {
+    const withLogos = [
+      'DRAFTKINGS',
+      'FANDUEL',
+      'BETMGM',
+      'CAESARS',
+      'FANATICS',
+      'BALLYBET',
+      'BETRIVERS',
+    ] as const
+    for (const platform of withLogos) {
+      expect(PLATFORM_INFO[platform].logoPath).toMatch(/^\/platforms\/.*\.svg$/)
+    }
+  })
+
+  it('should have null logoPath for BET365 and financial platforms', () => {
+    expect(PLATFORM_INFO.BET365.logoPath).toBeNull()
+    expect(PLATFORM_INFO.BANK.logoPath).toBeNull()
+    expect(PLATFORM_INFO.PAYPAL.logoPath).toBeNull()
+    expect(PLATFORM_INFO.EDGEBOOST.logoPath).toBeNull()
+  })
+
+  it('getPlatformLogoPath returns correct values', () => {
+    expect(getPlatformLogoPath('DRAFTKINGS')).toBe(
+      '/platforms/draftkings-logo.svg',
+    )
+    expect(getPlatformLogoPath('BET365')).toBeNull()
+    expect(getPlatformLogoPath('BANK')).toBeNull()
   })
 })

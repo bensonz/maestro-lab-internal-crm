@@ -12,10 +12,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import {
-  Building2,
-  CreditCard,
-  Zap,
-  Trophy,
   Eye,
   DollarSign,
   TrendingUp,
@@ -25,6 +21,13 @@ import {
   User,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import {
+  FINANCIAL_PLATFORMS,
+  SPORTS_PLATFORMS,
+  getPlatformName,
+  getPlatformTypeFromName,
+} from '@/lib/platforms'
+import { PlatformIcon } from '@/components/platform-icon'
 import { FundAllocationForm } from './fund-allocation-form'
 
 // ── Types ───────────────────────────────────────────
@@ -64,24 +67,6 @@ interface FundAllocationViewProps {
   movements: FundMovement[]
   stats: Stats
 }
-
-// ── Platform data ──────────────────────────────────
-const financialPlatforms = [
-  { name: 'Bank', icon: Building2 },
-  { name: 'PayPal', icon: CreditCard },
-  { name: 'EdgeBoost', icon: Zap },
-]
-
-const sportsbookPlatforms = [
-  'DraftKings',
-  'FanDuel',
-  'BetMGM',
-  'Caesars',
-  'Fanatics',
-  'Bally Bet',
-  'BetRivers',
-  'Bet365',
-]
 
 export function FundAllocationView({
   clients,
@@ -164,21 +149,21 @@ export function FundAllocationView({
 
         {/* Financial Platforms */}
         <div className="grid grid-cols-3 gap-3">
-          {financialPlatforms.map((platform) => (
+          {FINANCIAL_PLATFORMS.map((platformType) => (
             <Card
-              key={platform.name}
+              key={platformType}
               className="card-terminal cursor-pointer transition-all hover:border-primary"
-              onClick={() => handlePlatformClick(platform.name)}
-              data-testid={`balance-card-${platform.name.toLowerCase()}`}
+              onClick={() => handlePlatformClick(getPlatformName(platformType))}
+              data-testid={`balance-card-${getPlatformName(platformType).toLowerCase()}`}
             >
               <CardContent className="p-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/20 text-primary">
-                      <platform.icon className="h-4 w-4" />
+                      <PlatformIcon platform={platformType} size={16} />
                     </div>
                     <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      {platform.name}
+                      {getPlatformName(platformType)}
                     </span>
                   </div>
                   <span className="font-mono text-sm font-semibold text-success">
@@ -192,20 +177,20 @@ export function FundAllocationView({
 
         {/* Sportsbook Platforms */}
         <div className="grid grid-cols-4 gap-2 lg:grid-cols-8">
-          {sportsbookPlatforms.map((name) => (
+          {SPORTS_PLATFORMS.map((platformType) => (
             <Card
-              key={name}
+              key={platformType}
               className="card-terminal cursor-pointer transition-all hover:border-warning"
-              onClick={() => handlePlatformClick(name)}
-              data-testid={`balance-card-${name.toLowerCase().replace(/\s/g, '-')}`}
+              onClick={() => handlePlatformClick(getPlatformName(platformType))}
+              data-testid={`balance-card-${getPlatformName(platformType).toLowerCase().replace(/\s/g, '-')}`}
             >
               <CardContent className="p-2">
                 <div className="text-center">
                   <div className="mx-auto mb-1 flex h-6 w-6 items-center justify-center rounded bg-warning/20 text-warning">
-                    <Trophy className="h-3 w-3" />
+                    <PlatformIcon platform={platformType} size={12} />
                   </div>
                   <p className="truncate text-[10px] font-medium text-muted-foreground">
-                    {name}
+                    {getPlatformName(platformType)}
                   </p>
                   <p className="font-mono text-xs font-semibold text-foreground">
                     $0
@@ -534,14 +519,11 @@ export function FundAllocationView({
                         : 'bg-warning/20 text-warning',
                     )}
                   >
-                    {selectedPlatform === 'Bank' ? (
-                      <Building2 className="h-5 w-5" />
-                    ) : selectedPlatform === 'PayPal' ? (
-                      <CreditCard className="h-5 w-5" />
-                    ) : selectedPlatform === 'EdgeBoost' ? (
-                      <Zap className="h-5 w-5" />
-                    ) : (
-                      <Trophy className="h-5 w-5" />
+                    {getPlatformTypeFromName(selectedPlatform) && (
+                      <PlatformIcon
+                        platform={getPlatformTypeFromName(selectedPlatform)!}
+                        size={20}
+                      />
                     )}
                   </div>
                   <div>
