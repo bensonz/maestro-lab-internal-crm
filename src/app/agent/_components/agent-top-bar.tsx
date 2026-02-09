@@ -14,10 +14,7 @@ export function AgentTopBar() {
     >
       <div className="flex items-center gap-3">
         <SidebarTrigger className="md:hidden" />
-        <Separator
-          orientation="vertical"
-          className="mr-1 h-4 md:hidden"
-        />
+        <Separator orientation="vertical" className="mr-1 h-4 md:hidden" />
         <h2 className="text-lg font-semibold text-foreground">Dashboard</h2>
         <span className="hidden text-xs text-muted-foreground font-mono sm:inline">
           {new Date().toLocaleDateString('en-US', {
@@ -42,7 +39,7 @@ export function AgentTopBar() {
         <Button asChild data-testid="new-client-btn">
           <Link href="/agent/new-client">
             <Plus className="h-4 w-4" />
-            New Client
+            New User
           </Link>
         </Button>
       </div>
