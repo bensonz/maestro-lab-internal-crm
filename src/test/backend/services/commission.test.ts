@@ -20,6 +20,9 @@ vi.mock('@/backend/prisma/client', () => ({
       create: vi.fn(),
       findMany: vi.fn(),
     },
+    eventLog: {
+      create: vi.fn(),
+    },
     $transaction: vi.fn(),
   },
 }))
@@ -30,6 +33,8 @@ import {
   createBonusPool,
   distributeStarPool,
   getAgentCommissionSummary,
+  getCommissionTierInfo,
+  getOverrideEarnings,
 } from '@/backend/services/commission'
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -486,6 +491,7 @@ describe('createBonusPool', () => {
     vi.mocked(prisma.bonusPool.update).mockResolvedValue({} as never)
     vi.mocked(prisma.user.update).mockResolvedValue({} as never)
     vi.mocked(prisma.client.count).mockResolvedValue(0 as never)
+    vi.mocked(prisma.eventLog.create).mockResolvedValue({} as never)
   })
 
   // Test 7: Duplicate pool prevention
@@ -548,12 +554,45 @@ describe('createBonusPool', () => {
       },
     })
 
+    // Event log should have been created
+    expect(prisma.eventLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        eventType: 'SETTLEMENT_CREATED',
+        description: 'Bonus pool created: $400 (direct: $200, star pool: $200)',
+        clientId: 'client-1',
+        userId: 'agent-1',
+      }),
+    })
+
     // distributeStarPool should have been called
     expect(prisma.$transaction).toHaveBeenCalled()
 
     // recalculateStarLevel should have been called
     expect(prisma.client.count).toHaveBeenCalled()
     expect(prisma.user.update).toHaveBeenCalled()
+  })
+
+  it('does not create event log for duplicate pool', async () => {
+    const existingPool = {
+      id: 'existing-pool',
+      clientId: 'client-1',
+      closerId: 'agent-1',
+      status: 'distributed',
+    }
+
+    vi.mocked(prisma.client.findUniqueOrThrow).mockResolvedValueOnce({
+      id: 'client-1',
+      agentId: 'agent-1',
+      agent: makeAgent({ id: 'agent-1', starLevel: 1 }),
+    } as never)
+
+    vi.mocked(prisma.bonusPool.findUnique).mockResolvedValueOnce(
+      existingPool as never,
+    )
+
+    await createBonusPool('client-1')
+
+    expect(prisma.eventLog.create).not.toHaveBeenCalled()
   })
 })
 
@@ -616,5 +655,261 @@ describe('getAgentCommissionSummary', () => {
     expect(result.pending).toBe(0)
     expect(result.directBonuses).toBe(0)
     expect(result.starSlices).toBe(0)
+  })
+})
+
+// ── getCommissionTierInfo ─────────────────────────────────────────────────
+
+describe('getCommissionTierInfo', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('returns correct tier info for a 2-star agent with 10 approved clients', async () => {
+    vi.mocked(prisma.user.findUniqueOrThrow).mockResolvedValueOnce({
+      id: 'agent-1',
+      name: 'Agent 1',
+      starLevel: 2,
+      tier: '2-star',
+      supervisorId: 'sup-1',
+      supervisor: { id: 'sup-1', name: 'Supervisor', starLevel: 3, tier: '3-star' },
+    } as never)
+
+    vi.mocked(prisma.client.count).mockResolvedValueOnce(10 as never)
+
+    const result = await getCommissionTierInfo('agent-1')
+
+    expect(result.id).toBe('agent-1')
+    expect(result.starLevel).toBe(2)
+    expect(result.tier).toBe('2-star')
+    expect(result.approvedCount).toBe(10)
+    expect(result.currentThreshold).toEqual({ level: 2, tier: '2-star', min: 7 })
+    expect(result.nextThreshold).toEqual({ level: 3, tier: '3-star', min: 13 })
+    expect(result.clientsToNextTier).toBe(3) // 13 - 10
+    expect(result.supervisor).toBeDefined()
+  })
+
+  it('returns null clientsToNextTier for 4-star agent (max tier)', async () => {
+    vi.mocked(prisma.user.findUniqueOrThrow).mockResolvedValueOnce({
+      id: 'agent-1',
+      name: 'Agent 1',
+      starLevel: 4,
+      tier: '4-star',
+      supervisorId: null,
+      supervisor: null,
+    } as never)
+
+    vi.mocked(prisma.client.count).mockResolvedValueOnce(25 as never)
+
+    const result = await getCommissionTierInfo('agent-1')
+
+    expect(result.starLevel).toBe(4)
+    expect(result.nextThreshold).toBeNull()
+    expect(result.clientsToNextTier).toBeNull()
+  })
+
+  it('calculates 0 clientsToNextTier when already past threshold', async () => {
+    vi.mocked(prisma.user.findUniqueOrThrow).mockResolvedValueOnce({
+      id: 'agent-1',
+      name: 'Agent 1',
+      starLevel: 1,
+      tier: '1-star',
+      supervisorId: null,
+      supervisor: null,
+    } as never)
+
+    // Has 8 approved, needs 7 for 2-star — already past it
+    vi.mocked(prisma.client.count).mockResolvedValueOnce(8 as never)
+
+    const result = await getCommissionTierInfo('agent-1')
+
+    expect(result.clientsToNextTier).toBe(0) // max(0, 7 - 8) = 0
+  })
+
+  it('returns null currentThreshold for rookie (starLevel 0)', async () => {
+    vi.mocked(prisma.user.findUniqueOrThrow).mockResolvedValueOnce({
+      id: 'agent-1',
+      name: 'Agent 1',
+      starLevel: 0,
+      tier: 'rookie',
+      supervisorId: null,
+      supervisor: null,
+    } as never)
+
+    vi.mocked(prisma.client.count).mockResolvedValueOnce(1 as never)
+
+    const result = await getCommissionTierInfo('agent-1')
+
+    expect(result.currentThreshold).toBeNull()
+    expect(result.nextThreshold).toEqual({ level: 1, tier: '1-star', min: 3 })
+    expect(result.clientsToNextTier).toBe(2) // 3 - 1
+  })
+})
+
+// ── getOverrideEarnings ─────────────────────────────────────────────────
+
+describe('getOverrideEarnings', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('returns empty for agent with no allocations', async () => {
+    vi.mocked(prisma.bonusAllocation.findMany).mockResolvedValueOnce([] as never)
+
+    const result = await getOverrideEarnings('agent-1')
+
+    expect(result.overrideAllocations).toHaveLength(0)
+    expect(result.ownAllocations).toHaveLength(0)
+    expect(result.overrideTotal).toBe(0)
+    expect(result.ownTotal).toBe(0)
+    expect(result.bySubordinate).toHaveLength(0)
+  })
+
+  it('correctly separates own closes from override closes', async () => {
+    vi.mocked(prisma.bonusAllocation.findMany).mockResolvedValueOnce([
+      // Own close — agent-1 is the closer
+      {
+        id: 'a1',
+        agentId: 'agent-1',
+        type: 'star_slice',
+        slices: 2,
+        amount: 100,
+        bonusPoolId: 'pool-1',
+        bonusPool: {
+          closerId: 'agent-1',
+          client: { id: 'c1', firstName: 'Alice', lastName: 'Smith' },
+          closer: { id: 'agent-1', name: 'Agent 1', starLevel: 2 },
+        },
+      },
+      // Override close — agent-2 is the closer
+      {
+        id: 'a2',
+        agentId: 'agent-1',
+        type: 'star_slice',
+        slices: 1,
+        amount: 50,
+        bonusPoolId: 'pool-2',
+        bonusPool: {
+          closerId: 'agent-2',
+          client: { id: 'c2', firstName: 'Bob', lastName: 'Jones' },
+          closer: { id: 'agent-2', name: 'Agent 2', starLevel: 1 },
+        },
+      },
+      // Another override from same subordinate
+      {
+        id: 'a3',
+        agentId: 'agent-1',
+        type: 'backfill',
+        slices: 1,
+        amount: 50,
+        bonusPoolId: 'pool-3',
+        bonusPool: {
+          closerId: 'agent-2',
+          client: { id: 'c3', firstName: 'Charlie', lastName: 'Brown' },
+          closer: { id: 'agent-2', name: 'Agent 2', starLevel: 1 },
+        },
+      },
+    ] as never)
+
+    const result = await getOverrideEarnings('agent-1')
+
+    expect(result.ownAllocations).toHaveLength(1)
+    expect(result.overrideAllocations).toHaveLength(2)
+    expect(result.ownTotal).toBe(100)
+    expect(result.overrideTotal).toBe(100) // 50 + 50
+  })
+
+  it('groups by subordinate closer correctly', async () => {
+    vi.mocked(prisma.bonusAllocation.findMany).mockResolvedValueOnce([
+      {
+        id: 'a1',
+        agentId: 'agent-1',
+        type: 'star_slice',
+        slices: 1,
+        amount: 50,
+        bonusPoolId: 'pool-1',
+        bonusPool: {
+          closerId: 'sub-1',
+          client: { id: 'c1', firstName: 'Alice', lastName: 'Smith' },
+          closer: { id: 'sub-1', name: 'Subordinate 1', starLevel: 1 },
+        },
+      },
+      {
+        id: 'a2',
+        agentId: 'agent-1',
+        type: 'star_slice',
+        slices: 1,
+        amount: 50,
+        bonusPoolId: 'pool-2',
+        bonusPool: {
+          closerId: 'sub-1',
+          client: { id: 'c2', firstName: 'Bob', lastName: 'Jones' },
+          closer: { id: 'sub-1', name: 'Subordinate 1', starLevel: 1 },
+        },
+      },
+      {
+        id: 'a3',
+        agentId: 'agent-1',
+        type: 'star_slice',
+        slices: 2,
+        amount: 100,
+        bonusPoolId: 'pool-3',
+        bonusPool: {
+          closerId: 'sub-2',
+          client: { id: 'c3', firstName: 'Charlie', lastName: 'Brown' },
+          closer: { id: 'sub-2', name: 'Subordinate 2', starLevel: 2 },
+        },
+      },
+    ] as never)
+
+    const result = await getOverrideEarnings('agent-1')
+
+    expect(result.bySubordinate).toHaveLength(2)
+
+    const sub1 = result.bySubordinate.find((s) => s.agentId === 'sub-1')
+    expect(sub1).toBeDefined()
+    expect(sub1!.name).toBe('Subordinate 1')
+    expect(sub1!.totalAmount).toBe(100) // 50 + 50
+    expect(sub1!.poolCount).toBe(2)
+
+    const sub2 = result.bySubordinate.find((s) => s.agentId === 'sub-2')
+    expect(sub2).toBeDefined()
+    expect(sub2!.totalAmount).toBe(100)
+    expect(sub2!.poolCount).toBe(1)
+  })
+
+  it('override total calculation is correct', async () => {
+    vi.mocked(prisma.bonusAllocation.findMany).mockResolvedValueOnce([
+      {
+        id: 'a1',
+        agentId: 'agent-1',
+        type: 'star_slice',
+        slices: 3,
+        amount: 150,
+        bonusPoolId: 'pool-1',
+        bonusPool: {
+          closerId: 'sub-1',
+          client: { id: 'c1', firstName: 'A', lastName: 'B' },
+          closer: { id: 'sub-1', name: 'Sub 1', starLevel: 1 },
+        },
+      },
+      {
+        id: 'a2',
+        agentId: 'agent-1',
+        type: 'backfill',
+        slices: 1,
+        amount: 50,
+        bonusPoolId: 'pool-2',
+        bonusPool: {
+          closerId: 'sub-2',
+          client: { id: 'c2', firstName: 'C', lastName: 'D' },
+          closer: { id: 'sub-2', name: 'Sub 2', starLevel: 1 },
+        },
+      },
+    ] as never)
+
+    const result = await getOverrideEarnings('agent-1')
+
+    expect(result.overrideTotal).toBe(200) // 150 + 50
   })
 })

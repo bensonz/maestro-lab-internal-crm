@@ -8,6 +8,24 @@ vi.mock('@/backend/prisma/client', () => ({
   },
 }))
 
+vi.mock('@/backend/services/commission', () => ({
+  getAgentCommissionSummary: vi.fn().mockResolvedValue({
+    allocations: [],
+    totalEarned: 0,
+    pending: 0,
+    paid: 0,
+    directBonuses: 0,
+    starSlices: 0,
+  }),
+  getOverrideEarnings: vi.fn().mockResolvedValue({
+    overrideAllocations: [],
+    ownAllocations: [],
+    overrideTotal: 0,
+    ownTotal: 0,
+    bySubordinate: [],
+  }),
+}))
+
 import prisma from '@/backend/prisma/client'
 import { getAgentEarnings } from '@/backend/data/agent'
 
