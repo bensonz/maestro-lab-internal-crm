@@ -249,6 +249,11 @@ export async function getReminders() {
 
 export async function getOverviewRecentActivity() {
   const events = await prisma.eventLog.findMany({
+    where: {
+      eventType: {
+        notIn: [EventType.LOGIN, EventType.LOGOUT],
+      },
+    },
     orderBy: { createdAt: 'desc' },
     take: 10,
     include: {
@@ -259,7 +264,7 @@ export async function getOverviewRecentActivity() {
 
   return events.map((e) => ({
     id: e.id,
-    title: formatEventTitle(e.eventType),
+    title: e.description || formatEventTitle(e.eventType),
     subtitle: formatEventSubtitle(e),
     timestamp: e.createdAt,
   }))
@@ -281,6 +286,10 @@ function formatEventTitle(type: EventType): string {
     [EventType.PLATFORM_STATUS_CHANGE]: 'Platform status updated',
     [EventType.COMMENT]: 'Comment added',
     [EventType.KPI_IMPACT]: 'KPI updated',
+    [EventType.TRANSACTION_CREATED]: 'Fund movement recorded',
+    [EventType.USER_CREATED]: 'User account created',
+    [EventType.USER_UPDATED]: 'User account updated',
+    [EventType.USER_DEACTIVATED]: 'User account deactivated',
   }
   return titles[type] || type
 }
