@@ -69,8 +69,10 @@ type TabKey = 'agents' | 'users'
 type SortField = 'start' | 'clients' | 'working' | null
 type SortDirection = 'asc' | 'desc'
 
-// TODO: Implement proper tier system. Currently all agents default to "1★"
-const TIER_OPTIONS = ['All', '1★'] as const
+function buildTierOptions(agents: Agent[]): string[] {
+  const tiers = new Set(agents.map((a) => a.tier))
+  return ['All', ...Array.from(tiers).sort()]
+}
 
 const ROLE_BADGE_STYLES: Record<string, string> = {
   AGENT: 'bg-primary/20 text-primary border-primary/30',
@@ -178,7 +180,8 @@ export function AgentList({
     )
   }, [filteredAgents])
 
-  // Tier counts
+  // Tier options and counts
+  const tierOptions = useMemo(() => buildTierOptions(agents), [agents])
   const tierCounts = useMemo(() => {
     const counts: Record<string, number> = { All: agents.length }
     for (const agent of agents) {
@@ -282,7 +285,7 @@ export function AgentList({
             Filter by Tier
           </p>
           <div className="flex flex-wrap gap-1">
-            {TIER_OPTIONS.map((tier) => (
+            {tierOptions.map((tier) => (
               <button
                 key={tier}
                 onClick={() => setSelectedTier(tier)}
