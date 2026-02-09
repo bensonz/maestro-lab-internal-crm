@@ -68,7 +68,12 @@ export function EarningsView({ earnings, kpis, hierarchy }: EarningsViewProps) {
         />
 
         {/* B. Level Progress Card */}
-        <LevelProgressCard />
+        <LevelProgressCard
+          starLevel={hierarchy.agent.starLevel}
+          approvedClients={kpis.approvedClients}
+          teamSize={hierarchy.teamSize}
+          directReports={hierarchy.subordinateTree.subordinates.length}
+        />
 
         {/* C. Earnings Breakdown Table */}
         <Card className="card-terminal" data-testid="earnings-table-card">
