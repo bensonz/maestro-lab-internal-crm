@@ -14,6 +14,7 @@ import {
   DollarSign,
   Handshake,
   PieChart,
+  BarChart3,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -75,6 +76,11 @@ const navItems: NavItem[] = [
     title: 'Profit Sharing',
     href: '/backoffice/profit-sharing',
     icon: PieChart,
+  },
+  {
+    title: 'Reports',
+    href: '/backoffice/reports',
+    icon: BarChart3,
   },
   {
     title: 'Client Settlement',
