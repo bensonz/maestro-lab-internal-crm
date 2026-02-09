@@ -125,7 +125,7 @@ async function main() {
 
   const clients = []
   for (const c of clientDefs) {
-    const deadline = [IntakeStatus.IN_EXECUTION, IntakeStatus.EXECUTION_DELAYED, IntakeStatus.PENDING_EXTERNAL].includes(c.status)
+    const deadline = ([IntakeStatus.IN_EXECUTION, IntakeStatus.EXECUTION_DELAYED, IntakeStatus.PENDING_EXTERNAL] as IntakeStatus[]).includes(c.status)
       ? (c.status === IntakeStatus.EXECUTION_DELAYED ? daysAgo(1) : daysFromNow(2))
       : null
 
