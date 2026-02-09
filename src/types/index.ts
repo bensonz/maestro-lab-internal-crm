@@ -14,6 +14,9 @@ export type {
   BonusAllocation,
   LeadershipPayout,
   Transaction,
+  Partner,
+  ProfitShareRule,
+  ProfitShareDetail,
 } from '@prisma/generated/browser'
 
 export {
