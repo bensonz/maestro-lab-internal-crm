@@ -508,7 +508,7 @@ export async function getAllAgents() {
     return {
       id: agent.id,
       name: agent.name,
-      tier: agent.starLevel,
+      tier: `${agent.starLevel}-Star`,
       phone: agent.phone ?? '',
       start: formatDate(agent.createdAt),
       clients: agent.agentClients.length,
