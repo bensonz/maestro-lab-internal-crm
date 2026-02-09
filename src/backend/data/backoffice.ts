@@ -11,20 +11,6 @@ import {
 } from '@/types'
 import { getAllAgentKPIs, getAgentKPIs } from '@/backend/services/agent-kpis'
 
-export async function getDashboardStats() {
-  const [clientCount, agentCount] = await Promise.all([
-    prisma.client.count(),
-    prisma.user.count({ where: { role: UserRole.AGENT, isActive: true } }),
-  ])
-
-  return {
-    totalClients: clientCount,
-    activeAgents: agentCount,
-    totalFundsManaged: '$0', // Would need actual fund tracking
-    monthlyRevenue: '$0',
-  }
-}
-
 // ============================================================================
 // Overview Dashboard Functions
 // ============================================================================
@@ -363,33 +349,6 @@ export async function getRecentActivity(limit = 5) {
   }))
 }
 
-export async function getPlatformOverview() {
-  const sportsPlatforms = [
-    PlatformType.DRAFTKINGS,
-    PlatformType.FANDUEL,
-    PlatformType.BETMGM,
-    PlatformType.CAESARS,
-  ]
-
-  const platformStats = await Promise.all(
-    sportsPlatforms.map(async (platformType) => {
-      const count = await prisma.clientPlatform.count({
-        where: {
-          platformType,
-          status: PlatformStatus.VERIFIED,
-        },
-      })
-      return {
-        name: formatPlatformName(platformType),
-        clients: count,
-        balance: 0, // Would need fund allocation tracking
-      }
-    }),
-  )
-
-  return platformStats
-}
-
 export async function getAllClients() {
   const clients = await prisma.client.findMany({
     include: {
@@ -407,6 +366,33 @@ export async function getAllClients() {
           phoneNumber: true,
         },
       },
+      fundMovementsFrom: {
+        where: { status: 'completed' },
+        select: { amount: true },
+      },
+      fundMovementsTo: {
+        where: { status: 'completed' },
+        select: { amount: true },
+      },
+      transactions: {
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        select: {
+          id: true,
+          type: true,
+          amount: true,
+          description: true,
+          createdAt: true,
+          platformType: true,
+        },
+      },
+      eventLogs: {
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+        include: {
+          user: { select: { name: true } },
+        },
+      },
     },
     orderBy: { createdAt: 'desc' },
   })
@@ -419,16 +405,51 @@ export async function getAllClients() {
       getPlatformAbbrev(p.platformType),
     )
 
+    // Compute total funds: money received minus money sent
+    const fundsIn = client.fundMovementsTo.reduce(
+      (sum, fm) => sum + Number(fm.amount),
+      0,
+    )
+    const fundsOut = client.fundMovementsFrom.reduce(
+      (sum, fm) => sum + Number(fm.amount),
+      0,
+    )
+    const totalFunds = fundsIn - fundsOut
+
     return {
       id: client.id,
       name: `${client.firstName} ${client.lastName}`,
       phone: client.phoneAssignment?.phoneNumber ?? client.phone ?? '',
       email: client.email,
       start: formatDate(client.createdAt),
-      funds: '$0', // Would need fund tracking
+      funds: `$${Math.abs(totalFunds).toLocaleString()}`,
       platforms: allPlatforms,
       activePlatforms,
       intakeStatus: client.intakeStatus,
+      // Profile fields
+      address: client.address,
+      city: client.city,
+      state: client.state,
+      zipCode: client.zipCode,
+      country: client.country,
+      questionnaire: client.questionnaire,
+      // Recent transactions
+      transactions: client.transactions.map((t) => ({
+        id: t.id,
+        type: t.type,
+        amount: Number(t.amount),
+        description: t.description ?? '',
+        date: t.createdAt.toISOString(),
+        platformType: t.platformType,
+      })),
+      // Recent event logs
+      eventLogs: client.eventLogs.map((e) => ({
+        id: e.id,
+        eventType: e.eventType,
+        description: e.description,
+        userName: e.user?.name ?? 'System',
+        createdAt: e.createdAt.toISOString(),
+      })),
     }
   })
 }
@@ -696,23 +717,6 @@ function formatRelativeTime(date: Date): string {
 
 function formatDate(date: Date): string {
   return date.toISOString().split('T')[0]
-}
-
-function formatPlatformName(platformType: PlatformType): string {
-  const map: Record<PlatformType, string> = {
-    [PlatformType.DRAFTKINGS]: 'DraftKings',
-    [PlatformType.FANDUEL]: 'FanDuel',
-    [PlatformType.BETMGM]: 'BetMGM',
-    [PlatformType.CAESARS]: 'Caesars',
-    [PlatformType.FANATICS]: 'Fanatics',
-    [PlatformType.BALLYBET]: 'Bally Bet',
-    [PlatformType.BETRIVERS]: 'BetRivers',
-    [PlatformType.BET365]: 'Bet365',
-    [PlatformType.BANK]: 'Bank',
-    [PlatformType.PAYPAL]: 'PayPal',
-    [PlatformType.EDGEBOOST]: 'EdgeBoost',
-  }
-  return map[platformType] || platformType
 }
 
 function getPlatformAbbrev(platformType: PlatformType): string {
