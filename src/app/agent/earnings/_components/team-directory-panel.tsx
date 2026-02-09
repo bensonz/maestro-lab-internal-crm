@@ -4,48 +4,15 @@ import { Star, Users } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
+import type { HierarchyAgent, HierarchyNode } from '@/backend/data/hierarchy'
 
-interface TeamMember {
-  name: string
-  stars: number
-  status?: 'active' | 'inactive'
-}
-
-interface TeamDirectoryData {
-  myPosition: {
-    stars: number
+interface TeamDirectoryPanelProps {
+  hierarchy: {
+    agent: HierarchyAgent
+    supervisorChain: HierarchyAgent[]
+    subordinateTree: HierarchyNode
+    teamSize: number
   }
-  upline?: {
-    name: string
-    stars: number
-  }
-  directTeam: TeamMember[]
-  extendedTeam: {
-    level2: number
-    level3: number
-  }
-}
-
-// TODO: fetch from agent hierarchy
-const mockTeamDirectory: TeamDirectoryData = {
-  myPosition: {
-    stars: 2,
-  },
-  upline: {
-    name: 'Alex Chen',
-    stars: 4,
-  },
-  directTeam: [
-    { name: 'Sarah L.', stars: 2, status: 'active' },
-    { name: 'Mike W.', stars: 1, status: 'active' },
-    { name: 'Emma T.', stars: 3, status: 'active' },
-    { name: 'David R.', stars: 1, status: 'inactive' },
-    { name: 'Lisa M.', stars: 2, status: 'active' },
-  ],
-  extendedTeam: {
-    level2: 6,
-    level3: 3,
-  },
 }
 
 function StarDisplay({
@@ -70,8 +37,20 @@ function StarDisplay({
   )
 }
 
-export function TeamDirectoryPanel() {
-  const data = mockTeamDirectory
+function countAtDepth(node: HierarchyNode, depth: number): number {
+  if (depth === 0) return node.subordinates.length
+  return node.subordinates.reduce(
+    (sum, sub) => sum + countAtDepth(sub, depth - 1),
+    0,
+  )
+}
+
+export function TeamDirectoryPanel({ hierarchy }: TeamDirectoryPanelProps) {
+  const { agent, supervisorChain, subordinateTree } = hierarchy
+  const upline = supervisorChain.length > 0 ? supervisorChain[0] : null
+  const directTeam = subordinateTree.subordinates
+  const level2Count = countAtDepth(subordinateTree, 1)
+  const level3Count = countAtDepth(subordinateTree, 2)
 
   return (
     <div className="flex h-full w-56 min-w-56 flex-col border-r border-sidebar-border bg-sidebar">
@@ -90,17 +69,25 @@ export function TeamDirectoryPanel() {
               My Position
             </p>
             <div className="flex items-center gap-2">
-              <StarDisplay count={data.myPosition.stars} size="md" />
-              <span className="text-sm font-medium text-foreground">
-                {data.myPosition.stars}-Star
-              </span>
+              {agent.starLevel > 0 ? (
+                <>
+                  <StarDisplay count={agent.starLevel} size="md" />
+                  <span className="text-sm font-medium text-foreground">
+                    {agent.starLevel}-Star
+                  </span>
+                </>
+              ) : (
+                <span className="text-sm font-medium text-foreground">
+                  Rookie
+                </span>
+              )}
             </div>
           </div>
 
           <Separator className="bg-border/50" />
 
           {/* Upline */}
-          {data.upline && (
+          {upline && (
             <>
               <div className="space-y-2">
                 <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
@@ -108,9 +95,15 @@ export function TeamDirectoryPanel() {
                 </p>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-foreground">
-                    {data.upline.name}
+                    {upline.name}
                   </span>
-                  <StarDisplay count={data.upline.stars} />
+                  {upline.starLevel > 0 ? (
+                    <StarDisplay count={upline.starLevel} />
+                  ) : (
+                    <span className="text-xs text-muted-foreground">
+                      Rookie
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -121,38 +114,50 @@ export function TeamDirectoryPanel() {
           {/* Direct Team */}
           <div className="space-y-2">
             <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              Direct Team ({data.directTeam.length})
+              Direct Team ({directTeam.length})
             </p>
             <div className="space-y-1.5">
-              {data.directTeam.map((member, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between rounded bg-muted/20 px-2 py-1"
-                  data-testid={`team-member-${idx}`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={cn(
-                        'h-1.5 w-1.5 rounded-full',
-                        member.status === 'active'
-                          ? 'bg-success'
-                          : 'bg-muted-foreground/40',
-                      )}
-                    />
-                    <span
-                      className={cn(
-                        'text-sm',
-                        member.status === 'active'
-                          ? 'text-foreground'
-                          : 'text-muted-foreground',
-                      )}
-                    >
-                      {member.name}
-                    </span>
+              {directTeam.length === 0 ? (
+                <p className="text-xs text-muted-foreground px-2 py-1">
+                  No direct reports
+                </p>
+              ) : (
+                directTeam.map((member, idx) => (
+                  <div
+                    key={member.id}
+                    className="flex items-center justify-between rounded bg-muted/20 px-2 py-1"
+                    data-testid={`team-member-${idx}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={cn(
+                          'h-1.5 w-1.5 rounded-full',
+                          member.isActive
+                            ? 'bg-success'
+                            : 'bg-muted-foreground/40',
+                        )}
+                      />
+                      <span
+                        className={cn(
+                          'text-sm',
+                          member.isActive
+                            ? 'text-foreground'
+                            : 'text-muted-foreground',
+                        )}
+                      >
+                        {member.name}
+                      </span>
+                    </div>
+                    {member.starLevel > 0 ? (
+                      <StarDisplay count={member.starLevel} />
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground">
+                        Rookie
+                      </span>
+                    )}
                   </div>
-                  <StarDisplay count={member.stars} />
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 
@@ -167,13 +172,13 @@ export function TeamDirectoryPanel() {
               <div className="flex items-center justify-between rounded bg-muted/10 px-2 py-1">
                 <span className="text-muted-foreground">Level 2</span>
                 <span className="font-mono text-foreground">
-                  {data.extendedTeam.level2} members
+                  {level2Count} members
                 </span>
               </div>
               <div className="flex items-center justify-between rounded bg-muted/10 px-2 py-1">
                 <span className="text-muted-foreground">Level 3</span>
                 <span className="font-mono text-foreground">
-                  {data.extendedTeam.level3} members
+                  {level3Count} members
                 </span>
               </div>
             </div>
