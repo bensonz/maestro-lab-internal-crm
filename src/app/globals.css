@@ -230,12 +230,6 @@
     transition: all 0.2s ease;
   }
 
-  /* When card-terminal is on a shadcn Card, override its default py-6/gap-6 */
-  .card-terminal[data-slot='card'] {
-    padding: 0;
-    gap: 0;
-  }
-
   .card-terminal:hover {
     background: var(--card-hover);
     border-color: oklch(0.62 0.19 260 / 0.3);
