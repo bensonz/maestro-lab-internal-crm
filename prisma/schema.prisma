@@ -170,6 +170,8 @@ model User {
   address         String?
   loginAccount    String?
 
+  notifications     Notification[]     @relation("UserNotifications")
+
   agentClients      Client[]           @relation("AgentClients")
   assignedToDos     ToDo[]             @relation("AssignedToDos")
   createdToDos      ToDo[]             @relation("CreatedToDos")
@@ -322,10 +324,35 @@ model EventLog {
   newValue    String?
   createdAt   DateTime  @default(now())
 
+  notifications     Notification[]
+
   @@index([clientId])
   @@index([userId])
   @@index([eventType])
   @@index([createdAt])
+}
+
+model Notification {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation("UserNotifications", fields: [userId], references: [id])
+
+  type        String
+  title       String
+  message     String
+  link        String?
+
+  eventLogId  String?
+  eventLog    EventLog? @relation(fields: [eventLogId], references: [id])
+  clientId    String?
+
+  isRead      Boolean   @default(false)
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@index([eventLogId])
 }
 
 model PhoneAssignment {
