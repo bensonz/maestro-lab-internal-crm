@@ -508,7 +508,7 @@ export async function getAllAgents() {
     return {
       id: agent.id,
       name: agent.name,
-      tier: '1★', // Would need tier system
+      tier: agent.starLevel,
       phone: agent.phone ?? '',
       start: formatDate(agent.createdAt),
       clients: agent.agentClients.length,
