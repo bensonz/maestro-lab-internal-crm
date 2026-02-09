@@ -11,6 +11,7 @@ import {
   ClipboardList,
   CheckSquare,
   Receipt,
+  DollarSign,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -57,6 +58,11 @@ const navItems: NavItem[] = [
     title: 'Fund Allocation',
     href: '/backoffice/fund-allocation',
     icon: Wallet,
+  },
+  {
+    title: 'Commissions',
+    href: '/backoffice/commissions',
+    icon: DollarSign,
   },
   {
     title: 'Client Settlement',
