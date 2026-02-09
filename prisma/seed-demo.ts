@@ -41,6 +41,7 @@ async function main() {
   await prisma.extensionRequest.deleteMany()
   await prisma.phoneAssignment.deleteMany()
   await prisma.toDo.deleteMany()
+  await prisma.notification.deleteMany()
   await prisma.eventLog.deleteMany()
   await prisma.clientPlatform.deleteMany()
   await prisma.applicationDraft.deleteMany()
