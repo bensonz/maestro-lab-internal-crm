@@ -24,9 +24,17 @@ interface ServerTodoData {
   pendingTasks: Array<{
     id: string
     task: string
+    description: string
     client: string
+    clientId: string
     due: string
     overdue: boolean
+    stepNumber: number
+    createdAt: string
+    extensionsUsed: number
+    maxExtensions: number
+    createdByName: string
+    metadata: Record<string, unknown> | null
   }>
 }
 
@@ -40,17 +48,42 @@ interface ServerClientData {
   deadline: string | null
 }
 
+interface EarningsData {
+  totalEarnings: number
+  pendingPayout: number
+  thisMonth: number
+  recentTransactions: Array<{
+    id: string
+    client: string
+    description: string
+    amount: number
+    status: string
+    date: string
+    rawDate: string
+  }>
+  commission: {
+    totalEarned: number
+    pending: number
+    paid: number
+    directBonuses: number
+    starSlices: number
+  }
+  overrides: {
+    overrideTotal: number
+    ownTotal: number
+  }
+}
+
 interface TodoPageClientProps {
   todoData: ServerTodoData
   clients: ServerClientData[]
   agentName: string
+  agentStarLevel: number
+  earningsData: EarningsData
 }
 
-// TODO: Wire to real earnings/star data when available
-const PLACEHOLDER_STAR_LEVEL = 2
-const PLACEHOLDER_DAILY_TARGET = 300
-const PLACEHOLDER_STREAK = 0
-const PLACEHOLDER_POOL_PER_LEAD = 400
+// $400 bonus pool per approved lead (matches commission rules)
+const POOL_PER_LEAD = 400
 
 function getEarningForTask(taskType: string): number {
   const map: Record<string, number> = {
@@ -101,30 +134,44 @@ function mapStageLabel(status: string): { stage: string; label: string } {
 function mapServerTodoToTodo(
   serverTodo: ServerTodoData['pendingTasks'][0],
 ): Todo {
-  // Parse "Xd ago" / "Xh" etc. from the due string to compute dueHours
   const dueHours = parseDueToHours(serverTodo.due, serverTodo.overdue)
+  const meta = serverTodo.metadata as {
+    instructions?: {
+      mustDo?: string[]
+      mustNotDo?: string[]
+      successCriteria?: string
+    }
+  } | null
+
+  const defaultInstructions = {
+    mustDo: ['Follow task instructions carefully'],
+    mustNotDo: ['Do not skip required steps'],
+    successCriteria: 'Task completed per guidelines',
+  }
 
   return {
     id: serverTodo.id,
     title: serverTodo.task,
-    description: '', // TODO: wire description from ToDo model
+    description: serverTodo.description,
     client: serverTodo.client,
-    clientId: '', // TODO: wire clientId
+    clientId: serverTodo.clientId,
     taskType: mapTaskType(serverTodo.task),
     priority: serverTodo.overdue ? 'high' : dueHours <= 24 ? 'medium' : 'low',
     completed: false,
     dueHours,
-    triggerType: 'Rule', // TODO: wire trigger type from metadata
-    triggerSource: 'System generated', // TODO: wire trigger source
-    linkedStep: 1, // TODO: wire from stepNumber
-    createdAt: 'N/A', // TODO: wire createdAt
-    extensionsUsed: 0, // TODO: wire from ToDo model
-    maxExtensions: 3, // TODO: wire from ToDo model
+    triggerType:
+      serverTodo.createdByName === 'System' ? 'Rule' : 'Backoffice',
+    triggerSource: serverTodo.createdByName,
+    linkedStep: serverTodo.stepNumber,
+    createdAt: serverTodo.createdAt,
+    extensionsUsed: serverTodo.extensionsUsed,
+    maxExtensions: serverTodo.maxExtensions,
     instructions: {
-      // TODO: wire from ToDo metadata
-      mustDo: ['Follow task instructions carefully'],
-      mustNotDo: ['Do not skip required steps'],
-      successCriteria: 'Task completed per guidelines',
+      mustDo: meta?.instructions?.mustDo ?? defaultInstructions.mustDo,
+      mustNotDo: meta?.instructions?.mustNotDo ?? defaultInstructions.mustNotDo,
+      successCriteria:
+        meta?.instructions?.successCriteria ??
+        defaultInstructions.successCriteria,
     },
   }
 }
@@ -145,7 +192,10 @@ function parseDueToHours(due: string, isOverdue: boolean): number {
 }
 
 // Build growth clients from server client data
-function buildGrowthClients(clients: ServerClientData[]): GrowthClient[] {
+function buildGrowthClients(
+  clients: ServerClientData[],
+  earningsData: EarningsData,
+): GrowthClient[] {
   const growthStatuses = [
     'PENDING',
     'PHONE_ISSUED',
@@ -170,20 +220,30 @@ function buildGrowthClients(clients: ServerClientData[]): GrowthClient[] {
           )
         : 0
 
+      // Look up earnings for this client from real data
+      const clientEarnings = earningsData.recentTransactions.filter(
+        (t) => t.client === c.name,
+      )
+      const paidEarnings = clientEarnings
+        .filter((t) => t.status === 'Paid')
+        .reduce((sum, t) => sum + t.amount, 0)
+      const pendingEarnings = clientEarnings
+        .filter((t) => t.status === 'Pending')
+        .reduce((sum, t) => sum + t.amount, 0)
+
       return {
         id: c.id,
         name: c.name,
         stage,
         stageLabel: label,
         daysInPipeline: Math.abs(daysInPipeline),
-        // TODO: Wire to real earnings data
-        directEarning: 0,
+        directEarning: paidEarnings,
         starEarning: 0,
         downlineEarning: 0,
         upstreamShare: 0,
         recycledAmount: 0,
-        finalTake: 0,
-        poolPerLead: PLACEHOLDER_POOL_PER_LEAD,
+        finalTake: paidEarnings + pendingEarnings,
+        poolPerLead: POOL_PER_LEAD,
         pendingTasks: c.nextTask ? 1 : 0,
       }
     })
@@ -199,6 +259,7 @@ function buildMaintenanceClients(
       const hoursOverdue = Math.abs(parseDueToHours(t.due, true))
       const daysOverdue = Math.max(1, Math.ceil(hoursOverdue / 24))
 
+      const bonusRiskPercent = Math.min(100, daysOverdue * 15)
       return {
         id: t.id,
         name: t.client,
@@ -206,9 +267,8 @@ function buildMaintenanceClients(
         statusLabel: 'Re-Verification',
         taskDescription: t.task,
         overdueDays: daysOverdue,
-        // TODO: Wire to real risk data
-        bonusRiskPercent: Math.min(100, daysOverdue * 15),
-        atRiskAmount: 0,
+        bonusRiskPercent,
+        atRiskAmount: POOL_PER_LEAD * (bonusRiskPercent / 100),
         dueDate: t.due,
       }
     })
@@ -218,6 +278,8 @@ export function TodoPageClient({
   todoData,
   clients,
   agentName,
+  agentStarLevel,
+  earningsData,
 }: TodoPageClientProps) {
   // Map server data to Lovable Todo shape
   const initialTodos = useMemo(
@@ -236,8 +298,8 @@ export function TodoPageClient({
 
   // Build growth/maintenance data from server clients
   const growthClients = useMemo(
-    () => buildGrowthClients(clients),
-    [clients],
+    () => buildGrowthClients(clients, earningsData),
+    [clients, earningsData],
   )
   const maintenanceClients = useMemo(
     () => buildMaintenanceClients(todoData.pendingTasks),
@@ -261,7 +323,7 @@ export function TodoPageClient({
   // Agent profile
   const agent: AgentProfile = {
     name: agentName,
-    starLevel: PLACEHOLDER_STAR_LEVEL, // TODO: wire from real data
+    starLevel: agentStarLevel,
     totalClients: clients.length,
     activeClients: clients.filter((c) =>
       ['PHONE_ISSUED', 'IN_EXECUTION'].includes(c.intakeStatus),
@@ -277,27 +339,37 @@ export function TodoPageClient({
       (t) => !t.completed && t.dueHours < 0,
     ).length
 
+    // Daily target scales with star level
+    const dailyTarget = agentStarLevel * 100 + 100
+
     return {
       earnedToday: totalEarnedToday,
-      dailyTarget: PLACEHOLDER_DAILY_TARGET, // TODO: wire from real data
+      dailyTarget,
       potentialNew: growthClients.reduce((s, c) => s + c.finalTake, 0),
       potentialMaintenance: maintenanceClients.reduce(
         (s, c) => s + c.atRiskAmount,
         0,
       ),
-      // TODO: Wire confirmed earnings from real data
-      confirmedDirect: 0,
-      confirmedStar: 0,
-      confirmedDownline: 0,
+      confirmedDirect: earningsData.commission.paid,
+      confirmedStar: earningsData.commission.starSlices,
+      confirmedDownline: earningsData.overrides.overrideTotal,
       overdueCount,
       overdueRiskAmount: maintenanceClients
         .filter((c) => c.overdueDays > 0)
         .reduce((s, c) => s + c.atRiskAmount, 0),
       completedTasks: todayTodos.filter((t) => t.completed).length,
       totalTasks: todayTodos.length,
-      currentStreak: PLACEHOLDER_STREAK, // TODO: wire from real data
+      currentStreak: todoData.completedToday,
     }
-  }, [todos, totalEarnedToday, growthClients, maintenanceClients])
+  }, [
+    todos,
+    totalEarnedToday,
+    growthClients,
+    maintenanceClients,
+    agentStarLevel,
+    earningsData,
+    todoData.completedToday,
+  ])
 
   // Handlers
   const handleUpload = useCallback((_todo: Todo) => {
@@ -378,7 +450,7 @@ export function TodoPageClient({
       <FeedbackToast
         lastEarning={lastEarning}
         totalEarnedToday={totalEarnedToday}
-        currentStreak={PLACEHOLDER_STREAK}
+        currentStreak={todoData.completedToday}
         completedToday={dailyGoal.completedTasks}
         show={showFeedback}
         onDismiss={handleDismissFeedback}
