@@ -1,10 +1,11 @@
 'use client'
 
-import { Bell, Search, Settings } from 'lucide-react'
+import { Search, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Separator } from '@/components/ui/separator'
+import { NotificationDropdown } from '@/components/notification-dropdown'
 
 export function BackofficeTopBar() {
   return (
@@ -29,15 +30,7 @@ export function BackofficeTopBar() {
       </div>
 
       <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="relative"
-          data-testid="backoffice-notifications-btn"
-        >
-          <Bell className="h-4 w-4" />
-          <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-warning" />
-        </Button>
+        <NotificationDropdown />
         <Button
           variant="ghost"
           size="icon"
