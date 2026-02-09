@@ -5,6 +5,10 @@ import {
   PlatformStatus,
   ExtensionRequestStatus,
 } from '@/types'
+import {
+  getAgentCommissionSummary,
+  getOverrideEarnings,
+} from '@/backend/services/commission'
 
 export async function getAgentClients(agentId: string) {
   const clients = await prisma.client.findMany({
@@ -278,11 +282,18 @@ export async function getAgentEarnings(agentId: string) {
     rawDate: e.createdAt.toISOString(),
   }))
 
+  const [commissionSummary, overrideEarnings] = await Promise.all([
+    getAgentCommissionSummary(agentId),
+    getOverrideEarnings(agentId),
+  ])
+
   return {
     totalEarnings,
     pendingPayout,
     thisMonth,
     recentTransactions,
+    commission: commissionSummary,
+    overrides: overrideEarnings,
   }
 }
 
