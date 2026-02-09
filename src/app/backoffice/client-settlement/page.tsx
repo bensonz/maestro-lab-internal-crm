@@ -1,5 +1,6 @@
 import { getClientsForSettlement } from '@/backend/data/operations'
 import { SettlementView } from './_components/settlement-view'
+import { ExportDropdown } from './_components/export-dropdown'
 
 export default async function ClientSettlementPage() {
   const clients = await getClientsForSettlement()
@@ -16,6 +17,7 @@ export default async function ClientSettlementPage() {
             View deposits, withdrawals, and platform breakdowns per client
           </p>
         </div>
+        <ExportDropdown />
       </div>
 
       {/* Interactive Settlement View */}
