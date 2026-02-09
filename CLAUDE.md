@@ -187,6 +187,21 @@ Notifications are auto-generated from key actions (fire-and-forget, never blocks
 
 UI: `src/components/notification-dropdown.tsx` — Shared dropdown used in both agent and backoffice top bars.
 
+### Global Search
+
+`src/app/api/search/route.ts` — GET route searching clients, agents, and tasks:
+- Accepts `?q=` query parameter (minimum 2 characters)
+- Role-based visibility: agents only see their own clients/tasks, backoffice/admin see all
+- Agents do not receive agent search results
+- Returns typed results with `link` paths appropriate to the user's role
+
+UI: `src/components/global-search.tsx` — exports `GlobalSearch` (CommandDialog) + `SearchTrigger` (button/input):
+- `SearchTrigger variant="input"` — styled like a search input with ⌘K badge (used in backoffice)
+- `SearchTrigger variant="icon"` — compact icon button (used in agent)
+- `GlobalSearch` — cmdk-based command palette with debounced server search, grouped results (Clients/Agents/Tasks), keyboard navigation
+
+Both top bars use `<SearchTrigger />` + `<GlobalSearch />`. Keyboard shortcut ⌘K / Ctrl+K opens the palette from anywhere.
+
 ### Path Aliases
 
 - `@/*` → `./src/*`
@@ -277,6 +292,7 @@ pnpm test src/test/backend/actions/phones.test.ts  # Specific file
 - `src/test/backend/services/closure.test.ts` — Client closure: balance verification, close client, auth/role guards
 - `src/test/backend/services/notifications.test.ts` — Notification service: create, query, mark-as-read, role notifications
 - `src/test/backend/actions/notifications.test.ts` — Notification server actions: auth guards, get/mark-read
+- `src/test/backend/api/search.test.ts` — Search API route: auth, role-based visibility, query filtering, link paths
 
 ---
 
