@@ -166,6 +166,27 @@ Team page at `/agent/team` shows supervisor chain, expandable subordinate tree, 
 Server action at `src/app/actions/closure.ts` — ADMIN/BACKOFFICE only. Admin can skip balance check.
 PARTNERSHIP_ENDED is a terminal state reachable only from APPROVED.
 
+### Notification System
+
+`src/backend/services/notifications.ts` — Notification creation and queries:
+- `createNotification(params)` — Create a notification for a specific user
+- `notifyRole(params)` — Create notifications for all users with matching role(s)
+- `getUserNotifications(userId, options?)` — Get notifications (supports unreadOnly filter, limit)
+- `getUnreadCount(userId)` — Get unread notification count
+- `markAsRead(notificationId, userId)` — Mark single notification read (userId guard prevents IDOR)
+- `markAllAsRead(userId)` — Mark all unread notifications read
+
+Server actions at `src/app/actions/notifications.ts` — Auth-guarded wrappers for the service.
+
+Notifications are auto-generated from key actions (fire-and-forget, never blocks main action):
+- Client approval/rejection → notifies the agent (`status-transition.ts`)
+- Settlement confirm/reject → notifies ADMIN + BACKOFFICE (`settlements.ts`)
+- Extension request created → notifies ADMIN + BACKOFFICE (`extensions.ts`)
+- Extension approved/rejected → notifies the requesting agent (`extensions.ts`)
+- Todo completed → notifies ADMIN + BACKOFFICE (`todos.ts`)
+
+UI: `src/components/notification-dropdown.tsx` — Shared dropdown used in both agent and backoffice top bars.
+
 ### Path Aliases
 
 - `@/*` → `./src/*`
@@ -254,6 +275,8 @@ pnpm test src/test/backend/actions/phones.test.ts  # Specific file
 - `src/test/backend/services/transaction.test.ts` — Transaction ledger: record, balance, reversal, history
 - `src/test/backend/data/hierarchy.test.ts` — Team hierarchy: supervisor chain, subordinate tree, rollup
 - `src/test/backend/services/closure.test.ts` — Client closure: balance verification, close client, auth/role guards
+- `src/test/backend/services/notifications.test.ts` — Notification service: create, query, mark-as-read, role notifications
+- `src/test/backend/actions/notifications.test.ts` — Notification server actions: auth guards, get/mark-read
 
 ---
 
