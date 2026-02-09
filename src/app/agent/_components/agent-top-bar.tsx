@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Separator } from '@/components/ui/separator'
 import { NotificationDropdown } from '@/components/notification-dropdown'
+import { GlobalSearch, SearchTrigger } from '@/components/global-search'
 
 export function AgentTopBar() {
   return (
@@ -28,6 +29,8 @@ export function AgentTopBar() {
       </div>
 
       <div className="flex items-center gap-3">
+        <SearchTrigger variant="icon" />
+        <GlobalSearch />
         <NotificationDropdown />
         <Button asChild data-testid="new-client-btn">
           <Link href="/agent/new-client">
