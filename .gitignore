@@ -42,3 +42,5 @@ next-env.d.ts
 
 /prisma/generated
 node_modules
+
+docs/prompts
