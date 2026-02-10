@@ -214,6 +214,7 @@ function mapServerClientToClient(serverClient: ServerClientData): Client {
     })),
     zelle: (questionnaire.zellePhone as string) || '\u2014',
     relationships: [],
+    questionnaire: Object.keys(questionnaire).length > 0 ? questionnaire : null,
   }
 }
 
