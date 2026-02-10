@@ -7,6 +7,7 @@ describe('prequalSchema', () => {
     lastName: 'Doe',
     gmailAccount: 'john.doe@gmail.com',
     gmailPassword: 'SecurePass123',
+    phone: '(555) 123-4567',
     agentConfirmsId: 'true',
   }
 

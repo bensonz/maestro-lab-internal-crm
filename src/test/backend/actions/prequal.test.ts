@@ -27,6 +27,11 @@ vi.mock('@/backend/prisma/client', () => ({
   },
 }))
 
+// Mock notifications
+vi.mock('@/backend/services/notifications', () => ({
+  notifyRole: vi.fn(),
+}))
+
 // Mock redirect
 vi.mock('next/navigation', () => ({
   redirect: vi.fn((url: string) => {
@@ -61,6 +66,7 @@ describe('submitPrequalification', () => {
     lastName: 'Doe',
     gmailAccount: 'john.doe@gmail.com',
     gmailPassword: 'SecurePass123',
+    phone: '(555) 123-4567',
     agentConfirmsId: 'true',
   }
 
