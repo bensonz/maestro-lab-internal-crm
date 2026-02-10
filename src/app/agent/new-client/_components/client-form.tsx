@@ -68,6 +68,7 @@ interface ClientData {
   state?: string | null
   zipCode?: string | null
   questionnaire?: string | null
+  idDocument?: string | null
 }
 
 interface ClientFormProps {
@@ -620,6 +621,7 @@ export function ClientForm({
                       onDataExtracted={handleIdDataExtracted}
                       onConfirm={handleIdConfirm}
                       isConfirmed={isIdConfirmed}
+                      initialData={prequalSubmitted && extractedData ? extractedData : undefined}
                     />
                   </StepCard>
 
