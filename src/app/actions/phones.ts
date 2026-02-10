@@ -59,17 +59,7 @@ export async function assignPhone(
   }
 
   try {
-    await prisma.phoneAssignment.create({
-      data: {
-        phoneNumber,
-        deviceId: deviceId || null,
-        notes: notes || null,
-        clientId,
-        agentId: client.agentId,
-        issuedAt: new Date(),
-      },
-    })
-
+    // Transition first — if it fails, no orphan phone record is created
     const result = await transitionClientStatus(
       clientId,
       IntakeStatus.PHONE_ISSUED,
@@ -79,6 +69,18 @@ export async function assignPhone(
     if (!result.success) {
       return result
     }
+
+    await prisma.phoneAssignment.create({
+      data: {
+        phoneNumber,
+        deviceId: deviceId || null,
+        notes: notes || null,
+        clientId,
+        agentId: client.agentId,
+        issuedById: session.user.id,
+        issuedAt: new Date(),
+      },
+    })
 
     revalidatePhonePaths(clientId)
     return { success: true }
