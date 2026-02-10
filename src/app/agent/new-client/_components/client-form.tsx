@@ -516,8 +516,14 @@ export function ClientForm({
     }
   }
 
-  // Phase 1 submit disabled
-  const phase1SubmitDisabled = !isIdConfirmed
+  // Phase 1 submit disabled — all 3 sub-steps must be complete
+  const phase1SubmitDisabled =
+    !isIdConfirmed ||
+    !gmailValue ||
+    !passwordValue ||
+    !betmgmResult ||
+    (betmgmResult === 'success' &&
+      (!betmgmScreenshots.login || !betmgmScreenshots.deposit))
   // Phase 2 submit disabled
   const phase2SubmitDisabled = !agentConfirms
 
@@ -595,6 +601,8 @@ export function ClientForm({
                     )}
                   </>
                 )}
+                <input type="hidden" name="gmailAccount" value={gmailValue} />
+                <input type="hidden" name="gmailPassword" value={passwordValue} />
                 <input type="hidden" name="agentConfirmsId" value={isIdConfirmed ? 'true' : 'false'} />
                 {draftId && <input type="hidden" name="draftId" value={draftId} />}
 
