@@ -129,6 +129,8 @@ export async function createClient(
           country: 'USA',
           applicationNotes: notes || null,
           questionnaire: JSON.stringify(fullQuestionnaire),
+          intakeStatus: IntakeStatus.READY_FOR_APPROVAL,
+          statusChangedAt: new Date(),
         },
       })
 
