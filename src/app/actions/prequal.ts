@@ -34,6 +34,10 @@ export async function submitPrequalification(
     betmgmResult: formData.get('betmgmResult'),
     betmgmLoginScreenshot: formData.get('betmgmLoginScreenshot'),
     betmgmDepositScreenshot: formData.get('betmgmDepositScreenshot'),
+    address: formData.get('address'),
+    city: formData.get('city'),
+    state: formData.get('state'),
+    zipCode: formData.get('zipCode'),
   }
 
   const validationResult = prequalSchema.safeParse(rawData)
@@ -59,6 +63,10 @@ export async function submitPrequalification(
     betmgmResult,
     betmgmLoginScreenshot,
     betmgmDepositScreenshot,
+    address,
+    city,
+    state,
+    zipCode,
   } = validationResult.data
 
   // Check ID expiration - block if expired
@@ -80,12 +88,22 @@ export async function submitPrequalification(
           prequalCompleted: true,
           intakeStatus: 'PENDING',
           agentId: session.user.id,
+          address: address || null,
+          city: city || null,
+          state: state || null,
+          zipCode: zipCode || null,
           questionnaire: JSON.stringify({
             middleName,
             dateOfBirth,
             idExpiry,
             idVerified: true,
             betmgmResult: betmgmResult || null,
+            extractedAddress: {
+              address: address || null,
+              city: city || null,
+              state: state || null,
+              zip: zipCode || null,
+            },
           }),
           idDocument: idDocument || null,
         },
