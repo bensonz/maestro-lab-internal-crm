@@ -247,7 +247,8 @@ export function IdUploadSection({
           </div>
         ) : (
           <div className="space-y-4">
-            {/* File Preview */}
+            {/* File Preview — only when a file was actually uploaded (not for initialData) */}
+            {uploadedFile && (
             <div className="flex items-center justify-between rounded-lg border border-border/50 bg-muted/30 p-3">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
@@ -274,6 +275,7 @@ export function IdUploadSection({
                 </Button>
               )}
             </div>
+            )}
 
             {/* Processing State */}
             {isProcessing && (
