@@ -13,4 +13,5 @@ export interface AgentClient {
   lastUpdated: string
   updatedAt: string
   deadline: string | null
+  phase: number | null
 }

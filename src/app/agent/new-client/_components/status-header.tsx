@@ -1,60 +1,13 @@
 'use client'
 
 import Link from 'next/link'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, Save, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-type StepStatus = 'complete' | 'pending' | 'blocked' | 'not-started'
-
-const riskConfig = {
-  low: {
-    label: 'Low Risk',
-    className: 'bg-success/15 text-success border-success/30',
-  },
-  medium: {
-    label: 'Medium Risk',
-    className: 'bg-warning/15 text-warning border-warning/30',
-  },
-  high: {
-    label: 'High Risk',
-    className: 'bg-destructive/15 text-destructive border-destructive/30',
-  },
-}
-
-function getStatusColor(status: string): string {
-  if (status.includes('Approved') || status.includes('Complete')) {
-    return 'bg-success/15 text-success border-success/30'
-  }
-  if (status.includes('Blocked') || status.includes('Missing')) {
-    return 'bg-destructive/15 text-destructive border-destructive/30'
-  }
-  if (status.includes('Review') || status.includes('Ready') || status.includes('Awaiting')) {
-    return 'bg-warning/15 text-warning border-warning/30'
-  }
-  return 'bg-muted text-muted-foreground border-border'
-}
-
-function getStepDotClass(status: StepStatus): string {
-  switch (status) {
-    case 'complete':
-      return 'bg-success border-success'
-    case 'pending':
-      return 'border-2 border-primary bg-transparent'
-    case 'blocked':
-      return 'bg-destructive border-destructive'
-    default:
-      return 'bg-muted border-border'
-  }
-}
-
 interface StatusHeaderProps {
   clientName: string
-  overallStatus: string
   riskLevel: 'low' | 'medium' | 'high'
-  lastAction: string
-  steps: { status: StepStatus }[]
   onSubmit: () => void
   submitDisabled: boolean
   onSaveDraft: () => void
@@ -66,10 +19,7 @@ interface StatusHeaderProps {
 
 export function StatusHeader({
   clientName,
-  overallStatus,
   riskLevel,
-  lastAction,
-  steps,
   onSubmit,
   submitDisabled,
   onSaveDraft,
@@ -78,9 +28,6 @@ export function StatusHeader({
   betmgmVerified,
   prequalSubmitted,
 }: StatusHeaderProps) {
-  const risk = riskConfig[riskLevel]
-  const completedSteps = steps.filter((s) => s.status === 'complete').length
-
   const getSubmitLabel = () => {
     if (phase === 1) {
       if (prequalSubmitted && !betmgmVerified) return 'Awaiting Verification'
@@ -91,9 +38,15 @@ export function StatusHeader({
 
   const isAwaitingVerification = prequalSubmitted && !betmgmVerified
 
+  const riskColor = {
+    low: 'text-success',
+    medium: 'text-warning',
+    high: 'text-destructive',
+  }[riskLevel]
+
   return (
     <div className="sticky top-0 z-20 border-b border-border bg-card/95 backdrop-blur-sm">
-      <div className="flex items-center justify-between px-6 py-3">
+      <div className="flex items-center justify-between px-8 py-2.5">
         {/* Left side */}
         <div className="flex items-center gap-3 min-w-0">
           <Link href="/agent/clients">
@@ -107,56 +60,19 @@ export function StatusHeader({
             </Button>
           </Link>
 
-          <div className="min-w-0 flex items-center gap-2">
-            {clientName && (
-              <span className="truncate text-sm font-semibold">
-                {clientName}
-              </span>
-            )}
-            <Badge
-              variant="outline"
-              className={cn(
-                'text-[10px] h-5 shrink-0 font-mono',
-                phase === 1
-                  ? 'bg-primary/10 text-primary border-primary/30'
-                  : 'bg-success/10 text-success border-success/30',
-              )}
-              data-testid="phase-badge"
-            >
-              Phase {phase}
-            </Badge>
-            <Badge
-              variant="outline"
-              className={cn('text-[10px] h-5 shrink-0', getStatusColor(overallStatus))}
-            >
-              {overallStatus}
-            </Badge>
-            <Badge
-              variant="outline"
-              className={cn('text-[10px] h-5 shrink-0', risk.className)}
-            >
-              {risk.label}
-            </Badge>
-          </div>
-
-          {/* Step dots */}
-          <div className="flex items-center gap-1.5 ml-2">
-            {steps.map((step, i) => (
-              <div
-                key={i}
-                className={cn('h-2.5 w-2.5 rounded-full', getStepDotClass(step.status))}
-              />
-            ))}
-            <span className="ml-1 text-[11px] font-mono text-muted-foreground">
-              {completedSteps}/{steps.length}
-            </span>
-          </div>
-
-          {lastAction && (
-            <span className="hidden lg:inline text-[11px] text-muted-foreground ml-2 truncate">
-              {lastAction}
+          {clientName && (
+            <span className="truncate text-sm font-medium text-foreground">
+              {clientName}
             </span>
           )}
+
+          <span className="text-xs text-muted-foreground">
+            Phase {phase}
+          </span>
+
+          <span className={cn('text-xs font-medium', riskColor)}>
+            {riskLevel === 'low' ? 'Low Risk' : riskLevel === 'medium' ? 'Med Risk' : 'High Risk'}
+          </span>
         </div>
 
         {/* Right side */}

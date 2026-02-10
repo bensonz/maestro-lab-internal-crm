@@ -52,20 +52,41 @@ Each client is onboarded to 11 platforms (8 sports betting + 3 financial), track
 
 Client onboarding at `/agent/new-client` uses a 2-phase workflow:
 
-**Phase 1: Pre-qualification** — Agent uploads client ID (with OCR extraction), records company-created Gmail/password, and submits. This creates the Client record with `prequalCompleted: true` and 11 ClientPlatform records (BetMGM = `PENDING_REVIEW`, others = `NOT_STARTED`). The page stays (no redirect) and starts polling for BetMGM verification.
+**Phase 1: Pre-qualification** — Three sub-steps:
+1. **ID Verification** (Step 1.1) — Agent uploads client ID (with OCR extraction), confirms extracted data
+2. **Gmail Account** (Step 1.2) — Agent enters company-created Gmail/password
+3. **BetMGM Registration Check** (Step 1.3) — Agent records BetMGM registration result (success/failed); if success, uploads login + deposit page screenshots
 
-**Phase 2: Full Application** — Unlocked only after BetMGM is verified (backoffice manual review via `verifyBetmgmManual()`). Agent fills Basic Info, Address, and Compliance sections. Submit updates the existing Client and redirects to `/agent/clients`.
+Submitting creates the Client record with `prequalCompleted: true` and 11 ClientPlatform records. BetMGM status = `REJECTED` if failed, `PENDING_REVIEW` if success. Screenshots stored on `ClientPlatform.screenshots`. The page stays (no redirect) and starts polling for BetMGM verification.
+
+**Phase 2: Full Application** — Unlocked only after BetMGM is verified (backoffice manual review via `verifyBetmgmManual()`). Agent fills Basic Info, Address, and Compliance sections (6 groups: Banking, PayPal, Platform History, Criminal/Legal, Risk Assessment, Language). Submit updates the existing Client and redirects to `/agent/clients`.
+
+**Layout:** Fixed sidebar (`w-56`) for Pipeline | Form (center, full-width) | Risk Panel (right, resizable). Pipeline sidebar is not resizable; form + risk panel use a 2-panel `ResizablePanelGroup`.
 
 **Key files:**
 - `src/app/actions/prequal.ts` — `submitPrequalification()`, `updateGmailCredentials()`
 - `src/app/actions/betmgm-verification.ts` — `verifyBetmgmManual()` (backoffice), `checkBetmgmStatus()` (agent polling)
-- `src/lib/validations/prequal.ts` — Zod schema for Phase 1 data
+- `src/lib/validations/prequal.ts` — Zod schema for Phase 1 data (includes betmgmResult + screenshot URL fields)
+- `src/app/api/upload/route.ts` — File upload API endpoint (POST, accepts FormData with file/entity/entityId/type/platformCode)
+- `src/app/agent/new-client/_components/client-form.tsx` — Main form orchestrator; returns `{ form, riskPanel }` object
+- `src/app/agent/new-client/_components/new-client-page-client.tsx` — Client wrapper that destructures ClientForm output into layout
+- `src/app/agent/new-client/_components/gmail-section.tsx` — Gmail/password inputs (standalone)
+- `src/app/agent/new-client/_components/betmgm-check-section.tsx` — BetMGM success/fail + 2 screenshot uploads
+- `src/app/agent/new-client/_components/compliance-groups.tsx` — 6 collapsible groups with 10+ questions, exports `ComplianceData` interface + `EMPTY_COMPLIANCE_DATA`
+- `src/app/agent/new-client/_components/risk-panel.tsx` — Always-visible right sidebar with 8 compliance rules, risk factors, compliance summary
+- `src/app/agent/new-client/_components/new-client-layout.tsx` — Fixed sidebar + 2-panel resizable layout (Form | Risk Panel)
+- `src/app/agent/new-client/_components/pipeline-panel.tsx` — Phase-based pipeline sidebar (Phase 4→1, collapsible sections, names only)
+- `src/lib/client-phase.ts` — `getClientPhase()` utility + `PHASE_COUNT`, `PHASE_SHORT_LABELS` constants
 - `src/app/agent/new-client/_components/phase-header.tsx` — Visual phase label divider
-- `src/app/agent/new-client/_components/prequal-section.tsx` — Gmail/password inputs + BetMGM status
 - `src/app/agent/new-client/_components/phase-gate.tsx` — Locked/unlocked divider between phases
-- `src/app/agent/new-client/_components/prequal-draft-sidebar.tsx` — Pipeline sidebar (drafts, awaiting verification, ready for Phase 2)
 
-**Schema additions:** `Client.gmailAccount`, `Client.gmailPassword`, `Client.prequalCompleted`; `ApplicationDraft.clientId`, `ApplicationDraft.phase`
+**Schema additions:** `Client.gmailAccount`, `Client.gmailPassword`, `Client.prequalCompleted`, `Client.riskFlags` (Json); `ApplicationDraft.clientId`, `ApplicationDraft.phase`
+
+**ClientForm return pattern:** `ClientForm` returns `{ form: JSX, riskPanel: JSX }` instead of JSX directly, allowing the layout to place form and risk panel in separate resizable panels. The `NewClientPageClient` wrapper handles this destructuring.
+
+**Risk Panel:** Always-visible right sidebar with 8 compliance rules (ID expiry, PayPal previously used, platforms used, own bank pin [backoffice], company money [backoffice], debanked, multiple PayPal, 8+ platforms). Two rules (#4, #5) are backoffice-only placeholders. Risk level computed as HIGH/MEDIUM/LOW based on compliance data.
+
+**Override Tracking:** When agent manually edits AI-extracted ID fields, changes are tracked in `overriddenFields` and displayed in the risk panel.
 
 **ID Expiration Check:** During ID upload, if the ID expiry date is within 75 days a warning is shown. If expired (<=0 days), Phase 1 submission is blocked.
 
@@ -271,10 +292,11 @@ pnpm test src/test/backend/actions/phones.test.ts  # Specific file
 ### Existing Tests (Reference)
 
 - `src/test/backend/actions/clients.test.ts` — createClient, saveDraft, deleteDraft actions
-- `src/test/backend/actions/prequal.test.ts` — submitPrequalification, updateGmailCredentials actions
+- `src/test/backend/actions/prequal.test.ts` — submitPrequalification, updateGmailCredentials, BetMGM screenshot handling
 - `src/test/backend/actions/betmgm-verification.test.ts` — verifyBetmgmManual, checkBetmgmStatus actions
+- `src/test/backend/actions/upload.test.ts` — Upload API route validation, storage integration
 - `src/test/backend/validations/client.test.ts` — client form validation
-- `src/test/backend/validations/prequal.test.ts` — prequal form validation
+- `src/test/backend/validations/prequal.test.ts` — prequal form validation, BetMGM conditional screenshot requirements
 - `src/test/backend/lib/platforms.test.ts` — platform utilities
 - `src/test/backend/utils/csv.test.ts` — CSV generation utility (escaping, BOM, edge cases)
 - `src/test/backend/services/commission.test.ts` — Commission distribution algorithm, star level calculation

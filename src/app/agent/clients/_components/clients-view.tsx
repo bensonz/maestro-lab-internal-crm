@@ -51,7 +51,7 @@ interface ClientsViewProps {
 }
 
 const STATUS_FILTER_MAP: Record<StatusFilter, IntakeStatus[]> = {
-  inProgress: [IntakeStatus.PHONE_ISSUED, IntakeStatus.IN_EXECUTION],
+  inProgress: [IntakeStatus.PENDING, IntakeStatus.PHONE_ISSUED, IntakeStatus.IN_EXECUTION],
   needsInfo: [
     IntakeStatus.NEEDS_MORE_INFO,
     IntakeStatus.PENDING_EXTERNAL,
@@ -348,7 +348,7 @@ export function ClientsView({ clients, stats }: ClientsViewProps) {
                 </CardContent>
               </Card>
             ) : viewMode === 'list' ? (
-              <ClientsGroupedList clients={filteredClients} />
+              <ClientsGroupedList clients={filteredClients} activeFilter={statusFilter} />
             ) : (
               <ClientsCardView clients={filteredClients} />
             )}

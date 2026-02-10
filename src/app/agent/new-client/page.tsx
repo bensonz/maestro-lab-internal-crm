@@ -1,8 +1,7 @@
 import { auth } from '@/backend/auth'
 import prisma from '@/backend/prisma/client'
-import { ClientForm } from './_components/client-form'
-import { DraftSelector } from './_components/draft-selector'
-import { NewClientLayout } from './_components/new-client-layout'
+import { NewClientPageClient } from './_components/new-client-page-client'
+import { getClientPhase } from '@/lib/client-phase'
 
 interface Props {
   searchParams: Promise<{ draft?: string; client?: string }>
@@ -85,90 +84,72 @@ export default async function NewClientPage({ searchParams }: Props) {
     }
   }
 
-  // Fetch prequal pipeline data for sidebar
-  const prequalClients = session?.user?.id
+  // Fetch pipeline clients — all pre-approval statuses
+  const pipelineClients = session?.user?.id
     ? await prisma.client.findMany({
-        where: { agentId: session.user.id, prequalCompleted: true },
+        where: {
+          agentId: session.user.id,
+          intakeStatus: {
+            in: ['PENDING', 'PHONE_ISSUED', 'IN_EXECUTION', 'READY_FOR_APPROVAL'],
+          },
+        },
         include: { platforms: { where: { platformType: 'BETMGM' } } },
         orderBy: { updatedAt: 'desc' },
       })
     : []
+
+  // Compute phase for each pipeline client and group
+  const phase1: { id: string; firstName: string; lastName: string }[] = []
+  const phase2: { id: string; firstName: string; lastName: string }[] = []
+  const phase3: { id: string; firstName: string; lastName: string }[] = []
+  const phase4: { id: string; firstName: string; lastName: string }[] = []
+
+  for (const c of pipelineClients) {
+    const betmgmVerified =
+      c.platforms.some((p) => p.platformType === 'BETMGM' && p.status === 'VERIFIED')
+    const phase = getClientPhase({
+      intakeStatus: c.intakeStatus,
+      prequalCompleted: c.prequalCompleted,
+      betmgmVerified,
+    })
+    const item = { id: c.id, firstName: c.firstName, lastName: c.lastName }
+    switch (phase) {
+      case 1:
+        phase1.push(item)
+        break
+      case 2:
+        phase2.push(item)
+        break
+      case 3:
+        phase3.push(item)
+        break
+      case 4:
+        phase4.push(item)
+        break
+    }
+  }
 
   const phase1Drafts = drafts
     .filter((d) => (d.phase ?? 1) === 1 && !d.clientId)
     .map((d) => ({
       id: d.id,
       formData: d.formData as Record<string, string>,
-      updatedAt: d.updatedAt,
-    }))
-
-  const awaitingVerification = prequalClients
-    .filter((c) => {
-      const mgm = c.platforms.find((p) => p.platformType === 'BETMGM')
-      return mgm && mgm.status !== 'VERIFIED'
-    })
-    .map((c) => ({
-      id: c.id,
-      firstName: c.firstName,
-      lastName: c.lastName,
-      gmailAccount: c.gmailAccount,
-      updatedAt: c.updatedAt,
-      betmgmStatus:
-        c.platforms.find((p) => p.platformType === 'BETMGM')?.status ??
-        'NOT_STARTED',
-    }))
-
-  const readyForPhase2 = prequalClients
-    .filter((c) => {
-      const mgm = c.platforms.find((p) => p.platformType === 'BETMGM')
-      return (
-        mgm &&
-        mgm.status === 'VERIFIED' &&
-        c.intakeStatus === 'PENDING'
-      )
-    })
-    .map((c) => ({
-      id: c.id,
-      firstName: c.firstName,
-      lastName: c.lastName,
-      gmailAccount: c.gmailAccount,
-      updatedAt: c.updatedAt,
-      betmgmStatus: 'VERIFIED',
-    }))
-
-  const phase2Drafts = drafts
-    .filter((d) => (d.phase ?? 1) === 2)
-    .map((d) => ({
-      ...d,
-      formData: d.formData as Record<string, string>,
     }))
 
   return (
-    <NewClientLayout
+    <NewClientPageClient
       pipelineData={{
         drafts: phase1Drafts,
-        awaitingVerification,
-        readyForPhase2,
+        phase1,
+        phase2,
+        phase3,
+        phase4,
       }}
       currentClientId={clientId}
       currentDraftId={draftId}
-    >
-      {/* Legacy Draft Selector (for Phase 2 drafts) */}
-      {phase2Drafts.length > 0 && (
-        <div className="mx-auto max-w-3xl px-6 pt-4">
-          <DraftSelector
-            drafts={phase2Drafts}
-            currentDraftId={draftId}
-          />
-        </div>
-      )}
-
-      <ClientForm
-        initialData={initialData}
-        draftId={draftId}
-        clientData={clientData}
-        betmgmStatus={betmgmStatus}
-      />
-    </NewClientLayout>
+      initialData={initialData}
+      clientData={clientData}
+      betmgmStatus={betmgmStatus}
+    />
   )
 }
