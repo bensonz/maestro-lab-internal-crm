@@ -20,16 +20,21 @@ export async function getOverviewStats() {
   today.setHours(0, 0, 0, 0)
 
   const [
-    pendingReviews,
+    readyForApproval,
+    pendingPlatformReviews,
     approvedToday,
     urgentActions,
     activeClients,
     pendingExtensions,
     delayedClients,
   ] = await Promise.all([
-    // Clients ready for approval + platforms pending review
+    // Clients ready for final approval
     prisma.client.count({
       where: { intakeStatus: IntakeStatus.READY_FOR_APPROVAL },
+    }),
+    // Platforms awaiting backoffice review (e.g. BetMGM PENDING_REVIEW)
+    prisma.clientPlatform.count({
+      where: { status: PlatformStatus.PENDING_REVIEW },
     }),
     prisma.client.count({
       where: {
@@ -63,7 +68,7 @@ export async function getOverviewStats() {
   ])
 
   return {
-    pendingReviews,
+    pendingReviews: readyForApproval + pendingPlatformReviews,
     approvedToday,
     urgentActions,
     activeClients,
@@ -139,24 +144,35 @@ export async function getPriorityTasks() {
   const now = new Date()
 
   // Get urgent To-Dos
-  const tasks = await prisma.toDo.findMany({
-    where: {
-      status: {
-        in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS, ToDoStatus.OVERDUE],
+  const [todos, pendingPlatforms] = await Promise.all([
+    prisma.toDo.findMany({
+      where: {
+        status: {
+          in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS, ToDoStatus.OVERDUE],
+        },
+        OR: [
+          { priority: { lte: 1 } }, // High priority
+          { dueDate: { lte: now } }, // Due today or overdue
+        ],
       },
-      OR: [
-        { priority: { lte: 1 } }, // High priority
-        { dueDate: { lte: now } }, // Due today or overdue
-      ],
-    },
-    include: {
-      client: { select: { id: true, firstName: true, lastName: true } },
-    },
-    orderBy: [{ priority: 'asc' }, { dueDate: 'asc' }],
-    take: 10,
-  })
+      include: {
+        client: { select: { id: true, firstName: true, lastName: true } },
+      },
+      orderBy: [{ priority: 'asc' }, { dueDate: 'asc' }],
+      take: 10,
+    }),
+    // BetMGM (and other platforms) awaiting backoffice review
+    prisma.clientPlatform.findMany({
+      where: { status: PlatformStatus.PENDING_REVIEW },
+      include: {
+        client: { select: { id: true, firstName: true, lastName: true } },
+      },
+      orderBy: { updatedAt: 'asc' },
+      take: 10,
+    }),
+  ])
 
-  return tasks.map((t) => ({
+  const todoTasks = todos.map((t) => ({
     id: t.id,
     title: t.title,
     type: mapToDoTypeToLabel(t.type),
@@ -164,6 +180,17 @@ export async function getPriorityTasks() {
     clientName: t.client ? `${t.client.firstName} ${t.client.lastName}` : null,
     isUrgent: t.priority <= 1 || Boolean(t.dueDate && t.dueDate <= now),
   }))
+
+  const platformTasks = pendingPlatforms.map((p) => ({
+    id: `platform-${p.id}`,
+    title: `Verify ${p.platformType} account`,
+    type: 'Platform Review',
+    clientId: p.client?.id ?? null,
+    clientName: p.client ? `${p.client.firstName} ${p.client.lastName}` : null,
+    isUrgent: true,
+  }))
+
+  return [...platformTasks, ...todoTasks]
 }
 
 function mapToDoTypeToLabel(type: ToDoType): string {
