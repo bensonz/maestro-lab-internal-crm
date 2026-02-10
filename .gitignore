@@ -46,3 +46,4 @@ node_modules
 docs/prompts
 # Local upload storage
 public/uploads/
+.env*.local
