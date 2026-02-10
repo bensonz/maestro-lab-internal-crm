@@ -113,6 +113,7 @@ export function GlobalSearch() {
       onOpenChange={handleOpenChange}
       title="Global Search"
       description="Search across clients, agents, and tasks"
+      shouldFilter={false}
     >
       <CommandInput
         placeholder="Search clients, agents, tasks..."
