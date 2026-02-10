@@ -3,6 +3,7 @@
 import { auth } from '@/backend/auth'
 import prisma from '@/backend/prisma/client'
 import { EventType, PlatformStatus, PlatformType } from '@/types'
+import { createNotification } from '@/backend/services/notifications'
 
 export type VerificationActionState = {
   success?: boolean
@@ -37,6 +38,9 @@ export async function verifyBetmgmManual(
         clientId,
         platformType: PlatformType.BETMGM,
       },
+      include: {
+        client: { select: { firstName: true, lastName: true, agentId: true } },
+      },
     })
 
     if (!platform) {
@@ -66,6 +70,23 @@ export async function verifyBetmgmManual(
         newValue: PlatformStatus.VERIFIED,
       },
     })
+
+    // Notify the agent that BetMGM was verified
+    if (platform.client?.agentId) {
+      const clientName = `${platform.client.firstName} ${platform.client.lastName}`
+      try {
+        await createNotification({
+          userId: platform.client.agentId,
+          type: EventType.PLATFORM_STATUS_CHANGE,
+          title: 'BetMGM verified',
+          message: `${clientName}'s BetMGM account has been verified — full application unlocked`,
+          link: `/agent/new-client?client=${clientId}`,
+          clientId,
+        })
+      } catch {
+        // Notification failure should not block the main action
+      }
+    }
 
     return { success: true, message: 'BetMGM account verified successfully' }
   } catch {
