@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
@@ -8,9 +8,11 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronRight, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 import { PHASE_SHORT_LABELS } from '@/lib/client-phase'
+import { deleteDraft } from '@/app/actions/drafts'
 
 interface PipelineClient {
   id: string
@@ -43,6 +45,24 @@ export function PipelinePanel({
   currentDraftId,
 }: PipelinePanelProps) {
   const router = useRouter()
+  const [isDeleting, startDeleteTransition] = useTransition()
+
+  const handleDeleteDraft = (e: React.MouseEvent, draftId: string) => {
+    e.stopPropagation()
+    startDeleteTransition(async () => {
+      const result = await deleteDraft(draftId)
+      if (result.success) {
+        toast.success('Draft deleted')
+        if (currentDraftId === draftId) {
+          router.push('/agent/new-client')
+        } else {
+          router.refresh()
+        }
+      } else {
+        toast.error('Failed to delete draft')
+      }
+    })
+  }
 
   // Merge drafts into Phase 1 section
   const draftItems = drafts.map((d) => ({
@@ -100,26 +120,41 @@ export function PipelinePanel({
                     : currentClientId === item.id
 
                   return (
-                    <button
+                    <div
                       key={item.id}
-                      type="button"
-                      onClick={() => {
-                        if (item.isDraft) {
-                          router.push(`/agent/new-client?draft=${item.id}`)
-                        } else {
-                          router.push(`/agent/new-client?client=${item.id}`)
-                        }
-                      }}
                       className={cn(
-                        'flex w-full items-center rounded-md px-3 py-1.5 text-left text-xs transition-colors',
+                        'group flex w-full items-center rounded-md px-3 py-1.5 text-left text-xs transition-colors',
                         active
                           ? 'bg-primary/10 font-medium text-primary'
                           : 'text-foreground hover:bg-muted/50',
                       )}
-                      data-testid={`pipeline-item-${item.id}`}
                     >
-                      <span className="truncate">{item.name}</span>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (item.isDraft) {
+                            router.push(`/agent/new-client?draft=${item.id}`)
+                          } else {
+                            router.push(`/agent/new-client?client=${item.id}`)
+                          }
+                        }}
+                        className="flex-1 truncate text-left"
+                        data-testid={`pipeline-item-${item.id}`}
+                      >
+                        {item.name}
+                      </button>
+                      {item.isDraft && (
+                        <button
+                          type="button"
+                          onClick={(e) => handleDeleteDraft(e, item.id)}
+                          disabled={isDeleting}
+                          className="ml-1 shrink-0 rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
+                          data-testid={`draft-delete-${item.id}`}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
                   )
                 })
               )}
