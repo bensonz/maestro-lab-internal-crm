@@ -15,6 +15,7 @@ import { createNotification } from '@/backend/services/notifications'
 const ALLOWED_TRANSITIONS: Record<IntakeStatus, IntakeStatus[]> = {
   [IntakeStatus.PENDING]: [
     IntakeStatus.PHONE_ISSUED,
+    IntakeStatus.READY_FOR_APPROVAL, // 2-phase form fast-track
     IntakeStatus.REJECTED,
     IntakeStatus.INACTIVE,
   ],
