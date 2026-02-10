@@ -3,15 +3,15 @@ import autoTable from 'jspdf-autotable'
 import { auth } from '@/backend/auth'
 import { UserRole } from '@/types'
 import { getAgentCommissionReport } from '@/backend/data/reports'
+import { NextRequest } from 'next/server'
 
-export async function GET() {
-  const session = await auth()
-  if (!session?.user) {
+export const GET = auth(async (req) => {
+  if (!req.auth?.user) {
     return new Response('Unauthorized', { status: 401 })
   }
 
   const allowedRoles = new Set<string>([UserRole.ADMIN, UserRole.BACKOFFICE])
-  if (!allowedRoles.has(session.user.role)) {
+  if (!allowedRoles.has(req.auth.user.role)) {
     return new Response('Forbidden', { status: 403 })
   }
 
@@ -28,7 +28,7 @@ export async function GET() {
   doc.setFontSize(10)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(120, 120, 120)
-  doc.text(`Generated ${date} by ${session.user.name ?? 'Unknown'}`, 14, 28)
+  doc.text(`Generated ${date} by ${req.auth.user.name ?? 'Unknown'}`, 14, 28)
   doc.setTextColor(0, 0, 0)
 
   doc.setDrawColor(200, 200, 200)
@@ -124,4 +124,4 @@ export async function GET() {
       'Content-Disposition': `attachment; filename="agent-commission-report-${date}.pdf"`,
     },
   })
-}
+}) as unknown as (req: NextRequest) => Promise<Response>

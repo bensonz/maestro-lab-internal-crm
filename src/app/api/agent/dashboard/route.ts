@@ -1,16 +1,14 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/backend/auth'
 import { prisma } from '@/backend/prisma/client'
 import { IntakeStatus, ToDoStatus } from '@prisma/generated'
 
-export async function GET() {
-  const session = await auth()
-
-  if (!session?.user) {
+export const GET = auth(async (req) => {
+  if (!req.auth?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const userId = session.user.id
+  const userId = req.auth.user.id
 
   // Get client stats for this agent
   const clients = await prisma.client.findMany({
@@ -149,4 +147,4 @@ export async function GET() {
         }
       : null,
   })
-}
+}) as unknown as (req: NextRequest) => Promise<Response>

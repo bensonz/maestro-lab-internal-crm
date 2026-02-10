@@ -5,13 +5,12 @@ import { NextRequest, NextResponse } from 'next/server'
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 
-export async function POST(request: NextRequest) {
-  const session = await auth()
-  if (!session?.user?.id) {
+export const POST = auth(async (req) => {
+  if (!req.auth?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const formData = await request.formData()
+  const formData = await req.formData()
   const file = formData.get('file') as File | null
   const type = formData.get('type') as string | null
   const entity = formData.get('entity') as string | null
@@ -53,4 +52,4 @@ export async function POST(request: NextRequest) {
 
   const url = storage.getUrl(storagePath)
   return NextResponse.json({ url, path: storagePath, ext })
-}
+}) as unknown as (req: NextRequest) => Promise<Response>

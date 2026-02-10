@@ -2,20 +2,19 @@ import { auth } from '@/backend/auth'
 import prisma from '@/backend/prisma/client'
 import { NextRequest } from 'next/server'
 
-export async function GET(request: NextRequest) {
-  const session = await auth()
-  if (!session?.user) return Response.json({ results: [] }, { status: 401 })
+export const GET = auth(async (req) => {
+  if (!req.auth?.user) return Response.json({ results: [] }, { status: 401 })
 
-  const q = request.nextUrl.searchParams.get('q')?.trim()
+  const q = req.nextUrl.searchParams.get('q')?.trim()
   if (!q || q.length < 2) return Response.json({ results: [] })
 
   const query = q.toLowerCase()
-  const isAgent = session.user.role === 'AGENT'
+  const isAgent = req.auth.user.role === 'AGENT'
 
   const [clients, agents, todos] = await Promise.all([
     prisma.client.findMany({
       where: {
-        ...(isAgent ? { agentId: session.user.id } : {}),
+        ...(isAgent ? { agentId: req.auth.user.id } : {}),
         OR: [
           { firstName: { contains: query, mode: 'insensitive' } },
           { lastName: { contains: query, mode: 'insensitive' } },
@@ -57,7 +56,7 @@ export async function GET(request: NextRequest) {
 
     prisma.toDo.findMany({
       where: {
-        ...(isAgent ? { assignedToId: session.user.id } : {}),
+        ...(isAgent ? { assignedToId: req.auth.user.id } : {}),
         title: { contains: query, mode: 'insensitive' },
       },
       select: {
@@ -101,4 +100,4 @@ export async function GET(request: NextRequest) {
   ]
 
   return Response.json({ results })
-}
+}) as unknown as (req: NextRequest) => Promise<Response>

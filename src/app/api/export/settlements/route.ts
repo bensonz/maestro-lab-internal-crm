@@ -2,6 +2,7 @@ import { auth } from '@/backend/auth'
 import { UserRole } from '@/types'
 import { getClientsForSettlement } from '@/backend/data/operations'
 import { generateCSV, csvResponse } from '@/backend/utils/csv'
+import { NextRequest } from 'next/server'
 
 const STATUS_LABELS: Record<string, string> = {
   PENDING_REVIEW: 'Pending Review',
@@ -9,14 +10,13 @@ const STATUS_LABELS: Record<string, string> = {
   REJECTED: 'Rejected',
 }
 
-export async function GET() {
-  const session = await auth()
-  if (!session?.user) {
+export const GET = auth(async (req) => {
+  if (!req.auth?.user) {
     return new Response('Unauthorized', { status: 401 })
   }
 
   const allowedRoles = new Set<string>([UserRole.ADMIN, UserRole.BACKOFFICE])
-  if (!allowedRoles.has(session.user.role)) {
+  if (!allowedRoles.has(req.auth.user.role)) {
     return new Response('Forbidden', { status: 403 })
   }
 
@@ -97,4 +97,4 @@ export async function GET() {
 
   const date = new Date().toISOString().split('T')[0]
   return csvResponse(csv, `settlement-detail-${date}.csv`)
-}
+}) as unknown as (req: NextRequest) => Promise<Response>

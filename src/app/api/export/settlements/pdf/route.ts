@@ -3,6 +3,7 @@ import autoTable from 'jspdf-autotable'
 import { auth } from '@/backend/auth'
 import { UserRole } from '@/types'
 import { getClientsForSettlement } from '@/backend/data/operations'
+import { NextRequest } from 'next/server'
 
 const STATUS_LABELS: Record<string, string> = {
   PENDING_REVIEW: 'Pending Review',
@@ -10,14 +11,13 @@ const STATUS_LABELS: Record<string, string> = {
   REJECTED: 'Rejected',
 }
 
-export async function GET() {
-  const session = await auth()
-  if (!session?.user) {
+export const GET = auth(async (req) => {
+  if (!req.auth?.user) {
     return new Response('Unauthorized', { status: 401 })
   }
 
   const allowedRoles = new Set<string>([UserRole.ADMIN, UserRole.BACKOFFICE])
-  if (!allowedRoles.has(session.user.role)) {
+  if (!allowedRoles.has(req.auth.user.role)) {
     return new Response('Forbidden', { status: 403 })
   }
 
@@ -34,7 +34,7 @@ export async function GET() {
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(120, 120, 120)
   const date = new Date().toISOString().split('T')[0]
-  doc.text(`Generated ${date} by ${session.user.name ?? 'Unknown'}`, 14, 28)
+  doc.text(`Generated ${date} by ${req.auth.user.name ?? 'Unknown'}`, 14, 28)
   doc.setTextColor(0, 0, 0)
 
   // Horizontal rule
@@ -160,4 +160,4 @@ export async function GET() {
       'Content-Disposition': `attachment; filename="settlement-report-${date}.pdf"`,
     },
   })
-}
+}) as unknown as (req: NextRequest) => Promise<Response>
