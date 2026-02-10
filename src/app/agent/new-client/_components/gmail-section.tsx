@@ -70,7 +70,6 @@ export function GmailSection({
           </FieldLabel>
           <Input
             id="gmailAccount"
-            name="gmailAccount"
             type="email"
             placeholder="client@gmail.com"
             value={gmail}
@@ -89,7 +88,6 @@ export function GmailSection({
           <div className="relative">
             <Input
               id="gmailPassword"
-              name="gmailPassword"
               type={showPassword ? 'text' : 'password'}
               placeholder="Password"
               value={password}

@@ -152,7 +152,7 @@ export function StepCard({
           </div>
         )}
 
-        <CollapsibleContent>
+        <CollapsibleContent forceMount className="data-[state=closed]:hidden">
           <div className="border-t border-border/50 px-5 pb-5">
             <div className="pt-4">{children}</div>
           </div>

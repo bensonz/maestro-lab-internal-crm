@@ -22,6 +22,7 @@ export function BetmgmCheckSection({
   disabled,
 }: BetmgmCheckSectionProps) {
   const [isUploading, setIsUploading] = useState<'login' | 'deposit' | null>(null)
+  const [uploadErrors, setUploadErrors] = useState<{ login?: string; deposit?: string }>({})
   const loginInputRef = useRef<HTMLInputElement>(null)
   const depositInputRef = useRef<HTMLInputElement>(null)
 
@@ -30,6 +31,7 @@ export function BetmgmCheckSection({
     type: 'login' | 'deposit',
   ) => {
     setIsUploading(type)
+    setUploadErrors((prev) => ({ ...prev, [type]: undefined }))
     try {
       const formData = new FormData()
       formData.append('file', file)
@@ -42,7 +44,8 @@ export function BetmgmCheckSection({
       })
 
       if (!res.ok) {
-        throw new Error('Upload failed')
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.error ?? 'Upload failed')
       }
 
       const data = await res.json()
@@ -53,8 +56,10 @@ export function BetmgmCheckSection({
         [type]: url,
       })
       toast.success(`${type === 'login' ? 'Login' : 'Deposit'} screenshot uploaded`)
-    } catch {
-      toast.error(`Failed to upload ${type} screenshot`)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Upload failed'
+      setUploadErrors((prev) => ({ ...prev, [type]: message }))
+      toast.error(message)
     } finally {
       setIsUploading(null)
     }
@@ -155,6 +160,11 @@ export function BetmgmCheckSection({
                     )}
                     Upload Login Screenshot
                   </Button>
+                  {uploadErrors.login && (
+                    <p className="text-xs text-destructive" data-testid="betmgm-login-error">
+                      {uploadErrors.login}
+                    </p>
+                  )}
                 </>
               )}
             </div>
@@ -199,6 +209,11 @@ export function BetmgmCheckSection({
                     )}
                     Upload Deposit Screenshot
                   </Button>
+                  {uploadErrors.deposit && (
+                    <p className="text-xs text-destructive" data-testid="betmgm-deposit-error">
+                      {uploadErrors.deposit}
+                    </p>
+                  )}
                 </>
               )}
             </div>
