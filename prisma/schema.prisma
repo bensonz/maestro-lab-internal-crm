@@ -178,6 +178,7 @@ model User {
   eventLogs         EventLog[]
   agentMetrics      AgentMetrics?
   phoneAssignments  PhoneAssignment[]
+  phoneIssuedBy     PhoneAssignment[] @relation("PhoneIssuedBy")
   applicationDrafts ApplicationDraft[]
   extensionRequests ExtensionRequest[] @relation("ExtensionRequests")
   extensionReviews  ExtensionRequest[] @relation("ExtensionReviews")
@@ -366,6 +367,8 @@ model PhoneAssignment {
   client      Client?   @relation(fields: [clientId], references: [id])
   agentId     String
   agent       User      @relation(fields: [agentId], references: [id])
+  issuedById  String?
+  issuedBy    User?     @relation("PhoneIssuedBy", fields: [issuedById], references: [id])
   issuedAt    DateTime?
   signedOutAt DateTime?
   returnedAt  DateTime?
