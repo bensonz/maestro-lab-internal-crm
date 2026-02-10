@@ -76,7 +76,7 @@ export function StepCard({
           <div className="flex items-center gap-2">
             <Lock className="h-3.5 w-3.5 text-muted-foreground" />
             <span className="text-xs text-muted-foreground">
-              Complete Phase 1 to unlock
+              Complete pre-qualification to unlock
             </span>
           </div>
         </div>
