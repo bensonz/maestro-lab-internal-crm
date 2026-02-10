@@ -20,6 +20,7 @@ interface PipelineClient {
   id: string
   firstName: string
   lastName: string
+  intakeStatus: string
 }
 
 interface PipelineDraft {
