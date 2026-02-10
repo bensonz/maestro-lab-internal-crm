@@ -77,6 +77,7 @@ interface ClientFormProps {
   draftId?: string
   clientData?: ClientData | null
   betmgmStatus?: string
+  serverPhase?: number | null
 }
 
 export function ClientForm({
@@ -84,6 +85,7 @@ export function ClientForm({
   draftId,
   clientData,
   betmgmStatus: initialBetmgmStatus,
+  serverPhase,
 }: ClientFormProps) {
   const router = useRouter()
   const [phase2State, phase2FormAction] = useActionState(
@@ -104,8 +106,8 @@ export function ClientForm({
   const [betmgmStatus, setBetmgmStatus] = useState(
     initialBetmgmStatus ?? 'NOT_STARTED',
   )
-  const currentPhase: 1 | 2 =
-    prequalSubmitted && betmgmVerified ? 2 : 1
+  const currentPhase: number =
+    serverPhase ?? (prequalSubmitted && betmgmVerified ? 2 : 1)
 
   // Parse questionnaire from initialData or clientData
   const parsedQuestionnaire = (() => {
@@ -129,15 +131,16 @@ export function ClientForm({
   const [extractedData, setExtractedData] = useState<ExtractedIdData | null>(
     (() => {
       if (clientData) {
+        const ea = parsedQuestionnaire?.extractedAddress
         return {
           firstName: clientData.firstName ?? '',
           lastName: clientData.lastName ?? '',
           middleName: parsedQuestionnaire?.middleName,
           dateOfBirth: parsedQuestionnaire?.dateOfBirth ?? '',
-          address: clientData.address ?? undefined,
-          city: clientData.city ?? undefined,
-          state: clientData.state ?? undefined,
-          zip: clientData.zipCode ?? undefined,
+          address: clientData.address ?? ea?.address ?? undefined,
+          city: clientData.city ?? ea?.city ?? undefined,
+          state: clientData.state ?? ea?.state ?? undefined,
+          zip: clientData.zipCode ?? ea?.zip ?? undefined,
           idExpiry: parsedQuestionnaire?.idExpiry,
         }
       }
@@ -516,13 +519,19 @@ export function ClientForm({
     idExpiry: extractedData?.idExpiry,
     middleName: extractedData?.middleName,
     overriddenFields,
+    extractedAddress: extractedData ? {
+      address: extractedData.address,
+      city: extractedData.city,
+      state: extractedData.state,
+      zip: extractedData.zip,
+    } : undefined,
   })
 
   // Submit handler
   const handleSubmit = () => {
     if (currentPhase === 1 && !prequalSubmitted) {
       phase1FormRef.current?.requestSubmit()
-    } else if (currentPhase === 2) {
+    } else if (currentPhase >= 2) {
       phase2FormRef.current?.requestSubmit()
     }
   }
@@ -676,13 +685,13 @@ export function ClientForm({
               </form>
 
               {/* PHASE GATE */}
-              <PhaseGate unlocked={betmgmVerified} />
+              <PhaseGate unlocked={betmgmVerified || currentPhase >= 2} />
 
               {/* PHASE 2: Full Application */}
               <PhaseHeader
                 phase={2}
                 title="Full Application"
-                active={currentPhase === 2}
+                active={currentPhase >= 2}
               />
 
               <form ref={phase2FormRef} action={phase2FormAction}>
@@ -698,8 +707,8 @@ export function ClientForm({
                     title="Basic Information"
                     status={phase2Steps[0].status}
                     missingItems={phase2Steps[0].missingItems}
-                    defaultOpen={betmgmVerified && phase2Steps[0].status !== 'complete'}
-                    locked={!betmgmVerified}
+                    defaultOpen={(betmgmVerified || currentPhase >= 2) && phase2Steps[0].status !== 'complete'}
+                    locked={!betmgmVerified && currentPhase < 2}
                   >
                     <BasicInfoSection
                       isIdConfirmed={isIdConfirmed}
@@ -733,8 +742,8 @@ export function ClientForm({
                     title="Address Information"
                     status={phase2Steps[1].status}
                     missingItems={phase2Steps[1].missingItems}
-                    defaultOpen={betmgmVerified && phase2Steps[0].status === 'complete' && phase2Steps[1].status !== 'complete'}
-                    locked={!betmgmVerified}
+                    defaultOpen={(betmgmVerified || currentPhase >= 2) && phase2Steps[0].status === 'complete' && phase2Steps[1].status !== 'complete'}
+                    locked={!betmgmVerified && currentPhase < 2}
                   >
                     <AddressSection
                       errors={phase2State.errors}
@@ -758,8 +767,8 @@ export function ClientForm({
                     title="Compliance & Background"
                     status={phase2Steps[2].status}
                     missingItems={phase2Steps[2].missingItems}
-                    defaultOpen={betmgmVerified && phase2Steps[1].status === 'complete' && phase2Steps[2].status !== 'complete'}
-                    locked={!betmgmVerified}
+                    defaultOpen={(betmgmVerified || currentPhase >= 2) && phase2Steps[1].status === 'complete' && phase2Steps[2].status !== 'complete'}
+                    locked={!betmgmVerified && currentPhase < 2}
                   >
                     <ComplianceGroups
                       onChange={handleComplianceChange}
