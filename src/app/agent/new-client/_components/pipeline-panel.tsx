@@ -8,12 +8,30 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
-import { ChevronDown, ChevronRight, Trash2 } from 'lucide-react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { ChevronDown, ChevronRight, Info, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { PHASE_SHORT_LABELS } from '@/lib/client-phase'
 import { deleteDraft } from '@/app/actions/drafts'
 import { deleteClient } from '@/app/actions/clients'
+
+const PHASE_TOOLTIPS: Record<number, string> = {
+  1: 'New clients — ID verification, Gmail setup, and BetMGM check not yet complete',
+  2: 'Pre-qualification done — completing background check and compliance questionnaire',
+  3: 'Approved and phone issued — platform accounts being set up and executed',
+  4: 'Application submitted — waiting for backoffice review and approval',
+}
 
 interface PipelineClient {
   id: string
@@ -49,6 +67,11 @@ export function PipelinePanel({
 }: PipelinePanelProps) {
   const router = useRouter()
   const [isDeleting, startDeleteTransition] = useTransition()
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string
+    name: string
+    type: 'draft' | 'client'
+  } | null>(null)
 
   const handleDeleteDraft = (e: React.MouseEvent, draftId: string) => {
     e.stopPropagation()
@@ -67,20 +90,25 @@ export function PipelinePanel({
     })
   }
 
-  const handleDeleteClient = (e: React.MouseEvent, clientId: string) => {
+  const confirmDeleteClient = (e: React.MouseEvent, clientId: string, name: string) => {
     e.stopPropagation()
-    if (!confirm('Delete this client? This cannot be undone.')) return
+    setDeleteTarget({ id: clientId, name, type: 'client' })
+  }
+
+  const executeDelete = () => {
+    if (!deleteTarget) return
     startDeleteTransition(async () => {
-      const result = await deleteClient(clientId)
+      const result = await deleteClient(deleteTarget.id)
       if (result.success) {
         toast.success('Client deleted')
-        if (clientId === currentClientId) {
+        if (deleteTarget.id === currentClientId) {
           router.push('/agent/new-client')
         }
         router.refresh()
       } else {
         toast.error(result.error || 'Failed to delete')
       }
+      setDeleteTarget(null)
     })
   }
 
@@ -130,11 +158,13 @@ export function PipelinePanel({
 
       {/* Phase sections */}
       <ScrollArea className="min-h-0 flex-1">
+        <TooltipProvider>
         <div className="px-2 py-1">
           {phases.map(({ phase, label, items }) => (
             <PhaseSection
               key={phase}
               label={label}
+              tooltip={PHASE_TOOLTIPS[phase]}
               count={items.length}
               defaultOpen
             >
@@ -178,7 +208,7 @@ export function PipelinePanel({
                           onClick={(e) =>
                             item.isDraft
                               ? handleDeleteDraft(e, item.id)
-                              : handleDeleteClient(e, item.id)
+                              : confirmDeleteClient(e, item.id, item.name)
                           }
                           disabled={isDeleting}
                           className="ml-1 shrink-0 rounded p-0.5 text-muted-foreground/50 transition-colors hover:text-destructive"
@@ -194,18 +224,42 @@ export function PipelinePanel({
             </PhaseSection>
           ))}
         </div>
+        </TooltipProvider>
       </ScrollArea>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete client</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{deleteTarget?.name}</strong>? This will
+              permanently remove the client and all associated data. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={executeDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
 
 function PhaseSection({
   label,
+  tooltip,
   count,
   defaultOpen,
   children,
 }: {
   label: string
+  tooltip?: string
   count: number
   defaultOpen: boolean
   children: React.ReactNode
@@ -221,8 +275,18 @@ function PhaseSection({
           ) : (
             <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
           )}
-          <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+          <span className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             {label}
+            {tooltip && (
+              <Tooltip>
+                <TooltipTrigger asChild onClick={(e) => e.stopPropagation()}>
+                  <Info className="h-3 w-3 cursor-help text-muted-foreground/50" />
+                </TooltipTrigger>
+                <TooltipContent side="right" className="max-w-[200px] text-xs">
+                  {tooltip}
+                </TooltipContent>
+              </Tooltip>
+            )}
           </span>
           <span className="ml-auto rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
             {count}
