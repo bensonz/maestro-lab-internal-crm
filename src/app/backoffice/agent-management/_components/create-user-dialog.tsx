@@ -93,7 +93,7 @@ export function CreateUserDialog({ currentUserRole }: CreateUserDialogProps) {
       </DialogTrigger>
       <DialogContent data-testid="create-user-dialog">
         <DialogHeader>
-          <DialogTitle>Create New User</DialogTitle>
+          <DialogTitle>Create New Agent</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <Field>
