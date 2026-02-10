@@ -19,6 +19,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import { EditableField } from './editable-field'
 import { PlatformSection } from './platform-section'
+import { ApplicationReviewCard } from './application-review-card'
 import { ClientModals } from './client-modals'
 import { CloseClientDialog } from './close-client-dialog'
 import type { Client, ClientStatus, TimelineEvent } from './types'
@@ -495,6 +496,16 @@ export function ClientDetail({
           </div>
         </CardContent>
       </Card>
+
+      {/* Application Review — only when questionnaire data exists */}
+      {client.questionnaire && client.intakeStatus &&
+        ['READY_FOR_APPROVAL', 'APPROVED', 'REJECTED', 'PARTNERSHIP_ENDED'].includes(client.intakeStatus) && (
+        <ApplicationReviewCard
+          clientId={client.id}
+          intakeStatus={client.intakeStatus}
+          questionnaire={client.questionnaire}
+        />
+      )}
 
       {/* Platform Section */}
       <PlatformSection
