@@ -2,7 +2,7 @@
 
 import { auth } from '@/backend/auth'
 import prisma from '@/backend/prisma/client'
-import { getStorage } from '@/lib/storage'
+import { getStorage } from '@/backend/storage'
 import {
   PlatformStatus,
   EventType,
@@ -65,7 +65,7 @@ export async function uploadPlatformScreenshot(
 
     // Save file
     const buffer = Buffer.from(await file.arrayBuffer())
-    await storage.save(filepath, buffer)
+    const result = await storage.upload(buffer, filepath, file.type)
 
     // Update ClientPlatform
     await prisma.clientPlatform.update({
@@ -73,7 +73,7 @@ export async function uploadPlatformScreenshot(
         clientId_platformType: { clientId, platformType },
       },
       data: {
-        screenshots: { push: filepath },
+        screenshots: { push: result.url },
         status: PlatformStatus.PENDING_REVIEW,
       },
     })
@@ -85,7 +85,7 @@ export async function uploadPlatformScreenshot(
         description: `Screenshot uploaded for ${platformType}`,
         clientId,
         userId: session.user.id,
-        metadata: { platformType, path: filepath },
+        metadata: { platformType, path: result.key },
       },
     })
 
