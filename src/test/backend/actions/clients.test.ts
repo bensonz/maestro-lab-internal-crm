@@ -18,6 +18,7 @@ vi.mock('@/backend/prisma/client', () => ({
       create: vi.fn(),
       findUnique: vi.fn(),
       update: vi.fn(),
+      delete: vi.fn(),
     },
     clientPlatform: {
       createMany: vi.fn(),
@@ -42,10 +43,14 @@ vi.mock('next/navigation', () => ({
   }),
 }))
 
+vi.mock('next/cache', () => ({
+  revalidatePath: vi.fn(),
+}))
+
 import { auth } from '@/backend/auth'
 import prisma from '@/backend/prisma/client'
 import { redirect } from 'next/navigation'
-import { createClient } from '@/app/actions/clients'
+import { createClient, deleteClient } from '@/app/actions/clients'
 import { saveDraft, deleteDraft } from '@/app/actions/drafts'
 
 const mockedAuth = auth as unknown as MockedAuth
@@ -381,5 +386,114 @@ describe('deleteDraft', () => {
     const result = await deleteDraft('draft-123')
 
     expect(result.success).toBe(false)
+  })
+})
+
+describe('deleteClient', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('returns error when user is not authenticated', async () => {
+    mockedAuth.mockResolvedValue(null)
+
+    const result = await deleteClient('client-123')
+
+    expect(result).toEqual({ success: false, error: 'Unauthorized' })
+    expect(prisma.client.delete).not.toHaveBeenCalled()
+  })
+
+  it('returns error when client is not found', async () => {
+    mockedAuth.mockResolvedValue({
+      user: { id: 'user-123', role: 'AGENT' },
+      expires: '',
+    })
+    vi.mocked(prisma.client.findUnique).mockResolvedValue(null)
+
+    const result = await deleteClient('nonexistent')
+
+    expect(result).toEqual({ success: false, error: 'Client not found' })
+    expect(prisma.client.delete).not.toHaveBeenCalled()
+  })
+
+  it('returns error when agent does not own the client', async () => {
+    mockedAuth.mockResolvedValue({
+      user: { id: 'user-123', role: 'AGENT' },
+      expires: '',
+    })
+    vi.mocked(prisma.client.findUnique).mockResolvedValue({
+      agentId: 'other-agent',
+      intakeStatus: 'PENDING',
+    } as never)
+
+    const result = await deleteClient('client-123')
+
+    expect(result).toEqual({ success: false, error: 'Not your client' })
+    expect(prisma.client.delete).not.toHaveBeenCalled()
+  })
+
+  it('returns error when client is not PENDING', async () => {
+    mockedAuth.mockResolvedValue({
+      user: { id: 'user-123', role: 'AGENT' },
+      expires: '',
+    })
+    vi.mocked(prisma.client.findUnique).mockResolvedValue({
+      agentId: 'user-123',
+      intakeStatus: 'APPROVED',
+    } as never)
+
+    const result = await deleteClient('client-123')
+
+    expect(result).toEqual({
+      success: false,
+      error: 'Only pending clients can be deleted',
+    })
+    expect(prisma.client.delete).not.toHaveBeenCalled()
+  })
+
+  it('deletes PENDING client owned by the agent', async () => {
+    mockedAuth.mockResolvedValue({
+      user: { id: 'user-123', role: 'AGENT' },
+      expires: '',
+    })
+    vi.mocked(prisma.client.findUnique).mockResolvedValue({
+      agentId: 'user-123',
+      intakeStatus: 'PENDING',
+    } as never)
+    vi.mocked(prisma.client.delete).mockResolvedValue({} as never)
+
+    const result = await deleteClient('client-123')
+
+    expect(result).toEqual({ success: true })
+    expect(prisma.client.delete).toHaveBeenCalledWith({
+      where: { id: 'client-123' },
+    })
+  })
+
+  it('blocks deletion for non-PENDING statuses', async () => {
+    mockedAuth.mockResolvedValue({
+      user: { id: 'user-123', role: 'AGENT' },
+      expires: '',
+    })
+
+    for (const status of [
+      'PHONE_ISSUED',
+      'IN_EXECUTION',
+      'READY_FOR_APPROVAL',
+      'APPROVED',
+      'REJECTED',
+    ]) {
+      vi.mocked(prisma.client.findUnique).mockResolvedValue({
+        agentId: 'user-123',
+        intakeStatus: status,
+      } as never)
+
+      const result = await deleteClient('client-123')
+
+      expect(result.success).toBe(false)
+      expect(result.error).toBe('Only pending clients can be deleted')
+    }
+
+    expect(prisma.client.delete).not.toHaveBeenCalled()
   })
 })
