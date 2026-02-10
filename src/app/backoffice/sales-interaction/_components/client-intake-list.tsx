@@ -6,8 +6,9 @@ import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Check, Clock, Phone, Users } from 'lucide-react'
+import { Check, Clock, Phone, Shield, Users } from 'lucide-react'
 import { approveClientIntake } from '@/app/actions/backoffice'
+import { verifyBetmgmManual } from '@/app/actions/betmgm-verification'
 import { toast } from 'sonner'
 import type { IntakeClient } from '@/backend/data/operations'
 import { cn } from '@/lib/utils'
@@ -32,6 +33,18 @@ export function ClientIntakeList({
         router.refresh()
       } else {
         toast.error(result.error || 'Failed to approve')
+      }
+    })
+  }
+
+  const handleVerifyBetmgm = (clientId: string, clientName: string) => {
+    startTransition(async () => {
+      const result = await verifyBetmgmManual(clientId)
+      if (result.success) {
+        toast.success(`BetMGM verified for ${clientName}`)
+        router.refresh()
+      } else {
+        toast.error(result.message || 'Failed to verify BetMGM')
       }
     })
   }
@@ -94,7 +107,30 @@ export function ClientIntakeList({
                     <Clock className="h-4 w-4" />
                     {client.daysLabel}
                   </div>
-                  {client.canAssignPhone ? (
+                  {client.canApprove ? (
+                    <Button
+                      size="sm"
+                      onClick={() => handleApprove(client.id, client.name)}
+                      disabled={isPending}
+                      className="bg-success/20 text-success hover:bg-success/30 border-success/30"
+                      data-testid={`approve-${client.id}`}
+                    >
+                      <Check className="h-4 w-4 mr-1" />
+                      Approve
+                    </Button>
+                  ) : client.statusType === 'pending_platform' ? (
+                    <Button
+                      size="sm"
+                      onClick={() => handleVerifyBetmgm(client.id, client.name)}
+                      disabled={isPending}
+                      variant="outline"
+                      className="text-primary border-primary/30 hover:bg-primary/10"
+                      data-testid={`verify-betmgm-${client.id}`}
+                    >
+                      <Shield className="h-4 w-4 mr-1" />
+                      Verify BetMGM
+                    </Button>
+                  ) : client.canAssignPhone ? (
                     <Link href="/backoffice/phone-tracking">
                       <Button
                         size="sm"
@@ -106,16 +142,6 @@ export function ClientIntakeList({
                         Assign Phone
                       </Button>
                     </Link>
-                  ) : client.canApprove ? (
-                    <Button
-                      size="sm"
-                      onClick={() => handleApprove(client.id, client.name)}
-                      disabled={isPending}
-                      className="bg-success/20 text-success hover:bg-success/30 border-success/30"
-                    >
-                      <Check className="h-4 w-4 mr-1" />
-                      Approve
-                    </Button>
                   ) : client.statusType === 'followup' ? (
                     <span className="text-sm text-primary">
                       {client.status.includes('Due today')
