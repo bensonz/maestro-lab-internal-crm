@@ -175,6 +175,9 @@ export function ClientForm({
   const [passwordValue, setPasswordValue] = useState(
     clientData?.gmailPassword ?? initialData?.gmailPassword ?? '',
   )
+  const [phoneValue, setPhoneValue] = useState(
+    clientData?.phone ?? initialData?.phone ?? '',
+  )
 
   // BetMGM check state — restore from questionnaire + platform screenshots
   const [betmgmResult, setBetmgmResult] = useState<'success' | 'failed' | null>(
@@ -373,12 +376,14 @@ export function ClientForm({
     if (!idUploaded) step1aMissing.push('Upload ID')
     else if (!isIdConfirmed) step1aMissing.push('Confirm ID data')
 
-    // Step 1b: Gmail
+    // Step 1b: Contact & Gmail
     const hasGmail = !!gmailValue
     const hasPassword = !!passwordValue
+    const hasPhone = !!phoneValue
     const step1bStatus: StepStatus =
-      hasGmail && hasPassword ? 'complete' : 'pending'
+      hasGmail && hasPassword && hasPhone ? 'complete' : 'pending'
     const step1bMissing: string[] = []
+    if (!hasPhone) step1bMissing.push('Phone number')
     if (!hasGmail) step1bMissing.push('Gmail account')
     if (!hasPassword) step1bMissing.push('Gmail password')
 
@@ -541,6 +546,7 @@ export function ClientForm({
     !isIdConfirmed ||
     !gmailValue ||
     !passwordValue ||
+    !phoneValue ||
     !betmgmResult ||
     (betmgmResult === 'success' &&
       (!betmgmScreenshots.login || !betmgmScreenshots.deposit))
@@ -635,6 +641,7 @@ export function ClientForm({
                 )}
                 <input type="hidden" name="gmailAccount" value={gmailValue} />
                 <input type="hidden" name="gmailPassword" value={passwordValue} />
+                <input type="hidden" name="phone" value={phoneValue} />
                 <input type="hidden" name="agentConfirmsId" value={isIdConfirmed ? 'true' : 'false'} />
                 {draftId && <input type="hidden" name="draftId" value={draftId} />}
 
@@ -668,11 +675,13 @@ export function ClientForm({
                     <GmailSection
                       defaultGmail={clientData?.gmailAccount ?? initialData?.gmailAccount ?? undefined}
                       defaultPassword={clientData?.gmailPassword ?? initialData?.gmailPassword ?? undefined}
+                      defaultPhone={clientData?.phone ?? initialData?.phone ?? undefined}
                       clientId={clientData?.id}
                       errors={prequalState.errors}
                       disabled={prequalSubmitted}
                       onGmailChange={setGmailValue}
                       onPasswordChange={setPasswordValue}
+                      onPhoneChange={setPhoneValue}
                     />
                   </StepCard>
 
@@ -682,7 +691,7 @@ export function ClientForm({
                     title="BetMGM Registration Check"
                     status={phase1Steps[2].status}
                     missingItems={phase1Steps[2].missingItems}
-                    defaultOpen={!prequalSubmitted && isIdConfirmed && !!gmailValue && !!passwordValue}
+                    defaultOpen={!prequalSubmitted && isIdConfirmed && !!gmailValue && !!passwordValue && !!phoneValue}
                     locked={false}
                   >
                     <BetmgmCheckSection
