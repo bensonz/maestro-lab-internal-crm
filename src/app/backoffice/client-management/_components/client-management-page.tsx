@@ -250,6 +250,16 @@ export function ClientManagementPage({
     }
     return null
   })
+  // Sync selectedClient when server data refreshes (e.g. after approve/reject)
+  useEffect(() => {
+    if (selectedClient) {
+      const updated = clients.find((c) => c.id === selectedClient.id)
+      if (updated && updated !== selectedClient) {
+        setSelectedClient(updated)
+      }
+    }
+  }, [clients, selectedClient])
+
   const [searchQuery, setSearchQuery] = useState('')
   const [platformFilter, setPlatformFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState<
