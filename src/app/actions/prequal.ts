@@ -22,12 +22,12 @@ export async function submitPrequalification(
   }
 
   const rawData = {
-    firstName: formData.get('firstName'),
-    lastName: formData.get('lastName'),
+    firstName: formData.get('firstName') ?? '',
+    lastName: formData.get('lastName') ?? '',
     middleName: formData.get('middleName'),
     dateOfBirth: formData.get('dateOfBirth'),
-    gmailAccount: formData.get('gmailAccount'),
-    gmailPassword: formData.get('gmailPassword'),
+    gmailAccount: formData.get('gmailAccount') ?? '',
+    gmailPassword: formData.get('gmailPassword') ?? '',
     agentConfirmsId: formData.get('agentConfirmsId'),
     idExpiry: formData.get('idExpiry'),
     idDocument: formData.get('idDocument'),
