@@ -551,7 +551,7 @@ export function ClientForm({
     (betmgmResult === 'success' &&
       (!betmgmScreenshots.login || !betmgmScreenshots.deposit))
   // Phase 2 submit disabled
-  const phase2SubmitDisabled = !agentConfirms
+  const phase2SubmitDisabled = !agentConfirms || currentPhase >= 3
 
   // ID expiration check for Phase 1 blocking
   const idExpiryDate = extractedData?.idExpiry
