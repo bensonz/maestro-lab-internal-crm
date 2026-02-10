@@ -79,7 +79,7 @@ export function ClientIntakeList({
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <Link
-                      href={`/backoffice/client-management`}
+                      href={`/backoffice/client-management?client=${client.id}`}
                       className="font-medium text-foreground hover:text-primary hover:underline"
                     >
                       {client.name}

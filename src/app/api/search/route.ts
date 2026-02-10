@@ -79,7 +79,7 @@ export const GET = auth(async (req) => {
       status: c.intakeStatus,
       link: isAgent
         ? `/agent/clients/${c.id}`
-        : `/backoffice/client-management`,
+        : `/backoffice/client-management?client=${c.id}`,
     })),
     ...agents.map((a) => ({
       type: 'agent' as const,

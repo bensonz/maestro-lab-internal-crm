@@ -69,7 +69,7 @@ export function VerificationTasksTable({
                       <td className="py-3">
                         {task.clientId ? (
                           <Link
-                            href={`/backoffice/client-management`}
+                            href={`/backoffice/client-management?client=${task.clientId}`}
                             className="font-medium text-foreground hover:text-primary hover:underline"
                           >
                             {task.clientName}
