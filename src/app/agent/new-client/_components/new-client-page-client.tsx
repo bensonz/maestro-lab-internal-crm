@@ -36,6 +36,7 @@ interface ClientData {
   state?: string | null
   zipCode?: string | null
   questionnaire?: string | null
+  idDocument?: string | null
 }
 
 interface NewClientPageClientProps {
