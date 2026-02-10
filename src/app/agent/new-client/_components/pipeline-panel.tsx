@@ -148,7 +148,7 @@ export function PipelinePanel({
                           type="button"
                           onClick={(e) => handleDeleteDraft(e, item.id)}
                           disabled={isDeleting}
-                          className="ml-1 shrink-0 rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
+                          className="ml-1 shrink-0 rounded p-0.5 text-muted-foreground/50 transition-colors hover:text-destructive"
                           data-testid={`draft-delete-${item.id}`}
                         >
                           <Trash2 className="h-3 w-3" />
