@@ -14,6 +14,7 @@ export default async function NewClientPage({ searchParams }: Props) {
   let initialData: Record<string, string> | null = null
   let clientData = null
   let betmgmStatus = 'NOT_STARTED'
+  let serverPhase: number | null = null
 
   // Fetch all drafts for this agent (for the selector)
   const drafts = session?.user?.id
@@ -57,6 +58,7 @@ export default async function NewClientPage({ searchParams }: Props) {
         zipCode: true,
         questionnaire: true,
         idDocument: true,
+        intakeStatus: true,
         agentId: true,
         platforms: {
           where: { platformType: 'BETMGM' },
@@ -85,6 +87,11 @@ export default async function NewClientPage({ searchParams }: Props) {
         betmgmScreenshots: betmgmPlatform?.screenshots ?? [],
       }
       betmgmStatus = betmgmPlatform?.status ?? 'NOT_STARTED'
+      serverPhase = getClientPhase({
+        intakeStatus: client.intakeStatus,
+        prequalCompleted: client.prequalCompleted,
+        betmgmVerified: betmgmPlatform?.status === 'VERIFIED',
+      })
     }
   }
 
@@ -155,6 +162,7 @@ export default async function NewClientPage({ searchParams }: Props) {
       initialData={initialData}
       clientData={clientData}
       betmgmStatus={betmgmStatus}
+      serverPhase={serverPhase}
     />
   )
 }
