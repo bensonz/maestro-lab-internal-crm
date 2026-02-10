@@ -23,6 +23,9 @@ export const prequalSchema = z.object({
   dateOfBirth: optionalString,
   idExpiry: optionalString,
   idDocument: optionalString,
+  betmgmResult: optionalString,
+  betmgmLoginScreenshot: optionalString,
+  betmgmDepositScreenshot: optionalString,
 })
 
 export type PrequalInput = z.infer<typeof prequalSchema>
