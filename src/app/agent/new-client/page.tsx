@@ -56,6 +56,7 @@ export default async function NewClientPage({ searchParams }: Props) {
         state: true,
         zipCode: true,
         questionnaire: true,
+        idDocument: true,
         agentId: true,
         platforms: {
           where: { platformType: 'BETMGM' },
@@ -79,6 +80,7 @@ export default async function NewClientPage({ searchParams }: Props) {
         state: client.state,
         zipCode: client.zipCode,
         questionnaire: client.questionnaire,
+        idDocument: client.idDocument,
       }
       betmgmStatus = client.platforms[0]?.status ?? 'NOT_STARTED'
     }
