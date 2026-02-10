@@ -197,7 +197,7 @@ export async function getIntakeClients(): Promise<IntakeClient[]> {
       },
       phoneAssignment: { select: { id: true } },
     },
-    orderBy: { statusChangedAt: 'asc' },
+    orderBy: { statusChangedAt: 'desc' },
   })
 
   return clients.map((client) => {
