@@ -1,6 +1,8 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import {
   ArrowLeft,
   Images,
@@ -11,12 +13,16 @@ import {
   UserPlus,
   Eye,
   Clock,
+  Play,
+  Phone,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
+import { startExecution } from '@/app/actions/status'
 import { EditableField } from './editable-field'
 import { PlatformSection } from './platform-section'
 import { ApplicationReviewCard } from './application-review-card'
@@ -117,6 +123,20 @@ export function ClientDetail({
     useState(false)
   const [showAllTransactionsModal, setShowAllTransactionsModal] =
     useState(false)
+  const [isPending, startTransition] = useTransition()
+  const router = useRouter()
+
+  const handleStartExecution = useCallback(() => {
+    startTransition(async () => {
+      const result = await startExecution(client.id)
+      if (result.success) {
+        toast.success('Execution started — platforms are now active')
+        router.refresh()
+      } else {
+        toast.error(result.error || 'Failed to start execution')
+      }
+    })
+  }, [client.id, router])
 
   const age = calculateAge(client.profile.dob)
   const hasAlerts =
@@ -175,17 +195,42 @@ export function ClientDetail({
             <Images className="h-3.5 w-3.5" />
             View All Screenshots
           </Button>
-          {client.intakeStatus === 'APPROVED' && (
+          {client.intakeStatus === 'PHONE_ISSUED' && (
             <Button
-              variant="outline"
               size="sm"
-              className="h-7 gap-1.5 text-xs border-destructive/30 text-destructive hover:bg-destructive/10"
-              onClick={() => setCloseDialogOpen(true)}
-              data-testid="close-partnership-btn"
+              className="h-7 gap-1.5 text-xs"
+              onClick={handleStartExecution}
+              disabled={isPending}
+              data-testid="start-execution-btn"
             >
-              <AlertTriangle className="h-3.5 w-3.5" />
-              Close Partnership
+              <Play className="h-3.5 w-3.5" />
+              {isPending ? 'Starting...' : 'Start Execution'}
             </Button>
+          )}
+          {client.intakeStatus === 'APPROVED' && (
+            <>
+              <Link href="/backoffice/phone-tracking">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 gap-1.5 text-xs"
+                  data-testid="assign-phone-btn"
+                >
+                  <Phone className="h-3.5 w-3.5" />
+                  Assign Phone
+                </Button>
+              </Link>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 gap-1.5 text-xs border-destructive/30 text-destructive hover:bg-destructive/10"
+                onClick={() => setCloseDialogOpen(true)}
+                data-testid="close-partnership-btn"
+              >
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Close Partnership
+              </Button>
+            </>
           )}
           <Badge className={cn(getStatusColor(client.status))}>
             {client.status.replace('_', ' ')}
