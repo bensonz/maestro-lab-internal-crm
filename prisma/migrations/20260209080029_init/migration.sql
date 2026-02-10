@@ -77,9 +77,6 @@ CREATE TABLE "Client" (
     "country" TEXT,
     "questionnaire" TEXT,
     "applicationNotes" TEXT,
-    "gmailAccount" TEXT,
-    "gmailPassword" TEXT,
-    "prequalCompleted" BOOLEAN NOT NULL DEFAULT false,
     "intakeStatus" "IntakeStatus" NOT NULL DEFAULT 'PENDING',
     "statusChangedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "complianceReview" TEXT,
@@ -245,8 +242,6 @@ CREATE TABLE "ApplicationDraft" (
     "id" TEXT NOT NULL,
     "formData" JSONB NOT NULL,
     "agentId" TEXT NOT NULL,
-    "clientId" TEXT,
-    "phase" INTEGER NOT NULL DEFAULT 1,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -531,9 +526,6 @@ CREATE INDEX "Earning_status_idx" ON "Earning"("status");
 
 -- CreateIndex
 CREATE INDEX "ApplicationDraft_agentId_idx" ON "ApplicationDraft"("agentId");
-
--- CreateIndex
-CREATE INDEX "ApplicationDraft_clientId_idx" ON "ApplicationDraft"("clientId");
 
 -- CreateIndex
 CREATE INDEX "ExtensionRequest_clientId_idx" ON "ExtensionRequest"("clientId");
