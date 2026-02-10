@@ -4,7 +4,7 @@ export const PHASE_COUNT = 4
 
 export const PHASE_SHORT_LABELS: Record<number, string> = {
   1: 'Pre-Qualification',
-  2: 'Full Application',
+  2: 'Application in Progress',
   3: 'In Processing',
   4: 'Pending Approval',
 }
