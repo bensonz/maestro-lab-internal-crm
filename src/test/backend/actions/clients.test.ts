@@ -16,6 +16,8 @@ vi.mock('@/backend/prisma/client', () => ({
     $transaction: vi.fn(),
     client: {
       create: vi.fn(),
+      findUnique: vi.fn(),
+      update: vi.fn(),
     },
     clientPlatform: {
       createMany: vi.fn(),
@@ -224,6 +226,8 @@ describe('saveDraft', () => {
       id: 'draft-123',
       formData: {},
       agentId: 'user-123',
+      clientId: null,
+      phase: 1,
       createdAt: new Date(),
       updatedAt: new Date(),
     })
@@ -243,6 +247,8 @@ describe('saveDraft', () => {
           lastName: 'Doe',
         }),
         agentId: 'user-123',
+        clientId: null,
+        phase: 1,
       },
     })
   })
@@ -257,6 +263,8 @@ describe('saveDraft', () => {
       id: 'draft-123',
       formData: {},
       agentId: 'user-123',
+      clientId: null,
+      phase: 1,
       createdAt: new Date(),
       updatedAt: new Date(),
     })
@@ -277,6 +285,8 @@ describe('saveDraft', () => {
           firstName: 'John',
           lastName: 'Doe',
         }),
+        clientId: null,
+        phase: 1,
       },
     })
   })
@@ -321,6 +331,8 @@ describe('deleteDraft', () => {
       id: 'draft-123',
       formData: {},
       agentId: 'user-123',
+      clientId: null,
+      phase: 1,
       createdAt: new Date(),
       updatedAt: new Date(),
     })
@@ -343,6 +355,8 @@ describe('deleteDraft', () => {
       id: 'draft-123',
       formData: {},
       agentId: 'user-456',
+      clientId: null,
+      phase: 1,
       createdAt: new Date(),
       updatedAt: new Date(),
     })

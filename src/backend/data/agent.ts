@@ -5,6 +5,7 @@ import {
   PlatformStatus,
   ExtensionRequestStatus,
 } from '@/types'
+import { getClientPhase } from '@/lib/client-phase'
 import {
   getAgentCommissionSummary,
   getOverrideEarnings,
@@ -41,6 +42,15 @@ export async function getAgentClients(agentId: string) {
         ? Math.round((verifiedPlatforms / totalPlatforms) * 100)
         : 0
 
+    const betmgmVerified = client.platforms.some(
+      (p) => p.platformType === 'BETMGM' && p.status === PlatformStatus.VERIFIED,
+    )
+    const phase = getClientPhase({
+      intakeStatus: client.intakeStatus,
+      prequalCompleted: client.prequalCompleted,
+      betmgmVerified,
+    })
+
     return {
       id: client.id,
       name: `${client.firstName} ${client.lastName}`,
@@ -54,6 +64,7 @@ export async function getAgentClients(agentId: string) {
       lastUpdated: formatRelativeTime(client.updatedAt),
       updatedAt: client.updatedAt.toISOString(),
       deadline: client.executionDeadline?.toISOString() ?? null,
+      phase,
     }
   })
 }
@@ -67,6 +78,7 @@ export async function getAgentClientStats(agentId: string) {
   const total = clients.length
   const inProgress = clients.filter(
     (c) =>
+      c.intakeStatus === IntakeStatus.PENDING ||
       c.intakeStatus === IntakeStatus.PHONE_ISSUED ||
       c.intakeStatus === IntakeStatus.IN_EXECUTION,
   ).length

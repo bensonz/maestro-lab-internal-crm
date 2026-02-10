@@ -23,6 +23,7 @@ export async function createClient(
   }
 
   // 2. Parse form data
+  const clientId = formData.get('clientId') as string | null
   const rawData = {
     firstName: formData.get('firstName'),
     middleName: formData.get('middleName'),
@@ -101,46 +102,84 @@ export async function createClient(
       : null,
   }
 
-  // 5. Create client and platforms in a transaction
-  await prisma.$transaction(async (tx) => {
-    // Create the client
-    const client = await tx.client.create({
-      data: {
-        firstName,
-        lastName,
-        phone,
-        email: email || null,
-        address: primaryAddress,
-        city: primaryCity,
-        state: primaryState,
-        zipCode: primaryZip,
-        country: 'USA',
-        applicationNotes: notes || null,
-        questionnaire: JSON.stringify(fullQuestionnaire),
-        intakeStatus: IntakeStatus.PENDING,
-        agentId: session.user.id,
-      },
+  // 5. Create or update client in a transaction
+  if (clientId) {
+    // Phase 2 flow: update existing client created during pre-qualification
+    const existingClient = await prisma.client.findUnique({
+      where: { id: clientId },
+      select: { agentId: true },
     })
 
-    // Create 11 ClientPlatform records
-    await tx.clientPlatform.createMany({
-      data: ALL_PLATFORMS.map((platformType) => ({
-        clientId: client.id,
-        platformType,
-        status: PlatformStatus.NOT_STARTED,
-      })),
-    })
+    if (!existingClient || existingClient.agentId !== session.user.id) {
+      return { message: 'Client not found or not owned by you' }
+    }
 
-    // Create EventLog entry
-    await tx.eventLog.create({
-      data: {
-        eventType: EventType.APPLICATION_SUBMITTED,
-        description: `New client application submitted: ${firstName} ${lastName}`,
-        clientId: client.id,
-        userId: session.user.id,
-      },
+    await prisma.$transaction(async (tx) => {
+      await tx.client.update({
+        where: { id: clientId },
+        data: {
+          firstName,
+          lastName,
+          phone,
+          email: email || null,
+          address: primaryAddress,
+          city: primaryCity,
+          state: primaryState,
+          zipCode: primaryZip,
+          country: 'USA',
+          applicationNotes: notes || null,
+          questionnaire: JSON.stringify(fullQuestionnaire),
+        },
+      })
+
+      await tx.eventLog.create({
+        data: {
+          eventType: EventType.APPLICATION_SUBMITTED,
+          description: `Full application submitted (Phase 2): ${firstName} ${lastName}`,
+          clientId,
+          userId: session.user.id,
+        },
+      })
     })
-  })
+  } else {
+    // Original flow: create new client
+    await prisma.$transaction(async (tx) => {
+      const client = await tx.client.create({
+        data: {
+          firstName,
+          lastName,
+          phone,
+          email: email || null,
+          address: primaryAddress,
+          city: primaryCity,
+          state: primaryState,
+          zipCode: primaryZip,
+          country: 'USA',
+          applicationNotes: notes || null,
+          questionnaire: JSON.stringify(fullQuestionnaire),
+          intakeStatus: IntakeStatus.PENDING,
+          agentId: session.user.id,
+        },
+      })
+
+      await tx.clientPlatform.createMany({
+        data: ALL_PLATFORMS.map((platformType) => ({
+          clientId: client.id,
+          platformType,
+          status: PlatformStatus.NOT_STARTED,
+        })),
+      })
+
+      await tx.eventLog.create({
+        data: {
+          eventType: EventType.APPLICATION_SUBMITTED,
+          description: `New client application submitted: ${firstName} ${lastName}`,
+          clientId: client.id,
+          userId: session.user.id,
+        },
+      })
+    })
+  }
 
   // 6. Redirect on success
   redirect('/agent/clients')
