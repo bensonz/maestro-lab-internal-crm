@@ -31,6 +31,9 @@ export async function submitPrequalification(
     agentConfirmsId: formData.get('agentConfirmsId'),
     idExpiry: formData.get('idExpiry'),
     idDocument: formData.get('idDocument'),
+    betmgmResult: formData.get('betmgmResult'),
+    betmgmLoginScreenshot: formData.get('betmgmLoginScreenshot'),
+    betmgmDepositScreenshot: formData.get('betmgmDepositScreenshot'),
   }
 
   const validationResult = prequalSchema.safeParse(rawData)
@@ -53,6 +56,9 @@ export async function submitPrequalification(
     gmailPassword,
     idExpiry,
     idDocument,
+    betmgmResult,
+    betmgmLoginScreenshot,
+    betmgmDepositScreenshot,
   } = validationResult.data
 
   // Check ID expiration - block if expired
@@ -79,20 +85,33 @@ export async function submitPrequalification(
             dateOfBirth,
             idExpiry,
             idVerified: true,
+            betmgmResult: betmgmResult || null,
           }),
           idDocument: idDocument || null,
         },
       })
 
-      // Create 11 ClientPlatform records — BetMGM gets PENDING_REVIEW, others NOT_STARTED
+      // Create 11 ClientPlatform records — BetMGM gets status based on result, others NOT_STARTED
+      const betmgmScreenshots: string[] = []
+      if (betmgmLoginScreenshot) betmgmScreenshots.push(betmgmLoginScreenshot)
+      if (betmgmDepositScreenshot) betmgmScreenshots.push(betmgmDepositScreenshot)
+
+      const betmgmPlatformStatus =
+        betmgmResult === 'failed'
+          ? PlatformStatus.REJECTED
+          : PlatformStatus.PENDING_REVIEW
+
       await tx.clientPlatform.createMany({
         data: ALL_PLATFORMS.map((platformType) => ({
           clientId: newClient.id,
           platformType,
           status:
             platformType === PlatformType.BETMGM
-              ? PlatformStatus.PENDING_REVIEW
+              ? betmgmPlatformStatus
               : PlatformStatus.NOT_STARTED,
+          ...(platformType === PlatformType.BETMGM && betmgmScreenshots.length > 0
+            ? { screenshots: betmgmScreenshots }
+            : {}),
         })),
       })
 
