@@ -122,6 +122,10 @@ export function DocumentReviewModal({
     return filepath.split('/').pop() || filepath
   }
 
+  function toUrl(filepath: string) {
+    return filepath.startsWith('/') ? filepath : `/${filepath}`
+  }
+
   function isImage(filepath: string) {
     return /\.(jpg|jpeg|png|webp|gif)$/i.test(filepath)
   }
@@ -173,7 +177,7 @@ export function DocumentReviewModal({
                           <div className="h-10 w-10 overflow-hidden rounded bg-muted">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
-                              src={`/${filepath}`}
+                              src={toUrl(filepath)}
                               alt={getFilename(filepath)}
                               className="h-full w-full object-cover"
                             />
@@ -196,7 +200,7 @@ export function DocumentReviewModal({
                         asChild
                       >
                         <a
-                          href={`/${filepath}`}
+                          href={toUrl(filepath)}
                           download
                           target="_blank"
                           rel="noopener noreferrer"
