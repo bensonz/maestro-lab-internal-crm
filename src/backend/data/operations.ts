@@ -652,6 +652,9 @@ export async function getPhoneAssignments() {
       agent: {
         select: { name: true },
       },
+      issuedBy: {
+        select: { name: true },
+      },
     },
     orderBy: { createdAt: 'desc' },
   })
@@ -671,7 +674,7 @@ export async function getPhoneAssignments() {
       clientId: a.client?.id ?? '',
       deviceId: a.deviceId ?? '',
       issuedDate: a.issuedAt ? formatDate(a.issuedAt) : '',
-      issuedBy: a.agent.name,
+      issuedBy: a.issuedBy?.name ?? a.agent.name,
       status,
       notes: a.notes,
     }
