@@ -171,7 +171,7 @@ export function RiskPanel({
           </div>
 
           {/* Agent Confirmation */}
-          {phase === 2 && (
+          {phase >= 2 && (
             <div className="rounded-md border border-primary/30 bg-primary/5 p-3">
               <div className="flex items-start gap-2.5">
                 <Checkbox
