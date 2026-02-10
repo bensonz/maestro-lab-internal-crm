@@ -5,6 +5,7 @@ import prisma from '@/backend/prisma/client'
 import { ALL_PLATFORMS } from '@/lib/platforms'
 import { createClientSchema } from '@/lib/validations/client'
 import { EventType, IntakeStatus, PlatformStatus } from '@/types'
+import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 export type ActionState = {
@@ -185,4 +186,38 @@ export async function createClient(
 
   // 6. Redirect on success
   redirect('/agent/clients')
+}
+
+export async function deleteClient(
+  clientId: string,
+): Promise<{ success: boolean; error?: string }> {
+  const session = await auth()
+  if (!session?.user?.id) {
+    return { success: false, error: 'Unauthorized' }
+  }
+
+  const client = await prisma.client.findUnique({
+    where: { id: clientId },
+    select: { agentId: true, intakeStatus: true },
+  })
+
+  if (!client) {
+    return { success: false, error: 'Client not found' }
+  }
+
+  // Only the owning agent can delete
+  if (client.agentId !== session.user.id) {
+    return { success: false, error: 'Not your client' }
+  }
+
+  // Only PENDING clients can be deleted
+  if (client.intakeStatus !== 'PENDING') {
+    return { success: false, error: 'Only pending clients can be deleted' }
+  }
+
+  await prisma.client.delete({ where: { id: clientId } })
+
+  revalidatePath('/agent/new-client')
+  revalidatePath('/agent/clients')
+  return { success: true }
 }
