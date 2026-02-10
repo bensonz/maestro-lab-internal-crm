@@ -231,7 +231,7 @@ export function ClientForm({
       setBetmgmStatus(result.status)
       if (result.verified) {
         setBetmgmVerified(true)
-        toast.success('BetMGM account verified! Phase 2 is now unlocked.')
+        toast.success('BetMGM verified! Full application unlocked.')
         clearInterval(interval)
       }
     }, 15000)
@@ -285,7 +285,7 @@ export function ClientForm({
   // Handle Phase 1 submit result — redirect to ?client=
   useEffect(() => {
     if (prequalState.clientId) {
-      toast.success('Phase 1 submitted! Awaiting BetMGM verification.')
+      toast.success('Pre-qualification submitted! Awaiting BetMGM verification.')
       router.push(`/agent/new-client?client=${prequalState.clientId}`)
     }
     if (prequalState.message) {
