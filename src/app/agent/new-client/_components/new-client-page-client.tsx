@@ -47,6 +47,7 @@ interface NewClientPageClientProps {
   initialData: Record<string, string> | null
   clientData: ClientData | null
   betmgmStatus: string
+  serverPhase?: number | null
 }
 
 export function NewClientPageClient({
@@ -56,12 +57,14 @@ export function NewClientPageClient({
   initialData,
   clientData,
   betmgmStatus,
+  serverPhase,
 }: NewClientPageClientProps) {
   const { form, riskPanel } = ClientForm({
     initialData,
     draftId: currentDraftId,
     clientData,
     betmgmStatus,
+    serverPhase,
   })
 
   return (
