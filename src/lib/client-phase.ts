@@ -3,10 +3,10 @@ import { IntakeStatus } from '@/types'
 export const PHASE_COUNT = 4
 
 export const PHASE_SHORT_LABELS: Record<number, string> = {
-  1: 'Phase 1',
-  2: 'Phase 2',
-  3: 'Phase 3',
-  4: 'Phase 4',
+  1: 'Pre-Qualification',
+  2: 'Full Application',
+  3: 'In Processing',
+  4: 'Pending Approval',
 }
 
 /**
