@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { ClientSidebar } from './client-sidebar'
 import { ClientList } from './client-list'
 import { ClientDetail } from './client-detail'
@@ -235,8 +236,19 @@ export function ClientManagementPage({
     [serverClients],
   )
 
+  // URL-based client selection
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const clientIdParam = searchParams.get('client')
+
   // State
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null)
+  const [selectedClient, setSelectedClient] = useState<Client | null>(() => {
+    if (clientIdParam) {
+      const mapped = serverClients.map(mapServerClientToClient)
+      return mapped.find((c) => c.id === clientIdParam) ?? null
+    }
+    return null
+  })
   const [searchQuery, setSearchQuery] = useState('')
   const [platformFilter, setPlatformFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState<
