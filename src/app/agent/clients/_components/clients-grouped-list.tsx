@@ -287,7 +287,7 @@ interface PhaseGroup {
 const phaseGroups: PhaseGroup[] = [
   {
     key: 'phase-1',
-    label: 'Phase 1 (1/4)',
+    label: 'Pre-Qualification (1/4)',
     phase: 1,
     icon: Clock,
     headerColor: 'text-muted-foreground',
@@ -295,7 +295,7 @@ const phaseGroups: PhaseGroup[] = [
   },
   {
     key: 'phase-2',
-    label: 'Phase 2 (2/4)',
+    label: 'Full Application (2/4)',
     phase: 2,
     icon: Clock,
     headerColor: 'text-primary',
@@ -303,7 +303,7 @@ const phaseGroups: PhaseGroup[] = [
   },
   {
     key: 'phase-3',
-    label: 'Phase 3 (3/4)',
+    label: 'In Processing (3/4)',
     phase: 3,
     icon: Clock,
     headerColor: 'text-primary',
@@ -311,7 +311,7 @@ const phaseGroups: PhaseGroup[] = [
   },
   {
     key: 'phase-4',
-    label: 'Phase 4 (4/4)',
+    label: 'Pending Approval (4/4)',
     phase: 4,
     icon: Hourglass,
     headerColor: 'text-warning',
