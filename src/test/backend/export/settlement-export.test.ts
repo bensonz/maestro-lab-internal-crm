@@ -1,7 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+// Auth mock: supports both standalone auth() and wrapper auth(handler) patterns
+let mockSession: { user: { id: string; role: string; name: string } } | null = null
+
 vi.mock('@/backend/auth', () => ({
-  auth: vi.fn(),
+  auth: vi.fn((handlerOrNothing?: unknown) => {
+    if (typeof handlerOrNothing === 'function') {
+      return async (req?: unknown) => {
+        const r = (req ?? {}) as Record<string, unknown>
+        r.auth = mockSession
+        return (handlerOrNothing as (req: unknown) => Promise<unknown>)(r)
+      }
+    }
+    return Promise.resolve(mockSession)
+  }),
 }))
 
 vi.mock('@/backend/data/operations', () => ({
@@ -37,11 +49,9 @@ import { auth } from '@/backend/auth'
 import { getClientsForSettlement } from '@/backend/data/operations'
 
 function mockAuth(userId: string | null, role?: string, name?: string) {
-  vi.mocked(auth).mockResolvedValue(
-    userId
-      ? ({ user: { id: userId, role, name: name ?? 'Test User' } } as never)
-      : null,
-  )
+  mockSession = userId
+    ? { user: { id: userId, role: role ?? 'ADMIN', name: name ?? 'Test User' } }
+    : null
 }
 
 function makeClient(overrides: Record<string, unknown> = {}) {

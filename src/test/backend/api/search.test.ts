@@ -1,8 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
 
+// Auth mock: supports both standalone auth() and wrapper auth(handler) patterns
+let mockSession: { user: { id: string; role: string } } | null = null
+
 vi.mock('@/backend/auth', () => ({
-  auth: vi.fn(),
+  auth: vi.fn((handlerOrNothing?: unknown) => {
+    if (typeof handlerOrNothing === 'function') {
+      return async (req?: unknown) => {
+        const r = (req ?? {}) as Record<string, unknown>
+        r.auth = mockSession
+        return (handlerOrNothing as (req: unknown) => Promise<unknown>)(r)
+      }
+    }
+    return Promise.resolve(mockSession)
+  }),
 }))
 
 vi.mock('@/backend/prisma/client', () => ({
@@ -33,11 +45,9 @@ const mockToDo = prisma.toDo as unknown as {
 }
 
 function mockAuth(userId: string | null, role?: string) {
-  vi.mocked(auth).mockResolvedValue(
-    userId
-      ? ({ user: { id: userId, role: role ?? 'AGENT' } } as never)
-      : null,
-  )
+  mockSession = userId
+    ? { user: { id: userId, role: role ?? 'AGENT' } }
+    : null
 }
 
 function makeRequest(query: string) {
