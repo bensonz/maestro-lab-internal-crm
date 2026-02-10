@@ -69,6 +69,7 @@ interface ClientData {
   zipCode?: string | null
   questionnaire?: string | null
   idDocument?: string | null
+  betmgmScreenshots?: string[]
 }
 
 interface ClientFormProps {
@@ -172,14 +173,23 @@ export function ClientForm({
     clientData?.gmailPassword ?? initialData?.gmailPassword ?? '',
   )
 
-  // BetMGM check state
+  // BetMGM check state — restore from questionnaire + platform screenshots
   const [betmgmResult, setBetmgmResult] = useState<'success' | 'failed' | null>(
     parsedQuestionnaire?.betmgmResult ?? null,
   )
   const [betmgmScreenshots, setBetmgmScreenshots] = useState<{
     login?: string
     deposit?: string
-  }>({})
+  }>(() => {
+    const screenshots = clientData?.betmgmScreenshots
+    if (screenshots && screenshots.length > 0) {
+      return {
+        login: screenshots[0] || undefined,
+        deposit: screenshots[1] || undefined,
+      }
+    }
+    return {}
+  })
 
   // Compliance data state (expanded — includes former clientSourceData)
   const [complianceData, setComplianceData] = useState<ComplianceData>(() => {
