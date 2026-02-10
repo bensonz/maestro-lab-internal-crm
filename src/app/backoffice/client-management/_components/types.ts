@@ -149,6 +149,7 @@ export interface Client {
   agentId?: string
   zelle?: string
   relationships?: Relationship[]
+  questionnaire?: Record<string, unknown> | null
 }
 
 // Summary metrics for sidebar
