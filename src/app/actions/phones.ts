@@ -42,10 +42,11 @@ export async function assignPhone(
     return { success: false, error: 'Client not found' }
   }
 
-  if (client.intakeStatus !== IntakeStatus.PENDING) {
+  const PHONE_ELIGIBLE_STATUSES: IntakeStatus[] = [IntakeStatus.PENDING, IntakeStatus.APPROVED]
+  if (!PHONE_ELIGIBLE_STATUSES.includes(client.intakeStatus as IntakeStatus)) {
     return {
       success: false,
-      error: 'Client must be in PENDING status to assign a phone',
+      error: 'Client must be in PENDING or APPROVED status to assign a phone',
     }
   }
 
