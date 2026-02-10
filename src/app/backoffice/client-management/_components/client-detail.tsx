@@ -330,7 +330,7 @@ export function ClientDetail({
                       className="text-primary underline transition-colors hover:text-primary/80"
                       onClick={() => {
                         // TODO: Navigate to agent detail page
-                        window.location.href = `/backoffice/agents/${client.agentId}`
+                        window.location.href = `/backoffice/agent-management/${client.agentId}`
                       }}
                     >
                       {client.agent || '\u2014'}

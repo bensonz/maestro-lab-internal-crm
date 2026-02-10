@@ -95,7 +95,7 @@ export function ClientIntakeList({
                     <span>{getStatusTypeLabel(client.statusType)}</span>
                     <span className="text-muted-foreground/50">•</span>
                     <Link
-                      href={`/backoffice/agents/${client.agentId}`}
+                      href={`/backoffice/agent-management/${client.agentId}`}
                       className="text-primary hover:underline"
                     >
                       {client.agentName}
