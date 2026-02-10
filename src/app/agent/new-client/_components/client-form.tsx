@@ -131,7 +131,7 @@ export function ClientForm({
   const [extractedData, setExtractedData] = useState<ExtractedIdData | null>(
     (() => {
       if (clientData) {
-        const ea = parsedQuestionnaire?.extractedAddress
+        const ea = parsedQuestionnaire?.extractedAddress ?? parsedQuestionnaire?.secondaryAddress
         return {
           firstName: clientData.firstName ?? '',
           lastName: clientData.lastName ?? '',
@@ -618,6 +618,18 @@ export function ClientForm({
                     )}
                     {extractedData.idExpiry && (
                       <input type="hidden" name="idExpiry" value={extractedData.idExpiry} />
+                    )}
+                    {extractedData.address && (
+                      <input type="hidden" name="address" value={extractedData.address} />
+                    )}
+                    {extractedData.city && (
+                      <input type="hidden" name="city" value={extractedData.city} />
+                    )}
+                    {extractedData.state && (
+                      <input type="hidden" name="state" value={extractedData.state} />
+                    )}
+                    {extractedData.zip && (
+                      <input type="hidden" name="zipCode" value={extractedData.zip} />
                     )}
                   </>
                 )}
