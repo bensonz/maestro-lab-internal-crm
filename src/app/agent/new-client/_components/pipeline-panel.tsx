@@ -13,11 +13,13 @@ import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { PHASE_SHORT_LABELS } from '@/lib/client-phase'
 import { deleteDraft } from '@/app/actions/drafts'
+import { deleteClient } from '@/app/actions/clients'
 
 interface PipelineClient {
   id: string
   firstName: string
   lastName: string
+  intakeStatus: string
 }
 
 interface PipelineDraft {
@@ -65,8 +67,28 @@ export function PipelinePanel({
     })
   }
 
+  const handleDeleteClient = (e: React.MouseEvent, clientId: string) => {
+    e.stopPropagation()
+    if (!confirm('Delete this client? This cannot be undone.')) return
+    startDeleteTransition(async () => {
+      const result = await deleteClient(clientId)
+      if (result.success) {
+        toast.success('Client deleted')
+        if (clientId === currentClientId) {
+          router.push('/agent/new-client')
+        }
+        router.refresh()
+      } else {
+        toast.error(result.error || 'Failed to delete')
+      }
+    })
+  }
+
   // Convert drafts to display items grouped by phase
-  const draftsByPhase: Record<number, { id: string; name: string; isDraft: true }[]> = {}
+  const draftsByPhase: Record<
+    number,
+    { id: string; name: string; isDraft: true; intakeStatus?: undefined }[]
+  > = {}
   for (const d of drafts) {
     const phase = d.phase ?? 1
     if (!draftsByPhase[phase]) draftsByPhase[phase] = []
@@ -85,6 +107,7 @@ export function PipelinePanel({
       id: c.id,
       name: `${c.firstName} ${c.lastName}`,
       isDraft: false as const,
+      intakeStatus: c.intakeStatus,
     })),
   ]
 
@@ -149,13 +172,17 @@ export function PipelinePanel({
                       >
                         {item.name}
                       </button>
-                      {item.isDraft && (
+                      {(item.isDraft || item.intakeStatus === 'PENDING') && (
                         <button
                           type="button"
-                          onClick={(e) => handleDeleteDraft(e, item.id)}
+                          onClick={(e) =>
+                            item.isDraft
+                              ? handleDeleteDraft(e, item.id)
+                              : handleDeleteClient(e, item.id)
+                          }
                           disabled={isDeleting}
                           className="ml-1 shrink-0 rounded p-0.5 text-muted-foreground/50 transition-colors hover:text-destructive"
-                          data-testid={`draft-delete-${item.id}`}
+                          data-testid={`pipeline-delete-${item.id}`}
                         >
                           <Trash2 className="h-3 w-3" />
                         </button>
