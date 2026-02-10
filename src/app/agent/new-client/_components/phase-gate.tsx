@@ -27,12 +27,12 @@ export function PhaseGate({ unlocked }: PhaseGateProps) {
         {unlocked ? (
           <>
             <Unlock className="h-3.5 w-3.5" />
-            Phase 2 Unlocked
+            Full Application Unlocked
           </>
         ) : (
           <>
             <Lock className="h-3.5 w-3.5" />
-            Complete Phase 1 to unlock
+            Complete pre-qualification to unlock
           </>
         )}
       </div>
