@@ -44,3 +44,5 @@ next-env.d.ts
 node_modules
 
 docs/prompts
+# Local upload storage
+public/uploads/

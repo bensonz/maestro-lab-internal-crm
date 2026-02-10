@@ -9,7 +9,17 @@
       "Bash(pnpm add:*)",
       "WebSearch",
       "Bash(npx shadcn@latest add:*)",
-      "Bash(pnpm list:*)"
+      "Bash(pnpm list:*)",
+      "Bash(command diff:*)",
+      "Bash(/usr/bin/diff:*)",
+      "Bash(docker ps:*)",
+      "Bash(npx prisma migrate diff:*)",
+      "Bash(npx prisma migrate deploy:*)",
+      "Bash(npx prisma generate:*)",
+      "Bash(git rm:*)",
+      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_KSal0wDmMc9u@ep-summer-paper-aiyj2l3c-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require\" npx prisma migrate status:*)",
+      "Bash(psql:*)",
+      "Bash(git rebase:*)"
     ]
   }
 }
