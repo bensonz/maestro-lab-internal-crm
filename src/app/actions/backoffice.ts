@@ -22,6 +22,34 @@ export async function approveClientIntake(
   )
 
   if (result.success) {
+    revalidatePath('/backoffice/client-management')
+    revalidatePath('/backoffice/sales-interaction')
+    revalidatePath('/backoffice')
+    revalidatePath(`/agent/clients/${clientId}`)
+  }
+
+  return result
+}
+
+export async function rejectClientIntake(
+  clientId: string,
+  reason?: string,
+): Promise<{ success: boolean; error?: string }> {
+  const session = await auth()
+  const allowedRoles: string[] = [UserRole.ADMIN, UserRole.BACKOFFICE]
+  if (!session?.user || !allowedRoles.includes(session.user.role)) {
+    return { success: false, error: 'Unauthorized' }
+  }
+
+  const result = await transitionClientStatus(
+    clientId,
+    IntakeStatus.REJECTED,
+    session.user.id,
+    reason ? { reason } : undefined,
+  )
+
+  if (result.success) {
+    revalidatePath('/backoffice/client-management')
     revalidatePath('/backoffice/sales-interaction')
     revalidatePath('/backoffice')
     revalidatePath(`/agent/clients/${clientId}`)
