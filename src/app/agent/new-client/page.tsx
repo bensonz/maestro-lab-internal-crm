@@ -140,18 +140,19 @@ export default async function NewClientPage({ searchParams }: Props) {
     }
   }
 
-  const phase1Drafts = drafts
-    .filter((d) => (d.phase ?? 1) === 1 && !d.clientId)
+  const allDrafts = drafts
+    .filter((d) => !d.clientId)
     .map((d) => ({
       id: d.id,
       formData: d.formData as Record<string, string>,
+      phase: (d.phase ?? 1) as number,
     }))
 
   return (
     <NewClientPageClient
       key={clientId ?? draftId ?? 'new'}
       pipelineData={{
-        drafts: phase1Drafts,
+        drafts: allDrafts,
         phase1,
         phase2,
         phase3,

@@ -23,6 +23,7 @@ interface PipelineClient {
 interface PipelineDraft {
   id: string
   formData: Record<string, string>
+  phase: number
 }
 
 interface PipelinePanelProps {
@@ -64,29 +65,34 @@ export function PipelinePanel({
     })
   }
 
-  // Merge drafts into Phase 1 section
-  const draftItems = drafts.map((d) => ({
-    id: d.id,
-    name:
-      [d.formData?.firstName, d.formData?.lastName].filter(Boolean).join(' ') ||
-      'Unnamed',
-    isDraft: true,
-  }))
+  // Convert drafts to display items grouped by phase
+  const draftsByPhase: Record<number, { id: string; name: string; isDraft: true }[]> = {}
+  for (const d of drafts) {
+    const phase = d.phase ?? 1
+    if (!draftsByPhase[phase]) draftsByPhase[phase] = []
+    draftsByPhase[phase].push({
+      id: d.id,
+      name:
+        [d.formData?.firstName, d.formData?.lastName].filter(Boolean).join(' ') ||
+        'Unnamed',
+      isDraft: true,
+    })
+  }
 
-  const phase1Items = [
-    ...draftItems,
-    ...phase1.map((c) => ({
+  const toItems = (clients: PipelineClient[], phase: number) => [
+    ...(draftsByPhase[phase] ?? []),
+    ...clients.map((c) => ({
       id: c.id,
       name: `${c.firstName} ${c.lastName}`,
-      isDraft: false,
+      isDraft: false as const,
     })),
   ]
 
   const phases = [
-    { phase: 4, label: PHASE_SHORT_LABELS[4], items: phase4.map((c) => ({ id: c.id, name: `${c.firstName} ${c.lastName}`, isDraft: false })) },
-    { phase: 3, label: PHASE_SHORT_LABELS[3], items: phase3.map((c) => ({ id: c.id, name: `${c.firstName} ${c.lastName}`, isDraft: false })) },
-    { phase: 2, label: PHASE_SHORT_LABELS[2], items: phase2.map((c) => ({ id: c.id, name: `${c.firstName} ${c.lastName}`, isDraft: false })) },
-    { phase: 1, label: PHASE_SHORT_LABELS[1], items: phase1Items },
+    { phase: 4, label: PHASE_SHORT_LABELS[4], items: toItems(phase4, 4) },
+    { phase: 3, label: PHASE_SHORT_LABELS[3], items: toItems(phase3, 3) },
+    { phase: 2, label: PHASE_SHORT_LABELS[2], items: toItems(phase2, 2) },
+    { phase: 1, label: PHASE_SHORT_LABELS[1], items: toItems(phase1, 1) },
   ]
 
   return (

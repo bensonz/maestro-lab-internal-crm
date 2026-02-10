@@ -25,6 +25,7 @@ interface PipelineClient {
 interface PipelineDraft {
   id: string
   formData: Record<string, string>
+  phase: number
 }
 
 interface PipelineData {
