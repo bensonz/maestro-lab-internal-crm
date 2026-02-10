@@ -259,7 +259,7 @@ describe('GET /api/search', () => {
     const data = await response.json()
 
     const clientResult = data.results.find((r: { type: string }) => r.type === 'client')
-    expect(clientResult.link).toBe('/backoffice/client-management')
+    expect(clientResult.link).toBe('/backoffice/client-management?client=c1')
 
     const taskResult = data.results.find((r: { type: string }) => r.type === 'task')
     expect(taskResult.link).toBe('/backoffice/todo-list')
