@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -42,8 +42,10 @@ export function IdUploadSection({
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [extractedData, setExtractedData] = useState<ExtractedData | null>(null)
+  const [editableData, setEditableData] = useState<ExtractedData | null>(null)
   const [dragActive, setDragActive] = useState(false)
   const [manualExpiry, setManualExpiry] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Simulated OCR - in production this would call an actual OCR API
   const simulateOCR = useCallback(
@@ -75,6 +77,7 @@ export function IdUploadSection({
       try {
         const data = await simulateOCR(file)
         setExtractedData(data)
+        setEditableData(data)
         onDataExtracted(data)
       } catch {
         // Handle error silently for now
@@ -121,19 +124,30 @@ export function IdUploadSection({
   const handleRemoveFile = useCallback(() => {
     setUploadedFile(null)
     setExtractedData(null)
+    setEditableData(null)
     setManualExpiry('')
   }, [])
+
+  const handleEditableFieldChange = useCallback(
+    (field: keyof ExtractedData, value: string) => {
+      if (!editableData) return
+      const updated = { ...editableData, [field]: value }
+      setEditableData(updated)
+      onDataExtracted(updated)
+    },
+    [editableData, onDataExtracted],
+  )
 
   const handleManualExpiryChange = useCallback(
     (value: string) => {
       setManualExpiry(value)
-      if (extractedData) {
-        const updated = { ...extractedData, idExpiry: value }
-        setExtractedData(updated)
+      if (editableData) {
+        const updated = { ...editableData, idExpiry: value }
+        setEditableData(updated)
         onDataExtracted(updated)
       }
     },
-    [extractedData, onDataExtracted],
+    [editableData, onDataExtracted],
   )
 
   const calculateAge = (dob: string): number => {
@@ -150,12 +164,15 @@ export function IdUploadSection({
     return age
   }
 
-  const age = extractedData?.dateOfBirth
-    ? calculateAge(extractedData.dateOfBirth)
+  // Use editableData for display, fall back to extractedData
+  const displayData = editableData ?? extractedData
+
+  const age = displayData?.dateOfBirth
+    ? calculateAge(displayData.dateOfBirth)
     : null
 
   // ID expiration check
-  const idExpiryDate = extractedData?.idExpiry || manualExpiry
+  const idExpiryDate = displayData?.idExpiry || manualExpiry
   const daysUntilExpiry = idExpiryDate
     ? Math.floor(
         (new Date(idExpiryDate).getTime() - Date.now()) / 86400000,
@@ -178,15 +195,25 @@ export function IdUploadSection({
       )}
         {!uploadedFile ? (
           <div
+            onClick={() => fileInputRef.current?.click()}
             onDrop={handleDrop}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
-            className={`relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 transition-all ${
+            className={`relative flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 transition-all ${
               dragActive
                 ? 'border-primary bg-primary/5'
                 : 'border-border/50 hover:border-primary/50 hover:bg-muted/30'
             }`}
+            data-testid="id-drop-zone"
           >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileInput}
+              className="hidden"
+              data-testid="id-file-input"
+            />
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted/50">
               <Upload className="h-6 w-6 text-muted-foreground" />
             </div>
@@ -197,20 +224,19 @@ export function IdUploadSection({
               or click to select a file
             </p>
             <div className="mt-4 flex gap-2">
-              <label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileInput}
-                  className="hidden"
-                />
-                <Button type="button" variant="outline" size="sm" asChild>
-                  <span className="cursor-pointer">
-                    <FileText className="mr-2 h-4 w-4" />
-                    Browse Files
-                  </span>
-                </Button>
-              </label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  fileInputRef.current?.click()
+                }}
+                data-testid="id-browse-btn"
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                Browse Files
+              </Button>
               <Button type="button" variant="outline" size="sm" disabled>
                 <Camera className="mr-2 h-4 w-4" />
                 Take Photo
@@ -257,53 +283,135 @@ export function IdUploadSection({
               </div>
             )}
 
-            {/* Extracted Data Preview */}
-            {extractedData && !isProcessing && (
+            {/* Extracted Data — Editable Fields */}
+            {displayData && !isProcessing && (
               <div className="space-y-3">
                 <div className="rounded-lg border border-border/50 bg-muted/20 p-4">
                   <p className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                     Extracted Information
                   </p>
-                  <div className="grid gap-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Name:</span>
-                      <span className="font-medium text-foreground">
-                        {extractedData.firstName}{' '}
-                        {extractedData.middleName &&
-                          `${extractedData.middleName} `}
-                        {extractedData.lastName}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        Date of Birth:
-                      </span>
-                      <span className="font-medium text-foreground">
-                        {extractedData.dateOfBirth}
-                      </span>
-                    </div>
-                    {extractedData.address && (
+                  {isConfirmed ? (
+                    /* Read-only display after confirmation */
+                    <div className="grid gap-2 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Address:</span>
+                        <span className="text-muted-foreground">Name:</span>
                         <span className="font-medium text-foreground">
-                          {extractedData.address}, {extractedData.city},{' '}
-                          {extractedData.state} {extractedData.zip}
+                          {displayData.firstName}{' '}
+                          {displayData.middleName &&
+                            `${displayData.middleName} `}
+                          {displayData.lastName}
                         </span>
                       </div>
-                    )}
-                    {extractedData.idExpiry && (
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">ID Expiry:</span>
+                        <span className="text-muted-foreground">
+                          Date of Birth:
+                        </span>
                         <span className="font-medium text-foreground">
-                          {extractedData.idExpiry}
+                          {displayData.dateOfBirth}
                         </span>
                       </div>
-                    )}
-                  </div>
+                      {displayData.address && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Address:</span>
+                          <span className="font-medium text-foreground">
+                            {displayData.address}, {displayData.city},{' '}
+                            {displayData.state} {displayData.zip}
+                          </span>
+                        </div>
+                      )}
+                      {displayData.idExpiry && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">ID Expiry:</span>
+                          <span className="font-medium text-foreground">
+                            {displayData.idExpiry}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* Editable fields before confirmation */
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Field>
+                        <FieldLabel htmlFor="extracted-firstName">First Name</FieldLabel>
+                        <Input
+                          id="extracted-firstName"
+                          value={displayData.firstName}
+                          onChange={(e) => handleEditableFieldChange('firstName', e.target.value)}
+                          data-testid="extracted-first-name"
+                        />
+                      </Field>
+                      <Field>
+                        <FieldLabel htmlFor="extracted-middleName">Middle Name</FieldLabel>
+                        <Input
+                          id="extracted-middleName"
+                          value={displayData.middleName ?? ''}
+                          onChange={(e) => handleEditableFieldChange('middleName', e.target.value)}
+                          data-testid="extracted-middle-name"
+                        />
+                      </Field>
+                      <Field>
+                        <FieldLabel htmlFor="extracted-lastName">Last Name</FieldLabel>
+                        <Input
+                          id="extracted-lastName"
+                          value={displayData.lastName}
+                          onChange={(e) => handleEditableFieldChange('lastName', e.target.value)}
+                          data-testid="extracted-last-name"
+                        />
+                      </Field>
+                      <Field>
+                        <FieldLabel htmlFor="extracted-dob">Date of Birth</FieldLabel>
+                        <Input
+                          id="extracted-dob"
+                          type="date"
+                          value={displayData.dateOfBirth}
+                          onChange={(e) => handleEditableFieldChange('dateOfBirth', e.target.value)}
+                          data-testid="extracted-dob"
+                        />
+                      </Field>
+                      <Field className="sm:col-span-2">
+                        <FieldLabel htmlFor="extracted-address">Address</FieldLabel>
+                        <Input
+                          id="extracted-address"
+                          value={displayData.address ?? ''}
+                          onChange={(e) => handleEditableFieldChange('address', e.target.value)}
+                          data-testid="extracted-address"
+                        />
+                      </Field>
+                      <Field>
+                        <FieldLabel htmlFor="extracted-city">City</FieldLabel>
+                        <Input
+                          id="extracted-city"
+                          value={displayData.city ?? ''}
+                          onChange={(e) => handleEditableFieldChange('city', e.target.value)}
+                          data-testid="extracted-city"
+                        />
+                      </Field>
+                      <div className="grid grid-cols-2 gap-3">
+                        <Field>
+                          <FieldLabel htmlFor="extracted-state">State</FieldLabel>
+                          <Input
+                            id="extracted-state"
+                            value={displayData.state ?? ''}
+                            onChange={(e) => handleEditableFieldChange('state', e.target.value)}
+                            data-testid="extracted-state"
+                          />
+                        </Field>
+                        <Field>
+                          <FieldLabel htmlFor="extracted-zip">ZIP</FieldLabel>
+                          <Input
+                            id="extracted-zip"
+                            value={displayData.zip ?? ''}
+                            onChange={(e) => handleEditableFieldChange('zip', e.target.value)}
+                            data-testid="extracted-zip"
+                          />
+                        </Field>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Manual ID Expiration Date if not extracted */}
-                {!extractedData.idExpiry && (
+                {!displayData.idExpiry && (
                   <Field>
                     <FieldLabel htmlFor="idExpiry">
                       ID Expiration Date
@@ -320,8 +428,8 @@ export function IdUploadSection({
                   </Field>
                 )}
                 {/* Hidden field for idExpiry to include in form submission */}
-                {extractedData.idExpiry && (
-                  <input type="hidden" name="idExpiry" value={extractedData.idExpiry} />
+                {displayData.idExpiry && (
+                  <input type="hidden" name="idExpiry" value={displayData.idExpiry} />
                 )}
 
                 {/* ID Expired Banner */}
