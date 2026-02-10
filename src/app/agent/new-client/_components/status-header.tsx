@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, Save, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { PHASE_SHORT_LABELS } from '@/lib/client-phase'
 
 interface StatusHeaderProps {
   clientName: string
@@ -31,7 +32,7 @@ export function StatusHeader({
   const getSubmitLabel = () => {
     if (phase === 1) {
       if (prequalSubmitted && !betmgmVerified) return 'Awaiting Verification'
-      return 'Submit Phase 1'
+      return 'Submit Pre-Qualification'
     }
     if (phase >= 2) return 'Submit Application'
     return 'Submit Application'
@@ -68,7 +69,7 @@ export function StatusHeader({
           )}
 
           <span className="text-xs text-muted-foreground">
-            Phase {phase}
+            {PHASE_SHORT_LABELS[phase] ?? `Phase ${phase}`}
           </span>
 
           <span className={cn('text-xs font-medium', riskColor)}>
