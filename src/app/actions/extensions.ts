@@ -11,6 +11,10 @@ import {
 } from '@/types'
 import { revalidatePath } from 'next/cache'
 import { addBusinessDays } from '@/backend/services/status-transition'
+import {
+  createNotification,
+  notifyRole,
+} from '@/backend/services/notifications'
 
 const MAX_EXTENSIONS = 3
 const DEFAULT_REQUESTED_DAYS = 3
@@ -41,9 +45,12 @@ export async function requestDeadlineExtension(
     },
     select: {
       id: true,
+      firstName: true,
+      lastName: true,
       intakeStatus: true,
       executionDeadline: true,
       deadlineExtensions: true,
+      agent: { select: { name: true } },
     },
   })
 
@@ -113,6 +120,20 @@ export async function requestDeadlineExtension(
     })
 
     revalidatePath(`/agent/clients/${clientId}`)
+
+    try {
+      const clientName = `${client.firstName} ${client.lastName}`
+      await notifyRole({
+        role: [UserRole.ADMIN, UserRole.BACKOFFICE],
+        type: EventType.DEADLINE_EXTENDED,
+        title: 'Extension request',
+        message: `Extension request from ${client.agent.name} for ${clientName}`,
+        link: '/backoffice/todo-list',
+        clientId,
+      })
+    } catch {
+      // Notification failure should not block the main action
+    }
 
     return { success: true }
   } catch (error) {
@@ -252,6 +273,20 @@ export async function approveExtensionRequest(
     })
 
     revalidateExtensionPaths(request.clientId)
+
+    try {
+      await createNotification({
+        userId: request.requestedById,
+        type: EventType.DEADLINE_EXTENDED,
+        title: 'Extension approved',
+        message: `Your extension request has been approved (+${request.requestedDays} business days)`,
+        link: `/agent/clients/${request.clientId}`,
+        clientId: request.clientId,
+      })
+    } catch {
+      // Notification failure should not block the main action
+    }
+
     return { success: true }
   } catch (error) {
     console.error('Approve extension error:', error)
@@ -297,6 +332,7 @@ export async function rejectExtensionRequest(
       clientId: true,
       status: true,
       reason: true,
+      requestedById: true,
     },
   })
 
@@ -335,6 +371,20 @@ export async function rejectExtensionRequest(
     })
 
     revalidateExtensionPaths(request.clientId)
+
+    try {
+      await createNotification({
+        userId: request.requestedById,
+        type: EventType.DEADLINE_EXTENDED,
+        title: 'Extension rejected',
+        message: `Your extension request was rejected: ${reviewNotes.trim()}`,
+        link: `/agent/clients/${request.clientId}`,
+        clientId: request.clientId,
+      })
+    } catch {
+      // Notification failure should not block the main action
+    }
+
     return { success: true }
   } catch (error) {
     console.error('Reject extension error:', error)

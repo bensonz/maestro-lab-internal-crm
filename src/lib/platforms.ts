@@ -10,21 +10,22 @@ export const PLATFORM_INFO: Record<
     name: string
     abbrev: string
     category: 'sports' | 'financial'
+    logoPath: string | null
   }
 > = {
   // Sports Betting (8)
-  DRAFTKINGS: { name: 'DraftKings', abbrev: 'DK', category: 'sports' },
-  FANDUEL: { name: 'FanDuel', abbrev: 'FD', category: 'sports' },
-  BETMGM: { name: 'BetMGM', abbrev: 'MGM', category: 'sports' },
-  CAESARS: { name: 'Caesars', abbrev: 'CZR', category: 'sports' },
-  FANATICS: { name: 'Fanatics', abbrev: 'FAN', category: 'sports' },
-  BALLYBET: { name: 'Bally Bet', abbrev: 'BB', category: 'sports' },
-  BETRIVERS: { name: 'BetRivers', abbrev: 'BR', category: 'sports' },
-  BET365: { name: 'Bet365', abbrev: '365', category: 'sports' },
+  DRAFTKINGS: { name: 'DraftKings', abbrev: 'DK', category: 'sports', logoPath: '/platforms/draftkings-logo.svg' },
+  FANDUEL: { name: 'FanDuel', abbrev: 'FD', category: 'sports', logoPath: '/platforms/fanduel-logo.svg' },
+  BETMGM: { name: 'BetMGM', abbrev: 'MGM', category: 'sports', logoPath: '/platforms/betmgm-logo.svg' },
+  CAESARS: { name: 'Caesars', abbrev: 'CZR', category: 'sports', logoPath: '/platforms/caesars-logo.svg' },
+  FANATICS: { name: 'Fanatics', abbrev: 'FAN', category: 'sports', logoPath: '/platforms/fanatics-logo.svg' },
+  BALLYBET: { name: 'Bally Bet', abbrev: 'BB', category: 'sports', logoPath: '/platforms/ballybet-logo.svg' },
+  BETRIVERS: { name: 'BetRivers', abbrev: 'BR', category: 'sports', logoPath: '/platforms/betrivers-logo.svg' },
+  BET365: { name: 'Bet365', abbrev: '365', category: 'sports', logoPath: null },
   // Financial (3)
-  BANK: { name: 'Bank', abbrev: 'BNK', category: 'financial' },
-  PAYPAL: { name: 'PayPal', abbrev: 'PP', category: 'financial' },
-  EDGEBOOST: { name: 'EdgeBoost', abbrev: 'EB', category: 'financial' },
+  BANK: { name: 'Bank', abbrev: 'BNK', category: 'financial', logoPath: null },
+  PAYPAL: { name: 'PayPal', abbrev: 'PP', category: 'financial', logoPath: null },
+  EDGEBOOST: { name: 'EdgeBoost', abbrev: 'EB', category: 'financial', logoPath: null },
 }
 
 /** All platform types in order */
@@ -85,6 +86,11 @@ export function getPlatformTypeFromName(
   name: string,
 ): PlatformType | undefined {
   return NAME_TO_PLATFORM.get(name)
+}
+
+/** Get the SVG logo path for a platform, or null if none */
+export function getPlatformLogoPath(platform: PlatformType): string | null {
+  return PLATFORM_INFO[platform].logoPath
 }
 
 /** Total platform count */

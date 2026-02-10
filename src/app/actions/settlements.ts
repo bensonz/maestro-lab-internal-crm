@@ -4,6 +4,7 @@ import { auth } from '@/backend/auth'
 import prisma from '@/backend/prisma/client'
 import { UserRole, SettlementStatus, EventType } from '@/types'
 import { revalidatePath } from 'next/cache'
+import { notifyRole } from '@/backend/services/notifications'
 
 const ALLOWED_ROLES: string[] = [UserRole.ADMIN, UserRole.BACKOFFICE]
 
@@ -69,6 +70,19 @@ export async function confirmSettlement(data: {
       },
     },
   })
+
+  try {
+    await notifyRole({
+      role: [UserRole.ADMIN, UserRole.BACKOFFICE],
+      type: EventType.SETTLEMENT_CREATED,
+      title: 'Settlement confirmed',
+      message: `Settlement $${Number(movement.amount)} confirmed (${movement.fromPlatform} → ${movement.toPlatform})`,
+      link: '/backoffice/client-settlement',
+      clientId: movement.fromClientId ?? undefined,
+    })
+  } catch {
+    // Notification failure should not block the main action
+  }
 
   revalidatePath('/backoffice/client-settlement')
 
@@ -142,6 +156,19 @@ export async function rejectSettlement(data: {
       },
     },
   })
+
+  try {
+    await notifyRole({
+      role: [UserRole.ADMIN, UserRole.BACKOFFICE],
+      type: EventType.SETTLEMENT_CREATED,
+      title: 'Settlement rejected',
+      message: `Settlement $${Number(movement.amount)} rejected (${movement.fromPlatform} → ${movement.toPlatform})`,
+      link: '/backoffice/client-settlement',
+      clientId: movement.fromClientId ?? undefined,
+    })
+  } catch {
+    // Notification failure should not block the main action
+  }
 
   revalidatePath('/backoffice/client-settlement')
 

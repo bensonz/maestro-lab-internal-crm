@@ -17,7 +17,7 @@ import {
   AlertTriangle,
 } from 'lucide-react'
 
-interface ComplianceData {
+export interface ComplianceData {
   // Group A: Quick Assessment
   hasCriminalRecord: string
   hasBankingHistory: string
@@ -36,6 +36,56 @@ interface ComplianceData {
   // Group D: Authorization & Risk
   riskLevel: string
   authorizationNotes?: string
+
+  // Extended fields used by risk panel and form
+  canReadEnglish: string
+  canSpeakEnglish: string
+  hasBeenDebanked: string
+  debankedBy: string
+  paypalPreviouslyUsed: string
+  paypalVerificationStatus: string
+  paypalEmail: string
+  previousPlatforms: string[]
+  hasEightPlusRegistrations: string
+  previouslyFlagged: string
+  ssn: string
+  bankName: string
+
+  // Client source fields (Group E)
+  introducedBy: string
+  howMet: string
+  profession: string
+  isReliable: string
+}
+
+export const EMPTY_COMPLIANCE_DATA: ComplianceData = {
+  hasCriminalRecord: '',
+  hasBankingHistory: '',
+  criminalDetails: '',
+  idType: '',
+  hasAddressProof: '',
+  idNotes: '',
+  hasPayPal: '',
+  hasBettingHistory: '',
+  bettingDetails: '',
+  riskLevel: '',
+  authorizationNotes: '',
+  canReadEnglish: '',
+  canSpeakEnglish: '',
+  hasBeenDebanked: '',
+  debankedBy: '',
+  paypalPreviouslyUsed: '',
+  paypalVerificationStatus: '',
+  paypalEmail: '',
+  previousPlatforms: [],
+  hasEightPlusRegistrations: '',
+  previouslyFlagged: '',
+  ssn: '',
+  bankName: '',
+  introducedBy: '',
+  howMet: '',
+  profession: '',
+  isReliable: '',
 }
 
 interface ComplianceGroupsProps {
@@ -49,18 +99,11 @@ export function ComplianceGroups({
 }: ComplianceGroupsProps) {
   const [openGroups, setOpenGroups] = useState<string[]>(['groupA'])
   const [data, setData] = useState<ComplianceData>({
-    hasCriminalRecord: defaultValues.hasCriminalRecord ?? '',
-    hasBankingHistory: defaultValues.hasBankingHistory ?? '',
-    criminalDetails: defaultValues.criminalDetails ?? '',
-    idType: defaultValues.idType ?? '',
-    hasAddressProof: defaultValues.hasAddressProof ?? '',
-    idNotes: defaultValues.idNotes ?? '',
-    hasPayPal: defaultValues.hasPayPal ?? '',
-    hasBettingHistory: defaultValues.hasBettingHistory ?? '',
-    bettingDetails: defaultValues.bettingDetails ?? '',
-    riskLevel: defaultValues.riskLevel ?? '',
-    authorizationNotes: defaultValues.authorizationNotes ?? '',
-  })
+    ...EMPTY_COMPLIANCE_DATA,
+    ...Object.fromEntries(
+      Object.entries(defaultValues).filter(([, v]) => v !== undefined),
+    ),
+  } as ComplianceData)
 
   const toggleGroup = (group: string) => {
     setOpenGroups((prev) =>

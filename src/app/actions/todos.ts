@@ -3,8 +3,9 @@
 import { auth } from '@/backend/auth'
 import prisma from '@/backend/prisma/client'
 import { getStorage } from '@/lib/storage'
-import { ToDoStatus, PlatformStatus, EventType } from '@/types'
+import { ToDoStatus, PlatformStatus, EventType, UserRole } from '@/types'
 import { revalidatePath } from 'next/cache'
+import { notifyRole } from '@/backend/services/notifications'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
@@ -259,6 +260,19 @@ export async function confirmToDoUpload(
         },
       },
     })
+
+    try {
+      await notifyRole({
+        role: [UserRole.ADMIN, UserRole.BACKOFFICE],
+        type: EventType.TODO_COMPLETED,
+        title: 'Task completed',
+        message: `Task completed: ${todo.title}`,
+        link: '/backoffice/todo-list',
+        clientId: todo.clientId ?? undefined,
+      })
+    } catch {
+      // Notification failure should not block the main action
+    }
 
     revalidatePath(`/agent/clients/${todo.clientId}`)
 

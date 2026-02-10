@@ -170,6 +170,8 @@ model User {
   address         String?
   loginAccount    String?
 
+  notifications     Notification[]     @relation("UserNotifications")
+
   agentClients      Client[]           @relation("AgentClients")
   assignedToDos     ToDo[]             @relation("AssignedToDos")
   createdToDos      ToDo[]             @relation("CreatedToDos")
@@ -236,6 +238,10 @@ model Client {
   bonusPool          BonusPool?
   transactions       Transaction[]
 
+  // ── Partner ──
+  partnerId          String?
+  partner            Partner?         @relation("PartnerClients", fields: [partnerId], references: [id])
+
   // ── Closure ──
   closedAt           DateTime?
   closureReason      String?
@@ -248,6 +254,7 @@ model Client {
 
   @@index([intakeStatus])
   @@index([agentId])
+  @@index([partnerId])
   @@index([createdAt])
 }
 
@@ -320,10 +327,35 @@ model EventLog {
   newValue    String?
   createdAt   DateTime  @default(now())
 
+  notifications     Notification[]
+
   @@index([clientId])
   @@index([userId])
   @@index([eventType])
   @@index([createdAt])
+}
+
+model Notification {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation("UserNotifications", fields: [userId], references: [id])
+
+  type        String
+  title       String
+  message     String
+  link        String?
+
+  eventLogId  String?
+  eventLog    EventLog? @relation(fields: [eventLogId], references: [id])
+  clientId    String?
+
+  isRead      Boolean   @default(false)
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@index([eventLogId])
 }
 
 model PhoneAssignment {
@@ -582,4 +614,98 @@ model Transaction {
   @@index([createdAt])
   @@index([recordedById])
   @@index([fundMovementId])
+}
+
+// ── Partners (external business entities that share in profits) ──
+model Partner {
+  id              String            @id @default(cuid())
+  name            String
+  contactName     String?
+  contactEmail    String?
+  contactPhone    String?
+  company         String?
+  type            String            @default("referral")  // "referral" | "platform" | "investor" | "affiliate"
+  status          String            @default("active")    // "active" | "inactive" | "suspended"
+  notes           String?
+
+  clients         Client[]          @relation("PartnerClients")
+  profitShareRules ProfitShareRule[]
+  profitShareDetails ProfitShareDetail[]
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([status])
+  @@index([type])
+}
+
+// ── Profit sharing rules (defines how profits are split with partners) ──
+model ProfitShareRule {
+  id              String            @id @default(cuid())
+  partnerId       String
+  partner         Partner           @relation(fields: [partnerId], references: [id])
+
+  name            String
+  description     String?
+
+  // Split configuration
+  splitType       String            @default("percentage")  // "percentage" | "fixed" | "tiered"
+  partnerPercent  Decimal?          @db.Decimal(5, 2)
+  companyPercent  Decimal?          @db.Decimal(5, 2)
+  fixedAmount     Decimal?          @db.Decimal(10, 2)
+
+  // Applicability
+  appliesTo       String            @default("all")         // "all" | "deposits" | "withdrawals" | "commissions"
+  platformType    PlatformType?
+  minAmount       Decimal?          @db.Decimal(10, 2)
+  maxAmount       Decimal?          @db.Decimal(10, 2)
+
+  // Fee deductions (taken before split)
+  feePercent      Decimal?          @db.Decimal(5, 2)
+  feeFixed        Decimal?          @db.Decimal(10, 2)
+
+  status          String            @default("active")      // "active" | "inactive" | "draft"
+  effectiveFrom   DateTime          @default(now())
+  effectiveTo     DateTime?
+  priority        Int               @default(0)
+
+  details         ProfitShareDetail[]
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([partnerId])
+  @@index([status])
+  @@index([appliesTo])
+}
+
+// ── Transaction-level profit share tracking ──
+model ProfitShareDetail {
+  id              String           @id @default(cuid())
+  partnerId       String
+  partner         Partner          @relation(fields: [partnerId], references: [id])
+  ruleId          String
+  rule            ProfitShareRule  @relation(fields: [ruleId], references: [id])
+
+  // Source transaction
+  transactionId   String?
+  fundMovementId  String?
+
+  // Calculation breakdown
+  grossAmount     Decimal          @db.Decimal(10, 2)
+  feeAmount       Decimal          @db.Decimal(10, 2) @default(0)
+  netAmount       Decimal          @db.Decimal(10, 2)
+  partnerAmount   Decimal          @db.Decimal(10, 2)
+  companyAmount   Decimal          @db.Decimal(10, 2)
+
+  description     String?
+  status          String           @default("pending")  // "pending" | "approved" | "paid"
+  paidAt          DateTime?
+
+  createdAt       DateTime         @default(now())
+
+  @@index([partnerId])
+  @@index([ruleId])
+  @@index([status])
+  @@index([createdAt])
 }

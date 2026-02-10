@@ -17,14 +17,15 @@ pnpm test src/lib/platforms.test.ts  # Run specific test file
 
 # Database (local)
 docker compose up -d       # Start PostgreSQL (port 5432)
-pnpm prisma migrate dev    # Apply migrations
+pnpm db:migrate            # Create/apply migrations (local dev)
+pnpm db:migrate --name <description>  # Create a new migration
 pnpm prisma generate       # Regenerate Prisma client
 pnpm db:seed               # Seed database (tsx prisma/seed.ts)
 
 # Database (production — Neon)
-DATABASE_URL="<neon-url>" pnpm prisma db push       # Push schema changes
+DATABASE_URL="<neon-url>" pnpm db:migrate:deploy     # Apply pending migrations
+DATABASE_URL="<neon-url>" pnpm db:migrate:status     # Check migration status
 DATABASE_URL="<neon-url>" pnpm prisma studio         # Browse production data
-DATABASE_URL="<neon-url>" pnpm prisma migrate deploy # Apply migrations (when using migrate workflow)
 ```
 
 ## Architecture
@@ -212,6 +213,42 @@ Team page at `/agent/team` shows supervisor chain, expandable subordinate tree, 
 Server action at `src/app/actions/closure.ts` — ADMIN/BACKOFFICE only. Admin can skip balance check.
 PARTNERSHIP_ENDED is a terminal state reachable only from APPROVED.
 
+### Notification System
+
+`src/backend/services/notifications.ts` — Notification creation and queries:
+- `createNotification(params)` — Create a notification for a specific user
+- `notifyRole(params)` — Create notifications for all users with matching role(s)
+- `getUserNotifications(userId, options?)` — Get notifications (supports unreadOnly filter, limit)
+- `getUnreadCount(userId)` — Get unread notification count
+- `markAsRead(notificationId, userId)` — Mark single notification read (userId guard prevents IDOR)
+- `markAllAsRead(userId)` — Mark all unread notifications read
+
+Server actions at `src/app/actions/notifications.ts` — Auth-guarded wrappers for the service.
+
+Notifications are auto-generated from key actions (fire-and-forget, never blocks main action):
+- Client approval/rejection → notifies the agent (`status-transition.ts`)
+- Settlement confirm/reject → notifies ADMIN + BACKOFFICE (`settlements.ts`)
+- Extension request created → notifies ADMIN + BACKOFFICE (`extensions.ts`)
+- Extension approved/rejected → notifies the requesting agent (`extensions.ts`)
+- Todo completed → notifies ADMIN + BACKOFFICE (`todos.ts`)
+
+UI: `src/components/notification-dropdown.tsx` — Shared dropdown used in both agent and backoffice top bars.
+
+### Global Search
+
+`src/app/api/search/route.ts` — GET route searching clients, agents, and tasks:
+- Accepts `?q=` query parameter (minimum 2 characters)
+- Role-based visibility: agents only see their own clients/tasks, backoffice/admin see all
+- Agents do not receive agent search results
+- Returns typed results with `link` paths appropriate to the user's role
+
+UI: `src/components/global-search.tsx` — exports `GlobalSearch` (CommandDialog) + `SearchTrigger` (button/input):
+- `SearchTrigger variant="input"` — styled like a search input with ⌘K badge (used in backoffice)
+- `SearchTrigger variant="icon"` — compact icon button (used in agent)
+- `GlobalSearch` — cmdk-based command palette with debounced server search, grouped results (Clients/Agents/Tasks), keyboard navigation
+
+Both top bars use `<SearchTrigger />` + `<GlobalSearch />`. Keyboard shortcut ⌘K / Ctrl+K opens the palette from anywhere.
+
 ### Path Aliases
 
 - `@/*` → `./src/*`
@@ -304,6 +341,9 @@ pnpm test src/test/backend/actions/phones.test.ts  # Specific file
 - `src/test/backend/services/transaction.test.ts` — Transaction ledger: record, balance, reversal, history
 - `src/test/backend/data/hierarchy.test.ts` — Team hierarchy: supervisor chain, subordinate tree, rollup
 - `src/test/backend/services/closure.test.ts` — Client closure: balance verification, close client, auth/role guards
+- `src/test/backend/services/notifications.test.ts` — Notification service: create, query, mark-as-read, role notifications
+- `src/test/backend/actions/notifications.test.ts` — Notification server actions: auth guards, get/mark-read
+- `src/test/backend/api/search.test.ts` — Search API route: auth, role-based visibility, query filtering, link paths
 
 ---
 
@@ -370,17 +410,27 @@ app/
 
 **Database:** Neon PostgreSQL (auto-provisioned by Vercel)
 
-### Schema Changes
+### Schema Changes (Prisma Migrate)
 
-After modifying `prisma/schema.prisma`, the production database must be updated. Since the site is currently private/dev-only, use `db push`:
+The project uses **Prisma Migrate** for schema management. Migrations are auto-deployed during the Vercel build (`prisma migrate deploy` in the build script).
+
+**Local development workflow:**
+
+1. Edit `prisma/schema.prisma`
+2. Run `pnpm db:migrate --name <description>` — creates a migration SQL file and applies it locally
+3. Commit the new migration file in `prisma/migrations/`
+4. On deploy, `prisma migrate deploy` runs automatically and applies pending migrations to Neon
+
+**Manual production commands (if needed):**
 
 ```bash
-DATABASE_URL="<neon-url>" pnpm prisma db push
+DATABASE_URL="<neon-url>" pnpm db:migrate:deploy   # Apply pending migrations
+DATABASE_URL="<neon-url>" pnpm db:migrate:status    # Check what's applied
 ```
 
-**Important:** Every schema change (new columns, enums, relations) requires syncing production. If you forget, the deployed app will get Prisma errors like `The column (not available) does not exist in the current database`, which NextAuth surfaces as `error=Configuration` on login.
+**Important:** Do NOT use `prisma db push` — it bypasses migration history. Always use `prisma migrate dev` locally to generate proper migration files.
 
-When the app goes to real production with user data, switch to `prisma migrate dev` locally + `prisma migrate deploy` in CI/CD to get proper migration history and rollback safety.
+If a migration is destructive (dropping columns/tables with data), Prisma will warn during `migrate dev`. Review the generated SQL in `prisma/migrations/<timestamp>_<name>/migration.sql` before committing.
 
 ### Environment Variables (Vercel)
 

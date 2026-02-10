@@ -1,5 +1,5 @@
 import prisma from '@/backend/prisma/client'
-import { IntakeStatus } from '@/types'
+import { IntakeStatus, EventType } from '@/types'
 
 // ── Star Level Calculation ──────────────────────────────────────────────────
 
@@ -54,6 +54,17 @@ export async function createBonusPool(clientId: string) {
     data: {
       clientId,
       closerId: client.agentId,
+    },
+  })
+
+  // Log the bonus pool creation event
+  await prisma.eventLog.create({
+    data: {
+      eventType: EventType.SETTLEMENT_CREATED,
+      description: `Bonus pool created: $400 (direct: $200, star pool: $200)`,
+      clientId,
+      userId: client.agentId,
+      metadata: { bonusPoolId: pool.id },
     },
   })
 
@@ -225,5 +236,113 @@ export async function getAgentCommissionSummary(agentId: string) {
     starSlices: allocations
       .filter((a) => a.type === 'star_slice' || a.type === 'backfill')
       .reduce((sum, a) => sum + a.slices, 0),
+  }
+}
+
+// ── Commission Tier Info ──────────────────────────────────────────────────
+
+export async function getCommissionTierInfo(agentId: string) {
+  const agent = await prisma.user.findUniqueOrThrow({
+    where: { id: agentId },
+    select: {
+      id: true,
+      name: true,
+      starLevel: true,
+      tier: true,
+      supervisorId: true,
+      supervisor: {
+        select: { id: true, name: true, starLevel: true, tier: true },
+      },
+    },
+  })
+
+  const approvedCount = await prisma.client.count({
+    where: { agentId, intakeStatus: IntakeStatus.APPROVED },
+  })
+
+  const thresholds = [
+    { level: 1, tier: '1-star', min: 3 },
+    { level: 2, tier: '2-star', min: 7 },
+    { level: 3, tier: '3-star', min: 13 },
+    { level: 4, tier: '4-star', min: 21 },
+  ]
+
+  const currentThreshold = thresholds.find((t) => t.level === agent.starLevel)
+  const nextThreshold = thresholds.find(
+    (t) => t.level === agent.starLevel + 1,
+  )
+
+  return {
+    ...agent,
+    approvedCount,
+    currentThreshold: currentThreshold ?? null,
+    nextThreshold: nextThreshold ?? null,
+    clientsToNextTier: nextThreshold
+      ? Math.max(0, nextThreshold.min - approvedCount)
+      : null,
+  }
+}
+
+// ── Override Earnings (Supervisor Earnings from Subordinates) ────────────
+
+export async function getOverrideEarnings(agentId: string) {
+  const allocations = await prisma.bonusAllocation.findMany({
+    where: {
+      agentId,
+      type: { in: ['star_slice', 'backfill'] },
+    },
+    include: {
+      bonusPool: {
+        include: {
+          client: { select: { id: true, firstName: true, lastName: true } },
+          closer: { select: { id: true, name: true, starLevel: true } },
+        },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  const ownCloses = allocations.filter(
+    (a) => a.bonusPool.closerId === agentId,
+  )
+  const overrideCloses = allocations.filter(
+    (a) => a.bonusPool.closerId !== agentId,
+  )
+
+  const overrideTotal = overrideCloses.reduce(
+    (sum, a) => sum + Number(a.amount),
+    0,
+  )
+  const ownTotal = ownCloses.reduce((sum, a) => sum + Number(a.amount), 0)
+
+  // Group by subordinate closer
+  const bySubordinate = new Map<
+    string,
+    { name: string; totalAmount: number; poolCount: number }
+  >()
+  for (const a of overrideCloses) {
+    const existing = bySubordinate.get(a.bonusPool.closerId) ?? {
+      name: a.bonusPool.closer.name,
+      totalAmount: 0,
+      poolCount: 0,
+    }
+    existing.totalAmount += Number(a.amount)
+    existing.poolCount = new Set(
+      overrideCloses
+        .filter((x) => x.bonusPool.closerId === a.bonusPool.closerId)
+        .map((x) => x.bonusPoolId),
+    ).size
+    bySubordinate.set(a.bonusPool.closerId, existing)
+  }
+
+  return {
+    overrideAllocations: overrideCloses,
+    ownAllocations: ownCloses,
+    overrideTotal,
+    ownTotal,
+    bySubordinate: [...bySubordinate.entries()].map(([id, data]) => ({
+      agentId: id,
+      ...data,
+    })),
   }
 }

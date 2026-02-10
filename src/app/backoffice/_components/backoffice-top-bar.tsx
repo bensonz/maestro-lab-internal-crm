@@ -1,10 +1,11 @@
 'use client'
 
-import { Bell, Search, Settings } from 'lucide-react'
+import { Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Separator } from '@/components/ui/separator'
+import { NotificationDropdown } from '@/components/notification-dropdown'
+import { GlobalSearch, SearchTrigger } from '@/components/global-search'
 
 export function BackofficeTopBar() {
   return (
@@ -18,26 +19,12 @@ export function BackofficeTopBar() {
           orientation="vertical"
           className="mr-1 h-4 md:hidden"
         />
-        <div className="relative max-w-md flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search clients, tasks, phone numbers..."
-            className="h-9 border-border bg-muted/50 pl-9"
-            data-testid="backoffice-search-input"
-          />
-        </div>
+        <SearchTrigger className="h-9 max-w-md flex-1" />
+        <GlobalSearch />
       </div>
 
       <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="relative"
-          data-testid="backoffice-notifications-btn"
-        >
-          <Bell className="h-4 w-4" />
-          <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-warning" />
-        </Button>
+        <NotificationDropdown />
         <Button
           variant="ghost"
           size="icon"

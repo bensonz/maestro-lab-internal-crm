@@ -8,6 +8,7 @@ import {
 } from '@/types'
 import { ALL_PLATFORMS, getPlatformName } from '@/lib/platforms'
 import { createBonusPool } from '@/backend/services/commission'
+import { createNotification } from '@/backend/services/notifications'
 
 // ─── Allowed Transitions ──────────────────────────────────────────────────────
 
@@ -332,6 +333,32 @@ export async function transitionClientStatus(
     // Create bonus pool when client is approved
     if (newStatus === IntakeStatus.APPROVED) {
       await createBonusPool(clientId)
+    }
+
+    // Send notifications for approval/rejection (fire-and-forget)
+    const clientName = `${client.firstName} ${client.lastName}`
+    try {
+      if (newStatus === IntakeStatus.APPROVED) {
+        await createNotification({
+          userId: client.agentId,
+          type: EventType.APPROVAL,
+          title: 'Client approved',
+          message: `Client ${clientName} has been approved!`,
+          link: `/agent/clients/${clientId}`,
+          clientId,
+        })
+      } else if (newStatus === IntakeStatus.REJECTED) {
+        await createNotification({
+          userId: client.agentId,
+          type: EventType.REJECTION,
+          title: 'Client rejected',
+          message: `Client ${clientName} was rejected`,
+          link: `/agent/clients/${clientId}`,
+          clientId,
+        })
+      }
+    } catch {
+      // Notification failure should not block the main action
     }
 
     return { success: true }

@@ -10,6 +10,7 @@ import { WalletSummaryStrip } from './wallet-summary-strip'
 import { LevelProgressCard } from './level-progress-card'
 import { PerformancePanel } from './performance-panel'
 import type { AgentKPIs } from '@/backend/services/agent-kpis'
+import type { HierarchyAgent, HierarchyNode } from '@/backend/data/hierarchy'
 
 interface Transaction {
   id: string
@@ -31,9 +32,15 @@ interface EarningsData {
 interface EarningsViewProps {
   earnings: EarningsData
   kpis: AgentKPIs
+  hierarchy: {
+    agent: HierarchyAgent
+    supervisorChain: HierarchyAgent[]
+    subordinateTree: HierarchyNode
+    teamSize: number
+  }
 }
 
-export function EarningsView({ earnings, kpis }: EarningsViewProps) {
+export function EarningsView({ earnings, kpis, hierarchy }: EarningsViewProps) {
   const { toast } = useToast()
 
   const available = earnings.totalEarnings - earnings.pendingPayout
@@ -48,7 +55,7 @@ export function EarningsView({ earnings, kpis }: EarningsViewProps) {
   return (
     <div className="flex h-full">
       {/* Left Panel - Team Directory */}
-      <TeamDirectoryPanel />
+      <TeamDirectoryPanel hierarchy={hierarchy} />
 
       {/* Main Content */}
       <div className="max-w-6xl flex-1 animate-fade-in space-y-5 overflow-y-auto p-6">
@@ -61,7 +68,12 @@ export function EarningsView({ earnings, kpis }: EarningsViewProps) {
         />
 
         {/* B. Level Progress Card */}
-        <LevelProgressCard />
+        <LevelProgressCard
+          starLevel={hierarchy.agent.starLevel}
+          approvedClients={kpis.approvedClients}
+          teamSize={hierarchy.teamSize}
+          directReports={hierarchy.subordinateTree.subordinates.length}
+        />
 
         {/* C. Earnings Breakdown Table */}
         <Card className="card-terminal" data-testid="earnings-table-card">

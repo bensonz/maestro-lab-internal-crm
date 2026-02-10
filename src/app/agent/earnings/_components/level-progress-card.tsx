@@ -1,29 +1,16 @@
 'use client'
 
-import { Star, TrendingUp, Users, Sparkles } from 'lucide-react'
+import { Star, TrendingUp, Users, Sparkles, Crown } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
+import { STAR_THRESHOLDS } from '@/lib/commission-constants'
 
-interface StarLevel {
-  current_level: number
-  current_label: string
-  next_level: number
-  next_label: string
-  next_level_bonus: string
-  direct_referrals: { current: number; required: number }
-  team_size: { current: number; required: number }
-}
-
-// TODO: implement star level system
-const defaultLevel: StarLevel = {
-  current_level: 2,
-  current_label: '2-Star Agent',
-  next_level: 3,
-  next_label: '3-Star Agent',
-  next_level_bonus: '+$150/client',
-  direct_referrals: { current: 3, required: 5 },
-  team_size: { current: 8, required: 15 },
+interface LevelProgressCardProps {
+  starLevel: number
+  approvedClients: number
+  teamSize: number
+  directReports: number
 }
 
 function renderStars(count: number, filled: boolean = true) {
@@ -42,13 +29,44 @@ function renderStars(count: number, filled: boolean = true) {
     ))
 }
 
-export function LevelProgressCard() {
-  const level = defaultLevel
+export function LevelProgressCard({
+  starLevel,
+  approvedClients,
+  teamSize,
+}: LevelProgressCardProps) {
+  const current = STAR_THRESHOLDS[starLevel] ?? STAR_THRESHOLDS[0]
+  const next = STAR_THRESHOLDS[Math.min(starLevel + 1, 4)]
+  const isMaxLevel = starLevel >= 4
 
-  const referralProgress =
-    (level.direct_referrals.current / level.direct_referrals.required) * 100
-  const teamProgress =
-    (level.team_size.current / level.team_size.required) * 100
+  // Progress toward next level based on approved client count
+  const referralProgress = isMaxLevel
+    ? 100
+    : Math.min(100, (approvedClients / next.min) * 100)
+
+  // Team size progress — next tier's min as reasonable target
+  const teamTarget = isMaxLevel ? teamSize : next.min
+  const teamProgress = Math.min(
+    100,
+    (teamSize / Math.max(teamTarget, 1)) * 100,
+  )
+
+  const level = {
+    current_level: starLevel,
+    current_label: current.label,
+    next_level: isMaxLevel ? 4 : starLevel + 1,
+    next_label: isMaxLevel ? 'Max Level' : next.label,
+    next_level_bonus: isMaxLevel
+      ? 'Max tier reached'
+      : `+${next.sliceBonus}/client`,
+    direct_referrals: {
+      current: approvedClients,
+      required: isMaxLevel ? approvedClients : next.min,
+    },
+    team_size: {
+      current: teamSize,
+      required: isMaxLevel ? teamSize : Math.max(teamTarget, 1),
+    },
+  }
 
   return (
     <Card
@@ -69,22 +87,31 @@ export function LevelProgressCard() {
               </span>
             </div>
 
-            <div className="mb-4 flex items-center gap-2 text-xs text-muted-foreground">
-              <span>Next Level:</span>
-              <div className="flex items-center gap-1">
-                {renderStars(level.next_level)}
+            {isMaxLevel ? (
+              <div className="mb-4 flex items-center gap-2 text-xs text-muted-foreground">
+                <Crown className="h-3.5 w-3.5 text-warning" />
+                <span className="font-medium text-warning">
+                  Maximum Star Level Reached
+                </span>
               </div>
-              <span className="font-medium text-primary">
-                {level.next_label}
-              </span>
-            </div>
+            ) : (
+              <div className="mb-4 flex items-center gap-2 text-xs text-muted-foreground">
+                <span>Next Level:</span>
+                <div className="flex items-center gap-1">
+                  {renderStars(level.next_level)}
+                </div>
+                <span className="font-medium text-primary">
+                  {level.next_label}
+                </span>
+              </div>
+            )}
 
             {/* Progress Bars */}
             <div className="space-y-3">
               <div>
                 <div className="mb-1 flex items-center justify-between text-xs">
                   <span className="flex items-center gap-1 text-muted-foreground">
-                    <Users className="h-3 w-3" /> Direct Referrals
+                    <Users className="h-3 w-3" /> Approved Clients
                   </span>
                   <span className="font-mono">
                     {level.direct_referrals.current} /{' '}
@@ -113,12 +140,21 @@ export function LevelProgressCard() {
             <div className="mb-1 flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-success" />
               <span className="text-xs font-medium uppercase tracking-wider text-success">
-                Unlocks at {level.next_level}-Star
+                {isMaxLevel
+                  ? 'Leadership Tier'
+                  : `Unlocks at ${level.next_level}-Star`}
               </span>
             </div>
             <p className="font-mono text-lg font-bold text-success">
-              {level.next_level_bonus}
+              {isMaxLevel
+                ? 'Executive Path'
+                : level.next_level_bonus}
             </p>
+            {isMaxLevel && (
+              <p className="mt-1 text-[10px] text-success/80">
+                Develop 2 four-star agents to unlock Executive Director
+              </p>
+            )}
           </div>
         </div>
       </CardContent>

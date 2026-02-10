@@ -1,10 +1,12 @@
 'use client'
 
 import Link from 'next/link'
-import { Bell, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Separator } from '@/components/ui/separator'
+import { NotificationDropdown } from '@/components/notification-dropdown'
+import { GlobalSearch, SearchTrigger } from '@/components/global-search'
 
 export function AgentTopBar() {
   return (
@@ -27,15 +29,9 @@ export function AgentTopBar() {
       </div>
 
       <div className="flex items-center gap-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="relative"
-          data-testid="agent-notifications-btn"
-        >
-          <Bell className="h-5 w-5 text-muted-foreground" />
-          <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-primary animate-pulse" />
-        </Button>
+        <SearchTrigger variant="icon" />
+        <GlobalSearch />
+        <NotificationDropdown />
         <Button asChild data-testid="new-client-btn">
           <Link href="/agent/new-client">
             <Plus className="h-4 w-4" />

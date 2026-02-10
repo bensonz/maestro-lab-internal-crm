@@ -11,6 +11,10 @@ import {
   ClipboardList,
   CheckSquare,
   Receipt,
+  DollarSign,
+  Handshake,
+  PieChart,
+  BarChart3,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -57,6 +61,26 @@ const navItems: NavItem[] = [
     title: 'Fund Allocation',
     href: '/backoffice/fund-allocation',
     icon: Wallet,
+  },
+  {
+    title: 'Commissions',
+    href: '/backoffice/commissions',
+    icon: DollarSign,
+  },
+  {
+    title: 'Partners',
+    href: '/backoffice/partners',
+    icon: Handshake,
+  },
+  {
+    title: 'Profit Sharing',
+    href: '/backoffice/profit-sharing',
+    icon: PieChart,
+  },
+  {
+    title: 'Reports',
+    href: '/backoffice/reports',
+    icon: BarChart3,
   },
   {
     title: 'Client Settlement',

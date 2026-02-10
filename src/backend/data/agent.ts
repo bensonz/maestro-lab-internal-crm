@@ -6,6 +6,10 @@ import {
   ExtensionRequestStatus,
 } from '@/types'
 import { getClientPhase } from '@/lib/client-phase'
+import {
+  getAgentCommissionSummary,
+  getOverrideEarnings,
+} from '@/backend/services/commission'
 
 export async function getAgentClients(agentId: string) {
   const clients = await prisma.client.findMany({
@@ -290,11 +294,18 @@ export async function getAgentEarnings(agentId: string) {
     rawDate: e.createdAt.toISOString(),
   }))
 
+  const [commissionSummary, overrideEarnings] = await Promise.all([
+    getAgentCommissionSummary(agentId),
+    getOverrideEarnings(agentId),
+  ])
+
   return {
     totalEarnings,
     pendingPayout,
     thisMonth,
     recentTransactions,
+    commission: commissionSummary,
+    overrides: overrideEarnings,
   }
 }
 
@@ -312,6 +323,9 @@ export async function getAgentTodos(agentId: string) {
           firstName: true,
           lastName: true,
         },
+      },
+      createdBy: {
+        select: { name: true },
       },
     },
     orderBy: [{ dueDate: 'asc' }, { priority: 'desc' }],
@@ -344,10 +358,18 @@ export async function getAgentTodos(agentId: string) {
   const pendingTasks = todos.map((t) => ({
     id: t.id,
     task: t.title,
+    description: t.description ?? '',
     client: t.client ? `${t.client.firstName} ${t.client.lastName}` : 'N/A',
+    clientId: t.clientId ?? '',
     due: t.dueDate ? formatRelativeTime(t.dueDate) : 'No deadline',
     overdue:
       t.status === ToDoStatus.OVERDUE || (t.dueDate ? t.dueDate < now : false),
+    stepNumber: t.stepNumber ?? 1,
+    createdAt: t.createdAt.toISOString(),
+    extensionsUsed: t.extensionsUsed,
+    maxExtensions: t.maxExtensions,
+    createdByName: t.createdBy?.name ?? 'System',
+    metadata: t.metadata as Record<string, unknown> | null,
   }))
 
   return {
