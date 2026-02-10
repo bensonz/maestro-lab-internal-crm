@@ -35,7 +35,7 @@ export function AgentTopBar() {
         <Button asChild data-testid="new-client-btn">
           <Link href="/agent/new-client">
             <Plus className="h-4 w-4" />
-            New User
+            New Client
           </Link>
         </Button>
       </div>
