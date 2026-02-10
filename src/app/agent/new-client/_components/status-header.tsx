@@ -12,7 +12,7 @@ interface StatusHeaderProps {
   submitDisabled: boolean
   onSaveDraft: () => void
   isSaving: boolean
-  phase: 1 | 2
+  phase: number
   betmgmVerified: boolean
   prequalSubmitted: boolean
 }
@@ -33,6 +33,7 @@ export function StatusHeader({
       if (prequalSubmitted && !betmgmVerified) return 'Awaiting Verification'
       return 'Submit Phase 1'
     }
+    if (phase >= 2) return 'Submit Application'
     return 'Submit Application'
   }
 
