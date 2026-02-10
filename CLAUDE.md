@@ -384,6 +384,26 @@ app/
 - **`useFormStatus`** for submit button states
 - **Progressive enhancement** — forms work without JS
 
+### Action-Responsive UI
+
+Every user action (submit, upload, delete, etc.) must provide **both** immediate and persistent feedback:
+
+- **Toast notification** — immediate feedback on success or failure (action-response). Always use `toast.success()` or `toast.error()` so the user knows something happened.
+- **Inline error messages** — persistent error text next to the relevant field/control. Errors stay visible until the user retries or the issue is resolved. Toasts auto-dismiss and are not sufficient alone for errors.
+- **Loading states** — disable buttons and show spinners during async operations.
+
+```tsx
+// Pattern: toast + inline error for failures
+try {
+  await doAction()
+  toast.success('Action completed')
+} catch (err) {
+  const message = err instanceof Error ? err.message : 'Action failed'
+  setError(message)        // persists on page
+  toast.error(message)     // immediate feedback
+}
+```
+
 ### Validation
 
 - **Zod** for schema validation
