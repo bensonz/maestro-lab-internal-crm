@@ -210,7 +210,9 @@ export async function getIntakeClients(): Promise<IntakeClient[]> {
       determineDetailedStatus(client)
     const canApprove = client.intakeStatus === IntakeStatus.READY_FOR_APPROVAL
     const canAssignPhone =
-      client.intakeStatus === IntakeStatus.PENDING && !client.phoneAssignment
+      (client.intakeStatus === IntakeStatus.PENDING ||
+        client.intakeStatus === IntakeStatus.APPROVED) &&
+      !client.phoneAssignment
 
     return {
       id: client.id,
@@ -621,7 +623,7 @@ export async function getEligibleClientsForPhone(): Promise<
 > {
   const clients = await prisma.client.findMany({
     where: {
-      intakeStatus: IntakeStatus.PENDING,
+      intakeStatus: { in: [IntakeStatus.PENDING, IntakeStatus.APPROVED] },
       phoneAssignment: null,
     },
     include: {
