@@ -47,7 +47,7 @@ const ALLOWED_TRANSITIONS: Record<IntakeStatus, IntakeStatus[]> = {
     IntakeStatus.REJECTED,
     IntakeStatus.NEEDS_MORE_INFO,
   ],
-  [IntakeStatus.APPROVED]: [IntakeStatus.PARTNERSHIP_ENDED],
+  [IntakeStatus.APPROVED]: [IntakeStatus.PHONE_ISSUED, IntakeStatus.PARTNERSHIP_ENDED],
   [IntakeStatus.REJECTED]: [],
   [IntakeStatus.INACTIVE]: [],
   [IntakeStatus.PARTNERSHIP_ENDED]: [],
