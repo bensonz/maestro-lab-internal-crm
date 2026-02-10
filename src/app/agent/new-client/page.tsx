@@ -60,12 +60,13 @@ export default async function NewClientPage({ searchParams }: Props) {
         agentId: true,
         platforms: {
           where: { platformType: 'BETMGM' },
-          select: { status: true },
+          select: { status: true, screenshots: true },
         },
       },
     })
 
     if (client && client.agentId === session.user.id) {
+      const betmgmPlatform = client.platforms[0]
       clientData = {
         id: client.id,
         firstName: client.firstName,
@@ -81,8 +82,9 @@ export default async function NewClientPage({ searchParams }: Props) {
         zipCode: client.zipCode,
         questionnaire: client.questionnaire,
         idDocument: client.idDocument,
+        betmgmScreenshots: betmgmPlatform?.screenshots ?? [],
       }
-      betmgmStatus = client.platforms[0]?.status ?? 'NOT_STARTED'
+      betmgmStatus = betmgmPlatform?.status ?? 'NOT_STARTED'
     }
   }
 
