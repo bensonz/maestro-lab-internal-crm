@@ -92,7 +92,7 @@ export function PhoneAssignmentDialog({
             <FieldLabel htmlFor="client">Client</FieldLabel>
             {eligibleClients.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No eligible clients (PENDING status with no phone)
+                No eligible clients (PENDING or APPROVED status with no phone)
               </p>
             ) : (
               <Select value={clientId} onValueChange={setClientId}>
