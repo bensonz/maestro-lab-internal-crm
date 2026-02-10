@@ -34,11 +34,12 @@ export function StatusHeader({
       if (prequalSubmitted && !betmgmVerified) return 'Awaiting Verification'
       return 'Submit Pre-Qualification'
     }
-    if (phase >= 2) return 'Submit Application'
+    if (phase >= 3) return 'Application Submitted'
     return 'Submit Application'
   }
 
   const isAwaitingVerification = prequalSubmitted && !betmgmVerified
+  const isAlreadySubmitted = phase >= 3
 
   const riskColor = {
     low: 'text-success',
@@ -98,7 +99,7 @@ export function StatusHeader({
                 'bg-warning text-warning-foreground hover:bg-warning/90',
             )}
             onClick={onSubmit}
-            disabled={submitDisabled || isAwaitingVerification}
+            disabled={submitDisabled || isAwaitingVerification || isAlreadySubmitted}
             data-testid="submit-application-btn"
           >
             {isAwaitingVerification && (
