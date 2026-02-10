@@ -4,33 +4,38 @@ import { useState, useTransition } from 'react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Field, FieldLabel, FieldError } from '@/components/ui/field'
-import { Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff, Loader2, Phone } from 'lucide-react'
 import { updateGmailCredentials } from '@/app/actions/prequal'
 import { toast } from 'sonner'
 
 interface GmailSectionProps {
   defaultGmail?: string
   defaultPassword?: string
+  defaultPhone?: string
   clientId?: string
   errors?: Record<string, string[]>
   disabled?: boolean
   onGmailChange?: (value: string) => void
   onPasswordChange?: (value: string) => void
+  onPhoneChange?: (value: string) => void
 }
 
 export function GmailSection({
   defaultGmail,
   defaultPassword,
+  defaultPhone,
   clientId,
   errors,
   disabled,
   onGmailChange,
   onPasswordChange,
+  onPhoneChange,
 }: GmailSectionProps) {
   const [showPassword, setShowPassword] = useState(false)
   const [isUpdating, startTransition] = useTransition()
   const [gmail, setGmail] = useState(defaultGmail ?? '')
   const [password, setPassword] = useState(defaultPassword ?? '')
+  const [phone, setPhone] = useState(defaultPhone ?? '')
 
   const handleGmailChange = (value: string) => {
     setGmail(value)
@@ -40,6 +45,11 @@ export function GmailSection({
   const handlePasswordChange = (value: string) => {
     setPassword(value)
     onPasswordChange?.(value)
+  }
+
+  const handlePhoneChange = (value: string) => {
+    setPhone(value)
+    onPhoneChange?.(value)
   }
 
   const handleUpdateCredentials = () => {
@@ -62,6 +72,23 @@ export function GmailSection({
 
   return (
     <div className="space-y-4" data-testid="gmail-section">
+      <Field>
+        <FieldLabel htmlFor="phone">
+          <Phone className="mr-1 inline h-3.5 w-3.5" />
+          Client Phone Number
+        </FieldLabel>
+        <Input
+          id="phone"
+          type="tel"
+          placeholder="(555) 000-0000"
+          value={phone}
+          onChange={(e) => handlePhoneChange(e.target.value)}
+          disabled={disabled}
+          data-testid="phone-input"
+        />
+        <FieldError>{errors?.phone?.[0]}</FieldError>
+      </Field>
+
       <div className="grid gap-4 sm:grid-cols-2">
         <Field>
           <FieldLabel htmlFor="gmailAccount">
