@@ -180,6 +180,7 @@ export function RiskPanel({
                   onCheckedChange={(val) =>
                     onAgentConfirmChange(val === true)
                   }
+                  disabled={phase >= 3}
                   data-testid="risk-panel-agent-confirm"
                 />
                 <Label
