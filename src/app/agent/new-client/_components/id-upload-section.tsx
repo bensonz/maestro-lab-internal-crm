@@ -32,17 +32,19 @@ interface IdUploadSectionProps {
   onDataExtracted: (data: ExtractedData) => void
   onConfirm: () => void
   isConfirmed: boolean
+  initialData?: ExtractedData
 }
 
 export function IdUploadSection({
   onDataExtracted,
   onConfirm,
   isConfirmed,
+  initialData,
 }: IdUploadSectionProps) {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
-  const [extractedData, setExtractedData] = useState<ExtractedData | null>(null)
-  const [editableData, setEditableData] = useState<ExtractedData | null>(null)
+  const [extractedData, setExtractedData] = useState<ExtractedData | null>(initialData ?? null)
+  const [editableData, setEditableData] = useState<ExtractedData | null>(initialData ?? null)
   const [dragActive, setDragActive] = useState(false)
   const [manualExpiry, setManualExpiry] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -193,7 +195,7 @@ export function IdUploadSection({
           Verified
         </Badge>
       )}
-        {!uploadedFile ? (
+        {!uploadedFile && !initialData ? (
           <div
             onClick={() => fileInputRef.current?.click()}
             onDrop={handleDrop}
