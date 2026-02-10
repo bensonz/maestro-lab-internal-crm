@@ -110,10 +110,10 @@ export default async function NewClientPage({ searchParams }: Props) {
     : []
 
   // Compute phase for each pipeline client and group
-  const phase1: { id: string; firstName: string; lastName: string }[] = []
-  const phase2: { id: string; firstName: string; lastName: string }[] = []
-  const phase3: { id: string; firstName: string; lastName: string }[] = []
-  const phase4: { id: string; firstName: string; lastName: string }[] = []
+  const phase1: { id: string; firstName: string; lastName: string; intakeStatus: string }[] = []
+  const phase2: { id: string; firstName: string; lastName: string; intakeStatus: string }[] = []
+  const phase3: { id: string; firstName: string; lastName: string; intakeStatus: string }[] = []
+  const phase4: { id: string; firstName: string; lastName: string; intakeStatus: string }[] = []
 
   for (const c of pipelineClients) {
     const betmgmVerified =
@@ -123,7 +123,7 @@ export default async function NewClientPage({ searchParams }: Props) {
       prequalCompleted: c.prequalCompleted,
       betmgmVerified,
     })
-    const item = { id: c.id, firstName: c.firstName, lastName: c.lastName }
+    const item = { id: c.id, firstName: c.firstName, lastName: c.lastName, intakeStatus: c.intakeStatus }
     switch (phase) {
       case 1:
         phase1.push(item)
