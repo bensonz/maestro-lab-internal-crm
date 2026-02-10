@@ -77,7 +77,7 @@ export function PriorityTasks({ tasks }: PriorityTasksProps) {
                 <Link
                   href={
                     task.clientId
-                      ? `/backoffice/client-management/${task.clientId}`
+                      ? `/backoffice/client-management?client=${task.clientId}`
                       : '/backoffice/fund-allocation'
                   }
                 >
