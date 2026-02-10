@@ -138,6 +138,7 @@ export default async function NewClientPage({ searchParams }: Props) {
 
   return (
     <NewClientPageClient
+      key={clientId ?? draftId ?? 'new'}
       pipelineData={{
         drafts: phase1Drafts,
         phase1,
