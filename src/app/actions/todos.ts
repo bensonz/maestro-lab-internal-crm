@@ -2,7 +2,7 @@
 
 import { auth } from '@/backend/auth'
 import prisma from '@/backend/prisma/client'
-import { getStorage } from '@/lib/storage'
+import { getStorage } from '@/backend/storage'
 import { ToDoStatus, PlatformStatus, EventType, UserRole } from '@/types'
 import { revalidatePath } from 'next/cache'
 import { notifyRole } from '@/backend/services/notifications'
@@ -144,7 +144,7 @@ export async function uploadToDoScreenshots(
 
       // Save file
       const buffer = Buffer.from(await file.arrayBuffer())
-      await storage.save(filepath, buffer)
+      const result = await storage.upload(buffer, filepath, file.type)
 
       // Mock AI detection
       const detection = mockAIDetection(
@@ -152,7 +152,7 @@ export async function uploadToDoScreenshots(
         todo.platformType || undefined,
       )
       detections.push({
-        path: filepath,
+        path: result.url,
         ...detection,
       })
     }
