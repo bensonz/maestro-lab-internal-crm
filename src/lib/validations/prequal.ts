@@ -13,6 +13,7 @@ export const prequalSchema = z.object({
     .min(1, 'Gmail account is required')
     .email('Must be a valid email address'),
   gmailPassword: z.string().min(1, 'Gmail password is required'),
+  phone: z.string().min(1, 'Phone number is required'),
   agentConfirmsId: z.preprocess(
     (val) => val === 'true' || val === true,
     z.boolean().refine((val) => val === true, {
