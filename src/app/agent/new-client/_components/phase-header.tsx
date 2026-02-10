@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 
 interface PhaseHeaderProps {
-  phase: 1 | 2
+  phase: number
   title: string
   active: boolean
 }

@@ -36,7 +36,7 @@ interface RiskPanelProps {
   overriddenFields: string[]
   agentConfirms: boolean
   onAgentConfirmChange: (checked: boolean) => void
-  phase: 1 | 2
+  phase: number
 }
 
 interface ComplianceRule {
