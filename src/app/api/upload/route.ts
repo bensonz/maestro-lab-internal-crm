@@ -1,5 +1,5 @@
 import { auth } from '@/backend/auth'
-import { getStorage } from '@/lib/storage'
+import { getStorage } from '@/backend/storage'
 import { NextRequest, NextResponse } from 'next/server'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
@@ -48,8 +48,7 @@ export const POST = auth(async (req) => {
 
   const storage = getStorage()
   const buffer = Buffer.from(await file.arrayBuffer())
-  await storage.save(storagePath, buffer)
+  const result = await storage.upload(buffer, storagePath, file.type)
 
-  const url = storage.getUrl(storagePath)
-  return NextResponse.json({ url, path: storagePath, ext })
+  return NextResponse.json({ url: result.url, path: result.key, ext })
 }) as unknown as (req: NextRequest) => Promise<Response>
