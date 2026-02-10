@@ -4,7 +4,8 @@ import { auth } from '@/backend/auth'
 import prisma from '@/backend/prisma/client'
 import { ALL_PLATFORMS } from '@/lib/platforms'
 import { prequalSchema, updateGmailSchema } from '@/lib/validations/prequal'
-import { EventType, PlatformStatus, PlatformType } from '@/types'
+import { EventType, PlatformStatus, PlatformType, UserRole } from '@/types'
+import { notifyRole } from '@/backend/services/notifications'
 
 export type PrequalActionState = {
   errors?: Record<string, string[]>
@@ -144,6 +145,22 @@ export async function submitPrequalification(
 
       return newClient
     })
+
+    // Notify backoffice if BetMGM needs review
+    if (betmgmResult !== 'failed') {
+      try {
+        await notifyRole({
+          role: [UserRole.ADMIN, UserRole.BACKOFFICE],
+          type: EventType.PLATFORM_STATUS_CHANGE,
+          title: 'BetMGM verification needed',
+          message: `${firstName} ${lastName} submitted pre-qualification — BetMGM account needs review`,
+          link: '/backoffice/sales-interaction',
+          clientId: client.id,
+        })
+      } catch {
+        // Notification failure should not block the main action
+      }
+    }
 
     return { clientId: client.id }
   } catch {
