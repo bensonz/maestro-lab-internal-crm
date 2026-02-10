@@ -37,6 +37,7 @@ interface ClientData {
   zipCode?: string | null
   questionnaire?: string | null
   idDocument?: string | null
+  betmgmScreenshots?: string[]
 }
 
 interface NewClientPageClientProps {
