@@ -73,16 +73,25 @@ function getAllScreenshots(
   // Betting platforms
   client.bettingPlatforms.forEach((p) => {
     const urls = getPlatformScreenshots(client, p.name)
+    const isBetMGM = PLATFORM_NAME_TO_TYPE[p.name] === 'BETMGM'
     urls.forEach((url, idx) => {
       screenshots.push({
         platform: p.name,
         url: getScreenshotUrl(url),
-        type: `Screenshot ${idx + 1}`,
+        type: isBetMGM
+          ? (BETMGM_SCREENSHOT_LABELS[idx] ?? `Screenshot ${idx + 1}`)
+          : `Screenshot ${idx + 1}`,
       })
     })
   })
 
   return screenshots
+}
+
+// BetMGM screenshots are stored by convention: index 0 = Login Page, index 1 = Deposit Page
+const BETMGM_SCREENSHOT_LABELS: Record<number, string> = {
+  0: 'Login Page Screenshot',
+  1: 'Deposit Page Screenshot',
 }
 
 function getCredentialScreenshots(
@@ -103,11 +112,14 @@ function getCredentialScreenshots(
 
   client.bettingPlatforms.forEach((p) => {
     const urls = getPlatformScreenshots(client, p.name)
+    const isBetMGM = PLATFORM_NAME_TO_TYPE[p.name] === 'BETMGM'
     urls.forEach((url, idx) => {
       screenshots.push({
         platform: p.name,
         url: getScreenshotUrl(url),
-        type: `Credentials ${idx + 1}`,
+        type: isBetMGM
+          ? (BETMGM_SCREENSHOT_LABELS[idx] ?? `Screenshot ${idx + 1}`)
+          : `Credentials ${idx + 1}`,
       })
     })
   })
@@ -295,7 +307,7 @@ export function ClientModals({
                       {screenshot.platform}
                     </p>
                     <p className="text-[11px] text-muted-foreground">
-                      Login &amp; Password Screenshot
+                      {screenshot.type}
                     </p>
                   </div>
                 </div>
