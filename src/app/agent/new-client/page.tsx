@@ -15,6 +15,14 @@ export default async function NewClientPage({ searchParams }: Props) {
   let clientData = null
   let betmgmStatus = 'NOT_STARTED'
   let serverPhase: number | null = null
+  let betmgmRetryState: {
+    isRetryPending: boolean
+    retryAfter?: string
+    retryCount: number
+    rejectionReason?: string
+    cooldownPassed: boolean
+    previousAgentResult?: string
+  } | null = null
 
   // Fetch all independent data in parallel
   const [drafts, selectedClient, pipelineClients] = await Promise.all([
@@ -55,7 +63,7 @@ export default async function NewClientPage({ searchParams }: Props) {
             agentId: true,
             platforms: {
               where: { platformType: 'BETMGM' },
-              select: { status: true, screenshots: true },
+              select: { status: true, screenshots: true, retryAfter: true, retryCount: true, reviewNotes: true, agentResult: true },
             },
           },
         })
@@ -118,6 +126,16 @@ export default async function NewClientPage({ searchParams }: Props) {
       intakeStatus: selectedClient.intakeStatus,
     }
     betmgmStatus = betmgmPlatform?.status ?? 'NOT_STARTED'
+    // Compute retry state for the agent UI
+    const retryAfterDate = betmgmPlatform?.retryAfter
+    betmgmRetryState = {
+      isRetryPending: betmgmPlatform?.status === 'RETRY_PENDING',
+      retryAfter: retryAfterDate ? retryAfterDate.toISOString() : undefined,
+      retryCount: betmgmPlatform?.retryCount ?? 0,
+      rejectionReason: betmgmPlatform?.reviewNotes ?? undefined,
+      cooldownPassed: retryAfterDate ? retryAfterDate.getTime() <= Date.now() : false,
+      previousAgentResult: betmgmPlatform?.agentResult ?? undefined,
+    }
     serverPhase = getClientPhase({
       intakeStatus: selectedClient.intakeStatus,
       prequalCompleted: selectedClient.prequalCompleted,
@@ -180,6 +198,7 @@ export default async function NewClientPage({ searchParams }: Props) {
       clientData={clientData}
       betmgmStatus={betmgmStatus}
       serverPhase={serverPhase}
+      betmgmRetryState={betmgmRetryState}
     />
   )
 }

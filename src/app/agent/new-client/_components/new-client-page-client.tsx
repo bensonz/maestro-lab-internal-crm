@@ -43,6 +43,15 @@ interface ClientData {
   intakeStatus?: string
 }
 
+export interface BetmgmRetryState {
+  isRetryPending: boolean
+  retryAfter?: string
+  retryCount: number
+  rejectionReason?: string
+  cooldownPassed: boolean
+  previousAgentResult?: string
+}
+
 interface NewClientPageClientProps {
   pipelineData: PipelineData
   currentClientId?: string
@@ -51,6 +60,7 @@ interface NewClientPageClientProps {
   clientData: ClientData | null
   betmgmStatus: string
   serverPhase?: number | null
+  betmgmRetryState?: BetmgmRetryState | null
 }
 
 export function NewClientPageClient({
@@ -61,6 +71,7 @@ export function NewClientPageClient({
   clientData,
   betmgmStatus,
   serverPhase,
+  betmgmRetryState,
 }: NewClientPageClientProps) {
   const { form, riskPanel } = ClientForm({
     initialData,
@@ -68,6 +79,7 @@ export function NewClientPageClient({
     clientData,
     betmgmStatus,
     serverPhase,
+    betmgmRetryState: betmgmRetryState ?? undefined,
   })
 
   return (

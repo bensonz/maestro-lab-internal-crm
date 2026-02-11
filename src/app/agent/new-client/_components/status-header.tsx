@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Save, Clock } from 'lucide-react'
+import { ArrowLeft, Save, Clock, RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PHASE_SHORT_LABELS } from '@/lib/client-phase'
 
@@ -17,6 +17,8 @@ interface StatusHeaderProps {
   phase: number
   betmgmVerified: boolean
   prequalSubmitted: boolean
+  retryAvailable?: boolean
+  retryPending?: boolean
 }
 
 export function StatusHeader({
@@ -30,8 +32,12 @@ export function StatusHeader({
   phase,
   betmgmVerified,
   prequalSubmitted,
+  retryAvailable,
+  retryPending,
 }: StatusHeaderProps) {
   const getSubmitLabel = () => {
+    if (retryAvailable) return 'Resubmit BetMGM'
+    if (retryPending) return 'Retry Cooldown'
     if (phase === 1) {
       if (prequalSubmitted && !betmgmVerified) return 'Awaiting Verification'
       return 'Submit Pre-Qualification'
@@ -40,7 +46,7 @@ export function StatusHeader({
     return 'Submit Application'
   }
 
-  const isAwaitingVerification = phase === 1 && prequalSubmitted && !betmgmVerified
+  const isAwaitingVerification = phase === 1 && prequalSubmitted && !betmgmVerified && !retryAvailable && !retryPending
   const isAlreadySubmitted = phase >= 3
 
   const riskColor = {
@@ -99,14 +105,24 @@ export function StatusHeader({
               'h-8 text-xs',
               isAwaitingVerification &&
                 'bg-warning text-warning-foreground hover:bg-warning/90',
+              retryPending &&
+                'bg-warning text-warning-foreground hover:bg-warning/90',
+              retryAvailable &&
+                'bg-success text-white hover:bg-success/90',
             )}
             onClick={onSubmit}
-            disabled={submitDisabled || isAwaitingVerification || isAlreadySubmitted}
+            disabled={submitDisabled || isAwaitingVerification || isAlreadySubmitted || !!retryPending}
             loading={isSubmitting}
             data-testid="submit-application-btn"
           >
             {isAwaitingVerification && !isSubmitting && (
               <Clock className="mr-1 h-3 w-3" />
+            )}
+            {retryPending && !isSubmitting && (
+              <Clock className="mr-1 h-3 w-3" />
+            )}
+            {retryAvailable && !isSubmitting && (
+              <RefreshCw className="mr-1 h-3 w-3" />
             )}
             {isSubmitting ? 'Submitting...' : getSubmitLabel()}
           </Button>

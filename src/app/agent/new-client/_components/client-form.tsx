@@ -15,6 +15,7 @@ import {
   PrequalActionState,
 } from '@/app/actions/prequal'
 import { checkBetmgmStatus } from '@/app/actions/betmgm-verification'
+import { retryBetmgmSubmission } from '@/app/actions/betmgm-retry'
 import { saveDraft } from '@/app/actions/drafts'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -73,12 +74,22 @@ interface ClientData {
   intakeStatus?: string
 }
 
+interface BetmgmRetryInfo {
+  isRetryPending: boolean
+  retryAfter?: string
+  retryCount: number
+  rejectionReason?: string
+  cooldownPassed: boolean
+  previousAgentResult?: string
+}
+
 interface ClientFormProps {
   initialData?: Record<string, string> | null
   draftId?: string
   clientData?: ClientData | null
   betmgmStatus?: string
   serverPhase?: number | null
+  betmgmRetryState?: BetmgmRetryInfo
 }
 
 export function ClientForm({
@@ -87,6 +98,7 @@ export function ClientForm({
   clientData,
   betmgmStatus: initialBetmgmStatus,
   serverPhase,
+  betmgmRetryState: initialRetryState,
 }: ClientFormProps) {
   const router = useRouter()
   const [phase2State, phase2FormAction, isPhase2Pending] = useActionState(
@@ -107,6 +119,10 @@ export function ClientForm({
   const [betmgmStatus, setBetmgmStatus] = useState(
     initialBetmgmStatus ?? 'NOT_STARTED',
   )
+  const [betmgmRetryInfo, setBetmgmRetryInfo] = useState<BetmgmRetryInfo | undefined>(
+    initialRetryState,
+  )
+  const [isRetrySubmitting, setIsRetrySubmitting] = useState(false)
   const currentPhase: number =
     serverPhase ?? (prequalSubmitted && betmgmVerified ? 2 : 1)
 
@@ -262,17 +278,34 @@ export function ClientForm({
   const phase1FormRef = useRef<HTMLFormElement>(null)
   const phase2FormRef = useRef<HTMLFormElement>(null)
 
-  // BetMGM polling — poll every 15s when prequal submitted but not yet verified
+  // BetMGM polling — poll every 60s when prequal submitted but not yet verified
   useEffect(() => {
     if (!prequalSubmitted || betmgmVerified || !clientData?.id) return
 
     const interval = setInterval(async () => {
       const result = await checkBetmgmStatus(clientData.id)
       setBetmgmStatus(result.status)
+
       if (result.verified) {
         setBetmgmVerified(true)
         toast.success('BetMGM verified! Full application unlocked.')
         clearInterval(interval)
+      } else if (result.status === 'RETRY_PENDING') {
+        const cooldownPassed = result.retryAfter
+          ? new Date(result.retryAfter).getTime() <= Date.now()
+          : false
+        setBetmgmRetryInfo({
+          isRetryPending: true,
+          retryAfter: result.retryAfter,
+          retryCount: result.retryCount ?? 0,
+          rejectionReason: result.rejectionReason,
+          cooldownPassed,
+        })
+        if (cooldownPassed) {
+          toast.info('BetMGM retry is now available. Upload new screenshots and resubmit.')
+        } else {
+          toast.warning('BetMGM was rejected with retry — cooldown active.')
+        }
       }
     }, 60000)
 
@@ -424,9 +457,9 @@ export function ClientForm({
     if (!hasGmail) step1bMissing.push('Gmail account')
     if (!hasPassword) step1bMissing.push('Gmail password')
 
-    // Step 1c: BetMGM Check
+    // Step 1c: BetMGM Check — both success and failed require screenshots
     const betmgmComplete =
-      betmgmResult === 'failed' ||
+      (betmgmResult === 'failed' && !!betmgmScreenshots.login) ||
       (betmgmResult === 'success' &&
         !!betmgmScreenshots.login &&
         !!betmgmScreenshots.deposit)
@@ -437,12 +470,11 @@ export function ClientForm({
         : 'not-started'
     const step1cMissing: string[] = []
     if (!betmgmResult) step1cMissing.push('Record BetMGM result')
-    else if (
-      betmgmResult === 'success' &&
-      (!betmgmScreenshots.login || !betmgmScreenshots.deposit)
-    ) {
+    else if (betmgmResult === 'success') {
       if (!betmgmScreenshots.login) step1cMissing.push('Login screenshot')
       if (!betmgmScreenshots.deposit) step1cMissing.push('Deposit screenshot')
+    } else if (betmgmResult === 'failed') {
+      if (!betmgmScreenshots.login) step1cMissing.push('Rejection screenshot')
     }
 
     return [
@@ -569,8 +601,38 @@ export function ClientForm({
     } : undefined,
   })
 
+  // Retry BetMGM handler
+  const handleRetrySubmit = useCallback(async () => {
+    if (!clientData?.id || !betmgmResult) return
+    setIsRetrySubmitting(true)
+    try {
+      const screenshotUrls: string[] = []
+      if (betmgmScreenshots.login) screenshotUrls.push(betmgmScreenshots.login)
+      if (betmgmScreenshots.deposit) screenshotUrls.push(betmgmScreenshots.deposit)
+
+      const result = await retryBetmgmSubmission(clientData.id, betmgmResult, screenshotUrls)
+      if (result.success) {
+        toast.success('BetMGM resubmitted for review')
+        setBetmgmRetryInfo(undefined)
+        setBetmgmStatus('PENDING_REVIEW')
+        router.refresh()
+      } else {
+        toast.error(result.message || 'Failed to resubmit')
+      }
+    } catch {
+      toast.error('Failed to resubmit BetMGM')
+    } finally {
+      setIsRetrySubmitting(false)
+    }
+  }, [clientData?.id, betmgmResult, betmgmScreenshots, router])
+
   // Submit handler
   const handleSubmit = () => {
+    // If in retry mode, call retry action instead of form submit
+    if (betmgmRetryInfo?.isRetryPending && betmgmRetryInfo.cooldownPassed) {
+      handleRetrySubmit()
+      return
+    }
     if (currentPhase === 1 && !prequalSubmitted) {
       phase1FormRef.current?.requestSubmit()
     } else if (currentPhase >= 2) {
@@ -586,7 +648,8 @@ export function ClientForm({
     !phoneValue ||
     !betmgmResult ||
     (betmgmResult === 'success' &&
-      (!betmgmScreenshots.login || !betmgmScreenshots.deposit))
+      (!betmgmScreenshots.login || !betmgmScreenshots.deposit)) ||
+    (betmgmResult === 'failed' && !betmgmScreenshots.login)
   // Phase 2 submit disabled
   const phase2SubmitDisabled = !agentConfirms || currentPhase >= 3
 
@@ -631,12 +694,14 @@ export function ClientForm({
                 ? phase1SubmitDisabled || !!isIdExpired
                 : phase2SubmitDisabled
             }
-            isSubmitting={currentPhase === 1 ? isPrequalPending : isPhase2Pending}
+            isSubmitting={currentPhase === 1 ? (isPrequalPending || isRetrySubmitting) : isPhase2Pending}
             onSaveDraft={handleSaveDraft}
             isSaving={isSavingDraft}
             phase={currentPhase}
             betmgmVerified={betmgmVerified}
             prequalSubmitted={prequalSubmitted}
+            retryAvailable={betmgmRetryInfo?.isRetryPending && betmgmRetryInfo.cooldownPassed}
+            retryPending={betmgmRetryInfo?.isRetryPending && !betmgmRetryInfo.cooldownPassed}
           />
 
           {/* Main Content */}
@@ -741,7 +806,8 @@ export function ClientForm({
                       onScreenshotsChange={setBetmgmScreenshots}
                       status={betmgmResult}
                       screenshots={betmgmScreenshots}
-                      disabled={prequalSubmitted}
+                      disabled={prequalSubmitted && !betmgmRetryInfo?.isRetryPending}
+                      retryState={betmgmRetryInfo}
                     />
                   </StepCard>
                 </div>
