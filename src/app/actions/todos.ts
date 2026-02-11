@@ -6,6 +6,7 @@ import { getStorage } from '@/backend/storage'
 import { ToDoStatus, PlatformStatus, EventType, UserRole } from '@/types'
 import { revalidatePath } from 'next/cache'
 import { notifyRole } from '@/backend/services/notifications'
+import logger from '@/backend/logger'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
@@ -159,7 +160,7 @@ export async function uploadToDoScreenshots(
 
     return { success: true, detections }
   } catch (error) {
-    console.error('Upload error:', error)
+    logger.error('Todo upload error', { error, todoId })
     return { success: false, error: 'Failed to upload screenshots' }
   }
 }
@@ -270,15 +271,15 @@ export async function confirmToDoUpload(
         link: '/backoffice/todo-list',
         clientId: todo.clientId ?? undefined,
       })
-    } catch {
-      // Notification failure should not block the main action
+    } catch (err) {
+      logger.warn('Notification failed for todo completion', { error: err, todoId })
     }
 
     revalidatePath(`/agent/clients/${todo.clientId}`)
 
     return { success: true }
   } catch (error) {
-    console.error('Confirm upload error:', error)
+    logger.error('Confirm upload error', { error, todoId })
     return { success: false, error: 'Failed to confirm upload' }
   }
 }
@@ -346,7 +347,7 @@ export async function requestToDoExtension(
 
     return { success: true, newDueDate }
   } catch (error) {
-    console.error('Extension error:', error)
+    logger.error('Todo extension error', { error, todoId })
     return { success: false, error: 'Failed to extend deadline' }
   }
 }
@@ -382,7 +383,7 @@ export async function nudgeTeamMember(
 
     return { success: true }
   } catch (error) {
-    console.error('Nudge error:', error)
+    logger.error('Nudge error', { error, memberId })
     return { success: false, error: 'Failed to send nudge' }
   }
 }
