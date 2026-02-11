@@ -55,6 +55,7 @@ enum PlatformStatus {
   PENDING_UPLOAD
   PENDING_REVIEW
   NEEDS_MORE_INFO
+  RETRY_PENDING
   PENDING_EXTERNAL
   VERIFIED
   REJECTED
@@ -275,6 +276,9 @@ model ClientPlatform {
   reviewedAt     DateTime?
   externalId     String?
   externalStatus String?
+  agentResult    String?
+  retryAfter     DateTime?
+  retryCount     Int            @default(0)
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
