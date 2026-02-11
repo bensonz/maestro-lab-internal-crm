@@ -132,10 +132,7 @@ export async function submitPrequalification(
       if (betmgmLoginScreenshot) betmgmScreenshots.push(betmgmLoginScreenshot)
       if (betmgmDepositScreenshot) betmgmScreenshots.push(betmgmDepositScreenshot)
 
-      const betmgmPlatformStatus =
-        betmgmResult === 'failed'
-          ? PlatformStatus.REJECTED
-          : PlatformStatus.PENDING_REVIEW
+      const betmgmPlatformStatus = PlatformStatus.PENDING_REVIEW
 
       await tx.clientPlatform.createMany({
         data: ALL_PLATFORMS.map((platformType) => ({
@@ -145,8 +142,11 @@ export async function submitPrequalification(
             platformType === PlatformType.BETMGM
               ? betmgmPlatformStatus
               : PlatformStatus.NOT_STARTED,
-          ...(platformType === PlatformType.BETMGM && betmgmScreenshots.length > 0
-            ? { screenshots: betmgmScreenshots }
+          ...(platformType === PlatformType.BETMGM
+            ? {
+                ...(betmgmScreenshots.length > 0 ? { screenshots: betmgmScreenshots } : {}),
+                agentResult: betmgmResult || null,
+              }
             : {}),
         })),
       })
@@ -163,20 +163,19 @@ export async function submitPrequalification(
       return newClient
     })
 
-    // Notify backoffice if BetMGM needs review
-    if (betmgmResult !== 'failed') {
-      try {
-        await notifyRole({
-          role: [UserRole.ADMIN, UserRole.BACKOFFICE],
-          type: EventType.PLATFORM_STATUS_CHANGE,
-          title: 'BetMGM verification needed',
-          message: `${firstName} ${lastName} submitted pre-qualification — BetMGM account needs review`,
-          link: `/backoffice/client-management?client=${client.id}`,
-          clientId: client.id,
-        })
-      } catch (err) {
-        logger.warn('Notification failed after prequal submit', { error: err, clientId: client.id })
-      }
+    // Notify backoffice — BetMGM always needs review regardless of agent result
+    try {
+      const agentResultLabel = betmgmResult === 'failed' ? 'agent reported failed' : 'agent reported success'
+      await notifyRole({
+        role: [UserRole.ADMIN, UserRole.BACKOFFICE],
+        type: EventType.PLATFORM_STATUS_CHANGE,
+        title: 'BetMGM verification needed',
+        message: `${firstName} ${lastName} submitted pre-qualification (${agentResultLabel}) — BetMGM review required`,
+        link: `/backoffice/client-management?client=${client.id}`,
+        clientId: client.id,
+      })
+    } catch (err) {
+      logger.warn('Notification failed after prequal submit', { error: err, clientId: client.id })
     }
 
     return { clientId: client.id }
