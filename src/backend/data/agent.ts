@@ -79,6 +79,8 @@ export async function getAgentClientStats(agentId: string) {
   const inProgress = clients.filter(
     (c) =>
       c.intakeStatus === IntakeStatus.PENDING ||
+      c.intakeStatus === IntakeStatus.PREQUAL_REVIEW ||
+      c.intakeStatus === IntakeStatus.PREQUAL_APPROVED ||
       c.intakeStatus === IntakeStatus.PHONE_ISSUED ||
       c.intakeStatus === IntakeStatus.IN_EXECUTION,
   ).length
