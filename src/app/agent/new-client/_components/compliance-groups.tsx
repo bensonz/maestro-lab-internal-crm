@@ -132,10 +132,13 @@ function PillGroup({
           className={cn(
             'rounded-lg border px-4 py-2 text-sm font-medium transition-all',
             value === opt.value
-              ? (opt.selectedClass ?? 'border-primary bg-primary/20 text-primary')
+              ? (opt.selectedClass ??
+                  'border-primary bg-primary/20 text-primary')
               : 'border-border/50 bg-muted/30 text-muted-foreground hover:bg-muted/50 hover:text-foreground',
           )}
-          data-testid={testIdPrefix ? `${testIdPrefix}-${opt.value}` : undefined}
+          data-testid={
+            testIdPrefix ? `${testIdPrefix}-${opt.value}` : undefined
+          }
         >
           {opt.label}
         </button>
@@ -165,7 +168,14 @@ export function ComplianceGroups({
   onChange,
   defaultValues = {},
 }: ComplianceGroupsProps) {
-  const [openGroups, setOpenGroups] = useState<string[]>(['groupA'])
+  const [openGroups, setOpenGroups] = useState<string[]>([
+    'groupA',
+    'groupB',
+    'groupC',
+    'groupD',
+    'groupE',
+    'groupF',
+  ])
   const [data, setData] = useState<ComplianceData>({
     ...EMPTY_COMPLIANCE_DATA,
     ...defaultValues,
@@ -174,13 +184,14 @@ export function ComplianceGroups({
 
   const toggleGroup = (group: string) => {
     setOpenGroups((prev) =>
-      prev.includes(group)
-        ? prev.filter((g) => g !== group)
-        : [...prev, group],
+      prev.includes(group) ? prev.filter((g) => g !== group) : [...prev, group],
     )
   }
 
-  const updateField = (field: keyof ComplianceData, value: string | string[]) => {
+  const updateField = (
+    field: keyof ComplianceData,
+    value: string | string[],
+  ) => {
     const newData = { ...data, [field]: value }
     setData(newData)
     onChange(newData)
@@ -224,7 +235,8 @@ export function ComplianceGroups({
         <CollapsibleContent className="mt-2 space-y-4 rounded-lg border border-border/50 bg-muted/10 p-4">
           <div className="space-y-3">
             <Label className="text-sm font-medium text-foreground">
-              Does the client have established banking history?<span className="text-destructive ml-0.5">*</span>
+              Does the client have established banking history?
+              <span className="text-destructive ml-0.5">*</span>
             </Label>
             <PillGroup
               field="hasBankingHistory"
@@ -278,7 +290,8 @@ export function ComplianceGroups({
 
           <div className="space-y-2">
             <Label className="text-sm font-medium text-foreground">
-              Social Security Number (SSN)<span className="text-destructive ml-0.5">*</span>
+              Social Security Number (SSN)
+              <span className="text-destructive ml-0.5">*</span>
             </Label>
             <Input
               type="password"
@@ -336,7 +349,8 @@ export function ComplianceGroups({
         <CollapsibleContent className="mt-2 space-y-4 rounded-lg border border-border/50 bg-muted/10 p-4">
           <div className="space-y-3">
             <Label className="text-sm font-medium text-foreground">
-              Does the client have a PayPal account?<span className="text-destructive ml-0.5">*</span>
+              Does the client have a PayPal account?
+              <span className="text-destructive ml-0.5">*</span>
             </Label>
             <PillGroup
               field="hasPayPal"
@@ -424,7 +438,8 @@ export function ComplianceGroups({
         <CollapsibleContent className="mt-2 space-y-4 rounded-lg border border-border/50 bg-muted/10 p-4">
           <div className="space-y-3">
             <Label className="text-sm font-medium text-foreground">
-              Has the client previously used any betting platforms?<span className="text-destructive ml-0.5">*</span>
+              Has the client previously used any betting platforms?
+              <span className="text-destructive ml-0.5">*</span>
             </Label>
             <PillGroup
               field="hasBettingHistory"
@@ -525,7 +540,8 @@ export function ComplianceGroups({
         <CollapsibleContent className="mt-2 space-y-4 rounded-lg border border-border/50 bg-muted/10 p-4">
           <div className="space-y-3">
             <Label className="text-sm font-medium text-foreground">
-              Does the client have any criminal record?<span className="text-destructive ml-0.5">*</span>
+              Does the client have any criminal record?
+              <span className="text-destructive ml-0.5">*</span>
             </Label>
             <PillGroup
               field="hasCriminalRecord"
@@ -542,9 +558,7 @@ export function ComplianceGroups({
               <Textarea
                 placeholder="Provide details about the criminal record..."
                 value={data.criminalDetails}
-                onChange={(e) =>
-                  updateField('criminalDetails', e.target.value)
-                }
+                onChange={(e) => updateField('criminalDetails', e.target.value)}
                 className="mt-2 min-h-[80px] rounded-xl border-border/50 bg-input"
               />
             )}
@@ -623,7 +637,8 @@ export function ComplianceGroups({
         <CollapsibleContent className="mt-2 space-y-4 rounded-lg border border-border/50 bg-muted/10 p-4">
           <div className="space-y-3">
             <Label className="text-sm font-medium text-foreground">
-              Overall risk level assessment<span className="text-destructive ml-0.5">*</span>
+              Overall risk level assessment
+              <span className="text-destructive ml-0.5">*</span>
             </Label>
             <PillGroup
               field="riskLevel"
@@ -642,7 +657,8 @@ export function ComplianceGroups({
                 {
                   value: 'high',
                   label: 'High Risk',
-                  selectedClass: 'border-destructive bg-destructive/20 text-destructive',
+                  selectedClass:
+                    'border-destructive bg-destructive/20 text-destructive',
                 },
               ]}
               onSelect={(v) => updateField('riskLevel', v)}
@@ -672,9 +688,7 @@ export function ComplianceGroups({
               <Input
                 placeholder="Referrer name"
                 value={data.introducedBy}
-                onChange={(e) =>
-                  updateField('introducedBy', e.target.value)
-                }
+                onChange={(e) => updateField('introducedBy', e.target.value)}
                 data-testid="introduced-by-input"
               />
             </div>
@@ -759,7 +773,8 @@ export function ComplianceGroups({
         <CollapsibleContent className="mt-2 space-y-4 rounded-lg border border-border/50 bg-muted/10 p-4">
           <div className="space-y-3">
             <Label className="text-sm font-medium text-foreground">
-              Can the client read English?<span className="text-destructive ml-0.5">*</span>
+              Can the client read English?
+              <span className="text-destructive ml-0.5">*</span>
             </Label>
             <PillGroup
               field="canReadEnglish"
@@ -790,9 +805,7 @@ export function ComplianceGroups({
             <Textarea
               placeholder="Any notes about language or communication..."
               value={data.languageNotes}
-              onChange={(e) =>
-                updateField('languageNotes', e.target.value)
-              }
+              onChange={(e) => updateField('languageNotes', e.target.value)}
               className="min-h-[80px] rounded-xl border-border/50 bg-input"
             />
           </div>
