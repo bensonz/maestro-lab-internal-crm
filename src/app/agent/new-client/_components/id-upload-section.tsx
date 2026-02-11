@@ -184,10 +184,11 @@ export function IdUploadSection({
   const handleManualExpiryChange = useCallback(
     (value: string) => {
       setManualExpiry(value)
-      if (editableData) {
-        const updated = { ...editableData, idExpiry: value }
-        setEditableData(updated)
-        onDataExtracted(updated)
+      // Propagate complete dates to parent for risk panel / expiration checks,
+      // but do NOT write back into editableData.idExpiry — that would hide
+      // this input field (line 481 condition) mid-typing.
+      if (editableData && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        onDataExtracted({ ...editableData, idExpiry: value })
       }
     },
     [editableData, onDataExtracted],
