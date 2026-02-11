@@ -310,6 +310,7 @@ export function PlatformSection({
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
+                                <SelectItem value="pipeline">Pipeline</SelectItem>
                                 <SelectItem value="active">Active</SelectItem>
                                 <SelectItem value="permanent_limited">
                                   Perm. Limited
@@ -332,6 +333,7 @@ export function PlatformSection({
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
+                                <SelectItem value="pipeline">Pipeline</SelectItem>
                                 <SelectItem value="active">Active</SelectItem>
                                 <SelectItem value="rejected">
                                   Rejected
@@ -354,6 +356,7 @@ export function PlatformSection({
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
+                                <SelectItem value="pipeline">Pipeline</SelectItem>
                                 <SelectItem value="active">Active</SelectItem>
                                 <SelectItem value="rejected">
                                   Rejected
