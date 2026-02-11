@@ -49,6 +49,7 @@ vi.mock('next/navigation', () => ({
 
 import { auth } from '@/backend/auth'
 import prisma from '@/backend/prisma/client'
+import { notifyRole } from '@/backend/services/notifications'
 import {
   submitPrequalification,
   updateGmailCredentials,
@@ -263,6 +264,118 @@ describe('submitPrequalification', () => {
     // Should return clientId, NOT redirect
     expect(result.clientId).toBe('client-123')
     expect(result.message).toBeUndefined()
+  })
+
+  it('sets BetMGM to PENDING_REVIEW even when agent reports failed', async () => {
+    mockedAuth.mockResolvedValue({
+      user: { id: 'user-123', role: 'AGENT' },
+      expires: '',
+    })
+
+    let createdPlatforms: { platformType: string; status: string }[] = []
+
+    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => {
+      const tx = {
+        client: {
+          create: vi.fn().mockResolvedValue({ id: 'client-123' }),
+        },
+        clientPlatform: {
+          createMany: vi.fn().mockImplementation(({ data }) => {
+            createdPlatforms = data
+            return { count: data.length }
+          }),
+        },
+        eventLog: {
+          create: vi.fn().mockResolvedValue({}),
+        },
+      }
+      return callback(tx as never)
+    })
+
+    const formData = createFormData({
+      ...validPrequalData,
+      betmgmResult: 'failed',
+    })
+    await submitPrequalification({}, formData)
+
+    const betmgm = createdPlatforms.find(
+      (p) => p.platformType === 'BETMGM',
+    )
+    expect(betmgm?.status).toBe('PENDING_REVIEW')
+  })
+
+  it('stores agentResult on BetMGM platform record', async () => {
+    mockedAuth.mockResolvedValue({
+      user: { id: 'user-123', role: 'AGENT' },
+      expires: '',
+    })
+
+    let createdPlatforms: Record<string, unknown>[] = []
+
+    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => {
+      const tx = {
+        client: {
+          create: vi.fn().mockResolvedValue({ id: 'client-123' }),
+        },
+        clientPlatform: {
+          createMany: vi.fn().mockImplementation(({ data }) => {
+            createdPlatforms = data
+            return { count: data.length }
+          }),
+        },
+        eventLog: {
+          create: vi.fn().mockResolvedValue({}),
+        },
+      }
+      return callback(tx as never)
+    })
+
+    const formData = createFormData({
+      ...validPrequalData,
+      betmgmResult: 'success',
+    })
+    await submitPrequalification({}, formData)
+
+    const betmgm = createdPlatforms.find(
+      (p) => p.platformType === 'BETMGM',
+    )
+    expect(betmgm).toMatchObject({
+      agentResult: 'success',
+    })
+  })
+
+  it('always sends backoffice notification including for failed result', async () => {
+    mockedAuth.mockResolvedValue({
+      user: { id: 'user-123', role: 'AGENT' },
+      expires: '',
+    })
+
+    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => {
+      const tx = {
+        client: {
+          create: vi.fn().mockResolvedValue({ id: 'client-123' }),
+        },
+        clientPlatform: {
+          createMany: vi.fn().mockResolvedValue({ count: 11 }),
+        },
+        eventLog: {
+          create: vi.fn().mockResolvedValue({}),
+        },
+      }
+      return callback(tx as never)
+    })
+
+    const formData = createFormData({
+      ...validPrequalData,
+      betmgmResult: 'failed',
+    })
+    await submitPrequalification({}, formData)
+
+    expect(notifyRole).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'BetMGM verification needed',
+      }),
+    )
   })
 })
 

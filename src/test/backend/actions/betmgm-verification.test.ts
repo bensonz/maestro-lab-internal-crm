@@ -206,6 +206,9 @@ describe('checkBetmgmStatus', () => {
 
     vi.mocked(prisma.clientPlatform.findFirst).mockResolvedValue({
       status: 'PENDING_REVIEW',
+      retryAfter: null,
+      retryCount: 0,
+      reviewNotes: null,
     } as never)
 
     const result = await checkBetmgmStatus('client-123')
@@ -222,11 +225,37 @@ describe('checkBetmgmStatus', () => {
 
     vi.mocked(prisma.clientPlatform.findFirst).mockResolvedValue({
       status: 'VERIFIED',
+      retryAfter: null,
+      retryCount: 0,
+      reviewNotes: null,
     } as never)
 
     const result = await checkBetmgmStatus('client-123')
 
     expect(result.status).toBe('VERIFIED')
     expect(result.verified).toBe(true)
+  })
+
+  it('returns retry info for RETRY_PENDING status', async () => {
+    mockedAuth.mockResolvedValue({
+      user: { id: 'user-123', role: 'AGENT' },
+      expires: '',
+    })
+
+    const retryDate = new Date('2025-12-31')
+    vi.mocked(prisma.clientPlatform.findFirst).mockResolvedValue({
+      status: 'RETRY_PENDING',
+      retryAfter: retryDate,
+      retryCount: 1,
+      reviewNotes: 'Bad screenshots',
+    } as never)
+
+    const result = await checkBetmgmStatus('client-123')
+
+    expect(result.status).toBe('RETRY_PENDING')
+    expect(result.verified).toBe(false)
+    expect(result.retryAfter).toBe(retryDate.toISOString())
+    expect(result.retryCount).toBe(1)
+    expect(result.rejectionReason).toBe('Bad screenshots')
   })
 })
