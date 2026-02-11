@@ -56,9 +56,9 @@ Client onboarding at `/agent/new-client` uses a 2-phase workflow:
 **Phase 1: Pre-qualification** — Three sub-steps:
 1. **ID Verification** (Step 1.1) — Agent uploads client ID (with OCR extraction), confirms extracted data
 2. **Gmail Account** (Step 1.2) — Agent enters company-created Gmail/password
-3. **BetMGM Registration Check** (Step 1.3) — Agent records BetMGM registration result (success/failed); if success, uploads login + deposit page screenshots
+3. **BetMGM Registration Check** (Step 1.3) — Agent records BetMGM registration result (success/failed); uploads screenshots for both outcomes (success: login + deposit, failed: rejection screenshot)
 
-Submitting creates the Client record with `prequalCompleted: true` and 11 ClientPlatform records. BetMGM status = `REJECTED` if failed, `PENDING_REVIEW` if success. Screenshots stored on `ClientPlatform.screenshots`. The page stays (no redirect) and starts polling for BetMGM verification.
+Submitting creates the Client record with `prequalCompleted: true` and 11 ClientPlatform records. BetMGM status is always `PENDING_REVIEW` regardless of agent result. `agentResult` field stores what agent reported ("success"/"failed"). Screenshots stored on `ClientPlatform.screenshots`. The page stays (no redirect) and starts polling for BetMGM verification.
 
 **Phase 2: Full Application** — Unlocked only after BetMGM is verified (backoffice manual review via `verifyBetmgmManual()`). Agent fills Basic Info, Address, and Compliance sections (6 groups: Banking, PayPal, Platform History, Criminal/Legal, Risk Assessment, Language). Submit updates the existing Client and redirects to `/agent/clients`.
 
@@ -66,7 +66,8 @@ Submitting creates the Client record with `prequalCompleted: true` and 11 Client
 
 **Key files:**
 - `src/app/actions/prequal.ts` — `submitPrequalification()`, `updateGmailCredentials()`
-- `src/app/actions/betmgm-verification.ts` — `verifyBetmgmManual()` (backoffice), `checkBetmgmStatus()` (agent polling)
+- `src/app/actions/betmgm-verification.ts` — `verifyBetmgmManual()` (backoffice), `checkBetmgmStatus()` (agent polling, returns retry info)
+- `src/app/actions/betmgm-retry.ts` — `retryBetmgmSubmission()` (agent resubmits after reject-with-retry)
 - `src/lib/validations/prequal.ts` — Zod schema for Phase 1 data (includes betmgmResult + screenshot URL fields)
 - `src/app/api/upload/route.ts` — File upload API endpoint (POST, accepts FormData with file/entity/entityId/type/platformCode)
 - `src/app/agent/new-client/_components/client-form.tsx` — Main form orchestrator; returns `{ form, riskPanel }` object
@@ -91,9 +92,18 @@ Submitting creates the Client record with `prequalCompleted: true` and 11 Client
 
 **ID Expiration Check:** During ID upload, if the ID expiry date is within 75 days a warning is shown. If expired (<=0 days), Phase 1 submission is blocked.
 
-**BetMGM Polling:** After Phase 1 submit, the client page polls `checkBetmgmStatus()` every 15 seconds. When verified, a toast notification appears and Phase 2 unlocks.
+**BetMGM Two-Party Review:** BetMGM verification is a two-party workflow: agent uploads evidence (always) → backoffice reviews → approve / reject (permanent) / reject (retry 24h). Three outcomes:
+- **Approve** (`approvePrequal`) — sets BetMGM to `VERIFIED`, transitions client to `PREQUAL_APPROVED`
+- **Reject** (`rejectPrequal`) — permanently rejects client
+- **Reject (Retry 24h)** (`rejectPrequalWithRetry`) — sets BetMGM to `RETRY_PENDING` with 24h cooldown, client stays at `PREQUAL_REVIEW`
 
-**Phase 2 URL:** `?client=<clientId>` — page.tsx fetches Client + BetMGM status and passes to ClientForm.
+**BetMGM Retry Flow:** After reject-with-retry, the agent sees a cooldown banner. Once expired, they can upload new screenshots and resubmit via `retryBetmgmSubmission()`. BetMGM goes back to `PENDING_REVIEW` for another round of backoffice review.
+
+**Schema additions for retry:** `ClientPlatform.agentResult` (String?), `ClientPlatform.retryAfter` (DateTime?), `ClientPlatform.retryCount` (Int, default 0). `PlatformStatus.RETRY_PENDING` enum value.
+
+**BetMGM Polling:** After Phase 1 submit, the client page polls `checkBetmgmStatus()` every 60 seconds. When verified, a toast notification appears and Phase 2 unlocks. Polling also detects `RETRY_PENDING` status and updates the retry UI.
+
+**Phase 2 URL:** `?client=<clientId>` — page.tsx fetches Client + BetMGM status + retry state and passes to ClientForm.
 
 ### Key Patterns
 
@@ -330,7 +340,8 @@ pnpm test src/test/backend/actions/phones.test.ts  # Specific file
 
 - `src/test/backend/actions/clients.test.ts` — createClient, saveDraft, deleteDraft actions
 - `src/test/backend/actions/prequal.test.ts` — submitPrequalification, updateGmailCredentials, BetMGM screenshot handling
-- `src/test/backend/actions/betmgm-verification.test.ts` — verifyBetmgmManual, checkBetmgmStatus actions
+- `src/test/backend/actions/betmgm-verification.test.ts` — verifyBetmgmManual, checkBetmgmStatus actions (including RETRY_PENDING)
+- `src/test/backend/actions/betmgm-retry.test.ts` — retryBetmgmSubmission: auth, ownership, status, cooldown guards + happy path
 - `src/test/backend/actions/upload.test.ts` — Upload API route validation, storage integration
 - `src/test/backend/validations/client.test.ts` — client form validation
 - `src/test/backend/validations/prequal.test.ts` — prequal form validation, BetMGM conditional screenshot requirements
