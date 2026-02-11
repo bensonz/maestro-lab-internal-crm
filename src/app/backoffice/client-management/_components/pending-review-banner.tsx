@@ -299,16 +299,16 @@ export function PendingReviewBanner({
 
       {/* Screenshot Lightbox */}
       <Dialog open={!!lightboxUrl} onOpenChange={() => setLightboxUrl(null)}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-[90vw] max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>BetMGM Screenshot</DialogTitle>
           </DialogHeader>
-          <div className="flex items-center justify-center rounded-lg bg-muted p-4">
+          <div className="flex items-center justify-center overflow-auto">
             {lightboxUrl && (
               <img
                 src={lightboxUrl.startsWith('uploads/') ? `/api/upload?path=${lightboxUrl}` : lightboxUrl}
                 alt="BetMGM Screenshot"
-                className="max-h-[70vh] max-w-full object-contain"
+                className="max-h-[80vh] w-auto object-contain"
               />
             )}
           </div>
