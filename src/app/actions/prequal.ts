@@ -81,6 +81,15 @@ export async function submitPrequalification(
   }
 
   try {
+    // Verify the logged-in user exists in the DB (session JWT may be stale after re-seed)
+    const userExists = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { id: true },
+    })
+    if (!userExists) {
+      return { message: 'Session expired — please log out and log back in' }
+    }
+
     const client = await prisma.$transaction(async (tx) => {
       const newClient = await tx.client.create({
         data: {
@@ -166,7 +175,8 @@ export async function submitPrequalification(
     }
 
     return { clientId: client.id }
-  } catch {
+  } catch (error) {
+    console.error('Pre-qualification submission failed:', error)
     return { message: 'Failed to submit pre-qualification' }
   }
 }
