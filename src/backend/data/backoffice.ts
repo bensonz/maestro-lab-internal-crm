@@ -173,7 +173,7 @@ export async function getPriorityTasks() {
       include: {
         client: { select: { id: true, firstName: true, lastName: true } },
       },
-      orderBy: { updatedAt: 'asc' },
+      orderBy: { updatedAt: 'desc' },
       take: 10,
     }),
   ])
@@ -185,18 +185,23 @@ export async function getPriorityTasks() {
     clientId: t.client?.id ?? null,
     clientName: t.client ? `${t.client.firstName} ${t.client.lastName}` : null,
     isUrgent: t.priority <= 1 || Boolean(t.dueDate && t.dueDate <= now),
+    _sortTime: t.dueDate ?? t.createdAt,
   }))
 
   const platformTasks = pendingPlatforms.map((p) => ({
     id: `platform-${p.id}`,
-    title: `Verify ${p.platformType} account`,
-    type: 'Platform Review',
+    title: `Review ${formatPlatformName(p.platformType)} — Pre-Qualification`,
+    type: 'Pre-Qual Review',
     clientId: p.client?.id ?? null,
     clientName: p.client ? `${p.client.firstName} ${p.client.lastName}` : null,
     isUrgent: true,
+    _sortTime: p.updatedAt,
   }))
 
+  // Sort combined list by time descending (newest first)
   return [...platformTasks, ...todoTasks]
+    .sort((a, b) => b._sortTime.getTime() - a._sortTime.getTime())
+    .map(({ _sortTime, ...rest }) => rest)
 }
 
 function mapToDoTypeToLabel(type: ToDoType): string {
@@ -210,6 +215,23 @@ function mapToDoTypeToLabel(type: ToDoType): string {
     [ToDoType.VERIFICATION]: 'Approval',
   }
   return map[type] || type
+}
+
+function formatPlatformName(platformType: PlatformType): string {
+  const map: Record<PlatformType, string> = {
+    [PlatformType.DRAFTKINGS]: 'DraftKings',
+    [PlatformType.FANDUEL]: 'FanDuel',
+    [PlatformType.BETMGM]: 'BetMGM',
+    [PlatformType.CAESARS]: 'Caesars',
+    [PlatformType.FANATICS]: 'Fanatics',
+    [PlatformType.BALLYBET]: 'Bally Bet',
+    [PlatformType.BETRIVERS]: 'BetRivers',
+    [PlatformType.BET365]: 'Bet365',
+    [PlatformType.BANK]: 'Bank',
+    [PlatformType.PAYPAL]: 'PayPal',
+    [PlatformType.EDGEBOOST]: 'Edgeboost',
+  }
+  return map[platformType] || platformType
 }
 
 export async function getReminders() {
@@ -512,22 +534,33 @@ export async function getClientStats() {
   })
 
   const total = clients.length
+
+  // Active: clients in any active processing state
   const active = clients.filter(
     (c) =>
+      c.intakeStatus === IntakeStatus.APPROVED ||
       c.intakeStatus === IntakeStatus.PREQUAL_APPROVED ||
       c.intakeStatus === IntakeStatus.PHONE_ISSUED ||
-      c.intakeStatus === IntakeStatus.IN_EXECUTION ||
-      c.intakeStatus === IntakeStatus.APPROVED,
+      c.intakeStatus === IntakeStatus.IN_EXECUTION,
   ).length
+
+  // Closed: terminated clients
   const closed = clients.filter(
     (c) =>
       c.intakeStatus === IntakeStatus.REJECTED ||
-      c.intakeStatus === IntakeStatus.INACTIVE,
+      c.intakeStatus === IntakeStatus.INACTIVE ||
+      c.intakeStatus === IntakeStatus.PARTNERSHIP_ENDED,
   ).length
+
+  // Further Verification: clients needing review or action
   const furtherVerification = clients.filter(
     (c) =>
+      c.intakeStatus === IntakeStatus.PENDING ||
+      c.intakeStatus === IntakeStatus.PREQUAL_REVIEW ||
       c.intakeStatus === IntakeStatus.NEEDS_MORE_INFO ||
-      c.intakeStatus === IntakeStatus.PENDING_EXTERNAL,
+      c.intakeStatus === IntakeStatus.PENDING_EXTERNAL ||
+      c.intakeStatus === IntakeStatus.READY_FOR_APPROVAL ||
+      c.intakeStatus === IntakeStatus.EXECUTION_DELAYED,
   ).length
 
   return { total, active, closed, furtherVerification }
