@@ -25,6 +25,7 @@ import { toast } from 'sonner'
 import { startExecution } from '@/app/actions/status'
 import { EditableField } from './editable-field'
 import { PlatformSection } from './platform-section'
+import { PendingReviewBanner } from './pending-review-banner'
 import { ApplicationReviewCard } from './application-review-card'
 import { ClientModals } from './client-modals'
 import { CloseClientDialog } from './close-client-dialog'
@@ -237,6 +238,22 @@ export function ClientDetail({
           </Badge>
         </div>
       </div>
+
+      {/* Pending Review Banner — must be first thing the user sees */}
+      {client.intakeStatus === 'READY_FOR_APPROVAL' && (
+        <PendingReviewBanner
+          clientId={client.id}
+          clientName={client.profile.fullName}
+          submittedDate={client.startDate}
+          agentName={client.agent}
+          betmgmScreenshots={client.betmgmScreenshots ?? []}
+          betmgmStatus={client.betmgmStatus ?? 'NOT_STARTED'}
+          questionnaire={client.questionnaire}
+          state={client.quickInfo.state}
+          dob={client.profile.dob}
+          address={client.profile.primaryAddress}
+        />
+      )}
 
       {/* Alert Flags */}
       {hasAlerts && (
@@ -549,6 +566,7 @@ export function ClientDetail({
           clientId={client.id}
           intakeStatus={client.intakeStatus}
           questionnaire={client.questionnaire}
+          hideActions={client.intakeStatus === 'READY_FOR_APPROVAL'}
         />
       )}
 
