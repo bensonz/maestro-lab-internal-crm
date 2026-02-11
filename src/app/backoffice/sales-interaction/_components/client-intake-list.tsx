@@ -118,6 +118,18 @@ export function ClientIntakeList({
                       <Check className="h-4 w-4 mr-1" />
                       Approve
                     </Button>
+                  ) : client.canReviewPrequal ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-warning/30 bg-warning/10 text-warning hover:bg-warning/20"
+                      asChild
+                    >
+                      <Link href={`/backoffice/client-management?client=${client.id}`}>
+                        <Shield className="h-4 w-4 mr-1" />
+                        Review Pre-Qual
+                      </Link>
+                    </Button>
                   ) : client.statusType === 'pending_platform' ? (
                     <Button
                       size="sm"
