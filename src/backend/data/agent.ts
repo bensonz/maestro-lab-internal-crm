@@ -612,6 +612,62 @@ function formatPlatformStatus(status: PlatformStatus): string {
   return map[status] || status
 }
 
+export async function getAgentTeamMembers(agentId: string) {
+  const subordinates = await prisma.user.findMany({
+    where: { supervisorId: agentId, role: 'AGENT' },
+    include: {
+      agentClients: {
+        where: {
+          intakeStatus: {
+            in: ['PENDING', 'PHONE_ISSUED', 'IN_EXECUTION', 'NEEDS_MORE_INFO'],
+          },
+        },
+        include: { platforms: { select: { status: true } } },
+        take: 1,
+        orderBy: { updatedAt: 'desc' },
+      },
+      agentMetrics: { select: { totalClients: true } },
+    },
+  })
+
+  return subordinates.map((sub) => {
+    const client = sub.agentClients[0]
+    const verified = client?.platforms.filter((p) => p.status === 'VERIFIED').length ?? 0
+    const total = client?.platforms.length ?? 0
+    return {
+      id: sub.id,
+      name: sub.name ?? 'Unknown',
+      currentStep: client ? formatIntakeStatus(client.intakeStatus as IntakeStatus) : 'No active client',
+      totalSteps: total || 11,
+      completedSteps: verified,
+      isOneStepAway: total > 0 && (total - verified) === 1,
+      totalClients: sub.agentMetrics?.totalClients ?? 0,
+    }
+  })
+}
+
+export async function getAgentTeamRanking(agentId: string) {
+  const allMetrics = await prisma.agentMetrics.findMany({
+    include: { agent: { select: { id: true, starLevel: true } } },
+  })
+  const myMetrics = allMetrics.find((m) => m.agentId === agentId)
+  const totalAgents = allMetrics.length
+
+  // Rank by successRate descending
+  const sorted = [...allMetrics].sort((a, b) => b.successRate - a.successRate)
+  const myRank = sorted.findIndex((m) => m.agentId === agentId) + 1
+  const percentile = totalAgents > 1 ? Math.round(((totalAgents - myRank) / (totalAgents - 1)) * 100) : 50
+
+  return {
+    percentile,
+    myRank,
+    totalMembers: totalAgents,
+    speed: myMetrics?.successRate ?? 50,
+    stability: Math.max(0, 100 - (myMetrics?.delayRate ?? 0)),
+    influence: myMetrics?.totalClients ?? 0,
+  }
+}
+
 function getPlatformStatusColor(status: PlatformStatus): string {
   const map: Record<PlatformStatus, string> = {
     [PlatformStatus.NOT_STARTED]: 'bg-muted text-muted-foreground',
