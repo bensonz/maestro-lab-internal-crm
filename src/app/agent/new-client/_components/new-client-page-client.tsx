@@ -40,6 +40,7 @@ interface ClientData {
   questionnaire?: string | null
   idDocument?: string | null
   betmgmScreenshots?: string[]
+  intakeStatus?: string
 }
 
 interface NewClientPageClientProps {
