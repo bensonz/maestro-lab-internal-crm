@@ -15,9 +15,19 @@ import logger from '@/backend/logger'
 
 const ALLOWED_TRANSITIONS: Record<IntakeStatus, IntakeStatus[]> = {
   [IntakeStatus.PENDING]: [
+    IntakeStatus.PREQUAL_REVIEW,
     IntakeStatus.PHONE_ISSUED,
     IntakeStatus.READY_FOR_APPROVAL, // 2-phase form fast-track
     IntakeStatus.REJECTED,
+    IntakeStatus.INACTIVE,
+  ],
+  [IntakeStatus.PREQUAL_REVIEW]: [
+    IntakeStatus.PREQUAL_APPROVED,
+    IntakeStatus.REJECTED,
+    IntakeStatus.NEEDS_MORE_INFO,
+  ],
+  [IntakeStatus.PREQUAL_APPROVED]: [
+    IntakeStatus.READY_FOR_APPROVAL,
     IntakeStatus.INACTIVE,
   ],
   [IntakeStatus.PHONE_ISSUED]: [
