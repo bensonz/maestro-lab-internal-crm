@@ -173,9 +173,11 @@ export function IdUploadSection({
     ? calculateAge(displayData.dateOfBirth)
     : null
 
-  // ID expiration check
+  // ID expiration check — only validate complete YYYY-MM-DD dates
+  // to avoid showing scary banners while the user is still typing
   const idExpiryDate = displayData?.idExpiry || manualExpiry
-  const daysUntilExpiry = idExpiryDate
+  const isCompleteDate = idExpiryDate ? /^\d{4}-\d{2}-\d{2}$/.test(idExpiryDate) : false
+  const daysUntilExpiry = isCompleteDate
     ? Math.floor(
         (new Date(idExpiryDate).getTime() - Date.now()) / 86400000,
       )
