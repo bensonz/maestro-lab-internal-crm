@@ -5,6 +5,7 @@ import prisma from '@/backend/prisma/client'
 import { UserRole, SettlementStatus, EventType } from '@/types'
 import { revalidatePath } from 'next/cache'
 import { notifyRole } from '@/backend/services/notifications'
+import logger from '@/backend/logger'
 
 const ALLOWED_ROLES: string[] = [UserRole.ADMIN, UserRole.BACKOFFICE]
 
@@ -80,8 +81,8 @@ export async function confirmSettlement(data: {
       link: '/backoffice/client-settlement',
       clientId: movement.fromClientId ?? undefined,
     })
-  } catch {
-    // Notification failure should not block the main action
+  } catch (err) {
+    logger.warn('Notification failed for settlement confirmation', { error: err, movementId: data.movementId })
   }
 
   revalidatePath('/backoffice/client-settlement')
@@ -166,8 +167,8 @@ export async function rejectSettlement(data: {
       link: '/backoffice/client-settlement',
       clientId: movement.fromClientId ?? undefined,
     })
-  } catch {
-    // Notification failure should not block the main action
+  } catch (err) {
+    logger.warn('Notification failed for settlement rejection', { error: err, movementId: data.movementId })
   }
 
   revalidatePath('/backoffice/client-settlement')
