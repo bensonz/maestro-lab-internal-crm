@@ -88,11 +88,11 @@ export function ClientForm({
   serverPhase,
 }: ClientFormProps) {
   const router = useRouter()
-  const [phase2State, phase2FormAction] = useActionState(
+  const [phase2State, phase2FormAction, isPhase2Pending] = useActionState(
     createClient,
     initialState,
   )
-  const [prequalState, prequalFormAction] = useActionState(
+  const [prequalState, prequalFormAction, isPrequalPending] = useActionState(
     submitPrequalification,
     initialPrequalState,
   )
@@ -496,7 +496,7 @@ export function ClientForm({
     // MEDIUM
     if (ageFlag) return 'medium'
     if (complianceData.hasCriminalRecord === 'unknown') return 'medium'
-    if (extractedData?.idExpiry) {
+    if (extractedData?.idExpiry && /^\d{4}-\d{2}-\d{2}$/.test(extractedData.idExpiry)) {
       const daysUntilExpiry = Math.floor(
         (new Date(extractedData.idExpiry).getTime() - Date.now()) / 86400000,
       )
@@ -553,10 +553,11 @@ export function ClientForm({
   // Phase 2 submit disabled
   const phase2SubmitDisabled = !agentConfirms || currentPhase >= 3
 
-  // ID expiration check for Phase 1 blocking
+  // ID expiration check for Phase 1 blocking — only for complete dates
   const idExpiryDate = extractedData?.idExpiry
   const isIdExpired =
     idExpiryDate &&
+    /^\d{4}-\d{2}-\d{2}$/.test(idExpiryDate) &&
     Math.floor(
       (new Date(idExpiryDate).getTime() - Date.now()) / 86400000,
     ) <= 0
@@ -593,6 +594,7 @@ export function ClientForm({
                 ? phase1SubmitDisabled || !!isIdExpired
                 : phase2SubmitDisabled
             }
+            isSubmitting={currentPhase === 1 ? isPrequalPending : isPhase2Pending}
             onSaveDraft={handleSaveDraft}
             isSaving={isSavingDraft}
             phase={currentPhase}
