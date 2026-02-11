@@ -256,6 +256,12 @@ function determineDetailedStatus(client: {
     return { statusType: 'needs_info', status: 'Needs More Info' }
   }
 
+  // Check if ready to approve — must be before pendingPlatform check
+  // because READY_FOR_APPROVAL clients may still have PENDING_REVIEW platforms
+  if (client.intakeStatus === IntakeStatus.READY_FOR_APPROVAL) {
+    return { statusType: 'ready', status: 'Ready to Approve' }
+  }
+
   // Check pending platform uploads
   const pendingPlatform = client.platforms.find(
     (p) => p.status === 'PENDING_REVIEW',
@@ -266,11 +272,6 @@ function determineDetailedStatus(client: {
       status: `Pending ${formatPlatformShort(pendingPlatform.platformType)}`,
       pendingPlatform: formatPlatformShort(pendingPlatform.platformType),
     }
-  }
-
-  // Check if ready to approve
-  if (client.intakeStatus === IntakeStatus.READY_FOR_APPROVAL) {
-    return { statusType: 'ready', status: 'Ready to Approve' }
   }
 
   // Check if needs follow-up (has pending execution tasks)
