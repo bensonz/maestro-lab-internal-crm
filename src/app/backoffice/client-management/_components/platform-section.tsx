@@ -29,7 +29,6 @@ import {
 import {
   Collapsible,
   CollapsibleContent,
-  CollapsibleTrigger,
 } from '@/components/ui/collapsible'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
@@ -246,124 +245,128 @@ export function PlatformSection({
                       onTogglePlatformExpanded(platform.name)
                     }
                   >
-                    <CollapsibleTrigger asChild>
-                      <button
-                        className="flex w-full items-center justify-between p-2.5 text-left transition-colors hover:bg-muted/30"
-                        onClick={(e) => {
+                    <div
+                      className="flex w-full cursor-pointer items-center justify-between p-2.5 text-left transition-colors hover:bg-muted/30"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => onTogglePlatformExpanded(platform.name)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
                           e.preventDefault()
                           onTogglePlatformExpanded(platform.name)
-                        }}
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <ChevronDown
-                            className={cn(
-                              'h-3.5 w-3.5 text-muted-foreground transition-transform',
-                              expandedPlatforms.includes(platform.name) &&
-                                'rotate-180',
-                            )}
-                          />
-                          <span className="text-sm font-medium">
-                            {platform.name}
-                          </span>
-                          {platform.type === 'bank' && platform.bankType && (
-                            <Badge
-                              variant="outline"
-                              className="h-4 px-1 text-[9px]"
-                            >
-                              {platform.bankType}
-                            </Badge>
+                        }
+                      }}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <ChevronDown
+                          className={cn(
+                            'h-3.5 w-3.5 text-muted-foreground transition-transform',
+                            expandedPlatforms.includes(platform.name) &&
+                              'rotate-180',
                           )}
-                          {platform.type === 'paypal' && (
-                            <Badge
-                              variant="outline"
-                              className={cn(
-                                'h-4 px-1 text-[9px]',
-                                platform.isUsed
-                                  ? 'border-warning/30 text-warning'
-                                  : 'border-success/30 text-success',
-                              )}
-                            >
-                              {platform.isUsed ? 'Used' : 'New'}
-                            </Badge>
-                          )}
-                          {/* Status controls */}
-                          <div className="ml-auto flex items-center">
-                            {platform.type === 'paypal' && (
-                              <Select
-                                value={platform.status}
-                                onValueChange={(v) => handleStatusChange(platform.name, v)}
-                                disabled={isPending}
-                              >
-                                <SelectTrigger
-                                  className={cn(
-                                    'h-5 w-[90px] rounded-full border px-2 text-[10px] font-medium',
-                                    getPlatformStatusColor(platform.status),
-                                  )}
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="active">Active</SelectItem>
-                                  <SelectItem value="permanent_limited">
-                                    Perm. Limited
-                                  </SelectItem>
-                                </SelectContent>
-                              </Select>
-                            )}
-                            {platform.type === 'edgeboost' && (
-                              <Select
-                                value={platform.status}
-                                onValueChange={(v) => handleStatusChange(platform.name, v)}
-                                disabled={isPending}
-                              >
-                                <SelectTrigger
-                                  className={cn(
-                                    'h-5 w-[90px] rounded-full border px-2 text-[10px] font-medium',
-                                    getPlatformStatusColor(platform.status),
-                                  )}
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="active">Active</SelectItem>
-                                  <SelectItem value="rejected">
-                                    Rejected
-                                  </SelectItem>
-                                </SelectContent>
-                              </Select>
-                            )}
-                            {platform.type === 'bank' && (
-                              <Select
-                                value={platform.status}
-                                onValueChange={(v) => handleStatusChange(platform.name, v)}
-                                disabled={isPending}
-                              >
-                                <SelectTrigger
-                                  className={cn(
-                                    'h-5 w-[90px] rounded-full border px-2 text-[10px] font-medium',
-                                    getPlatformStatusColor(platform.status),
-                                  )}
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="active">Active</SelectItem>
-                                  <SelectItem value="rejected">
-                                    Rejected
-                                  </SelectItem>
-                                </SelectContent>
-                              </Select>
-                            )}
-                          </div>
-                        </div>
-                        <span className="font-mono text-sm">
-                          ${platform.balance.toLocaleString()}
+                        />
+                        <span className="text-sm font-medium">
+                          {platform.name}
                         </span>
-                      </button>
-                    </CollapsibleTrigger>
+                        {platform.type === 'bank' && platform.bankType && (
+                          <Badge
+                            variant="outline"
+                            className="h-4 px-1 text-[9px]"
+                          >
+                            {platform.bankType}
+                          </Badge>
+                        )}
+                        {platform.type === 'paypal' && (
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              'h-4 px-1 text-[9px]',
+                              platform.isUsed
+                                ? 'border-warning/30 text-warning'
+                                : 'border-success/30 text-success',
+                            )}
+                          >
+                            {platform.isUsed ? 'Used' : 'New'}
+                          </Badge>
+                        )}
+                        {/* Status controls */}
+                        <div
+                          className="ml-auto flex items-center"
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => e.stopPropagation()}
+                        >
+                          {platform.type === 'paypal' && (
+                            <Select
+                              value={platform.status}
+                              onValueChange={(v) => handleStatusChange(platform.name, v)}
+                              disabled={isPending}
+                            >
+                              <SelectTrigger
+                                className={cn(
+                                  'h-5 w-[90px] rounded-full border px-2 text-[10px] font-medium',
+                                  getPlatformStatusColor(platform.status),
+                                )}
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="active">Active</SelectItem>
+                                <SelectItem value="permanent_limited">
+                                  Perm. Limited
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          )}
+                          {platform.type === 'edgeboost' && (
+                            <Select
+                              value={platform.status}
+                              onValueChange={(v) => handleStatusChange(platform.name, v)}
+                              disabled={isPending}
+                            >
+                              <SelectTrigger
+                                className={cn(
+                                  'h-5 w-[90px] rounded-full border px-2 text-[10px] font-medium',
+                                  getPlatformStatusColor(platform.status),
+                                )}
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="active">Active</SelectItem>
+                                <SelectItem value="rejected">
+                                  Rejected
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          )}
+                          {platform.type === 'bank' && (
+                            <Select
+                              value={platform.status}
+                              onValueChange={(v) => handleStatusChange(platform.name, v)}
+                              disabled={isPending}
+                            >
+                              <SelectTrigger
+                                className={cn(
+                                  'h-5 w-[90px] rounded-full border px-2 text-[10px] font-medium',
+                                  getPlatformStatusColor(platform.status),
+                                )}
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="active">Active</SelectItem>
+                                <SelectItem value="rejected">
+                                  Rejected
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </div>
+                      </div>
+                      <span className="font-mono text-sm">
+                        ${platform.balance.toLocaleString()}
+                      </span>
+                    </div>
                     <CollapsibleContent className="border-t border-border bg-muted/20">
                       <div className="space-y-1.5 p-2.5 text-sm">
                         {platform.credentials && (
@@ -499,61 +502,67 @@ export function PlatformSection({
                           onTogglePlatformExpanded(platform.name)
                         }
                       >
-                        <CollapsibleTrigger asChild>
-                          <button
-                            className="flex w-full items-center justify-between p-2.5 text-left transition-colors hover:bg-muted/30"
-                            onClick={(e) => {
+                        <div
+                          className="flex w-full cursor-pointer items-center justify-between p-2.5 text-left transition-colors hover:bg-muted/30"
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => onTogglePlatformExpanded(platform.name)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
                               e.preventDefault()
                               onTogglePlatformExpanded(platform.name)
-                            }}
-                          >
-                            <div className="flex flex-1 items-center gap-1.5">
-                              <ChevronDown
-                                className={cn(
-                                  'h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform',
-                                  expandedPlatforms.includes(platform.name) &&
-                                    'rotate-180',
-                                )}
-                              />
-                              <span className="text-sm font-medium">
-                                {platform.name}
-                              </span>
-                              <div className="ml-auto flex items-center">
-                                <Select
-                                  value={platform.status}
-                                  onValueChange={(v) => handleStatusChange(platform.name, v)}
-                                  disabled={isPending}
-                                >
-                                  <SelectTrigger
-                                    className={cn(
-                                      'h-5 w-[72px] rounded-full border px-2 text-[10px] font-medium',
-                                      getBettingPlatformStatusColor(
-                                        platform.status,
-                                      ),
-                                    )}
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="active">
-                                      Active
-                                    </SelectItem>
-                                    <SelectItem value="pipeline">
-                                      Pipeline
-                                    </SelectItem>
-                                    <SelectItem value="limited">
-                                      Limited
-                                    </SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-                            <span className="ml-2 font-mono text-sm">
-                              ${platform.balance.toLocaleString()}
+                            }
+                          }}
+                        >
+                          <div className="flex flex-1 items-center gap-1.5">
+                            <ChevronDown
+                              className={cn(
+                                'h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform',
+                                expandedPlatforms.includes(platform.name) &&
+                                  'rotate-180',
+                              )}
+                            />
+                            <span className="text-sm font-medium">
+                              {platform.name}
                             </span>
-                          </button>
-                        </CollapsibleTrigger>
+                            <div
+                              className="ml-auto flex items-center"
+                              onClick={(e) => e.stopPropagation()}
+                              onKeyDown={(e) => e.stopPropagation()}
+                            >
+                              <Select
+                                value={platform.status}
+                                onValueChange={(v) => handleStatusChange(platform.name, v)}
+                                disabled={isPending}
+                              >
+                                <SelectTrigger
+                                  className={cn(
+                                    'h-5 w-[72px] rounded-full border px-2 text-[10px] font-medium',
+                                    getBettingPlatformStatusColor(
+                                      platform.status,
+                                    ),
+                                  )}
+                                >
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="active">
+                                    Active
+                                  </SelectItem>
+                                  <SelectItem value="pipeline">
+                                    Pipeline
+                                  </SelectItem>
+                                  <SelectItem value="limited">
+                                    Limited
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                          <span className="ml-2 font-mono text-sm">
+                            ${platform.balance.toLocaleString()}
+                          </span>
+                        </div>
                         <CollapsibleContent className="border-t border-border bg-muted/20">
                           <div className="space-y-1.5 p-2.5 text-sm">
                             {platform.credentials ? (
