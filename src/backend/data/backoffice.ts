@@ -422,6 +422,10 @@ export async function getAllClients() {
           username: true,
           reviewedBy: true,
           reviewedAt: true,
+          agentResult: true,
+          retryAfter: true,
+          retryCount: true,
+          reviewNotes: true,
         },
       },
       phoneAssignment: {
@@ -506,6 +510,10 @@ export async function getAllClients() {
         username: p.username,
         reviewedBy: p.reviewedBy,
         reviewedAt: p.reviewedAt?.toISOString() ?? null,
+        agentResult: p.agentResult,
+        retryAfter: p.retryAfter?.toISOString() ?? null,
+        retryCount: p.retryCount,
+        reviewNotes: p.reviewNotes,
       })),
       // Recent transactions
       transactions: client.transactions.map((t) => ({

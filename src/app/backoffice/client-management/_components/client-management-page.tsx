@@ -214,6 +214,8 @@ function mapServerClientToClient(serverClient: ServerClientData): Client {
     agent: serverClient.agent || undefined,
     betmgmScreenshots: betmgmDetail?.screenshots ?? [],
     betmgmStatus: betmgmDetail?.status ?? 'NOT_STARTED',
+    betmgmAgentResult: betmgmDetail?.agentResult ?? undefined,
+    betmgmRetryCount: betmgmDetail?.retryCount ?? 0,
     platformDetails: serverClient.platformDetails,
     quickInfo: {
       zellePhone: (questionnaire.zellePhone as string) || '\u2014',

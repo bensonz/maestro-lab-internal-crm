@@ -152,6 +152,8 @@ export interface Client {
   questionnaire?: Record<string, unknown> | null
   betmgmScreenshots?: string[]
   betmgmStatus?: string
+  betmgmAgentResult?: string
+  betmgmRetryCount?: number
   platformDetails?: ServerPlatformDetail[]
 }
 
@@ -173,6 +175,10 @@ export interface ServerPlatformDetail {
   username: string | null
   reviewedBy: string | null
   reviewedAt: string | null
+  agentResult: string | null
+  retryAfter: string | null
+  retryCount: number
+  reviewNotes: string | null
 }
 
 export interface ServerClientData {
