@@ -108,11 +108,19 @@ export async function createClient(
     // Phase 2 flow: update existing client created during pre-qualification
     const existingClient = await prisma.client.findUnique({
       where: { id: clientId },
-      select: { agentId: true },
+      select: { agentId: true, intakeStatus: true },
     })
 
     if (!existingClient || existingClient.agentId !== session.user.id) {
       return { message: 'Client not found or not owned by you' }
+    }
+
+    // Phase 2 requires prequal to be approved (or legacy PENDING fast-track)
+    if (
+      existingClient.intakeStatus !== 'PREQUAL_APPROVED' &&
+      existingClient.intakeStatus !== 'PENDING'
+    ) {
+      return { message: 'Pre-qualification must be approved before submitting the full application' }
     }
 
     await prisma.$transaction(async (tx) => {
