@@ -23,6 +23,7 @@ const ALLOWED_TRANSITIONS: Record<IntakeStatus, IntakeStatus[]> = {
   ],
   [IntakeStatus.PREQUAL_REVIEW]: [
     IntakeStatus.PREQUAL_APPROVED,
+    IntakeStatus.READY_FOR_APPROVAL,
     IntakeStatus.REJECTED,
     IntakeStatus.NEEDS_MORE_INFO,
   ],
