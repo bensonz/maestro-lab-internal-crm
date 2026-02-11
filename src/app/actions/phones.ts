@@ -5,6 +5,7 @@ import prisma from '@/backend/prisma/client'
 import { transitionClientStatus } from '@/backend/services/status-transition'
 import { IntakeStatus, UserRole } from '@/types'
 import { revalidatePath } from 'next/cache'
+import logger from '@/backend/logger'
 
 const BACKOFFICE_ROLES: string[] = [UserRole.BACKOFFICE, UserRole.ADMIN]
 
@@ -85,7 +86,7 @@ export async function assignPhone(
     revalidatePhonePaths(clientId)
     return { success: true }
   } catch (error) {
-    console.error('Assign phone error:', error)
+    logger.error('Assign phone error', { error, clientId })
     return { success: false, error: 'Failed to assign phone' }
   }
 }
@@ -124,7 +125,7 @@ export async function signOutPhone(
     revalidatePhonePaths(assignment.clientId ?? undefined)
     return { success: true }
   } catch (error) {
-    console.error('Sign out phone error:', error)
+    logger.error('Sign out phone error', { error, assignmentId })
     return { success: false, error: 'Failed to sign out phone' }
   }
 }
@@ -166,7 +167,7 @@ export async function returnPhone(
     revalidatePhonePaths(assignment.clientId ?? undefined)
     return { success: true }
   } catch (error) {
-    console.error('Return phone error:', error)
+    logger.error('Return phone error', { error, assignmentId })
     return { success: false, error: 'Failed to return phone' }
   }
 }
