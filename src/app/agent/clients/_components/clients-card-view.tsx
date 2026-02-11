@@ -51,6 +51,14 @@ const statusBadgeConfig: Record<
     icon: XCircle,
     className: 'bg-destructive/20 text-destructive border-destructive/30',
   },
+  [IntakeStatus.PREQUAL_REVIEW]: {
+    icon: Hourglass,
+    className: 'bg-warning/20 text-warning border-warning/30',
+  },
+  [IntakeStatus.PREQUAL_APPROVED]: {
+    icon: CheckCircle2,
+    className: 'bg-success/20 text-success border-success/30',
+  },
   [IntakeStatus.PENDING]: {
     icon: Clock,
     className: 'bg-muted text-muted-foreground border-muted',
@@ -72,6 +80,8 @@ const STATUS_BORDER_COLOR: Record<string, string> = {
   [IntakeStatus.PENDING_EXTERNAL]: 'border-l-destructive',
   [IntakeStatus.EXECUTION_DELAYED]: 'border-l-warning',
   [IntakeStatus.READY_FOR_APPROVAL]: 'border-l-warning',
+  [IntakeStatus.PREQUAL_REVIEW]: 'border-l-warning',
+  [IntakeStatus.PREQUAL_APPROVED]: 'border-l-success',
   [IntakeStatus.PENDING]: 'border-l-muted-foreground',
   [IntakeStatus.INACTIVE]: 'border-l-muted-foreground',
   [IntakeStatus.APPROVED]: 'border-l-success',
