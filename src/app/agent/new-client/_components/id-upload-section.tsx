@@ -54,6 +54,7 @@ export function IdUploadSection({
   const [editableData, setEditableData] = useState<ExtractedData | null>(initialData ?? null)
   const [dragActive, setDragActive] = useState(false)
   const [manualExpiry, setManualExpiry] = useState('')
+  const [cleared, setCleared] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Simulated OCR - in production this would call an actual OCR API
@@ -81,6 +82,7 @@ export function IdUploadSection({
   const handleFileUpload = useCallback(
     async (file: File) => {
       setUploadedFile(file)
+      setCleared(false)
       setIsUploading(true)
 
       try {
@@ -168,6 +170,7 @@ export function IdUploadSection({
     setExtractedData(null)
     setEditableData(null)
     setManualExpiry('')
+    setCleared(true)
     onIdUploaded('')
   }, [onIdUploaded])
 
@@ -239,7 +242,7 @@ export function IdUploadSection({
           Verified
         </Badge>
       )}
-      {!uploadedFile && !initialData && !initialIdUrl ? (
+      {!uploadedFile && (!initialData || cleared) && (!initialIdUrl || cleared) ? (
           <div
             onClick={() => fileInputRef.current?.click()}
             onDrop={handleDrop}
