@@ -87,3 +87,24 @@ export interface DailyGoalData {
   totalTasks: number
   currentStreak: number
 }
+
+// New types for redesigned hub
+
+export interface TeamMember {
+  id: string
+  name: string
+  currentStep: string
+  totalSteps: number
+  completedSteps: number
+  isOneStepAway: boolean
+  totalClients: number
+}
+
+export interface TeamRanking {
+  percentile: number
+  myRank: number
+  totalMembers: number
+  speed: number
+  stability: number
+  influence: number
+}
