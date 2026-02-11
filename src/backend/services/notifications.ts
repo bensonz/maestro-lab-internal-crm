@@ -1,4 +1,5 @@
 import prisma from '@/backend/prisma/client'
+import logger from '@/backend/logger'
 
 /**
  * Create a notification for a specific user.
@@ -13,6 +14,7 @@ export async function createNotification(params: {
   eventLogId?: string
   clientId?: string
 }) {
+  logger.info('Creating notification', { userId: params.userId, type: params.type })
   return prisma.notification.create({ data: params })
 }
 
@@ -34,8 +36,12 @@ export async function notifyRole(params: {
     select: { id: true },
   })
 
-  if (users.length === 0) return []
+  if (users.length === 0) {
+    logger.warn('notifyRole found 0 matching users', { roles, type: params.type })
+    return []
+  }
 
+  logger.info('Sending role notifications', { roles, type: params.type, userCount: users.length })
   return prisma.notification.createMany({
     data: users.map((u) => ({
       userId: u.id,
