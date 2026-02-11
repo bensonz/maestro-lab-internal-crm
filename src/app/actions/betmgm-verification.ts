@@ -99,6 +99,9 @@ export async function verifyBetmgmManual(
 export type BetmgmStatusResult = {
   status: string
   verified: boolean
+  retryAfter?: string
+  retryCount?: number
+  rejectionReason?: string
 }
 
 /**
@@ -117,7 +120,7 @@ export async function checkBetmgmStatus(
       clientId,
       platformType: PlatformType.BETMGM,
     },
-    select: { status: true },
+    select: { status: true, retryAfter: true, retryCount: true, reviewNotes: true },
   })
 
   if (!platform) {
@@ -127,5 +130,8 @@ export async function checkBetmgmStatus(
   return {
     status: platform.status,
     verified: platform.status === PlatformStatus.VERIFIED,
+    retryAfter: platform.retryAfter?.toISOString(),
+    retryCount: platform.retryCount,
+    rejectionReason: platform.reviewNotes ?? undefined,
   }
 }
