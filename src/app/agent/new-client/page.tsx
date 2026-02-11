@@ -66,7 +66,7 @@ export default async function NewClientPage({ searchParams }: Props) {
           where: {
             agentId: session.user.id,
             intakeStatus: {
-              in: ['PENDING', 'PHONE_ISSUED', 'IN_EXECUTION', 'READY_FOR_APPROVAL'],
+              in: ['PENDING', 'PREQUAL_REVIEW', 'PREQUAL_APPROVED', 'PHONE_ISSUED', 'IN_EXECUTION', 'READY_FOR_APPROVAL'],
             },
           },
           include: { platforms: { where: { platformType: 'BETMGM' } } },
@@ -102,6 +102,7 @@ export default async function NewClientPage({ searchParams }: Props) {
       questionnaire: selectedClient.questionnaire,
       idDocument: selectedClient.idDocument,
       betmgmScreenshots: betmgmPlatform?.screenshots ?? [],
+      intakeStatus: selectedClient.intakeStatus,
     }
     betmgmStatus = betmgmPlatform?.status ?? 'NOT_STARTED'
     serverPhase = getClientPhase({
