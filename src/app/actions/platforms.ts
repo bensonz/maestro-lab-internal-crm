@@ -12,6 +12,7 @@ import {
   ToDoType,
 } from '@/types'
 import { revalidatePath } from 'next/cache'
+import logger from '@/backend/logger'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
@@ -93,7 +94,7 @@ export async function uploadPlatformScreenshot(
 
     return { success: true, path: filepath }
   } catch (error) {
-    console.error('Upload error:', error)
+    logger.error('Upload screenshot error', { error, clientId, platformType })
     return { success: false, error: 'Failed to upload screenshot' }
   }
 }
@@ -170,7 +171,7 @@ export async function deletePlatformScreenshot(
 
     return { success: true }
   } catch (error) {
-    console.error('Delete error:', error)
+    logger.error('Delete screenshot error', { error, clientId, platformType })
     return { success: false, error: 'Failed to delete screenshot' }
   }
 }
@@ -226,7 +227,7 @@ export async function approvePlatformScreenshot(
 
     return { success: true }
   } catch (error) {
-    console.error('Approve error:', error)
+    logger.error('Approve screenshot error', { error, clientId, platformType })
     return { success: false, error: 'Failed to approve screenshot' }
   }
 }
@@ -281,7 +282,7 @@ export async function rejectPlatformScreenshot(
 
     return { success: true }
   } catch (error) {
-    console.error('Reject error:', error)
+    logger.error('Reject screenshot error', { error, clientId, platformType })
     return { success: false, error: 'Failed to reject screenshot' }
   }
 }
@@ -340,7 +341,7 @@ export async function requestMoreInfo(
 
     return { success: true }
   } catch (error) {
-    console.error('Request more info error:', error)
+    logger.error('Request more info error', { error, clientId, platformType })
     return { success: false, error: 'Failed to request more info' }
   }
 }
