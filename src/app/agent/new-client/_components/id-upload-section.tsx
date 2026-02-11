@@ -238,7 +238,7 @@ export function IdUploadSection({
           Verified
         </Badge>
       )}
-        {!uploadedFile && !initialData && !initialIdUrl ? (
+      {!uploadedFile && !initialData && !initialIdUrl ? (
           <div
             onClick={() => fileInputRef.current?.click()}
             onDrop={handleDrop}
@@ -291,7 +291,7 @@ export function IdUploadSection({
         ) : (
           <div className="space-y-4">
             {/* File Preview — only when a file was actually uploaded (not for initialData) */}
-            {(uploadedFile || uploadedUrl) && (
+            {(uploadedFile || uploadedUrl) ? (
             <div className="flex items-center justify-between rounded-lg border border-border/50 bg-muted/30 p-3">
               <div className="flex items-center gap-3">
                 {uploadedUrl ? (
@@ -328,7 +328,7 @@ export function IdUploadSection({
                 </Button>
               )}
             </div>
-            )}
+            ) : null}
 
             {/* Uploading State */}
             {isUploading && (
