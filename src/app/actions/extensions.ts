@@ -15,6 +15,7 @@ import {
   createNotification,
   notifyRole,
 } from '@/backend/services/notifications'
+import logger from '@/backend/logger'
 
 const MAX_EXTENSIONS = 3
 const DEFAULT_REQUESTED_DAYS = 3
@@ -131,13 +132,13 @@ export async function requestDeadlineExtension(
         link: '/backoffice/todo-list',
         clientId,
       })
-    } catch {
-      // Notification failure should not block the main action
+    } catch (err) {
+      logger.warn('Notification failed for extension request', { error: err, clientId })
     }
 
     return { success: true }
   } catch (error) {
-    console.error('Extension request error:', error)
+    logger.error('Extension request error', { error, clientId })
     return { success: false, error: 'Failed to submit extension request' }
   }
 }
@@ -283,13 +284,13 @@ export async function approveExtensionRequest(
         link: `/agent/clients/${request.clientId}`,
         clientId: request.clientId,
       })
-    } catch {
-      // Notification failure should not block the main action
+    } catch (err) {
+      logger.warn('Notification failed for extension approval', { error: err, requestId })
     }
 
     return { success: true }
   } catch (error) {
-    console.error('Approve extension error:', error)
+    logger.error('Approve extension error', { error, requestId })
     return { success: false, error: 'Failed to approve extension request' }
   }
 }
@@ -381,13 +382,13 @@ export async function rejectExtensionRequest(
         link: `/agent/clients/${request.clientId}`,
         clientId: request.clientId,
       })
-    } catch {
-      // Notification failure should not block the main action
+    } catch (err) {
+      logger.warn('Notification failed for extension rejection', { error: err, requestId })
     }
 
     return { success: true }
   } catch (error) {
-    console.error('Reject extension error:', error)
+    logger.error('Reject extension error', { error, requestId })
     return { success: false, error: 'Failed to reject extension request' }
   }
 }
