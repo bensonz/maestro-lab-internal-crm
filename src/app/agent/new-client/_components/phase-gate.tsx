@@ -5,9 +5,10 @@ import { cn } from '@/lib/utils'
 
 interface PhaseGateProps {
   unlocked: boolean
+  lockedMessage?: string
 }
 
-export function PhaseGate({ unlocked }: PhaseGateProps) {
+export function PhaseGate({ unlocked, lockedMessage }: PhaseGateProps) {
   return (
     <div
       className={cn(
@@ -32,7 +33,7 @@ export function PhaseGate({ unlocked }: PhaseGateProps) {
         ) : (
           <>
             <Lock className="h-3.5 w-3.5" />
-            Complete pre-qualification to unlock
+            {lockedMessage || 'Complete pre-qualification to unlock'}
           </>
         )}
       </div>
