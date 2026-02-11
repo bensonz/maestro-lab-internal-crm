@@ -121,6 +121,11 @@ export function ClientForm({
     }
   })()
 
+  // ID document URL state
+  const [idDocumentUrl, setIdDocumentUrl] = useState<string | null>(
+    clientData?.idDocument ?? null,
+  )
+
   // ID verification state
   const [isIdConfirmed, setIsIdConfirmed] = useState(
     parsedQuestionnaire?.idVerified ?? false,
@@ -237,7 +242,7 @@ export function ClientForm({
         toast.success('BetMGM verified! Full application unlocked.')
         clearInterval(interval)
       }
-    }, 15000)
+    }, 60000)
 
     return () => clearInterval(interval)
   }, [prequalSubmitted, betmgmVerified, clientData?.id])
@@ -645,6 +650,7 @@ export function ClientForm({
                 <input type="hidden" name="gmailPassword" value={passwordValue} />
                 <input type="hidden" name="phone" value={phoneValue} />
                 <input type="hidden" name="agentConfirmsId" value={isIdConfirmed ? 'true' : 'false'} />
+                {idDocumentUrl && <input type="hidden" name="idDocument" value={idDocumentUrl} />}
                 {draftId && <input type="hidden" name="draftId" value={draftId} />}
 
                 <div className="space-y-4">
@@ -662,6 +668,8 @@ export function ClientForm({
                       onConfirm={handleIdConfirm}
                       isConfirmed={isIdConfirmed}
                       initialData={prequalSubmitted && extractedData ? extractedData : undefined}
+                      onIdUploaded={setIdDocumentUrl}
+                      initialIdUrl={clientData?.idDocument ?? undefined}
                     />
                   </StepCard>
 
