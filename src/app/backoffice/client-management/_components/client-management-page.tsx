@@ -24,6 +24,7 @@ function mapIntakeStatusToClientStatus(
 ): Client['status'] {
   switch (intakeStatus) {
     case 'APPROVED':
+    case 'PREQUAL_APPROVED':
     case 'PHONE_ISSUED':
     case 'IN_EXECUTION':
       return 'active'
@@ -31,6 +32,7 @@ function mapIntakeStatusToClientStatus(
     case 'INACTIVE':
     case 'PARTNERSHIP_ENDED':
       return 'closed'
+    case 'PREQUAL_REVIEW':
     case 'NEEDS_MORE_INFO':
     case 'PENDING_EXTERNAL':
     case 'READY_FOR_APPROVAL':
