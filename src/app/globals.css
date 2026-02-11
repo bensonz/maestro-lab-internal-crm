@@ -209,6 +209,15 @@
     background-clip: padding-box;
   }
 
+  /* Hide scrollbar utility */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
   /* Selection */
   ::selection {
     background: oklch(0.62 0.19 260 / 0.35);
