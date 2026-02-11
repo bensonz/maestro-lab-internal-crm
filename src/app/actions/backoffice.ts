@@ -105,13 +105,18 @@ export async function updatePlatformStatus(
     data: { status: dbStatus as PlatformStatus },
   })
 
-  // Log the status change
+  // Log the status change (fire-and-forget, don't block the update)
+  const userExists = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { id: true },
+  })
+
   await prisma.eventLog.create({
     data: {
       eventType: 'PLATFORM_STATUS_CHANGE',
       description: `${platformType} status changed from ${oldStatus} to ${dbStatus}`,
       clientId,
-      userId: session.user.id,
+      userId: userExists ? session.user.id : undefined,
       oldValue: oldStatus,
       newValue: dbStatus,
     },
