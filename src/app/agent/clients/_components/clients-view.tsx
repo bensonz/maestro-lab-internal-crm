@@ -51,7 +51,7 @@ interface ClientsViewProps {
 }
 
 const STATUS_FILTER_MAP: Record<StatusFilter, IntakeStatus[]> = {
-  inProgress: [IntakeStatus.PENDING, IntakeStatus.PHONE_ISSUED, IntakeStatus.IN_EXECUTION],
+  inProgress: [IntakeStatus.PENDING, IntakeStatus.PREQUAL_REVIEW, IntakeStatus.PREQUAL_APPROVED, IntakeStatus.PHONE_ISSUED, IntakeStatus.IN_EXECUTION],
   needsInfo: [
     IntakeStatus.NEEDS_MORE_INFO,
     IntakeStatus.PENDING_EXTERNAL,
@@ -64,16 +64,18 @@ const STATUS_FILTER_MAP: Record<StatusFilter, IntakeStatus[]> = {
 }
 
 const STATUS_PRIORITY: Record<string, number> = {
-  [IntakeStatus.IN_EXECUTION]: 0,
-  [IntakeStatus.PHONE_ISSUED]: 1,
-  [IntakeStatus.NEEDS_MORE_INFO]: 2,
-  [IntakeStatus.PENDING_EXTERNAL]: 3,
-  [IntakeStatus.EXECUTION_DELAYED]: 4,
-  [IntakeStatus.READY_FOR_APPROVAL]: 5,
-  [IntakeStatus.PENDING]: 6,
-  [IntakeStatus.INACTIVE]: 7,
-  [IntakeStatus.APPROVED]: 8,
-  [IntakeStatus.REJECTED]: 9,
+  [IntakeStatus.PENDING]: 0,
+  [IntakeStatus.PREQUAL_REVIEW]: 1,
+  [IntakeStatus.PREQUAL_APPROVED]: 2,
+  [IntakeStatus.IN_EXECUTION]: 3,
+  [IntakeStatus.PHONE_ISSUED]: 4,
+  [IntakeStatus.NEEDS_MORE_INFO]: 5,
+  [IntakeStatus.PENDING_EXTERNAL]: 6,
+  [IntakeStatus.EXECUTION_DELAYED]: 7,
+  [IntakeStatus.READY_FOR_APPROVAL]: 8,
+  [IntakeStatus.INACTIVE]: 9,
+  [IntakeStatus.APPROVED]: 10,
+  [IntakeStatus.REJECTED]: 11,
 }
 
 const TERMINAL_STATUSES: IntakeStatus[] = [
