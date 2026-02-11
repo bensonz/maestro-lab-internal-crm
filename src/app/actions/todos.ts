@@ -350,3 +350,39 @@ export async function requestToDoExtension(
     return { success: false, error: 'Failed to extend deadline' }
   }
 }
+
+export async function nudgeTeamMember(
+  memberId: string,
+): Promise<{ success: boolean; error?: string }> {
+  const session = await auth()
+  if (!session?.user?.id) {
+    return { success: false, error: 'Unauthorized' }
+  }
+
+  // Verify the member is actually a subordinate
+  const member = await prisma.user.findFirst({
+    where: { id: memberId, supervisorId: session.user.id },
+    select: { id: true, name: true },
+  })
+
+  if (!member) {
+    return { success: false, error: 'Team member not found' }
+  }
+
+  try {
+    await prisma.notification.create({
+      data: {
+        userId: memberId,
+        type: 'NUDGE',
+        title: 'Your supervisor nudged you',
+        message: `${session.user.name} is encouraging you to complete your pending tasks!`,
+        link: '/agent/todo-list',
+      },
+    })
+
+    return { success: true }
+  } catch (error) {
+    console.error('Nudge error:', error)
+    return { success: false, error: 'Failed to send nudge' }
+  }
+}
