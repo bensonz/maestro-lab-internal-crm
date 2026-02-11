@@ -12,6 +12,25 @@ import {
 import { cn } from '@/lib/utils'
 import type { Client } from './types'
 
+function formatIntakeStatus(status: string): string {
+  const map: Record<string, string> = {
+    PENDING: 'Pending',
+    PREQUAL_REVIEW: 'Pre-Qual Review',
+    PREQUAL_APPROVED: 'Pre-Qual Approved',
+    PHONE_ISSUED: 'Phone Issued',
+    IN_EXECUTION: 'In Execution',
+    NEEDS_MORE_INFO: 'Needs More Info',
+    PENDING_EXTERNAL: 'Pending External',
+    EXECUTION_DELAYED: 'Delayed',
+    INACTIVE: 'Inactive',
+    READY_FOR_APPROVAL: 'Ready for Approval',
+    APPROVED: 'Approved',
+    REJECTED: 'Rejected',
+    PARTNERSHIP_ENDED: 'Partnership Ended',
+  }
+  return map[status] || status
+}
+
 interface ClientListProps {
   clients: Client[]
   searchQuery: string
@@ -108,28 +127,46 @@ export function ClientList({
                               <div className="space-y-1 text-xs text-muted-foreground">
                                 <p>
                                   <span className="font-medium text-foreground">
-                                    Zelle:
+                                    Status:
                                   </span>{' '}
-                                  {client.quickInfo.zellePhone}
+                                  <span className={cn(
+                                    client.status === 'active' && 'text-success',
+                                    client.status === 'closed' && 'text-destructive',
+                                    client.status === 'further_verification' && 'text-warning',
+                                  )}>
+                                    {client.intakeStatus ? formatIntakeStatus(client.intakeStatus) : client.status}
+                                  </span>
                                 </p>
-                                <p>
-                                  <span className="font-medium text-foreground">
-                                    EdgeBoost:
-                                  </span>{' '}
-                                  {client.quickInfo.edgeboostDebit}
-                                </p>
-                                <p>
-                                  <span className="font-medium text-foreground">
-                                    Bank:
-                                  </span>{' '}
-                                  {client.quickInfo.bankDebit}
-                                </p>
+                                {client.agent && (
+                                  <p>
+                                    <span className="font-medium text-foreground">
+                                      Agent:
+                                    </span>{' '}
+                                    {client.agent}
+                                  </p>
+                                )}
                                 <p>
                                   <span className="font-medium text-foreground">
                                     State:
                                   </span>{' '}
                                   {client.quickInfo.state}
                                 </p>
+                                <p>
+                                  <span className="font-medium text-foreground">
+                                    Platforms:
+                                  </span>{' '}
+                                  {client.bettingPlatforms.length > 0
+                                    ? client.bettingPlatforms.map(p => p.abbr).join(', ')
+                                    : '—'}
+                                </p>
+                                {client.quickInfo.zellePhone !== '—' && (
+                                  <p>
+                                    <span className="font-medium text-foreground">
+                                      Zelle:
+                                    </span>{' '}
+                                    {client.quickInfo.zellePhone}
+                                  </p>
+                                )}
                               </div>
                             </TooltipContent>
                           </Tooltip>
