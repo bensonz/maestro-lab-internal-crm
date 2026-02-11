@@ -6,6 +6,7 @@ import { ALL_PLATFORMS } from '@/lib/platforms'
 import { prequalSchema, updateGmailSchema } from '@/lib/validations/prequal'
 import { EventType, PlatformStatus, PlatformType, UserRole } from '@/types'
 import { notifyRole } from '@/backend/services/notifications'
+import logger from '@/backend/logger'
 
 export type PrequalActionState = {
   errors?: Record<string, string[]>
@@ -169,14 +170,14 @@ export async function submitPrequalification(
           link: '/backoffice/sales-interaction',
           clientId: client.id,
         })
-      } catch {
-        // Notification failure should not block the main action
+      } catch (err) {
+        logger.warn('Notification failed after prequal submit', { error: err, clientId: client.id })
       }
     }
 
     return { clientId: client.id }
   } catch (error) {
-    console.error('Pre-qualification submission failed:', error)
+    logger.error('Pre-qualification submission failed', { error })
     return { message: 'Failed to submit pre-qualification' }
   }
 }
