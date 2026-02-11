@@ -1,9 +1,17 @@
 'use client'
 
-import { Star, Users } from 'lucide-react'
+import { useState } from 'react'
+import { Star, Users, TrendingUp, CheckCircle2, Circle, Crown } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
+import { STAR_THRESHOLDS } from '@/lib/commission-constants'
 import type { HierarchyAgent, HierarchyNode } from '@/backend/data/hierarchy'
 
 interface TeamDirectoryPanelProps {
@@ -51,6 +59,7 @@ export function TeamDirectoryPanel({ hierarchy }: TeamDirectoryPanelProps) {
   const directTeam = subordinateTree.subordinates
   const level2Count = countAtDepth(subordinateTree, 1)
   const level3Count = countAtDepth(subordinateTree, 2)
+  const [showPromotionPath, setShowPromotionPath] = useState(false)
 
   return (
     <div className="flex h-full w-56 min-w-56 flex-col border-r border-sidebar-border bg-sidebar">
@@ -183,8 +192,115 @@ export function TeamDirectoryPanel({ hierarchy }: TeamDirectoryPanelProps) {
               </div>
             </div>
           </div>
+
+          <Separator className="bg-border/50" />
+
+          {/* Promotion Path CTA */}
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => setShowPromotionPath(true)}
+              className="w-full rounded-lg border border-warning/40 bg-warning/10 px-3 py-2.5 text-sm font-semibold text-warning transition-all hover:bg-warning/20 hover:border-warning/60"
+              data-testid="promotion-path-btn"
+            >
+              View Promotion Path &rarr;
+            </button>
+          </div>
         </div>
       </ScrollArea>
+
+      {/* Promotion Path Modal */}
+      <Dialog open={showPromotionPath} onOpenChange={setShowPromotionPath}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-warning" />
+              Promotion Path
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {/* Current Position */}
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+              <p className="text-xs text-muted-foreground">Current Position</p>
+              <div className="mt-1 flex items-center gap-2">
+                {agent.starLevel > 0 ? (
+                  <>
+                    <div className="flex gap-0.5">
+                      {Array(agent.starLevel).fill(0).map((_, i) => (
+                        <Star key={i} className="h-4 w-4 fill-warning text-warning" />
+                      ))}
+                    </div>
+                    <span className="text-sm font-semibold">{agent.starLevel}-Star Agent</span>
+                  </>
+                ) : (
+                  <span className="text-sm font-semibold">Rookie</span>
+                )}
+              </div>
+            </div>
+
+            {/* Milestones */}
+            <div className="space-y-2">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Career Milestones
+              </p>
+              {STAR_THRESHOLDS.map((tier) => {
+                const reached = agent.starLevel >= tier.level
+                const isCurrent = agent.starLevel === tier.level
+                return (
+                  <div
+                    key={tier.level}
+                    className={cn(
+                      'flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-all',
+                      isCurrent
+                        ? 'border-primary/50 bg-primary/10 ring-1 ring-primary/20'
+                        : reached
+                          ? 'border-success/30 bg-success/5 text-success'
+                          : 'border-border/50 bg-muted/10 text-muted-foreground',
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      {reached ? (
+                        <CheckCircle2 className="h-4 w-4 text-success" />
+                      ) : (
+                        <Circle className="h-4 w-4 text-muted-foreground/40" />
+                      )}
+                      <span className={cn(isCurrent && 'font-semibold text-foreground')}>
+                        {tier.label}
+                      </span>
+                    </div>
+                    <div className="text-right text-xs">
+                      <span className="font-mono">{tier.min}+ clients</span>
+                      {tier.level > 0 && (
+                        <span className="ml-2 text-success">{tier.sliceBonus}/client</span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+
+              {/* Level 5+ Leadership */}
+              <div className="flex items-center justify-between rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <Crown className="h-4 w-4 text-warning" />
+                  <span>5+ Leadership</span>
+                </div>
+                <span className="text-xs font-mono text-warning">P&L Revenue Share</span>
+              </div>
+            </div>
+
+            {/* Next Level Requirements */}
+            {agent.starLevel < 4 && (
+              <div className="rounded-lg border border-border/50 bg-muted/10 p-3">
+                <p className="text-xs text-muted-foreground">Next Level Requirements</p>
+                <p className="mt-1 text-sm">
+                  Reach <span className="font-semibold text-primary">{STAR_THRESHOLDS[Math.min(agent.starLevel + 1, 4)].min} approved clients</span> to become a{' '}
+                  <span className="font-semibold">{STAR_THRESHOLDS[Math.min(agent.starLevel + 1, 4)].label}</span>
+                </p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
