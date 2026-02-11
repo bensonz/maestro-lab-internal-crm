@@ -110,15 +110,38 @@ export function ClientForm({
   const currentPhase: number =
     serverPhase ?? (prequalSubmitted && betmgmVerified ? 2 : 1)
 
-  // Parse questionnaire from initialData or clientData
-  const parsedQuestionnaire = (() => {
-    const raw =
-      initialData?.questionnaire ?? clientData?.questionnaire
-    if (!raw) return null
-    try {
-      return JSON.parse(raw)
-    } catch {
-      return null
+  // Parse questionnaire from both sources and merge
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const parsedQuestionnaire: Record<string, any> | null = (() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let fromClient: Record<string, any> | null = null
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let fromDraft: Record<string, any> | null = null
+
+    if (clientData?.questionnaire) {
+      try { fromClient = JSON.parse(clientData.questionnaire) } catch { /* ignore */ }
+    }
+    if (initialData?.questionnaire) {
+      try { fromDraft = JSON.parse(initialData.questionnaire) } catch { /* ignore */ }
+    }
+
+    if (!fromClient && !fromDraft) return null
+
+    // Merge: draft overrides for Phase 2 fields (compliance),
+    // but Phase 1 fields fall back to client record
+    return {
+      ...fromClient,
+      ...fromDraft,
+      betmgmResult: fromDraft?.betmgmResult ?? fromClient?.betmgmResult ?? null,
+      idVerified: fromDraft?.idVerified ?? fromClient?.idVerified ?? false,
+      dateOfBirth: fromDraft?.dateOfBirth ?? fromClient?.dateOfBirth ?? null,
+      middleName: fromDraft?.middleName ?? fromClient?.middleName ?? null,
+      idExpiry: fromDraft?.idExpiry ?? fromClient?.idExpiry ?? null,
+      extractedAddress: fromDraft?.extractedAddress?.address
+        ? fromDraft.extractedAddress
+        : fromClient?.extractedAddress ?? null,
+      overriddenFields: fromDraft?.overriddenFields ?? fromClient?.overriddenFields ?? [],
+      compliance: fromDraft?.compliance ?? fromClient?.compliance ?? null,
     }
   })()
 
@@ -227,8 +250,10 @@ export function ClientForm({
     }
   })
 
-  // Agent confirmation state
-  const [agentConfirms, setAgentConfirms] = useState(false)
+  // Agent confirmation state — restore from draft if available
+  const [agentConfirms, setAgentConfirms] = useState(
+    initialData?.agentConfirmsSuitable === 'true',
+  )
 
   // Age flag state
   const [ageFlag, setAgeFlag] = useState<AgeFlag | null>(null)
