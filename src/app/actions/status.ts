@@ -5,6 +5,7 @@ import { transitionClientStatus } from '@/backend/services/status-transition'
 import { detectAndMarkOverdueClients } from '@/backend/services/overdue-detection'
 import { IntakeStatus, UserRole } from '@/types'
 import { revalidatePath } from 'next/cache'
+import logger from '@/backend/logger'
 
 const BACKOFFICE_ROLES: string[] = [UserRole.BACKOFFICE, UserRole.ADMIN]
 
@@ -124,7 +125,7 @@ export async function checkOverdueClients(): Promise<{
 
     return { success: true, marked: result.marked }
   } catch (error) {
-    console.error('Check overdue error:', error)
+    logger.error('Check overdue error', { error })
     return {
       success: false,
       marked: 0,
