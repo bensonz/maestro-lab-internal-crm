@@ -45,16 +45,28 @@ function mapIntakeStatusToClientStatus(
 function mapPlatformsToBetting(
   platforms: string[],
   activePlatforms: string[],
+  platformDetails?: ServerPlatformDetail[],
 ): Client['bettingPlatforms'] {
-  const PLATFORM_META: Record<string, { id: string; name: string }> = {
-    DK: { id: 'draftkings', name: 'DraftKings' },
-    FD: { id: 'fanduel', name: 'FanDuel' },
-    MGM: { id: 'betmgm', name: 'BetMGM' },
-    CZR: { id: 'caesars', name: 'Caesars' },
-    FAN: { id: 'fanatics', name: 'Fanatics' },
-    BB: { id: 'ballybet', name: 'BallyBet' },
-    BR: { id: 'betrivers', name: 'BetRivers' },
-    '365': { id: 'bet365', name: 'Bet365' },
+  const PLATFORM_META: Record<string, { id: string; name: string; dbType: string }> = {
+    DK: { id: 'draftkings', name: 'DraftKings', dbType: 'DRAFTKINGS' },
+    FD: { id: 'fanduel', name: 'FanDuel', dbType: 'FANDUEL' },
+    MGM: { id: 'betmgm', name: 'BetMGM', dbType: 'BETMGM' },
+    CZR: { id: 'caesars', name: 'Caesars', dbType: 'CAESARS' },
+    FAN: { id: 'fanatics', name: 'Fanatics', dbType: 'FANATICS' },
+    BB: { id: 'ballybet', name: 'BallyBet', dbType: 'BALLYBET' },
+    BR: { id: 'betrivers', name: 'BetRivers', dbType: 'BETRIVERS' },
+    '365': { id: 'bet365', name: 'Bet365', dbType: 'BET365' },
+  }
+
+  // Map DB status to view status
+  function mapBettingStatus(dbStatus: string | undefined): ViewPlatformStatus {
+    switch (dbStatus) {
+      case 'VERIFIED': return 'active'
+      case 'LIMITED': return 'limited'
+      case 'REJECTED': return 'dead'
+      case 'PENDING_REVIEW': return 'pipeline'
+      default: return 'pipeline'
+    }
   }
 
   // Only include sportsbook platform abbreviations
@@ -62,15 +74,14 @@ function mapPlatformsToBetting(
   const sportPlatforms = platforms.filter((p) => sportAbbrs.includes(p))
 
   return sportPlatforms.map((abbr) => {
-    const meta = PLATFORM_META[abbr] || { id: abbr.toLowerCase(), name: abbr }
-    const isActive = activePlatforms.includes(abbr)
+    const meta = PLATFORM_META[abbr] || { id: abbr.toLowerCase(), name: abbr, dbType: abbr }
+    const detail = platformDetails?.find((p) => p.platformType === meta.dbType)
     return {
       id: meta.id,
       name: meta.name,
       abbr,
-      status: isActive ? ('active' as const) : ('pipeline' as const),
-      balance: 0, // TODO: Wire to real balance data
-      // TODO: Wire deposits, withdrawals, credentials, etc.
+      status: detail ? mapBettingStatus(detail.status) : ('pipeline' as const),
+      balance: 0,
     }
   })
 }
@@ -101,7 +112,7 @@ function mapFinanceStatus(dbStatus: string | undefined): FinancePlatformStatus {
     case 'VERIFIED': return 'active'
     case 'LIMITED': return 'permanent_limited'
     case 'REJECTED': return 'rejected'
-    default: return 'active' // NOT_STARTED, PENDING_UPLOAD, etc. show as pipeline
+    default: return 'pipeline' // NOT_STARTED, PENDING_UPLOAD, PENDING_REVIEW, etc.
   }
 }
 
@@ -148,7 +159,7 @@ function mapServerClientToClient(serverClient: ServerClientData): Client {
       {
         name: 'PayPal',
         type: 'paypal' as const,
-        status: paypalDetail ? mapFinanceStatus(paypalDetail.status) : 'active',
+        status: paypalDetail ? mapFinanceStatus(paypalDetail.status) : 'pipeline',
         balance: 0,
         isUsed: false,
         credentials: {
@@ -159,7 +170,7 @@ function mapServerClientToClient(serverClient: ServerClientData): Client {
       {
         name: 'Bank',
         type: 'bank' as const,
-        status: bankDetail ? mapFinanceStatus(bankDetail.status) : 'active',
+        status: bankDetail ? mapFinanceStatus(bankDetail.status) : 'pipeline',
         balance: 0,
         bankType: 'Chase' as const,
         credentials: {
@@ -180,7 +191,7 @@ function mapServerClientToClient(serverClient: ServerClientData): Client {
       {
         name: 'Edgeboost',
         type: 'edgeboost' as const,
-        status: edgeboostDetail ? mapFinanceStatus(edgeboostDetail.status) : 'active',
+        status: edgeboostDetail ? mapFinanceStatus(edgeboostDetail.status) : 'pipeline',
         balance: 0,
         credentials: {
           username: edgeboostDetail?.username || '\u2014',
@@ -196,6 +207,7 @@ function mapServerClientToClient(serverClient: ServerClientData): Client {
     bettingPlatforms: mapPlatformsToBetting(
       serverClient.platforms,
       serverClient.activePlatforms,
+      serverClient.platformDetails,
     ),
     agent: serverClient.agent || undefined,
     betmgmScreenshots: betmgmDetail?.screenshots ?? [],
@@ -212,6 +224,7 @@ function mapServerClientToClient(serverClient: ServerClientData): Client {
       dob: (questionnaire.dateOfBirth as string) || '\u2014',
       gender:
         ((questionnaire.gender as string) as 'Male' | 'Female') || 'Male',
+      idImageUrl: serverClient.idDocument || undefined,
       idExpiryDate: (questionnaire.idExpiry as string) || '\u2014',
       ssn: '\u2022\u2022\u2022\u2022', // Never expose real SSN client-side
       citizenship: (questionnaire.citizenship as string) || '\u2014',
