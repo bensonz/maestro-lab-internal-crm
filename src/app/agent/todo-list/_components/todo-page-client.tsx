@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { AIDetectionModal } from '@/components/ai-detection-modal'
+import { DailyStatsRow } from './daily-stats-row'
 import { GrowthLevelCard } from './growth-level-card'
 import { QuickGuidePanel } from './quick-guide-panel'
 import { ConversionTasksCard } from './conversion-tasks-card'
@@ -281,6 +282,12 @@ export function TodoPageClient({
   const dailyTarget = Math.max(1, agentStarLevel + 1)
   const overdueCount = todos.filter((t) => !t.completed && t.dueHours < 0).length
 
+  // Daily stats computations
+  const maintenanceTotalCount = maintenanceTasks.length
+  const overdueRiskAmount = overdueCount * (REWARD_PER_TASK[agentStarLevel] ?? 25)
+  const potentialEarnings = conversionClients.length * 400 + maintenanceTasks.length * (REWARD_PER_TASK[agentStarLevel] ?? 25)
+  const confirmedEarnings = todoData.completedToday * (REWARD_PER_TASK[agentStarLevel] ?? 25)
+
   // Streak multiplier based on streak days
   const streakMultiplier = todoData.completedToday >= 20 ? 2.0
     : todoData.completedToday >= 10 ? 1.5
@@ -417,6 +424,20 @@ export function TodoPageClient({
             tasksCompleted={todoData.completedToday}
             tasksForNextLevel={todos.filter((t) => !t.completed).length}
             rewardPotential={REWARD_PER_TASK[agentStarLevel] ?? 25}
+          />
+        </div>
+
+        {/* Daily Stats Row */}
+        <div className="mb-4">
+          <DailyStatsRow
+            potentialEarnings={potentialEarnings}
+            confirmedEarnings={confirmedEarnings}
+            overdueCount={overdueCount}
+            overdueRiskAmount={overdueRiskAmount}
+            maintenanceCompleted={maintenanceTotalCount - overdueCount}
+            maintenanceTotal={maintenanceTotalCount}
+            tasksCompleted={todoData.completedToday}
+            tasksTotal={todoData.completedToday + todos.filter((t) => !t.completed).length}
           />
         </div>
 
