@@ -4,7 +4,7 @@
 
 export type ClientStatus = 'active' | 'closed' | 'further_verification'
 export type ViewPlatformStatus = 'active' | 'limited' | 'pipeline' | 'dead'
-export type FinancePlatformStatus = 'active' | 'permanent_limited' | 'rejected'
+export type FinancePlatformStatus = 'active' | 'permanent_limited' | 'rejected' | 'pipeline'
 export type BankType = 'Chase' | 'Citi' | 'BofA'
 
 export const BETTING_PLATFORMS = [
@@ -192,6 +192,7 @@ export interface ServerClientData {
   state: string | null
   zipCode: string | null
   country: string | null
+  idDocument: string | null
   questionnaire: string | null
   // Platform details
   platformDetails: ServerPlatformDetail[]
