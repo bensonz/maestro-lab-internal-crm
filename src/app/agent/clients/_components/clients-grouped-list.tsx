@@ -11,6 +11,7 @@ import {
   ChevronDown,
   ChevronRight,
   ArrowRight,
+  FileText,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -59,6 +60,14 @@ const statusBadgeConfig: Record<
     icon: XCircle,
     className: 'bg-destructive/20 text-destructive border-destructive/30',
   },
+  [IntakeStatus.PREQUAL_REVIEW]: {
+    icon: Hourglass,
+    className: 'bg-warning/20 text-warning border-warning/30',
+  },
+  [IntakeStatus.PREQUAL_APPROVED]: {
+    icon: CheckCircle2,
+    className: 'bg-success/20 text-success border-success/30',
+  },
   [IntakeStatus.PENDING]: {
     icon: Clock,
     className: 'bg-muted text-muted-foreground border-muted',
@@ -84,6 +93,14 @@ interface StatusGroup {
 }
 
 const statusGroups: StatusGroup[] = [
+  {
+    key: 'pre-qualification',
+    label: 'Pre-Qualification',
+    icon: FileText,
+    headerColor: 'text-muted-foreground',
+    statuses: [IntakeStatus.PENDING, IntakeStatus.PREQUAL_REVIEW, IntakeStatus.PREQUAL_APPROVED],
+    collapsedByDefault: false,
+  },
   {
     key: 'in-progress',
     label: 'In Progress',
