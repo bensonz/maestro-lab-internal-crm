@@ -19,7 +19,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { ChevronDown, ChevronRight, Info, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronRight, Info, Loader2, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { PHASE_SHORT_LABELS } from '@/lib/client-phase'
@@ -66,6 +66,8 @@ export function PipelinePanel({
   currentDraftId,
 }: PipelinePanelProps) {
   const router = useRouter()
+  const [isNavigating, startNavTransition] = useTransition()
+  const [navigatingTo, setNavigatingTo] = useState<string | null>(null)
   const [isDeleting, startDeleteTransition] = useTransition()
   const [deleteTarget, setDeleteTarget] = useState<{
     id: string
@@ -177,6 +179,7 @@ export function PipelinePanel({
                   const active = item.isDraft
                     ? currentDraftId === item.id
                     : currentClientId === item.id
+                  const isItemLoading = isNavigating && navigatingTo === item.id
 
                   return (
                     <div
@@ -185,23 +188,32 @@ export function PipelinePanel({
                         'group flex w-full items-center rounded-md px-3 py-1.5 text-left text-xs transition-colors',
                         active
                           ? 'bg-primary/10 font-medium text-primary'
-                          : 'text-foreground hover:bg-muted/50',
+                          : isItemLoading
+                            ? 'bg-muted/70 text-muted-foreground'
+                            : 'text-foreground hover:bg-muted/50',
                       )}
                     >
                       <button
                         type="button"
                         onClick={() => {
-                          if (item.isDraft) {
-                            router.push(`/agent/new-client?draft=${item.id}`)
-                          } else {
-                            router.push(`/agent/new-client?client=${item.id}`)
-                          }
+                          setNavigatingTo(item.id)
+                          startNavTransition(() => {
+                            if (item.isDraft) {
+                              router.push(`/agent/new-client?draft=${item.id}`)
+                            } else {
+                              router.push(`/agent/new-client?client=${item.id}`)
+                            }
+                          })
                         }}
+                        disabled={isNavigating}
                         className="flex-1 truncate text-left"
                         data-testid={`pipeline-item-${item.id}`}
                       >
                         {item.name}
                       </button>
+                      {isItemLoading && (
+                        <Loader2 className="ml-1 h-3 w-3 shrink-0 animate-spin text-muted-foreground" />
+                      )}
                       {(item.isDraft || item.intakeStatus === 'PENDING') && (
                         <button
                           type="button"
