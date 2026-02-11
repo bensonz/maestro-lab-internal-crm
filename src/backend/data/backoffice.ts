@@ -386,6 +386,10 @@ export async function getAllClients() {
         select: {
           platformType: true,
           status: true,
+          screenshots: true,
+          username: true,
+          reviewedBy: true,
+          reviewedAt: true,
         },
       },
       phoneAssignment: {
@@ -453,6 +457,7 @@ export async function getAllClients() {
       platforms: allPlatforms,
       activePlatforms,
       intakeStatus: client.intakeStatus,
+      agent: client.agent?.name ?? null,
       // Profile fields
       address: client.address,
       city: client.city,
@@ -460,6 +465,15 @@ export async function getAllClients() {
       zipCode: client.zipCode,
       country: client.country,
       questionnaire: client.questionnaire,
+      // Platform details for status/screenshots
+      platformDetails: client.platforms.map((p) => ({
+        platformType: p.platformType,
+        status: p.status,
+        screenshots: p.screenshots,
+        username: p.username,
+        reviewedBy: p.reviewedBy,
+        reviewedAt: p.reviewedAt?.toISOString() ?? null,
+      })),
       // Recent transactions
       transactions: client.transactions.map((t) => ({
         id: t.id,
