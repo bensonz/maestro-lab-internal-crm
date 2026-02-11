@@ -28,9 +28,13 @@ export async function getOverviewStats() {
     pendingExtensions,
     delayedClients,
   ] = await Promise.all([
-    // Clients ready for final approval
+    // Clients ready for review (Phase 1 prequal + Phase 2 full application)
     prisma.client.count({
-      where: { intakeStatus: IntakeStatus.READY_FOR_APPROVAL },
+      where: {
+        intakeStatus: {
+          in: [IntakeStatus.READY_FOR_APPROVAL, IntakeStatus.PREQUAL_REVIEW],
+        },
+      },
     }),
     // Platforms awaiting backoffice review (e.g. BetMGM PENDING_REVIEW)
     prisma.clientPlatform.count({
@@ -52,6 +56,8 @@ export async function getOverviewStats() {
       where: {
         intakeStatus: {
           in: [
+            IntakeStatus.PREQUAL_REVIEW,
+            IntakeStatus.PREQUAL_APPROVED,
             IntakeStatus.PHONE_ISSUED,
             IntakeStatus.IN_EXECUTION,
             IntakeStatus.READY_FOR_APPROVAL,
@@ -326,7 +332,11 @@ export async function getPendingActionCounts() {
   const [pendingIntake, pendingVerification, pendingSettlement, overdueTasks] =
     await Promise.all([
       prisma.client.count({
-        where: { intakeStatus: IntakeStatus.READY_FOR_APPROVAL },
+        where: {
+          intakeStatus: {
+            in: [IntakeStatus.READY_FOR_APPROVAL, IntakeStatus.PREQUAL_REVIEW],
+          },
+        },
       }),
       prisma.clientPlatform.count({
         where: { status: PlatformStatus.PENDING_REVIEW },
@@ -504,6 +514,7 @@ export async function getClientStats() {
   const total = clients.length
   const active = clients.filter(
     (c) =>
+      c.intakeStatus === IntakeStatus.PREQUAL_APPROVED ||
       c.intakeStatus === IntakeStatus.PHONE_ISSUED ||
       c.intakeStatus === IntakeStatus.IN_EXECUTION ||
       c.intakeStatus === IntakeStatus.APPROVED,
@@ -593,7 +604,7 @@ export async function getAgentStats() {
       prisma.client.count({
         where: {
           intakeStatus: {
-            in: [IntakeStatus.PENDING, IntakeStatus.PHONE_ISSUED],
+            in: [IntakeStatus.PENDING, IntakeStatus.PREQUAL_REVIEW, IntakeStatus.PREQUAL_APPROVED, IntakeStatus.PHONE_ISSUED],
           },
         },
       }),
