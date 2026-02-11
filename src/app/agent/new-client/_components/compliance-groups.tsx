@@ -224,7 +224,7 @@ export function ComplianceGroups({
         <CollapsibleContent className="mt-2 space-y-4 rounded-lg border border-border/50 bg-muted/10 p-4">
           <div className="space-y-3">
             <Label className="text-sm font-medium text-foreground">
-              Does the client have established banking history?
+              Does the client have established banking history?<span className="text-destructive ml-0.5">*</span>
             </Label>
             <PillGroup
               field="hasBankingHistory"
@@ -238,7 +238,7 @@ export function ComplianceGroups({
           {data.hasBankingHistory === 'yes' && (
             <div className="space-y-2">
               <Label className="text-sm font-medium text-foreground">
-                Bank Name
+                Bank Name<span className="text-destructive ml-0.5">*</span>
               </Label>
               <Input
                 placeholder="e.g., Chase, Bank of America"
@@ -278,7 +278,7 @@ export function ComplianceGroups({
 
           <div className="space-y-2">
             <Label className="text-sm font-medium text-foreground">
-              Social Security Number (SSN)
+              Social Security Number (SSN)<span className="text-destructive ml-0.5">*</span>
             </Label>
             <Input
               type="password"
@@ -336,7 +336,7 @@ export function ComplianceGroups({
         <CollapsibleContent className="mt-2 space-y-4 rounded-lg border border-border/50 bg-muted/10 p-4">
           <div className="space-y-3">
             <Label className="text-sm font-medium text-foreground">
-              Does the client have a PayPal account?
+              Does the client have a PayPal account?<span className="text-destructive ml-0.5">*</span>
             </Label>
             <PillGroup
               field="hasPayPal"
@@ -424,7 +424,7 @@ export function ComplianceGroups({
         <CollapsibleContent className="mt-2 space-y-4 rounded-lg border border-border/50 bg-muted/10 p-4">
           <div className="space-y-3">
             <Label className="text-sm font-medium text-foreground">
-              Has the client previously used any betting platforms?
+              Has the client previously used any betting platforms?<span className="text-destructive ml-0.5">*</span>
             </Label>
             <PillGroup
               field="hasBettingHistory"
@@ -525,7 +525,7 @@ export function ComplianceGroups({
         <CollapsibleContent className="mt-2 space-y-4 rounded-lg border border-border/50 bg-muted/10 p-4">
           <div className="space-y-3">
             <Label className="text-sm font-medium text-foreground">
-              Does the client have any criminal record?
+              Does the client have any criminal record?<span className="text-destructive ml-0.5">*</span>
             </Label>
             <PillGroup
               field="hasCriminalRecord"
@@ -623,7 +623,7 @@ export function ComplianceGroups({
         <CollapsibleContent className="mt-2 space-y-4 rounded-lg border border-border/50 bg-muted/10 p-4">
           <div className="space-y-3">
             <Label className="text-sm font-medium text-foreground">
-              Overall risk level assessment
+              Overall risk level assessment<span className="text-destructive ml-0.5">*</span>
             </Label>
             <PillGroup
               field="riskLevel"
@@ -759,7 +759,7 @@ export function ComplianceGroups({
         <CollapsibleContent className="mt-2 space-y-4 rounded-lg border border-border/50 bg-muted/10 p-4">
           <div className="space-y-3">
             <Label className="text-sm font-medium text-foreground">
-              Can the client read English?
+              Can the client read English?<span className="text-destructive ml-0.5">*</span>
             </Label>
             <PillGroup
               field="canReadEnglish"
