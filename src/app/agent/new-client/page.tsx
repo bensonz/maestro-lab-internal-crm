@@ -75,11 +75,24 @@ export default async function NewClientPage({ searchParams }: Props) {
       : Promise.resolve([]),
   ])
 
+  // Resolved draft ID to pass down (so subsequent saves update the existing draft)
+  let resolvedDraftId = draftId
+
   // Process draft data if ?draft= param present
   if (draftId && session?.user?.id) {
     const draft = drafts.find((d) => d.id === draftId)
     if (draft) {
       initialData = draft.formData as Record<string, string>
+    }
+  }
+
+  // If loading a client (not a draft), check if there's a draft for this client
+  // and merge draft data (which includes Phase 2 compliance fields)
+  if (clientId && !draftId && session?.user?.id) {
+    const clientDraft = drafts.find((d) => d.clientId === clientId)
+    if (clientDraft) {
+      initialData = clientDraft.formData as Record<string, string>
+      resolvedDraftId = clientDraft.id
     }
   }
 
@@ -162,7 +175,7 @@ export default async function NewClientPage({ searchParams }: Props) {
         phase4,
       }}
       currentClientId={clientId}
-      currentDraftId={draftId}
+      currentDraftId={resolvedDraftId}
       initialData={initialData}
       clientData={clientData}
       betmgmStatus={betmgmStatus}
