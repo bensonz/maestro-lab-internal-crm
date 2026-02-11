@@ -100,7 +100,7 @@ export async function submitPrequalification(
           gmailPassword,
           phone: phone || null,
           prequalCompleted: true,
-          intakeStatus: 'PENDING',
+          intakeStatus: 'PREQUAL_REVIEW',
           agentId: session.user.id,
           address: address || null,
           city: city || null,
