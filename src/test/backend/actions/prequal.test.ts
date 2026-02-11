@@ -18,6 +18,9 @@ vi.mock('@/backend/prisma/client', () => ({
       update: vi.fn(),
       findUnique: vi.fn(),
     },
+    user: {
+      findUnique: vi.fn(),
+    },
     clientPlatform: {
       createMany: vi.fn(),
     },
@@ -30,6 +33,11 @@ vi.mock('@/backend/prisma/client', () => ({
 // Mock notifications
 vi.mock('@/backend/services/notifications', () => ({
   notifyRole: vi.fn(),
+}))
+
+// Mock logger
+vi.mock('@/backend/logger', () => ({
+  default: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }))
 
 // Mock redirect
@@ -51,6 +59,8 @@ const mockedAuth = auth as unknown as MockedAuth
 describe('submitPrequalification', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Default: stale session check passes
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: 'user-123' } as never)
   })
 
   const createFormData = (data: Record<string, string>): FormData => {
