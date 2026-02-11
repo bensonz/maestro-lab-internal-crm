@@ -6,6 +6,7 @@ import { UserRole, EventType } from '@/types'
 import { PLATFORM_INFO } from '@/lib/platforms'
 import { revalidatePath } from 'next/cache'
 import { recordTransactionFromFundMovement } from '@/backend/services/transaction'
+import logger from '@/backend/logger'
 
 const VALID_PLATFORM_NAMES = new Set(
   Object.values(PLATFORM_INFO).map((p) => p.name),
@@ -148,7 +149,7 @@ export async function recordFundMovement(data: {
 
     return { success: true }
   } catch (error) {
-    console.error('Record fund movement error:', error)
+    logger.error('Record fund movement error', { error })
     return { success: false, error: 'Failed to record fund movement' }
   }
 }
