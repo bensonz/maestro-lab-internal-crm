@@ -240,7 +240,7 @@ export function ClientDetail({
       </div>
 
       {/* Pending Review Banner — must be first thing the user sees */}
-      {client.intakeStatus === 'READY_FOR_APPROVAL' && (
+      {(client.intakeStatus === 'READY_FOR_APPROVAL' || client.intakeStatus === 'PREQUAL_REVIEW') && (
         <PendingReviewBanner
           clientId={client.id}
           clientName={client.profile.fullName}
@@ -252,6 +252,8 @@ export function ClientDetail({
           state={client.quickInfo.state}
           dob={client.profile.dob}
           address={client.profile.primaryAddress}
+          idImageUrl={client.profile.idImageUrl}
+          reviewPhase={client.intakeStatus === 'PREQUAL_REVIEW' ? 1 : 2}
         />
       )}
 
