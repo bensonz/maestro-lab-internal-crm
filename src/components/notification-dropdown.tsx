@@ -84,6 +84,12 @@ export function NotificationDropdown() {
     fetchNotifications()
   }, [fetchNotifications])
 
+  useEffect(() => {
+    if (isOpen) return // Don't poll while dropdown is open
+    const interval = setInterval(fetchNotifications, 30_000)
+    return () => clearInterval(interval)
+  }, [isOpen, fetchNotifications])
+
   function handleOpenChange(open: boolean) {
     setIsOpen(open)
     if (open) {
