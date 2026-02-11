@@ -1,5 +1,6 @@
 'use client'
 
+import { useTransition } from 'react'
 import {
   ChevronDown,
   Building,
@@ -32,6 +33,8 @@ import {
 } from '@/components/ui/collapsible'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
+import { updatePlatformStatus } from '@/app/actions/backoffice'
 import { EditableField } from './editable-field'
 import type {
   Client,
@@ -121,6 +124,21 @@ interface PlatformSectionProps {
   onFieldEdit?: (fieldKey: string, oldValue: string, newValue: string) => void
 }
 
+// Map platform display name to DB PlatformType enum
+const PLATFORM_NAME_TO_TYPE: Record<string, string> = {
+  PayPal: 'PAYPAL',
+  Bank: 'BANK',
+  Edgeboost: 'EDGEBOOST',
+  DraftKings: 'DRAFTKINGS',
+  FanDuel: 'FANDUEL',
+  BetMGM: 'BETMGM',
+  Caesars: 'CAESARS',
+  Fanatics: 'FANATICS',
+  BallyBet: 'BALLYBET',
+  BetRivers: 'BETRIVERS',
+  Bet365: 'BET365',
+}
+
 export function PlatformSection({
   client,
   selectedPlatform,
@@ -132,8 +150,22 @@ export function PlatformSection({
   onViewDocument,
   onFieldEdit,
 }: PlatformSectionProps) {
+  const [isPending, startTransition] = useTransition()
   const totalPnL = calculateBettingPnL(client)
   const totalFunds = calculateTotalFunds(client)
+
+  function handleStatusChange(platformName: string, newStatus: string) {
+    const platformType = PLATFORM_NAME_TO_TYPE[platformName]
+    if (!platformType) return
+    startTransition(async () => {
+      const result = await updatePlatformStatus(client.id, platformType, newStatus)
+      if (result.success) {
+        toast.success(`${platformName} status updated`)
+      } else {
+        toast.error(result.error || 'Failed to update status')
+      }
+    })
+  }
 
   // Platform-specific P&L
   const platformMetrics = selectedPlatform
@@ -203,7 +235,7 @@ export function PlatformSection({
             </div>
           </CardHeader>
           <CardContent className="min-h-0 flex-1 p-0">
-            <ScrollArea className="h-[400px]">
+            <ScrollArea className="h-[400px] [&>div]:scrollbar-hide">
               <div className="divide-y divide-border">
                 {/* Finance Platforms */}
                 {client.financePlatforms.map((platform) => (
@@ -257,7 +289,11 @@ export function PlatformSection({
                           {/* Status controls */}
                           <div className="ml-auto flex items-center">
                             {platform.type === 'paypal' && (
-                              <Select value={platform.status}>
+                              <Select
+                                value={platform.status}
+                                onValueChange={(v) => handleStatusChange(platform.name, v)}
+                                disabled={isPending}
+                              >
                                 <SelectTrigger
                                   className={cn(
                                     'h-5 w-[90px] rounded-full border px-2 text-[10px] font-medium',
@@ -276,7 +312,11 @@ export function PlatformSection({
                               </Select>
                             )}
                             {platform.type === 'edgeboost' && (
-                              <Select value={platform.status}>
+                              <Select
+                                value={platform.status}
+                                onValueChange={(v) => handleStatusChange(platform.name, v)}
+                                disabled={isPending}
+                              >
                                 <SelectTrigger
                                   className={cn(
                                     'h-5 w-[90px] rounded-full border px-2 text-[10px] font-medium',
@@ -295,14 +335,27 @@ export function PlatformSection({
                               </Select>
                             )}
                             {platform.type === 'bank' && (
-                              <Badge
-                                className={cn(
-                                  'h-5 rounded-full px-2 text-[10px] font-medium',
-                                  getPlatformStatusColor('active'),
-                                )}
+                              <Select
+                                value={platform.status}
+                                onValueChange={(v) => handleStatusChange(platform.name, v)}
+                                disabled={isPending}
                               >
-                                Active
-                              </Badge>
+                                <SelectTrigger
+                                  className={cn(
+                                    'h-5 w-[90px] rounded-full border px-2 text-[10px] font-medium',
+                                    getPlatformStatusColor(platform.status),
+                                  )}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="active">Active</SelectItem>
+                                  <SelectItem value="rejected">
+                                    Rejected
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
                             )}
                           </div>
                         </div>
@@ -466,7 +519,11 @@ export function PlatformSection({
                                 {platform.name}
                               </span>
                               <div className="ml-auto flex items-center">
-                                <Select value={platform.status}>
+                                <Select
+                                  value={platform.status}
+                                  onValueChange={(v) => handleStatusChange(platform.name, v)}
+                                  disabled={isPending}
+                                >
                                   <SelectTrigger
                                     className={cn(
                                       'h-5 w-[72px] rounded-full border px-2 text-[10px] font-medium',
