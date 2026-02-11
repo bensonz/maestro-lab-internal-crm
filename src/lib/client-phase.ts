@@ -13,8 +13,8 @@ export const PHASE_SHORT_LABELS: Record<number, string> = {
  * Determine which phase a client is in based on their intake status
  * and pre-qualification state.
  *
- * Phase 1: ID & Account Collection (PENDING + not prequal-completed)
- * Phase 2: Background & Risk Questionnaire (PENDING + prequal-completed + BetMGM verified)
+ * Phase 1: ID & Account Collection (PENDING + not prequal-completed, or PREQUAL_REVIEW)
+ * Phase 2: Background & Risk Questionnaire (PREQUAL_APPROVED, or legacy PENDING + prequal + BetMGM verified)
  * Phase 3: Financial & Sportsbook Setup (PHONE_ISSUED or IN_EXECUTION)
  * Phase 4: Contract & Submission (READY_FOR_APPROVAL)
  */
@@ -33,6 +33,12 @@ export function getClientPhase({
       if (betmgmVerified) return 2
       // prequal completed but BetMGM not yet verified — still phase 1
       return 1
+    case IntakeStatus.PREQUAL_REVIEW:
+      // Pre-qualification submitted, awaiting backoffice review — still Phase 1
+      return 1
+    case IntakeStatus.PREQUAL_APPROVED:
+      // Pre-qualification approved, agent can fill Phase 2
+      return 2
     case IntakeStatus.PHONE_ISSUED:
     case IntakeStatus.IN_EXECUTION:
       return 3
