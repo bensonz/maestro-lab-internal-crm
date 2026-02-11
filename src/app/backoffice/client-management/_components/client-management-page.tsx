@@ -7,8 +7,10 @@ import { ClientList } from './client-list'
 import { ClientDetail } from './client-detail'
 import type {
   Client,
+  FinancePlatformStatus,
   ServerClientData,
   ServerClientStats,
+  ServerPlatformDetail,
   ViewPlatformStatus,
 } from './types'
 
@@ -93,6 +95,24 @@ function mapEventTypeToTimelineType(
   return 'update'
 }
 
+// Map DB platform status to finance view status
+function mapFinanceStatus(dbStatus: string | undefined): FinancePlatformStatus {
+  switch (dbStatus) {
+    case 'VERIFIED': return 'active'
+    case 'LIMITED': return 'permanent_limited'
+    case 'REJECTED': return 'rejected'
+    default: return 'active' // NOT_STARTED, PENDING_UPLOAD, etc. show as pipeline
+  }
+}
+
+// Find a platform detail by type
+function findPlatformDetail(
+  details: ServerPlatformDetail[] | undefined,
+  type: string,
+): ServerPlatformDetail | undefined {
+  return details?.find((p) => p.platformType === type)
+}
+
 // Map a single server client to our view model
 function mapServerClientToClient(serverClient: ServerClientData): Client {
   // Parse questionnaire JSON for profile fields
@@ -104,6 +124,14 @@ function mapServerClientToClient(serverClient: ServerClientData): Client {
   } catch {
     /* ignore parse errors */
   }
+
+  // Build finance platforms from real data
+  const paypalDetail = findPlatformDetail(serverClient.platformDetails, 'PAYPAL')
+  const bankDetail = findPlatformDetail(serverClient.platformDetails, 'BANK')
+  const edgeboostDetail = findPlatformDetail(serverClient.platformDetails, 'EDGEBOOST')
+
+  // BetMGM screenshots for review banner
+  const betmgmDetail = findPlatformDetail(serverClient.platformDetails, 'BETMGM')
 
   return {
     id: serverClient.id,
@@ -120,22 +148,22 @@ function mapServerClientToClient(serverClient: ServerClientData): Client {
       {
         name: 'PayPal',
         type: 'paypal' as const,
-        status: 'active' as const,
-        balance: 0, // No per-finance-platform balances in fund movement model yet
+        status: paypalDetail ? mapFinanceStatus(paypalDetail.status) : 'active',
+        balance: 0,
         isUsed: false,
         credentials: {
-          username: '\u2014',
+          username: paypalDetail?.username || '\u2014',
           password: '\u2014',
         },
       },
       {
         name: 'Bank',
         type: 'bank' as const,
-        status: 'active' as const,
+        status: bankDetail ? mapFinanceStatus(bankDetail.status) : 'active',
         balance: 0,
         bankType: 'Chase' as const,
         credentials: {
-          username: '\u2014',
+          username: bankDetail?.username || '\u2014',
           password: '\u2014',
           pin: '\u2014',
         },
@@ -152,10 +180,10 @@ function mapServerClientToClient(serverClient: ServerClientData): Client {
       {
         name: 'Edgeboost',
         type: 'edgeboost' as const,
-        status: 'active' as const,
+        status: edgeboostDetail ? mapFinanceStatus(edgeboostDetail.status) : 'active',
         balance: 0,
         credentials: {
-          username: '\u2014',
+          username: edgeboostDetail?.username || '\u2014',
           password: '\u2014',
         },
         debitCard: {
@@ -169,6 +197,10 @@ function mapServerClientToClient(serverClient: ServerClientData): Client {
       serverClient.platforms,
       serverClient.activePlatforms,
     ),
+    agent: serverClient.agent || undefined,
+    betmgmScreenshots: betmgmDetail?.screenshots ?? [],
+    betmgmStatus: betmgmDetail?.status ?? 'NOT_STARTED',
+    platformDetails: serverClient.platformDetails,
     quickInfo: {
       zellePhone: (questionnaire.zellePhone as string) || '\u2014',
       edgeboostDebit: '\u2014',
