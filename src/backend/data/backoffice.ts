@@ -464,6 +464,7 @@ export async function getAllClients() {
       state: client.state,
       zipCode: client.zipCode,
       country: client.country,
+      idDocument: client.idDocument,
       questionnaire: client.questionnaire,
       // Platform details for status/screenshots
       platformDetails: client.platforms.map((p) => ({
