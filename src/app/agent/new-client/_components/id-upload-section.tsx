@@ -238,7 +238,7 @@ export function IdUploadSection({
           Verified
         </Badge>
       )}
-        {!uploadedFile && !initialData ? (
+        {!uploadedFile && !initialData && !initialIdUrl ? (
           <div
             onClick={() => fileInputRef.current?.click()}
             onDrop={handleDrop}
