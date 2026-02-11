@@ -384,6 +384,8 @@ export async function getAgentTodos(agentId: string) {
 function formatIntakeStatus(status: IntakeStatus): string {
   const map: Record<IntakeStatus, string> = {
     [IntakeStatus.PENDING]: 'Pending',
+    [IntakeStatus.PREQUAL_REVIEW]: 'Prequal Review',
+    [IntakeStatus.PREQUAL_APPROVED]: 'Prequal Approved',
     [IntakeStatus.PHONE_ISSUED]: 'Phone Issued',
     [IntakeStatus.IN_EXECUTION]: 'In Execution',
     [IntakeStatus.NEEDS_MORE_INFO]: 'Needs Info',
@@ -401,6 +403,8 @@ function formatIntakeStatus(status: IntakeStatus): string {
 function getStatusColor(status: IntakeStatus): string {
   const map: Record<IntakeStatus, string> = {
     [IntakeStatus.PENDING]: 'bg-slate-500',
+    [IntakeStatus.PREQUAL_REVIEW]: 'bg-yellow-500',
+    [IntakeStatus.PREQUAL_APPROVED]: 'bg-emerald-400',
     [IntakeStatus.PHONE_ISSUED]: 'bg-blue-500',
     [IntakeStatus.IN_EXECUTION]: 'bg-blue-500',
     [IntakeStatus.NEEDS_MORE_INFO]: 'bg-orange-500',
