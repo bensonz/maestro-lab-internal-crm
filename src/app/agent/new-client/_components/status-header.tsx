@@ -11,6 +11,7 @@ interface StatusHeaderProps {
   riskLevel: 'low' | 'medium' | 'high'
   onSubmit: () => void
   submitDisabled: boolean
+  isSubmitting?: boolean
   onSaveDraft: () => void
   isSaving: boolean
   phase: number
@@ -23,6 +24,7 @@ export function StatusHeader({
   riskLevel,
   onSubmit,
   submitDisabled,
+  isSubmitting = false,
   onSaveDraft,
   isSaving,
   phase,
@@ -100,12 +102,13 @@ export function StatusHeader({
             )}
             onClick={onSubmit}
             disabled={submitDisabled || isAwaitingVerification || isAlreadySubmitted}
+            loading={isSubmitting}
             data-testid="submit-application-btn"
           >
-            {isAwaitingVerification && (
+            {isAwaitingVerification && !isSubmitting && (
               <Clock className="mr-1 h-3 w-3" />
             )}
-            {getSubmitLabel()}
+            {isSubmitting ? 'Submitting...' : getSubmitLabel()}
           </Button>
         </div>
       </div>
