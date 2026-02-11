@@ -70,6 +70,7 @@ interface ClientData {
   questionnaire?: string | null
   idDocument?: string | null
   betmgmScreenshots?: string[]
+  intakeStatus?: string
 }
 
 interface ClientFormProps {
@@ -156,10 +157,10 @@ export function ClientForm({
           middleName: initialData.middleName,
           dateOfBirth:
             initialData.dateOfBirth ?? parsedQuestionnaire?.dateOfBirth ?? '',
-          address: initialData.primaryAddress,
-          city: initialData.primaryCity,
-          state: initialData.primaryState,
-          zip: initialData.primaryZip,
+          address: initialData.primaryAddress ?? initialData.address,
+          city: initialData.primaryCity ?? initialData.city,
+          state: initialData.primaryState ?? initialData.state,
+          zip: initialData.primaryZip ?? initialData.zipCode ?? initialData.zip,
           idExpiry: initialData.idExpiry ?? parsedQuestionnaire?.idExpiry,
         }
       }
@@ -639,16 +640,16 @@ export function ClientForm({
                       <input type="hidden" name="idExpiry" value={extractedData.idExpiry} />
                     )}
                     {extractedData.address && (
-                      <input type="hidden" name="address" value={extractedData.address} />
+                      <input type="hidden" name="primaryAddress" value={extractedData.address} />
                     )}
                     {extractedData.city && (
-                      <input type="hidden" name="city" value={extractedData.city} />
+                      <input type="hidden" name="primaryCity" value={extractedData.city} />
                     )}
                     {extractedData.state && (
-                      <input type="hidden" name="state" value={extractedData.state} />
+                      <input type="hidden" name="primaryState" value={extractedData.state} />
                     )}
                     {extractedData.zip && (
-                      <input type="hidden" name="zipCode" value={extractedData.zip} />
+                      <input type="hidden" name="primaryZip" value={extractedData.zip} />
                     )}
                   </>
                 )}
@@ -673,9 +674,9 @@ export function ClientForm({
                       onDataExtracted={handleIdDataExtracted}
                       onConfirm={handleIdConfirm}
                       isConfirmed={isIdConfirmed}
-                      initialData={prequalSubmitted && extractedData ? extractedData : undefined}
+                      initialData={extractedData ?? undefined}
                       onIdUploaded={setIdDocumentUrl}
-                      initialIdUrl={clientData?.idDocument ?? undefined}
+                      initialIdUrl={idDocumentUrl ?? undefined}
                     />
                   </StepCard>
 
@@ -722,7 +723,14 @@ export function ClientForm({
               </form>
 
               {/* PHASE GATE */}
-              <PhaseGate unlocked={betmgmVerified || currentPhase >= 2} />
+              <PhaseGate
+                unlocked={betmgmVerified || currentPhase >= 2}
+                lockedMessage={
+                  clientData?.intakeStatus === 'PREQUAL_REVIEW'
+                    ? 'Awaiting backoffice approval of pre-qualification'
+                    : undefined
+                }
+              />
 
               {/* PHASE 2: Full Application */}
               <PhaseHeader
@@ -785,10 +793,10 @@ export function ClientForm({
                     <AddressSection
                       errors={phase2State.errors}
                       defaultValues={{
-                        primaryAddress: extractedData?.address ?? clientData?.address ?? initialData?.primaryAddress,
-                        primaryCity: extractedData?.city ?? clientData?.city ?? initialData?.primaryCity,
-                        primaryState: extractedData?.state ?? clientData?.state ?? initialData?.primaryState,
-                        primaryZip: extractedData?.zip ?? clientData?.zipCode ?? initialData?.primaryZip,
+                        primaryAddress: extractedData?.address ?? clientData?.address ?? initialData?.primaryAddress ?? initialData?.address,
+                        primaryCity: extractedData?.city ?? clientData?.city ?? initialData?.primaryCity ?? initialData?.city,
+                        primaryState: extractedData?.state ?? clientData?.state ?? initialData?.primaryState ?? initialData?.state,
+                        primaryZip: extractedData?.zip ?? clientData?.zipCode ?? initialData?.primaryZip ?? initialData?.zipCode ?? initialData?.zip,
                         hasSecondAddress: initialData?.hasSecondAddress === 'true',
                         secondaryAddress: initialData?.secondaryAddress,
                         secondaryCity: initialData?.secondaryCity,
