@@ -9,6 +9,7 @@ import {
 import { ALL_PLATFORMS, getPlatformName } from '@/lib/platforms'
 import { createBonusPool } from '@/backend/services/commission'
 import { createNotification } from '@/backend/services/notifications'
+import logger from '@/backend/logger'
 
 // ─── Allowed Transitions ──────────────────────────────────────────────────────
 
@@ -358,13 +359,13 @@ export async function transitionClientStatus(
           clientId,
         })
       }
-    } catch {
-      // Notification failure should not block the main action
+    } catch (err) {
+      logger.warn('Notification failed during status transition', { error: err, clientId, newStatus })
     }
 
     return { success: true }
   } catch (error) {
-    console.error('Status transition error:', error)
+    logger.error('Status transition error', { error, clientId, newStatus })
     return { success: false, error: 'Failed to transition status' }
   }
 }
