@@ -34,7 +34,12 @@ import {
 } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
-import { approveClientIntake, rejectClientIntake } from '@/app/actions/backoffice'
+import {
+  approveClientIntake,
+  rejectClientIntake,
+  approvePrequal,
+  rejectPrequal,
+} from '@/app/actions/backoffice'
 
 interface PendingReviewBannerProps {
   clientId: string
@@ -47,6 +52,8 @@ interface PendingReviewBannerProps {
   state?: string
   dob?: string
   address?: string
+  idImageUrl?: string
+  reviewPhase?: 1 | 2
 }
 
 function formatBetmgmStatus(status: string): string {
@@ -69,6 +76,8 @@ export function PendingReviewBanner({
   state,
   dob,
   address,
+  idImageUrl,
+  reviewPhase = 2,
 }: PendingReviewBannerProps) {
   const [isPending, startTransition] = useTransition()
   const [approveDialogOpen, setApproveDialogOpen] = useState(false)
@@ -88,9 +97,15 @@ export function PendingReviewBanner({
 
   function handleApprove() {
     startTransition(async () => {
-      const result = await approveClientIntake(clientId)
+      const result = reviewPhase === 1
+        ? await approvePrequal(clientId)
+        : await approveClientIntake(clientId)
       if (result.success) {
-        toast.success('Client application approved')
+        toast.success(
+          reviewPhase === 1
+            ? 'Pre-qualification approved'
+            : 'Client application approved',
+        )
         setApproveDialogOpen(false)
         router.refresh()
       } else {
@@ -101,9 +116,15 @@ export function PendingReviewBanner({
 
   function handleReject() {
     startTransition(async () => {
-      const result = await rejectClientIntake(clientId, rejectReason || undefined)
+      const result = reviewPhase === 1
+        ? await rejectPrequal(clientId, rejectReason || undefined)
+        : await rejectClientIntake(clientId, rejectReason || undefined)
       if (result.success) {
-        toast.success('Client application rejected')
+        toast.success(
+          reviewPhase === 1
+            ? 'Pre-qualification rejected'
+            : 'Client application rejected',
+        )
         setRejectDialogOpen(false)
         setRejectReason('')
         router.refresh()
@@ -125,7 +146,9 @@ export function PendingReviewBanner({
             <Clock className="h-5 w-5 text-warning" />
             <div>
               <h2 className="text-sm font-semibold text-foreground">
-                Application Pending Review
+                {reviewPhase === 1
+                  ? 'Pre-Qualification Pending Review'
+                  : 'Application Pending Review'}
               </h2>
               <p className="text-xs text-muted-foreground">
                 Submitted on {submittedDate}
@@ -161,8 +184,33 @@ export function PendingReviewBanner({
 
         {/* Two-column: Screenshots + Summary */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {/* BetMGM Screenshots */}
+          {/* Phase 1: ID Document + BetMGM Screenshots | Phase 2: BetMGM only */}
           <div className="rounded-md border border-border/50 bg-card p-4">
+            {/* ID Document preview for Phase 1 */}
+            {reviewPhase === 1 && idImageUrl && (
+              <div className="mb-4">
+                <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <User className="h-3.5 w-3.5" />
+                  Client ID Document
+                </h3>
+                <button
+                  onClick={() => setLightboxUrl(idImageUrl.startsWith('uploads/') ? `/api/upload?path=${idImageUrl}` : idImageUrl)}
+                  className="group relative aspect-video w-full max-w-xs overflow-hidden rounded-md border border-border/50 bg-muted/30 transition-all hover:border-primary/50 hover:ring-2 hover:ring-primary/20"
+                  data-testid="id-document-preview"
+                >
+                  <img
+                    src={idImageUrl.startsWith('uploads/') ? `/api/upload?path=${idImageUrl}` : idImageUrl}
+                    alt="Client ID"
+                    className="h-full w-full object-cover"
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/20">
+                    <span className="text-xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
+                      Click to enlarge
+                    </span>
+                  </div>
+                </button>
+              </div>
+            )}
             <div className="mb-3 flex items-center justify-between">
               <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 <ImageIcon className="h-3.5 w-3.5" />
@@ -319,10 +367,13 @@ export function PendingReviewBanner({
       <AlertDialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Approve Application</AlertDialogTitle>
+            <AlertDialogTitle>
+              {reviewPhase === 1 ? 'Approve Pre-Qualification' : 'Approve Application'}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This will transition the client to APPROVED status, trigger commission
-              distribution, and notify the agent. This action cannot be undone.
+              {reviewPhase === 1
+                ? 'This will approve the pre-qualification, allowing the agent to proceed with the full application (Phase 2).'
+                : 'This will transition the client to APPROVED status, trigger commission distribution, and notify the agent. This action cannot be undone.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -343,10 +394,13 @@ export function PendingReviewBanner({
       <AlertDialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Reject Application</AlertDialogTitle>
+            <AlertDialogTitle>
+              {reviewPhase === 1 ? 'Reject Pre-Qualification' : 'Reject Application'}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This will reject the client application and notify the agent.
-              Optionally provide a reason for rejection.
+              {reviewPhase === 1
+                ? 'This will reject the pre-qualification and notify the agent. Optionally provide a reason.'
+                : 'This will reject the client application and notify the agent. Optionally provide a reason for rejection.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <Textarea
