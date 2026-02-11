@@ -35,7 +35,7 @@ const navItems: NavItem[] = [
   { title: 'New Client', href: '/agent/new-client', icon: UserPlus },
   { title: 'Earnings', href: '/agent/earnings', icon: DollarSign },
   { title: 'My Team', href: '/agent/team', icon: UsersRound },
-  { title: 'Tasks', href: '/agent/todo-list', icon: CheckSquare },
+  { title: 'Action Hub', href: '/agent/todo-list', icon: CheckSquare },
   { title: 'Settings', href: '/agent/settings', icon: Settings },
 ]
 
