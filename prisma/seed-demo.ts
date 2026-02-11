@@ -91,21 +91,21 @@ async function main() {
   console.log('👥 Creating clients (1 approved + 1 pending per agent)...')
 
   const clientNames = [
-    // agent4's clients
-    { first: 'Alice', last: 'Thompson', email: 'alice@example.com' },
-    { first: 'Bob', last: 'Martinez', email: 'bob@example.com' },
-    // agent3's clients
-    { first: 'Claire', last: 'Johnson', email: 'claire@example.com' },
-    { first: 'Derek', last: 'Nguyen', email: 'derek@example.com' },
-    // agent2's clients
-    { first: 'Eva', last: 'Patel', email: 'eva@example.com' },
-    { first: 'Frank', last: 'O\'Brien', email: 'frank@example.com' },
-    // agent1's clients
-    { first: 'Grace', last: 'Kim', email: 'grace@example.com' },
-    { first: 'Henry', last: 'Baker', email: 'henry@example.com' },
-    // agentR's clients
-    { first: 'Iris', last: 'Santos', email: 'iris@example.com' },
-    { first: 'Jake', last: 'Williams', email: 'jake@example.com' },
+    // agent4's clients (🇫🇷 Pierre)
+    { first: 'Aleksandr', last: 'Volkov', email: 'aleksandr.volkov@example.com', city: 'Chicago', state: 'IL', zip: '60601' },
+    { first: 'Li', last: 'Wei', email: 'li.wei@example.com', city: 'San Francisco', state: 'CA', zip: '94102' },
+    // agent3's clients (🇪🇸 Carlos)
+    { first: 'Priya', last: 'Sharma', email: 'priya.sharma@example.com', city: 'Houston', state: 'TX', zip: '77001' },
+    { first: 'Tomás', last: 'Herrera-Castillo', email: 'tomas.herrera@example.com', city: 'Miami', state: 'FL', zip: '33101' },
+    // agent2's clients (🇨🇳 Wei)
+    { first: 'Chiara', last: 'Fontanelli', email: 'chiara.fontanelli@example.com', city: 'New York', state: 'NY', zip: '10001' },
+    { first: 'Oba', last: 'Adeyemi', email: 'oba.adeyemi@example.com', city: 'Atlanta', state: 'GA', zip: '30301' },
+    // agent1's clients (🇯🇵 Yuki)
+    { first: 'Muhammad', last: 'Al-Rashidi', email: 'muhammad.alrashidi@example.com', city: 'Detroit', state: 'MI', zip: '48201' },
+    { first: 'Ana', last: 'Ruiz', email: 'ana.ruiz@example.com', city: 'Phoenix', state: 'AZ', zip: '85001' },
+    // agentR's clients (🇺🇸 John)
+    { first: 'Seo-yeon', last: 'Park', email: 'seoyeon.park@example.com', city: 'Seattle', state: 'WA', zip: '98101' },
+    { first: 'Kwame', last: 'Mensah-Bonsu', email: 'kwame.mensah@example.com', city: 'Denver', state: 'CO', zip: '80201' },
   ]
 
   const clients = []
@@ -122,7 +122,7 @@ async function main() {
         intakeStatus: IntakeStatus.APPROVED,
         statusChangedAt: daysAgo(10),
         agentId: agent.id,
-        state: 'CA', city: 'Los Angeles', zipCode: '90001', country: 'US',
+        state: approved.state, city: approved.city, zipCode: approved.zip, country: 'US',
         createdAt: daysAgo(20),
       },
     })
@@ -136,7 +136,7 @@ async function main() {
         statusChangedAt: daysAgo(3),
         executionDeadline: daysFromNow(4),
         agentId: agent.id,
-        state: 'CA', city: 'Los Angeles', zipCode: '90001', country: 'US',
+        state: pending.state, city: pending.city, zipCode: pending.zip, country: 'US',
         createdAt: daysAgo(5),
       },
     })
@@ -279,6 +279,10 @@ async function main() {
   console.log('')
   console.log('Hierarchy: 4★ Pierre → 3★ Carlos → 2★ Wei → 1★ Yuki → 0★ John')
   console.log('Each agent: 1 approved client + 1 in-execution client')
+  console.log('Clients: Aleksandr Volkov 🇷🇺, Li Wei 🇨🇳, Priya Sharma 🇮🇳, Tomás Herrera-Castillo 🇲🇽,')
+  console.log('         Chiara Fontanelli 🇮🇹, Oba Adeyemi 🇳🇬, Muhammad Al-Rashidi 🇸🇦, Ana Ruiz 🇪🇸,')
+  console.log('         Seo-yeon Park 🇰🇷, Kwame Mensah-Bonsu 🇬🇭')
+  console.log('Locations: Chicago, SF, Houston, Miami, NYC, Atlanta, Detroit, Phoenix, Seattle, Denver')
   console.log('Total: 2 staff, 5 agents, 10 clients, 10 movements, 10 earnings, 10 transactions')
 }
 
