@@ -578,7 +578,7 @@ export function ClientForm({
   return {
     form: (
       <div className="relative h-full">
-        <div className="h-full overflow-y-auto">
+        <div className="h-full">
           {/* Sticky Status Header */}
           <StatusHeader
             clientName={
