@@ -346,6 +346,7 @@ pnpm test src/test/backend/actions/phones.test.ts  # Specific file
 - `src/test/backend/validations/client.test.ts` — client form validation
 - `src/test/backend/validations/prequal.test.ts` — prequal form validation, BetMGM conditional screenshot requirements
 - `src/test/backend/lib/platforms.test.ts` — platform utilities
+- `src/test/backend/lib/client-phase.test.ts` — client phase determination (status + prequal + BetMGM gates)
 - `src/test/backend/utils/csv.test.ts` — CSV generation utility (escaping, BOM, edge cases)
 - `src/test/backend/services/commission.test.ts` — Commission distribution algorithm, star level calculation
 - `src/test/backend/data/agent-detail.test.ts` — Agent detail data query
