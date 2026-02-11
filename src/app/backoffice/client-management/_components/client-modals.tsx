@@ -17,33 +17,69 @@ import type { Client, Transaction } from './types'
 // Helpers
 // ============================================================================
 
+// Map platform display name to DB PlatformType for screenshot lookup
+const PLATFORM_NAME_TO_TYPE: Record<string, string> = {
+  PayPal: 'PAYPAL',
+  Bank: 'BANK',
+  Edgeboost: 'EDGEBOOST',
+  DraftKings: 'DRAFTKINGS',
+  FanDuel: 'FANDUEL',
+  BetMGM: 'BETMGM',
+  Caesars: 'CAESARS',
+  Fanatics: 'FANATICS',
+  BallyBet: 'BALLYBET',
+  BetRivers: 'BETRIVERS',
+  Bet365: 'BET365',
+}
+
+function getScreenshotUrl(url: string): string {
+  if (url.startsWith('uploads/')) return `/api/upload?path=${url}`
+  return url
+}
+
+function getPlatformScreenshots(client: Client, platformName: string): string[] {
+  const platformType = PLATFORM_NAME_TO_TYPE[platformName]
+  if (!platformType || !client.platformDetails) return []
+  const detail = client.platformDetails.find((d) => d.platformType === platformType)
+  return detail?.screenshots ?? []
+}
+
 function getAllScreenshots(
   client: Client,
 ): { platform: string; url: string; type: string }[] {
-  const screenshots: { platform: string; url: string; type: string }[] = [
-    {
-      platform: 'ID Document',
-      url: client.profile.idImageUrl || '/placeholder.svg',
-      type: 'ID',
-    },
-  ]
+  const screenshots: { platform: string; url: string; type: string }[] = []
 
-  client.financePlatforms.forEach((p) => {
+  // ID Document
+  if (client.profile.idImageUrl) {
     screenshots.push({
-      platform: p.name,
-      url: '/placeholder.svg',
-      type: 'Login Screenshot',
+      platform: 'ID Document',
+      url: getScreenshotUrl(client.profile.idImageUrl),
+      type: 'ID',
+    })
+  }
+
+  // Finance platforms
+  client.financePlatforms.forEach((p) => {
+    const urls = getPlatformScreenshots(client, p.name)
+    urls.forEach((url, idx) => {
+      screenshots.push({
+        platform: p.name,
+        url: getScreenshotUrl(url),
+        type: `Screenshot ${idx + 1}`,
+      })
     })
   })
 
+  // Betting platforms
   client.bettingPlatforms.forEach((p) => {
-    if (p.credentials) {
+    const urls = getPlatformScreenshots(client, p.name)
+    urls.forEach((url, idx) => {
       screenshots.push({
         platform: p.name,
-        url: '/placeholder.svg',
-        type: 'Login Screenshot',
+        url: getScreenshotUrl(url),
+        type: `Screenshot ${idx + 1}`,
       })
-    }
+    })
   })
 
   return screenshots
@@ -55,21 +91,25 @@ function getCredentialScreenshots(
   const screenshots: { platform: string; url: string; type: string }[] = []
 
   client.financePlatforms.forEach((p) => {
-    screenshots.push({
-      platform: p.name,
-      url: '/placeholder.svg',
-      type: 'Credentials',
+    const urls = getPlatformScreenshots(client, p.name)
+    urls.forEach((url, idx) => {
+      screenshots.push({
+        platform: p.name,
+        url: getScreenshotUrl(url),
+        type: `Credentials ${idx + 1}`,
+      })
     })
   })
 
   client.bettingPlatforms.forEach((p) => {
-    if (p.credentials) {
+    const urls = getPlatformScreenshots(client, p.name)
+    urls.forEach((url, idx) => {
       screenshots.push({
         platform: p.name,
-        url: '/placeholder.svg',
-        type: 'Credentials',
+        url: getScreenshotUrl(url),
+        type: `Credentials ${idx + 1}`,
       })
-    }
+    })
   })
 
   return screenshots
@@ -127,11 +167,15 @@ export function ClientModals({
             <DialogTitle>ID Document</DialogTitle>
           </DialogHeader>
           <div className="flex items-center justify-center rounded-lg bg-muted p-4">
-            <img
-              src={client.profile.idImageUrl || '/placeholder.svg'}
-              alt="ID Document"
-              className="max-h-[300px] max-w-full object-contain"
-            />
+            {client.profile.idImageUrl ? (
+              <img
+                src={getScreenshotUrl(client.profile.idImageUrl)}
+                alt="ID Document"
+                className="max-h-[300px] max-w-full object-contain"
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground">No ID document uploaded</p>
+            )}
           </div>
           <div className="text-center text-sm text-muted-foreground">
             Expires: {client.profile.idExpiryDate}
@@ -146,11 +190,15 @@ export function ClientModals({
             <DialogTitle>SSN Document</DialogTitle>
           </DialogHeader>
           <div className="flex items-center justify-center rounded-lg bg-muted p-4">
-            <img
-              src={client.profile.ssnDocumentUrl || '/placeholder.svg'}
-              alt="SSN Document"
-              className="max-h-[300px] max-w-full object-contain"
-            />
+            {client.profile.ssnDocumentUrl ? (
+              <img
+                src={getScreenshotUrl(client.profile.ssnDocumentUrl)}
+                alt="SSN Document"
+                className="max-h-[300px] max-w-full object-contain"
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground">No SSN document uploaded</p>
+            )}
           </div>
           <div className="text-center text-sm text-muted-foreground">
             SSN: {client.profile.ssn}
@@ -168,11 +216,15 @@ export function ClientModals({
             <DialogTitle>{showDocumentModal?.type}</DialogTitle>
           </DialogHeader>
           <div className="flex items-center justify-center rounded-lg bg-muted p-4">
-            <img
-              src={showDocumentModal?.url || '/placeholder.svg'}
-              alt="Document"
-              className="max-h-[300px] max-w-full object-contain"
-            />
+            {showDocumentModal?.url ? (
+              <img
+                src={getScreenshotUrl(showDocumentModal.url)}
+                alt="Document"
+                className="max-h-[300px] max-w-full object-contain"
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground">No document available</p>
+            )}
           </div>
         </DialogContent>
       </Dialog>
