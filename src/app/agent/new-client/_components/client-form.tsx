@@ -123,7 +123,7 @@ export function ClientForm({
 
   // ID document URL state
   const [idDocumentUrl, setIdDocumentUrl] = useState<string | null>(
-    clientData?.idDocument ?? null,
+    clientData?.idDocument ?? initialData?.idDocument ?? null,
   )
 
   // ID verification state
@@ -186,7 +186,7 @@ export function ClientForm({
 
   // BetMGM check state — restore from questionnaire + platform screenshots
   const [betmgmResult, setBetmgmResult] = useState<'success' | 'failed' | null>(
-    parsedQuestionnaire?.betmgmResult ?? null,
+    parsedQuestionnaire?.betmgmResult ?? (initialData?.betmgmResult as 'success' | 'failed' | null) ?? null,
   )
   const [betmgmScreenshots, setBetmgmScreenshots] = useState<{
     login?: string
@@ -197,6 +197,12 @@ export function ClientForm({
       return {
         login: screenshots[0] || undefined,
         deposit: screenshots[1] || undefined,
+      }
+    }
+    if (initialData?.betmgmLoginScreenshot || initialData?.betmgmDepositScreenshot) {
+      return {
+        login: initialData.betmgmLoginScreenshot || undefined,
+        deposit: initialData.betmgmDepositScreenshot || undefined,
       }
     }
     return {}
