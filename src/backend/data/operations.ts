@@ -24,7 +24,7 @@ export async function getSalesInteractionStats() {
       prisma.client.count({
         where: {
           intakeStatus: {
-            in: [IntakeStatus.PENDING, IntakeStatus.READY_FOR_APPROVAL],
+            in: [IntakeStatus.PENDING, IntakeStatus.PREQUAL_REVIEW, IntakeStatus.READY_FOR_APPROVAL],
           },
         },
       }),
@@ -169,6 +169,7 @@ export interface IntakeClient {
   daysLabel: string
   canApprove: boolean
   canAssignPhone: boolean
+  canReviewPrequal: boolean
   pendingPlatform?: string
 }
 
@@ -178,6 +179,8 @@ export async function getIntakeClients(): Promise<IntakeClient[]> {
       intakeStatus: {
         in: [
           IntakeStatus.PENDING,
+          IntakeStatus.PREQUAL_REVIEW,
+          IntakeStatus.PREQUAL_APPROVED,
           IntakeStatus.NEEDS_MORE_INFO,
           IntakeStatus.PENDING_EXTERNAL,
           IntakeStatus.READY_FOR_APPROVAL,
@@ -213,6 +216,7 @@ export async function getIntakeClients(): Promise<IntakeClient[]> {
       (client.intakeStatus === IntakeStatus.PENDING ||
         client.intakeStatus === IntakeStatus.APPROVED) &&
       !client.phoneAssignment
+    const canReviewPrequal = client.intakeStatus === IntakeStatus.PREQUAL_REVIEW
 
     return {
       id: client.id,
@@ -226,6 +230,7 @@ export async function getIntakeClients(): Promise<IntakeClient[]> {
       daysLabel: daysSinceChange === 0 ? 'Today' : `${daysSinceChange} days`,
       canApprove,
       canAssignPhone,
+      canReviewPrequal,
       pendingPlatform,
     }
   })
@@ -236,6 +241,16 @@ function determineDetailedStatus(client: {
   platforms: { platformType: PlatformType; status: string }[]
   toDos: { type: string; dueDate: Date | null }[]
 }): { statusType: IntakeStatusType; status: string; pendingPlatform?: string } {
+  // Check prequal review — primary state for newly submitted clients
+  if (client.intakeStatus === IntakeStatus.PREQUAL_REVIEW) {
+    return { statusType: 'ready', status: 'Pre-Qual: Review Needed' }
+  }
+
+  // Check prequal approved — waiting for next steps
+  if (client.intakeStatus === IntakeStatus.PREQUAL_APPROVED) {
+    return { statusType: 'followup', status: 'Pre-Qual Approved' }
+  }
+
   // Check if needs more info
   if (client.intakeStatus === IntakeStatus.NEEDS_MORE_INFO) {
     return { statusType: 'needs_info', status: 'Needs More Info' }
