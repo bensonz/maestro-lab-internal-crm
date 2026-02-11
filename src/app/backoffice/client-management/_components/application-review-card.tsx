@@ -64,6 +64,7 @@ interface ApplicationReviewCardProps {
   clientId: string
   intakeStatus: string
   questionnaire: Record<string, unknown> | null
+  hideActions?: boolean
 }
 
 // ============================================================================
@@ -162,6 +163,7 @@ export function ApplicationReviewCard({
   clientId,
   intakeStatus,
   questionnaire,
+  hideActions,
 }: ApplicationReviewCardProps) {
   const [isPending, startTransition] = useTransition()
   const [showSSN, setShowSSN] = useState(false)
@@ -211,7 +213,7 @@ export function ApplicationReviewCard({
               <ClipboardCheck className="h-3.5 w-3.5" />
               Application Review
             </CardTitle>
-            {isReadyForApproval && (
+            {isReadyForApproval && !hideActions && (
               <div className="flex items-center gap-2">
                 <Button
                   size="sm"
