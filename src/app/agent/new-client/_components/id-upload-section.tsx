@@ -15,6 +15,7 @@ import {
   X,
   Loader2,
 } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface ExtractedData {
   firstName: string
@@ -33,6 +34,8 @@ interface IdUploadSectionProps {
   onConfirm: () => void
   isConfirmed: boolean
   initialData?: ExtractedData
+  onIdUploaded: (url: string) => void
+  initialIdUrl?: string
 }
 
 export function IdUploadSection({
@@ -40,9 +43,13 @@ export function IdUploadSection({
   onConfirm,
   isConfirmed,
   initialData,
+  onIdUploaded,
+  initialIdUrl,
 }: IdUploadSectionProps) {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
+  const [uploadedUrl, setUploadedUrl] = useState<string | null>(initialIdUrl ?? null)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
   const [extractedData, setExtractedData] = useState<ExtractedData | null>(initialData ?? null)
   const [editableData, setEditableData] = useState<ExtractedData | null>(initialData ?? null)
   const [dragActive, setDragActive] = useState(false)
@@ -74,20 +81,52 @@ export function IdUploadSection({
   const handleFileUpload = useCallback(
     async (file: File) => {
       setUploadedFile(file)
-      setIsProcessing(true)
+      setIsUploading(true)
 
+      try {
+        // Upload file to storage
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('type', 'id-document')
+        formData.append('entity', 'client')
+
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        })
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => null)
+          toast.error(data?.error ?? 'Failed to upload ID')
+          setUploadedFile(null)
+          return
+        }
+
+        const { url } = await res.json()
+        setUploadedUrl(url)
+        onIdUploaded(url)
+      } catch {
+        toast.error('Failed to upload ID')
+        setUploadedFile(null)
+        return
+      } finally {
+        setIsUploading(false)
+      }
+
+      // Run OCR simulation after successful upload
+      setIsProcessing(true)
       try {
         const data = await simulateOCR(file)
         setExtractedData(data)
         setEditableData(data)
         onDataExtracted(data)
       } catch {
-        // Handle error silently for now
+        toast.error('Failed to process ID')
       } finally {
         setIsProcessing(false)
       }
     },
-    [simulateOCR, onDataExtracted],
+    [simulateOCR, onDataExtracted, onIdUploaded],
   )
 
   const handleDrop = useCallback(
@@ -125,10 +164,12 @@ export function IdUploadSection({
 
   const handleRemoveFile = useCallback(() => {
     setUploadedFile(null)
+    setUploadedUrl(null)
     setExtractedData(null)
     setEditableData(null)
     setManualExpiry('')
-  }, [])
+    onIdUploaded('')
+  }, [onIdUploaded])
 
   const handleEditableFieldChange = useCallback(
     (field: keyof ExtractedData, value: string) => {
@@ -250,22 +291,32 @@ export function IdUploadSection({
         ) : (
           <div className="space-y-4">
             {/* File Preview — only when a file was actually uploaded (not for initialData) */}
-            {uploadedFile && (
+            {(uploadedFile || uploadedUrl) && (
             <div className="flex items-center justify-between rounded-lg border border-border/50 bg-muted/30 p-3">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                  <FileText className="h-5 w-5 text-primary" />
-                </div>
+                {uploadedUrl ? (
+                  <img
+                    src={uploadedUrl}
+                    alt="ID preview"
+                    className="h-10 w-10 rounded-lg object-cover"
+                  />
+                ) : (
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                    <FileText className="h-5 w-5 text-primary" />
+                  </div>
+                )}
                 <div>
                   <p className="text-sm font-medium text-foreground">
-                    {uploadedFile.name}
+                    {uploadedFile?.name ?? 'ID Document'}
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    {(uploadedFile.size / 1024).toFixed(1)} KB
-                  </p>
+                  {uploadedFile && (
+                    <p className="text-xs text-muted-foreground">
+                      {(uploadedFile.size / 1024).toFixed(1)} KB
+                    </p>
+                  )}
                 </div>
               </div>
-              {!isConfirmed && (
+              {!isConfirmed && !isUploading && (
                 <Button
                   type="button"
                   variant="ghost"
@@ -277,6 +328,16 @@ export function IdUploadSection({
                 </Button>
               )}
             </div>
+            )}
+
+            {/* Uploading State */}
+            {isUploading && (
+              <div className="flex items-center justify-center gap-2 rounded-lg border border-primary/30 bg-primary/5 p-4">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                <span className="text-sm font-medium text-primary">
+                  Uploading ID...
+                </span>
+              </div>
             )}
 
             {/* Processing State */}
