@@ -40,7 +40,7 @@ export function StatusHeader({
     return 'Submit Application'
   }
 
-  const isAwaitingVerification = prequalSubmitted && !betmgmVerified
+  const isAwaitingVerification = phase === 1 && prequalSubmitted && !betmgmVerified
   const isAlreadySubmitted = phase >= 3
 
   const riskColor = {
