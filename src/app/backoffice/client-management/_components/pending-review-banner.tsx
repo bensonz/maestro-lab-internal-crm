@@ -113,6 +113,7 @@ export function PendingReviewBanner({
   betmgmRetryCount,
 }: PendingReviewBannerProps) {
   const [isPending, startTransition] = useTransition()
+  const [actionTaken, setActionTaken] = useState(false)
   const [approveDialogOpen, setApproveDialogOpen] = useState(false)
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
   const [retryRejectDialogOpen, setRetryRejectDialogOpen] = useState(false)
@@ -120,6 +121,8 @@ export function PendingReviewBanner({
   const [retryRejectReason, setRetryRejectReason] = useState('')
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
   const router = useRouter()
+
+  const isDisabled = isPending || actionTaken
 
   const compliance = (questionnaire?.compliance ?? {}) as Record<string, string>
 
@@ -136,6 +139,7 @@ export function PendingReviewBanner({
         ? await approvePrequal(clientId)
         : await approveClientIntake(clientId)
       if (result.success) {
+        setActionTaken(true)
         toast.success(
           reviewPhase === 1
             ? 'Pre-qualification approved'
@@ -155,6 +159,7 @@ export function PendingReviewBanner({
         ? await rejectPrequal(clientId, rejectReason || undefined)
         : await rejectClientIntake(clientId, rejectReason || undefined)
       if (result.success) {
+        setActionTaken(true)
         toast.success(
           reviewPhase === 1
             ? 'Pre-qualification rejected'
@@ -173,6 +178,7 @@ export function PendingReviewBanner({
     startTransition(async () => {
       const result = await rejectPrequalWithRetry(clientId, retryRejectReason || undefined)
       if (result.success) {
+        setActionTaken(true)
         toast.success('BetMGM rejected — agent can retry in 24 hours')
         setRetryRejectDialogOpen(false)
         setRetryRejectReason('')
@@ -236,7 +242,7 @@ export function PendingReviewBanner({
               variant="outline"
               className="h-8 gap-1.5 text-xs border-destructive/30 text-destructive hover:bg-destructive/10"
               onClick={() => setRejectDialogOpen(true)}
-              disabled={isPending}
+              disabled={isDisabled}
               data-testid="banner-reject-btn"
             >
               <XCircle className="h-3.5 w-3.5" />
@@ -248,7 +254,7 @@ export function PendingReviewBanner({
                 variant="outline"
                 className="h-8 gap-1.5 text-xs border-warning/30 text-warning hover:bg-warning/10"
                 onClick={() => setRetryRejectDialogOpen(true)}
-                disabled={isPending}
+                disabled={isDisabled}
                 data-testid="banner-reject-retry-btn"
               >
                 <Clock className="h-3.5 w-3.5" />
@@ -259,7 +265,7 @@ export function PendingReviewBanner({
               size="sm"
               className="h-8 gap-1.5 text-xs bg-emerald-600 text-white hover:bg-emerald-700"
               onClick={() => setApproveDialogOpen(true)}
-              disabled={isPending}
+              disabled={isDisabled}
               loading={isPending}
               data-testid="banner-approve-btn"
             >
@@ -547,10 +553,10 @@ export function PendingReviewBanner({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDisabled}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleApprove}
-              disabled={isPending}
+              disabled={isDisabled}
               className="bg-emerald-600 text-white hover:bg-emerald-700"
               data-testid="banner-confirm-approve-btn"
             >
@@ -582,10 +588,10 @@ export function PendingReviewBanner({
             data-testid="banner-reject-reason-input"
           />
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDisabled}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleReject}
-              disabled={isPending}
+              disabled={isDisabled}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               data-testid="banner-confirm-reject-btn"
             >
@@ -614,10 +620,10 @@ export function PendingReviewBanner({
             data-testid="banner-retry-reject-reason-input"
           />
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDisabled}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleRejectWithRetry}
-              disabled={isPending}
+              disabled={isDisabled}
               className="bg-warning text-warning-foreground hover:bg-warning/90"
               data-testid="banner-confirm-retry-reject-btn"
             >
