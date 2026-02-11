@@ -136,25 +136,49 @@ export function LevelProgressCard({
           </div>
 
           {/* Upgrade Incentive */}
-          <div className="min-w-[180px] rounded-lg border border-success/30 bg-success/10 p-3">
-            <div className="mb-1 flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-success" />
-              <span className="text-xs font-medium uppercase tracking-wider text-success">
+          <div className="flex min-w-[180px] flex-col gap-2">
+            <div className="rounded-lg border border-success/30 bg-success/10 p-3">
+              <div className="mb-1 flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-success" />
+                <span className="text-xs font-medium uppercase tracking-wider text-success">
+                  {isMaxLevel
+                    ? 'Leadership Tier'
+                    : `Unlocks at ${level.next_level}-Star`}
+                </span>
+              </div>
+              <p className="font-mono text-lg font-bold text-success">
                 {isMaxLevel
-                  ? 'Leadership Tier'
-                  : `Unlocks at ${level.next_level}-Star`}
-              </span>
-            </div>
-            <p className="font-mono text-lg font-bold text-success">
-              {isMaxLevel
-                ? 'Executive Path'
-                : level.next_level_bonus}
-            </p>
-            {isMaxLevel && (
-              <p className="mt-1 text-[10px] text-success/80">
-                Develop 2 four-star agents to unlock Executive Director
+                  ? 'Executive Path'
+                  : level.next_level_bonus}
               </p>
-            )}
+              {isMaxLevel && (
+                <p className="mt-1 text-[10px] text-success/80">
+                  Develop 2 four-star agents to unlock Executive Director
+                </p>
+              )}
+            </div>
+
+            {/* Bonus Milestone */}
+            {(() => {
+              const milestones = [
+                { level: 2, amount: '$1,000' },
+                { level: 3, amount: '$3,000' },
+                { level: 4, amount: '$5,000' },
+                { level: 5, amount: '$10,000' },
+                { level: 6, amount: '$30,000' },
+              ]
+              const nextMilestone = milestones.find(m => m.level > starLevel) ?? milestones[milestones.length - 1]
+              return (
+                <div className="rounded-lg border border-warning/20 bg-warning/5 px-3 py-2">
+                  <div className="flex items-center gap-1.5">
+                    <Crown className="h-3.5 w-3.5 text-warning" />
+                    <span className="text-[11px] font-medium text-warning">
+                      Unlock {nextMilestone.amount} at level {nextMilestone.level}
+                    </span>
+                  </div>
+                </div>
+              )
+            })()}
           </div>
         </div>
       </CardContent>
