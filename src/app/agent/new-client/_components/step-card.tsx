@@ -88,7 +88,7 @@ export function StepCard({
     <div
       className={cn(
         'rounded-lg border border-border bg-card transition-all',
-        status === 'complete' && 'opacity-75',
+        status === 'complete' && 'border-success/30',
       )}
       data-testid={`step-card-${stepNumber}`}
     >
