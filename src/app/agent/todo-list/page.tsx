@@ -4,6 +4,8 @@ import {
   getAgentTodos,
   getAgentClients,
   getAgentEarnings,
+  getAgentTeamMembers,
+  getAgentTeamRanking,
 } from '@/backend/data/agent'
 import prisma from '@/backend/prisma/client'
 import { TodoPageClient } from './_components/todo-page-client'
@@ -12,14 +14,16 @@ export default async function TodoListPage() {
   const session = await auth()
   if (!session?.user) redirect('/login')
 
-  const [todoData, clients, earnings, user] = await Promise.all([
+  const [todoData, clients, earnings, user, teamMembers, teamRanking] = await Promise.all([
     getAgentTodos(session.user.id),
     getAgentClients(session.user.id),
     getAgentEarnings(session.user.id),
     prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { starLevel: true },
+      select: { starLevel: true, name: true },
     }),
+    getAgentTeamMembers(session.user.id),
+    getAgentTeamRanking(session.user.id),
   ])
 
   // Map client data to the shape expected by TodoPageClient
@@ -38,9 +42,11 @@ export default async function TodoListPage() {
       <TodoPageClient
         todoData={todoData}
         clients={clientData}
-        agentName={session.user.name || 'Agent'}
+        agentName={user?.name || session.user.name || 'Agent'}
         agentStarLevel={user?.starLevel ?? 0}
         earningsData={earnings}
+        teamMembers={teamMembers}
+        teamRanking={teamRanking}
       />
     </div>
   )
