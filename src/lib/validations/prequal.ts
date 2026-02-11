@@ -28,9 +28,13 @@ export const prequalSchema = z.object({
   betmgmLoginScreenshot: optionalString,
   betmgmDepositScreenshot: optionalString,
   address: optionalString,
+  primaryAddress: optionalString,
   city: optionalString,
+  primaryCity: optionalString,
   state: optionalString,
+  primaryState: optionalString,
   zipCode: optionalString,
+  primaryZip: optionalString,
 })
 
 export type PrequalInput = z.infer<typeof prequalSchema>
