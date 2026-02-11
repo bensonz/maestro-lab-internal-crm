@@ -39,6 +39,7 @@ import {
   rejectClientIntake,
   approvePrequal,
   rejectPrequal,
+  rejectPrequalWithRetry,
 } from '@/app/actions/backoffice'
 
 interface PendingReviewBannerProps {
@@ -54,6 +55,8 @@ interface PendingReviewBannerProps {
   address?: string
   idImageUrl?: string
   reviewPhase?: 1 | 2
+  betmgmAgentResult?: string
+  betmgmRetryCount?: number
 }
 
 function formatBetmgmStatus(status: string): string {
@@ -61,6 +64,7 @@ function formatBetmgmStatus(status: string): string {
     case 'PENDING_REVIEW': return 'Pending Review'
     case 'VERIFIED': return 'Verified'
     case 'REJECTED': return 'Rejected'
+    case 'RETRY_PENDING': return 'Retry Pending'
     default: return status.replace(/_/g, ' ')
   }
 }
@@ -105,11 +109,15 @@ export function PendingReviewBanner({
   address,
   idImageUrl,
   reviewPhase = 2,
+  betmgmAgentResult,
+  betmgmRetryCount,
 }: PendingReviewBannerProps) {
   const [isPending, startTransition] = useTransition()
   const [approveDialogOpen, setApproveDialogOpen] = useState(false)
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
+  const [retryRejectDialogOpen, setRetryRejectDialogOpen] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
+  const [retryRejectReason, setRetryRejectReason] = useState('')
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
   const router = useRouter()
 
@@ -161,6 +169,20 @@ export function PendingReviewBanner({
     })
   }
 
+  function handleRejectWithRetry() {
+    startTransition(async () => {
+      const result = await rejectPrequalWithRetry(clientId, retryRejectReason || undefined)
+      if (result.success) {
+        toast.success('BetMGM rejected — agent can retry in 24 hours')
+        setRetryRejectDialogOpen(false)
+        setRetryRejectReason('')
+        router.refresh()
+      } else {
+        toast.error(result.error || 'Failed to reject with retry')
+      }
+    })
+  }
+
   return (
     <>
       <div
@@ -184,6 +206,31 @@ export function PendingReviewBanner({
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Agent result + retry badges */}
+            {reviewPhase === 1 && betmgmAgentResult && (
+              <Badge
+                variant="outline"
+                className={cn(
+                  'text-[9px]',
+                  betmgmAgentResult === 'success'
+                    ? 'border-success/30 text-success'
+                    : 'border-destructive/30 text-destructive',
+                )}
+                data-testid="betmgm-agent-result-badge"
+              >
+                Agent: {betmgmAgentResult === 'success' ? 'Passed' : 'Failed'}
+              </Badge>
+            )}
+            {reviewPhase === 1 && (betmgmRetryCount ?? 0) > 0 && (
+              <Badge
+                variant="outline"
+                className="text-[9px] border-warning/30 text-warning"
+                data-testid="betmgm-retry-count-badge"
+              >
+                Retry #{betmgmRetryCount}
+              </Badge>
+            )}
+
             <Button
               size="sm"
               variant="outline"
@@ -195,6 +242,19 @@ export function PendingReviewBanner({
               <XCircle className="h-3.5 w-3.5" />
               Reject
             </Button>
+            {reviewPhase === 1 && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 gap-1.5 text-xs border-warning/30 text-warning hover:bg-warning/10"
+                onClick={() => setRetryRejectDialogOpen(true)}
+                disabled={isPending}
+                data-testid="banner-reject-retry-btn"
+              >
+                <Clock className="h-3.5 w-3.5" />
+                Reject (Retry 24h)
+              </Button>
+            )}
             <Button
               size="sm"
               className="h-8 gap-1.5 text-xs bg-emerald-600 text-white hover:bg-emerald-700"
@@ -402,17 +462,17 @@ export function PendingReviewBanner({
                 </div>
               ) : (
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">BetMGM Result</span>
+                  <span className="text-muted-foreground">BetMGM Agent Result</span>
                   <Badge
                     variant="outline"
                     className={cn(
                       'text-[10px]',
-                      betmgmStatus === 'REJECTED'
+                      betmgmAgentResult === 'failed'
                         ? 'border-destructive/30 text-destructive'
                         : 'border-success/30 text-success',
                     )}
                   >
-                    {betmgmStatus === 'REJECTED' ? 'Failed' : 'Passed'}
+                    {betmgmAgentResult === 'failed' ? 'Failed' : 'Passed'}
                   </Badge>
                 </div>
               )}
@@ -530,6 +590,38 @@ export function PendingReviewBanner({
               data-testid="banner-confirm-reject-btn"
             >
               {isPending ? 'Rejecting...' : 'Reject'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Reject with Retry Confirmation Dialog */}
+      <AlertDialog open={retryRejectDialogOpen} onOpenChange={setRetryRejectDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reject BetMGM (Allow Retry)</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will reject the BetMGM verification but allow the agent to retry after a 24-hour cooldown.
+              The client will remain in Pre-Qualification Review status.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Textarea
+            placeholder="Reason for rejection (optional, shown to agent)..."
+            value={retryRejectReason}
+            onChange={(e) => setRetryRejectReason(e.target.value)}
+            rows={3}
+            className="mt-2"
+            data-testid="banner-retry-reject-reason-input"
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRejectWithRetry}
+              disabled={isPending}
+              className="bg-warning text-warning-foreground hover:bg-warning/90"
+              data-testid="banner-confirm-retry-reject-btn"
+            >
+              {isPending ? 'Rejecting...' : 'Reject (Retry 24h)'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

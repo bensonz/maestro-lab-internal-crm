@@ -254,6 +254,8 @@ export function ClientDetail({
           address={client.profile.primaryAddress}
           idImageUrl={client.profile.idImageUrl}
           reviewPhase={client.intakeStatus === 'PREQUAL_REVIEW' ? 1 : 2}
+          betmgmAgentResult={client.betmgmAgentResult}
+          betmgmRetryCount={client.betmgmRetryCount}
         />
       )}
 
