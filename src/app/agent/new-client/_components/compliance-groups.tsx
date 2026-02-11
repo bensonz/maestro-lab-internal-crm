@@ -3,9 +3,7 @@
 import { useState } from 'react'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Textarea } from '@/components/ui/textarea'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   Collapsible,
   CollapsibleContent,
@@ -20,6 +18,7 @@ import {
   AlertTriangle,
   Languages,
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 export interface ComplianceData {
   // Group A: Banking & Financial
@@ -107,6 +106,56 @@ const BETTING_PLATFORMS = [
   'Bet365',
 ]
 
+/* ─── Reusable pill button group ─── */
+function PillGroup({
+  field,
+  value,
+  options,
+  onSelect,
+  testIdPrefix,
+}: {
+  field: string
+  value: string
+  options: { value: string; label: string; selectedClass?: string }[]
+  onSelect: (value: string) => void
+  testIdPrefix?: string
+}) {
+  return (
+    <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={field}>
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          role="radio"
+          aria-checked={value === opt.value}
+          onClick={() => onSelect(opt.value)}
+          className={cn(
+            'rounded-lg border px-4 py-2 text-sm font-medium transition-all',
+            value === opt.value
+              ? (opt.selectedClass ?? 'border-primary bg-primary/20 text-primary')
+              : 'border-border/50 bg-muted/30 text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+          )}
+          data-testid={testIdPrefix ? `${testIdPrefix}-${opt.value}` : undefined}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function yesNoOptions(extras?: string[]) {
+  const base = ['yes', 'no', ...(extras ?? [])]
+  return base.map((v) => ({
+    value: v,
+    label: v.charAt(0).toUpperCase() + v.slice(1),
+  }))
+}
+
+function yesNoUnknownOptions() {
+  return yesNoOptions(['unknown'])
+}
+
 interface ComplianceGroupsProps {
   onChange: (data: ComplianceData) => void
   defaultValues?: Partial<ComplianceData>
@@ -177,20 +226,13 @@ export function ComplianceGroups({
             <Label className="text-sm font-medium text-foreground">
               Does the client have established banking history?
             </Label>
-            <RadioGroup
+            <PillGroup
+              field="hasBankingHistory"
               value={data.hasBankingHistory}
-              onValueChange={(value) => updateField('hasBankingHistory', value)}
-              className="flex gap-4"
-            >
-              {['yes', 'no', 'unknown'].map((v) => (
-                <div key={v} className="flex items-center space-x-2">
-                  <RadioGroupItem value={v} id={`banking-${v}`} />
-                  <Label htmlFor={`banking-${v}`} className="cursor-pointer capitalize">
-                    {v}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
+              options={yesNoUnknownOptions()}
+              onSelect={(v) => updateField('hasBankingHistory', v)}
+              testIdPrefix="banking"
+            />
           </div>
 
           {data.hasBankingHistory === 'yes' && (
@@ -211,20 +253,13 @@ export function ComplianceGroups({
             <Label className="text-sm font-medium text-foreground">
               Has the client ever been debanked?
             </Label>
-            <RadioGroup
+            <PillGroup
+              field="hasBeenDebanked"
               value={data.hasBeenDebanked}
-              onValueChange={(value) => updateField('hasBeenDebanked', value)}
-              className="flex gap-4"
-            >
-              {['yes', 'no'].map((v) => (
-                <div key={v} className="flex items-center space-x-2">
-                  <RadioGroupItem value={v} id={`debanked-${v}`} />
-                  <Label htmlFor={`debanked-${v}`} className="cursor-pointer capitalize">
-                    {v}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
+              options={yesNoOptions()}
+              onSelect={(v) => updateField('hasBeenDebanked', v)}
+              testIdPrefix="debanked"
+            />
           </div>
 
           {data.hasBeenDebanked === 'yes' && (
@@ -259,20 +294,16 @@ export function ComplianceGroups({
             <Label className="text-sm font-medium text-foreground">
               Bank Account Type
             </Label>
-            <RadioGroup
+            <PillGroup
+              field="bankAccountType"
               value={data.bankAccountType}
-              onValueChange={(value) => updateField('bankAccountType', value)}
-              className="flex gap-4"
-            >
-              {['checking', 'savings'].map((v) => (
-                <div key={v} className="flex items-center space-x-2">
-                  <RadioGroupItem value={v} id={`account-type-${v}`} />
-                  <Label htmlFor={`account-type-${v}`} className="cursor-pointer capitalize">
-                    {v}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
+              options={[
+                { value: 'checking', label: 'Checking' },
+                { value: 'savings', label: 'Savings' },
+              ]}
+              onSelect={(v) => updateField('bankAccountType', v)}
+              testIdPrefix="account-type"
+            />
           </div>
         </CollapsibleContent>
       </Collapsible>
@@ -307,20 +338,13 @@ export function ComplianceGroups({
             <Label className="text-sm font-medium text-foreground">
               Does the client have a PayPal account?
             </Label>
-            <RadioGroup
+            <PillGroup
+              field="hasPayPal"
               value={data.hasPayPal}
-              onValueChange={(value) => updateField('hasPayPal', value)}
-              className="flex gap-4"
-            >
-              {['yes', 'no', 'unknown'].map((v) => (
-                <div key={v} className="flex items-center space-x-2">
-                  <RadioGroupItem value={v} id={`paypal-${v}`} />
-                  <Label htmlFor={`paypal-${v}`} className="cursor-pointer capitalize">
-                    {v}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
+              options={yesNoUnknownOptions()}
+              onSelect={(v) => updateField('hasPayPal', v)}
+              testIdPrefix="paypal"
+            />
           </div>
 
           {data.hasPayPal === 'yes' && (
@@ -342,44 +366,30 @@ export function ComplianceGroups({
                 <Label className="text-sm font-medium text-foreground">
                   Has this PayPal been previously used with our service?
                 </Label>
-                <RadioGroup
+                <PillGroup
+                  field="paypalPreviouslyUsed"
                   value={data.paypalPreviouslyUsed}
-                  onValueChange={(value) =>
-                    updateField('paypalPreviouslyUsed', value)
-                  }
-                  className="flex gap-4"
-                >
-                  {['yes', 'no'].map((v) => (
-                    <div key={v} className="flex items-center space-x-2">
-                      <RadioGroupItem value={v} id={`paypal-prev-${v}`} />
-                      <Label htmlFor={`paypal-prev-${v}`} className="cursor-pointer capitalize">
-                        {v}
-                      </Label>
-                    </div>
-                  ))}
-                </RadioGroup>
+                  options={yesNoOptions()}
+                  onSelect={(v) => updateField('paypalPreviouslyUsed', v)}
+                  testIdPrefix="paypal-prev"
+                />
               </div>
 
               <div className="space-y-3">
                 <Label className="text-sm font-medium text-foreground">
                   PayPal Verification Status
                 </Label>
-                <RadioGroup
+                <PillGroup
+                  field="paypalVerificationStatus"
                   value={data.paypalVerificationStatus}
-                  onValueChange={(value) =>
-                    updateField('paypalVerificationStatus', value)
-                  }
-                  className="flex gap-4"
-                >
-                  {['verified', 'unverified', 'multiple'].map((v) => (
-                    <div key={v} className="flex items-center space-x-2">
-                      <RadioGroupItem value={v} id={`paypal-verif-${v}`} />
-                      <Label htmlFor={`paypal-verif-${v}`} className="cursor-pointer capitalize">
-                        {v === 'multiple' ? 'Multiple Accounts' : v}
-                      </Label>
-                    </div>
-                  ))}
-                </RadioGroup>
+                  options={[
+                    { value: 'verified', label: 'Verified' },
+                    { value: 'unverified', label: 'Unverified' },
+                    { value: 'multiple', label: 'Multiple Accounts' },
+                  ]}
+                  onSelect={(v) => updateField('paypalVerificationStatus', v)}
+                  testIdPrefix="paypal-verif"
+                />
               </div>
             </>
           )}
@@ -416,22 +426,17 @@ export function ComplianceGroups({
             <Label className="text-sm font-medium text-foreground">
               Has the client previously used any betting platforms?
             </Label>
-            <RadioGroup
+            <PillGroup
+              field="hasBettingHistory"
               value={data.hasBettingHistory}
-              onValueChange={(value) =>
-                updateField('hasBettingHistory', value)
-              }
-              className="flex gap-4"
-            >
-              {['none', 'some', 'extensive'].map((v) => (
-                <div key={v} className="flex items-center space-x-2">
-                  <RadioGroupItem value={v} id={`betting-${v}`} />
-                  <Label htmlFor={`betting-${v}`} className="cursor-pointer capitalize">
-                    {v}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
+              options={[
+                { value: 'none', label: 'None' },
+                { value: 'some', label: 'Some' },
+                { value: 'extensive', label: 'Extensive' },
+              ]}
+              onSelect={(v) => updateField('hasBettingHistory', v)}
+              testIdPrefix="betting"
+            />
           </div>
 
           {(data.hasBettingHistory === 'some' ||
@@ -441,24 +446,22 @@ export function ComplianceGroups({
                 <Label className="text-sm font-medium text-foreground">
                   Which platforms? (Select all that apply)
                 </Label>
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div className="flex flex-wrap gap-2">
                   {BETTING_PLATFORMS.map((platform) => (
-                    <div
+                    <button
                       key={platform}
-                      className="flex items-center space-x-2"
+                      type="button"
+                      onClick={() => togglePlatform(platform)}
+                      className={cn(
+                        'rounded-lg border px-4 py-2 text-sm font-medium transition-all',
+                        data.previousPlatforms.includes(platform)
+                          ? 'border-primary bg-primary/20 text-primary'
+                          : 'border-border/50 bg-muted/30 text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+                      )}
+                      data-testid={`platform-${platform}`}
                     >
-                      <Checkbox
-                        id={`platform-${platform}`}
-                        checked={data.previousPlatforms.includes(platform)}
-                        onCheckedChange={() => togglePlatform(platform)}
-                      />
-                      <Label
-                        htmlFor={`platform-${platform}`}
-                        className="cursor-pointer text-sm"
-                      >
-                        {platform}
-                      </Label>
-                    </div>
+                      {platform}
+                    </button>
                   ))}
                 </div>
               </div>
@@ -483,22 +486,13 @@ export function ComplianceGroups({
             <Label className="text-sm font-medium text-foreground">
               Has the client registered on 8+ platforms before?
             </Label>
-            <RadioGroup
+            <PillGroup
+              field="hasEightPlusRegistrations"
               value={data.hasEightPlusRegistrations}
-              onValueChange={(value) =>
-                updateField('hasEightPlusRegistrations', value)
-              }
-              className="flex gap-4"
-            >
-              {['yes', 'no'].map((v) => (
-                <div key={v} className="flex items-center space-x-2">
-                  <RadioGroupItem value={v} id={`eight-plus-${v}`} />
-                  <Label htmlFor={`eight-plus-${v}`} className="cursor-pointer capitalize">
-                    {v}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
+              options={yesNoOptions()}
+              onSelect={(v) => updateField('hasEightPlusRegistrations', v)}
+              testIdPrefix="eight-plus"
+            />
           </div>
         </CollapsibleContent>
       </Collapsible>
@@ -533,22 +527,17 @@ export function ComplianceGroups({
             <Label className="text-sm font-medium text-foreground">
               Does the client have any criminal record?
             </Label>
-            <RadioGroup
+            <PillGroup
+              field="hasCriminalRecord"
               value={data.hasCriminalRecord}
-              onValueChange={(value) =>
-                updateField('hasCriminalRecord', value)
-              }
-              className="flex gap-4"
-            >
-              {['no', 'yes', 'unknown'].map((v) => (
-                <div key={v} className="flex items-center space-x-2">
-                  <RadioGroupItem value={v} id={`criminal-${v}`} />
-                  <Label htmlFor={`criminal-${v}`} className="cursor-pointer capitalize">
-                    {v}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
+              options={[
+                { value: 'no', label: 'No' },
+                { value: 'yes', label: 'Yes' },
+                { value: 'unknown', label: 'Unknown' },
+              ]}
+              onSelect={(v) => updateField('hasCriminalRecord', v)}
+              testIdPrefix="criminal"
+            />
             {data.hasCriminalRecord === 'yes' && (
               <Textarea
                 placeholder="Provide details about the criminal record..."
@@ -565,47 +554,31 @@ export function ComplianceGroups({
             <Label className="text-sm font-medium text-foreground">
               Type of ID document provided
             </Label>
-            <RadioGroup
+            <PillGroup
+              field="idType"
               value={data.idType}
-              onValueChange={(value) => updateField('idType', value)}
-              className="grid gap-2 sm:grid-cols-2"
-            >
-              {[
+              options={[
                 { value: 'drivers_license', label: "Driver's License" },
                 { value: 'state_id', label: 'State ID' },
                 { value: 'passport', label: 'Passport' },
                 { value: 'other', label: 'Other' },
-              ].map(({ value, label }) => (
-                <div key={value} className="flex items-center space-x-2">
-                  <RadioGroupItem value={value} id={`id-${value}`} />
-                  <Label htmlFor={`id-${value}`} className="cursor-pointer">
-                    {label}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
+              ]}
+              onSelect={(v) => updateField('idType', v)}
+              testIdPrefix="id-type"
+            />
           </div>
 
           <div className="space-y-3">
             <Label className="text-sm font-medium text-foreground">
               Has address proof been provided?
             </Label>
-            <RadioGroup
+            <PillGroup
+              field="hasAddressProof"
               value={data.hasAddressProof}
-              onValueChange={(value) =>
-                updateField('hasAddressProof', value)
-              }
-              className="flex gap-4"
-            >
-              {['yes', 'no', 'pending'].map((v) => (
-                <div key={v} className="flex items-center space-x-2">
-                  <RadioGroupItem value={v} id={`address-proof-${v}`} />
-                  <Label htmlFor={`address-proof-${v}`} className="cursor-pointer capitalize">
-                    {v}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
+              options={yesNoOptions(['pending'])}
+              onSelect={(v) => updateField('hasAddressProof', v)}
+              testIdPrefix="address-proof"
+            />
           </div>
 
           <div className="space-y-2">
@@ -652,30 +625,29 @@ export function ComplianceGroups({
             <Label className="text-sm font-medium text-foreground">
               Overall risk level assessment
             </Label>
-            <RadioGroup
+            <PillGroup
+              field="riskLevel"
               value={data.riskLevel}
-              onValueChange={(value) => updateField('riskLevel', value)}
-              className="grid gap-2 sm:grid-cols-3"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="low" id="risk-low" />
-                <Label htmlFor="risk-low" className="cursor-pointer text-success">
-                  Low Risk
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="medium" id="risk-medium" />
-                <Label htmlFor="risk-medium" className="cursor-pointer text-amber-500">
-                  Medium Risk
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="high" id="risk-high" />
-                <Label htmlFor="risk-high" className="cursor-pointer text-destructive">
-                  High Risk
-                </Label>
-              </div>
-            </RadioGroup>
+              options={[
+                {
+                  value: 'low',
+                  label: 'Low Risk',
+                  selectedClass: 'border-success bg-success/20 text-success',
+                },
+                {
+                  value: 'medium',
+                  label: 'Medium Risk',
+                  selectedClass: 'border-warning bg-warning/20 text-warning',
+                },
+                {
+                  value: 'high',
+                  label: 'High Risk',
+                  selectedClass: 'border-destructive bg-destructive/20 text-destructive',
+                },
+              ]}
+              onSelect={(v) => updateField('riskLevel', v)}
+              testIdPrefix="risk"
+            />
           </div>
 
           <div className="space-y-2">
@@ -735,42 +707,26 @@ export function ComplianceGroups({
             <Label className="text-sm font-medium text-foreground">
               Is the client reliable / vetted?
             </Label>
-            <RadioGroup
+            <PillGroup
+              field="isReliable"
               value={data.isReliable}
-              onValueChange={(value) => updateField('isReliable', value)}
-              className="flex gap-4"
-            >
-              {['yes', 'no', 'unknown'].map((v) => (
-                <div key={v} className="flex items-center space-x-2">
-                  <RadioGroupItem value={v} id={`reliable-${v}`} />
-                  <Label htmlFor={`reliable-${v}`} className="cursor-pointer capitalize">
-                    {v}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
+              options={yesNoUnknownOptions()}
+              onSelect={(v) => updateField('isReliable', v)}
+              testIdPrefix="reliable"
+            />
           </div>
 
           <div className="space-y-3">
             <Label className="text-sm font-medium text-foreground">
               Has the client been previously flagged?
             </Label>
-            <RadioGroup
+            <PillGroup
+              field="previouslyFlagged"
               value={data.previouslyFlagged}
-              onValueChange={(value) =>
-                updateField('previouslyFlagged', value)
-              }
-              className="flex gap-4"
-            >
-              {['yes', 'no'].map((v) => (
-                <div key={v} className="flex items-center space-x-2">
-                  <RadioGroupItem value={v} id={`flagged-${v}`} />
-                  <Label htmlFor={`flagged-${v}`} className="cursor-pointer capitalize">
-                    {v}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
+              options={yesNoOptions()}
+              onSelect={(v) => updateField('previouslyFlagged', v)}
+              testIdPrefix="flagged"
+            />
           </div>
         </CollapsibleContent>
       </Collapsible>
@@ -805,44 +761,26 @@ export function ComplianceGroups({
             <Label className="text-sm font-medium text-foreground">
               Can the client read English?
             </Label>
-            <RadioGroup
+            <PillGroup
+              field="canReadEnglish"
               value={data.canReadEnglish}
-              onValueChange={(value) =>
-                updateField('canReadEnglish', value)
-              }
-              className="flex gap-4"
-            >
-              {['yes', 'no', 'limited'].map((v) => (
-                <div key={v} className="flex items-center space-x-2">
-                  <RadioGroupItem value={v} id={`read-english-${v}`} />
-                  <Label htmlFor={`read-english-${v}`} className="cursor-pointer capitalize">
-                    {v}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
+              options={yesNoOptions(['limited'])}
+              onSelect={(v) => updateField('canReadEnglish', v)}
+              testIdPrefix="read-english"
+            />
           </div>
 
           <div className="space-y-3">
             <Label className="text-sm font-medium text-foreground">
               Can the client speak English?
             </Label>
-            <RadioGroup
+            <PillGroup
+              field="canSpeakEnglish"
               value={data.canSpeakEnglish}
-              onValueChange={(value) =>
-                updateField('canSpeakEnglish', value)
-              }
-              className="flex gap-4"
-            >
-              {['yes', 'no', 'limited'].map((v) => (
-                <div key={v} className="flex items-center space-x-2">
-                  <RadioGroupItem value={v} id={`speak-english-${v}`} />
-                  <Label htmlFor={`speak-english-${v}`} className="cursor-pointer capitalize">
-                    {v}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
+              options={yesNoOptions(['limited'])}
+              onSelect={(v) => updateField('canSpeakEnglish', v)}
+              testIdPrefix="speak-english"
+            />
           </div>
 
           <div className="space-y-2">
