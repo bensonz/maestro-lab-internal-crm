@@ -150,6 +150,9 @@ export interface Client {
   zelle?: string
   relationships?: Relationship[]
   questionnaire?: Record<string, unknown> | null
+  betmgmScreenshots?: string[]
+  betmgmStatus?: string
+  platformDetails?: ServerPlatformDetail[]
 }
 
 // Summary metrics for sidebar
@@ -163,6 +166,15 @@ export interface SummaryMetric {
 // Server data shape from getAllClients + getClientStats
 // ============================================================================
 
+export interface ServerPlatformDetail {
+  platformType: string
+  status: string
+  screenshots: string[]
+  username: string | null
+  reviewedBy: string | null
+  reviewedAt: string | null
+}
+
 export interface ServerClientData {
   id: string
   name: string
@@ -173,6 +185,7 @@ export interface ServerClientData {
   platforms: string[]
   activePlatforms: string[]
   intakeStatus: string
+  agent: string | null
   // Profile fields
   address: string | null
   city: string | null
@@ -180,6 +193,8 @@ export interface ServerClientData {
   zipCode: string | null
   country: string | null
   questionnaire: string | null
+  // Platform details
+  platformDetails: ServerPlatformDetail[]
   // Recent transactions
   transactions: Array<{
     id: string
