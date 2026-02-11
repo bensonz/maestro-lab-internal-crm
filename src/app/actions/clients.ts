@@ -115,12 +115,13 @@ export async function createClient(
       return { message: 'Client not found or not owned by you' }
     }
 
-    // Phase 2 requires prequal to be approved (or legacy PENDING fast-track)
+    // Phase 2 requires prequal to be submitted (PREQUAL_REVIEW allows parallel work)
     if (
       existingClient.intakeStatus !== 'PREQUAL_APPROVED' &&
+      existingClient.intakeStatus !== 'PREQUAL_REVIEW' &&
       existingClient.intakeStatus !== 'PENDING'
     ) {
-      return { message: 'Pre-qualification must be approved before submitting the full application' }
+      return { message: 'Pre-qualification must be submitted before submitting the full application' }
     }
 
     await prisma.$transaction(async (tx) => {
