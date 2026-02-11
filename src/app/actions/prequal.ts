@@ -37,10 +37,14 @@ export async function submitPrequalification(
     betmgmResult: formData.get('betmgmResult'),
     betmgmLoginScreenshot: formData.get('betmgmLoginScreenshot'),
     betmgmDepositScreenshot: formData.get('betmgmDepositScreenshot'),
-    address: formData.get('address'),
-    city: formData.get('city'),
-    state: formData.get('state'),
-    zipCode: formData.get('zipCode'),
+    address: formData.get('primaryAddress') || formData.get('address'),
+    primaryAddress: formData.get('primaryAddress'),
+    city: formData.get('primaryCity') || formData.get('city'),
+    primaryCity: formData.get('primaryCity'),
+    state: formData.get('primaryState') || formData.get('state'),
+    primaryState: formData.get('primaryState'),
+    zipCode: formData.get('primaryZip') || formData.get('zipCode'),
+    primaryZip: formData.get('primaryZip'),
   }
 
   const validationResult = prequalSchema.safeParse(rawData)
