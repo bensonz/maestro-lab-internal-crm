@@ -65,6 +65,33 @@ function formatBetmgmStatus(status: string): string {
   }
 }
 
+function ComplianceLine({
+  label,
+  value,
+  flagValue,
+}: {
+  label: string
+  value?: string
+  flagValue?: string
+}) {
+  if (!value || value === '—') return null
+  const isFlag = flagValue && value.toLowerCase() === flagValue.toLowerCase()
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-muted-foreground">{label}</span>
+      <span
+        className={cn(
+          'text-xs font-medium',
+          isFlag ? 'text-destructive' : 'text-foreground',
+        )}
+      >
+        {value === 'yes' ? 'Yes' : value === 'no' ? 'No' : value}
+        {isFlag && ' ⚠'}
+      </span>
+    </div>
+  )
+}
+
 export function PendingReviewBanner({
   clientId,
   clientName,
@@ -182,85 +209,137 @@ export function PendingReviewBanner({
           </div>
         </div>
 
-        {/* Two-column: Screenshots + Summary */}
+        {/* Two-column: Screenshots/Compliance + Summary */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {/* Phase 1: ID Document + BetMGM Screenshots | Phase 2: BetMGM only */}
+          {/* Left column: Phase 1 = ID + BetMGM screenshots, Phase 2 = Compliance summary */}
           <div className="rounded-md border border-border/50 bg-card p-4">
-            {/* ID Document preview for Phase 1 */}
-            {reviewPhase === 1 && idImageUrl && (
-              <div className="mb-4">
-                <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  <User className="h-3.5 w-3.5" />
-                  Client ID Document
-                </h3>
-                <button
-                  onClick={() => setLightboxUrl(idImageUrl.startsWith('uploads/') ? `/api/upload?path=${idImageUrl}` : idImageUrl)}
-                  className="group relative aspect-video w-full max-w-xs overflow-hidden rounded-md border border-border/50 bg-muted/30 transition-all hover:border-primary/50 hover:ring-2 hover:ring-primary/20"
-                  data-testid="id-document-preview"
-                >
-                  <img
-                    src={idImageUrl.startsWith('uploads/') ? `/api/upload?path=${idImageUrl}` : idImageUrl}
-                    alt="Client ID"
-                    className="h-full w-full object-cover"
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/20">
-                    <span className="text-xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
-                      Click to enlarge
-                    </span>
+            {reviewPhase === 1 ? (
+              <>
+                {/* ID Document preview */}
+                {idImageUrl && (
+                  <div className="mb-4">
+                    <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      <User className="h-3.5 w-3.5" />
+                      Client ID Document
+                    </h3>
+                    <button
+                      onClick={() => setLightboxUrl(idImageUrl.startsWith('uploads/') ? `/api/upload?path=${idImageUrl}` : idImageUrl)}
+                      className="group relative aspect-video w-full max-w-xs overflow-hidden rounded-md border border-border/50 bg-muted/30 transition-all hover:border-primary/50 hover:ring-2 hover:ring-primary/20"
+                      data-testid="id-document-preview"
+                    >
+                      <img
+                        src={idImageUrl.startsWith('uploads/') ? `/api/upload?path=${idImageUrl}` : idImageUrl}
+                        alt="Client ID"
+                        className="h-full w-full object-cover"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/20">
+                        <span className="text-xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
+                          Click to enlarge
+                        </span>
+                      </div>
+                    </button>
                   </div>
-                </button>
-              </div>
-            )}
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                <ImageIcon className="h-3.5 w-3.5" />
-                BetMGM Verification Screenshots
-              </h3>
-              <Badge
-                variant="outline"
-                className={cn(
-                  'text-[9px]',
-                  betmgmStatus === 'VERIFIED'
-                    ? 'border-success/30 text-success'
-                    : betmgmStatus === 'REJECTED'
-                      ? 'border-destructive/30 text-destructive'
-                      : 'border-warning/30 text-warning',
                 )}
-              >
-                {formatBetmgmStatus(betmgmStatus)}
-              </Badge>
-            </div>
-
-            {betmgmScreenshots.length > 0 ? (
-              <div className="grid grid-cols-2 gap-3">
-                {betmgmScreenshots.map((url, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setLightboxUrl(url)}
-                    className="group relative aspect-video overflow-hidden rounded-md border border-border/50 bg-muted/30 transition-all hover:border-primary/50 hover:ring-2 hover:ring-primary/20"
-                    data-testid={`betmgm-screenshot-${idx}`}
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    <ImageIcon className="h-3.5 w-3.5" />
+                    BetMGM Verification Screenshots
+                  </h3>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      'text-[9px]',
+                      betmgmStatus === 'VERIFIED'
+                        ? 'border-success/30 text-success'
+                        : betmgmStatus === 'REJECTED'
+                          ? 'border-destructive/30 text-destructive'
+                          : 'border-warning/30 text-warning',
+                    )}
                   >
-                    <img
-                      src={url.startsWith('uploads/') ? `/api/upload?path=${url}` : url}
-                      alt={`BetMGM screenshot ${idx + 1}`}
-                      className="h-full w-full object-cover"
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/20">
-                      <span className="text-xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
-                        Click to enlarge
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </div>
+                    {formatBetmgmStatus(betmgmStatus)}
+                  </Badge>
+                </div>
+
+                {betmgmScreenshots.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    {betmgmScreenshots.map((url, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setLightboxUrl(url)}
+                        className="group relative aspect-video overflow-hidden rounded-md border border-border/50 bg-muted/30 transition-all hover:border-primary/50 hover:ring-2 hover:ring-primary/20"
+                        data-testid={`betmgm-screenshot-${idx}`}
+                      >
+                        <img
+                          src={url.startsWith('uploads/') ? `/api/upload?path=${url}` : url}
+                          alt={`BetMGM screenshot ${idx + 1}`}
+                          className="h-full w-full object-cover"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/20">
+                          <span className="text-xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
+                            Click to enlarge
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex h-24 items-center justify-center rounded-md border border-dashed border-border/50 text-sm text-muted-foreground">
+                    No screenshots uploaded
+                  </div>
+                )}
+                <p className="mt-2 text-[10px] text-muted-foreground">
+                  Uploaded by agent during pre-qualification
+                </p>
+              </>
             ) : (
-              <div className="flex h-24 items-center justify-center rounded-md border border-dashed border-border/50 text-sm text-muted-foreground">
-                No screenshots uploaded
-              </div>
+              <>
+                <h3 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <Shield className="h-3.5 w-3.5" />
+                  Compliance Review
+                </h3>
+                <div className="space-y-2 text-sm">
+                  <ComplianceLine label="Banking History" value={compliance.hasBankingHistory} />
+                  <ComplianceLine label="Bank Name" value={compliance.bankName} />
+                  <ComplianceLine label="Account Type" value={compliance.bankAccountType} />
+                  <ComplianceLine label="Debanked" value={compliance.hasBeenDebanked} flagValue="yes" />
+                  <ComplianceLine label="Has PayPal" value={compliance.hasPayPal} />
+                  <ComplianceLine label="PayPal Previously Used" value={compliance.paypalPreviouslyUsed} flagValue="yes" />
+                  <ComplianceLine label="Betting History" value={compliance.bettingPlatformHistory} />
+                  <ComplianceLine label="8+ Registrations" value={compliance.hasEightPlusRegistrations} flagValue="yes" />
+                  <ComplianceLine label="Criminal Record" value={compliance.hasCriminalRecord} flagValue="yes" />
+                  <ComplianceLine label="ID Type" value={compliance.idType} />
+                  <ComplianceLine label="Address Proof" value={compliance.hasAddressProof} />
+                  <ComplianceLine label="Reads English" value={compliance.canReadEnglish} />
+                  <ComplianceLine label="Speaks English" value={compliance.canSpeakEnglish} />
+                  {compliance.agentNotes && (
+                    <div className="mt-2 border-t border-border/50 pt-2">
+                      <span className="text-xs text-muted-foreground">Agent Notes:</span>
+                      <p className="text-xs mt-0.5">{compliance.agentNotes}</p>
+                    </div>
+                  )}
+
+                  {/* BetMGM one-liner summary */}
+                  <div className="mt-3 border-t border-border/50 pt-2">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>BetMGM (reviewed in Phase 1)</span>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          'text-[9px]',
+                          betmgmStatus === 'VERIFIED'
+                            ? 'border-success/30 text-success'
+                            : betmgmStatus === 'REJECTED'
+                              ? 'border-destructive/30 text-destructive'
+                              : 'border-warning/30 text-warning',
+                        )}
+                      >
+                        {formatBetmgmStatus(betmgmStatus)}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              </>
             )}
-            <p className="mt-2 text-[10px] text-muted-foreground">
-              Uploaded by agent during pre-qualification
-            </p>
           </div>
 
           {/* Application Summary */}
@@ -304,20 +383,51 @@ export function PendingReviewBanner({
                   <span className="font-medium">{agentName}</span>
                 </div>
               )}
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">BetMGM Result</span>
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    'text-[10px]',
-                    betmgmStatus === 'REJECTED'
-                      ? 'border-destructive/30 text-destructive'
-                      : 'border-success/30 text-success',
-                  )}
-                >
-                  {betmgmStatus === 'REJECTED' ? 'Failed' : 'Passed'}
-                </Badge>
-              </div>
+              {reviewPhase === 2 && compliance.riskLevel ? (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Risk Level</span>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      'text-[10px]',
+                      compliance.riskLevel?.toLowerCase() === 'high'
+                        ? 'border-destructive/30 text-destructive'
+                        : compliance.riskLevel?.toLowerCase() === 'medium'
+                          ? 'border-warning/30 text-warning'
+                          : 'border-success/30 text-success',
+                    )}
+                  >
+                    {compliance.riskLevel}
+                  </Badge>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">BetMGM Result</span>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      'text-[10px]',
+                      betmgmStatus === 'REJECTED'
+                        ? 'border-destructive/30 text-destructive'
+                        : 'border-success/30 text-success',
+                    )}
+                  >
+                    {betmgmStatus === 'REJECTED' ? 'Failed' : 'Passed'}
+                  </Badge>
+                </div>
+              )}
+              {reviewPhase === 2 && compliance.profession && (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Profession</span>
+                  <span className="text-xs">{compliance.profession}</span>
+                </div>
+              )}
+              {reviewPhase === 2 && compliance.introducedBy && (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Introduced By</span>
+                  <span className="text-xs">{compliance.introducedBy}</span>
+                </div>
+              )}
             </div>
 
             {/* Red Flags */}
