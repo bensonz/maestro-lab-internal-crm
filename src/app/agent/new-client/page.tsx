@@ -16,22 +16,66 @@ export default async function NewClientPage({ searchParams }: Props) {
   let betmgmStatus = 'NOT_STARTED'
   let serverPhase: number | null = null
 
-  // Fetch all drafts for this agent (for the selector)
-  const drafts = session?.user?.id
-    ? await prisma.applicationDraft.findMany({
-        where: { agentId: session.user.id },
-        orderBy: { updatedAt: 'desc' },
-        select: {
-          id: true,
-          formData: true,
-          updatedAt: true,
-          phase: true,
-          clientId: true,
-        },
-      })
-    : []
+  // Fetch all independent data in parallel
+  const [drafts, selectedClient, pipelineClients] = await Promise.all([
+    // 1. All drafts for this agent
+    session?.user?.id
+      ? prisma.applicationDraft.findMany({
+          where: { agentId: session.user.id },
+          orderBy: { updatedAt: 'desc' },
+          select: {
+            id: true,
+            formData: true,
+            updatedAt: true,
+            phase: true,
+            clientId: true,
+          },
+        })
+      : Promise.resolve([]),
+    // 2. Selected client (if ?client= param)
+    clientId && session?.user?.id
+      ? prisma.client.findUnique({
+          where: { id: clientId },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            gmailAccount: true,
+            gmailPassword: true,
+            prequalCompleted: true,
+            phone: true,
+            email: true,
+            address: true,
+            city: true,
+            state: true,
+            zipCode: true,
+            questionnaire: true,
+            idDocument: true,
+            intakeStatus: true,
+            agentId: true,
+            platforms: {
+              where: { platformType: 'BETMGM' },
+              select: { status: true, screenshots: true },
+            },
+          },
+        })
+      : Promise.resolve(null),
+    // 3. All pipeline clients
+    session?.user?.id
+      ? prisma.client.findMany({
+          where: {
+            agentId: session.user.id,
+            intakeStatus: {
+              in: ['PENDING', 'PHONE_ISSUED', 'IN_EXECUTION', 'READY_FOR_APPROVAL'],
+            },
+          },
+          include: { platforms: { where: { platformType: 'BETMGM' } } },
+          orderBy: { updatedAt: 'desc' },
+        })
+      : Promise.resolve([]),
+  ])
 
-  // Load draft data if ?draft= param present
+  // Process draft data if ?draft= param present
   if (draftId && session?.user?.id) {
     const draft = drafts.find((d) => d.id === draftId)
     if (draft) {
@@ -39,75 +83,33 @@ export default async function NewClientPage({ searchParams }: Props) {
     }
   }
 
-  // Load client data if ?client= param present (Phase 1 submitted, returning for Phase 2)
-  if (clientId && session?.user?.id) {
-    const client = await prisma.client.findUnique({
-      where: { id: clientId },
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        gmailAccount: true,
-        gmailPassword: true,
-        prequalCompleted: true,
-        phone: true,
-        email: true,
-        address: true,
-        city: true,
-        state: true,
-        zipCode: true,
-        questionnaire: true,
-        idDocument: true,
-        intakeStatus: true,
-        agentId: true,
-        platforms: {
-          where: { platformType: 'BETMGM' },
-          select: { status: true, screenshots: true },
-        },
-      },
-    })
-
-    if (client && client.agentId === session.user.id) {
-      const betmgmPlatform = client.platforms[0]
-      clientData = {
-        id: client.id,
-        firstName: client.firstName,
-        lastName: client.lastName,
-        gmailAccount: client.gmailAccount,
-        gmailPassword: client.gmailPassword,
-        prequalCompleted: client.prequalCompleted,
-        phone: client.phone,
-        email: client.email,
-        address: client.address,
-        city: client.city,
-        state: client.state,
-        zipCode: client.zipCode,
-        questionnaire: client.questionnaire,
-        idDocument: client.idDocument,
-        betmgmScreenshots: betmgmPlatform?.screenshots ?? [],
-      }
-      betmgmStatus = betmgmPlatform?.status ?? 'NOT_STARTED'
-      serverPhase = getClientPhase({
-        intakeStatus: client.intakeStatus,
-        prequalCompleted: client.prequalCompleted,
-        betmgmVerified: betmgmPlatform?.status === 'VERIFIED',
-      })
+  // Process client data if found
+  if (selectedClient && selectedClient.agentId === session?.user?.id) {
+    const betmgmPlatform = selectedClient.platforms[0]
+    clientData = {
+      id: selectedClient.id,
+      firstName: selectedClient.firstName,
+      lastName: selectedClient.lastName,
+      gmailAccount: selectedClient.gmailAccount,
+      gmailPassword: selectedClient.gmailPassword,
+      prequalCompleted: selectedClient.prequalCompleted,
+      phone: selectedClient.phone,
+      email: selectedClient.email,
+      address: selectedClient.address,
+      city: selectedClient.city,
+      state: selectedClient.state,
+      zipCode: selectedClient.zipCode,
+      questionnaire: selectedClient.questionnaire,
+      idDocument: selectedClient.idDocument,
+      betmgmScreenshots: betmgmPlatform?.screenshots ?? [],
     }
+    betmgmStatus = betmgmPlatform?.status ?? 'NOT_STARTED'
+    serverPhase = getClientPhase({
+      intakeStatus: selectedClient.intakeStatus,
+      prequalCompleted: selectedClient.prequalCompleted,
+      betmgmVerified: betmgmPlatform?.status === 'VERIFIED',
+    })
   }
-
-  // Fetch pipeline clients — all pre-approval statuses
-  const pipelineClients = session?.user?.id
-    ? await prisma.client.findMany({
-        where: {
-          agentId: session.user.id,
-          intakeStatus: {
-            in: ['PENDING', 'PHONE_ISSUED', 'IN_EXECUTION', 'READY_FOR_APPROVAL'],
-          },
-        },
-        include: { platforms: { where: { platformType: 'BETMGM' } } },
-        orderBy: { updatedAt: 'desc' },
-      })
-    : []
 
   // Compute phase for each pipeline client and group
   const phase1: { id: string; firstName: string; lastName: string; intakeStatus: string }[] = []
