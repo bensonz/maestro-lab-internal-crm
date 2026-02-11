@@ -1,6 +1,13 @@
 'use client'
 
-import { Star, TrendingUp, Users, Sparkles, Crown } from 'lucide-react'
+import {
+  Star,
+  TrendingUp,
+  Users,
+  Sparkles,
+  Crown,
+  CircleCheck,
+} from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
@@ -29,6 +36,14 @@ function renderStars(count: number, filled: boolean = true) {
     ))
 }
 
+const COMMISSION_TIERS = [
+  { level: 0, label: 'Rookie', amount: '+$200' },
+  { level: 1, label: '1-Star', amount: '+$250' },
+  { level: 2, label: '2-Star', amount: '+$300' },
+  { level: 3, label: '3-Star', amount: '+$350' },
+  { level: 4, label: '4-Star', amount: '+$400' },
+]
+
 export function LevelProgressCard({
   starLevel,
   approvedClients,
@@ -55,9 +70,6 @@ export function LevelProgressCard({
     current_label: current.label,
     next_level: isMaxLevel ? 4 : starLevel + 1,
     next_label: isMaxLevel ? 'Max Level' : next.label,
-    next_level_bonus: isMaxLevel
-      ? 'Max tier reached'
-      : `+${next.sliceBonus}/client`,
     direct_referrals: {
       current: approvedClients,
       required: isMaxLevel ? approvedClients : next.min,
@@ -135,28 +147,67 @@ export function LevelProgressCard({
             </div>
           </div>
 
-          {/* Upgrade Incentive */}
-          <div className="flex min-w-[180px] flex-col gap-2">
-            <div className="rounded-lg border border-success/30 bg-success/10 p-3">
-              <div className="mb-1 flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-success" />
-                <span className="text-xs font-medium uppercase tracking-wider text-success">
-                  {isMaxLevel
-                    ? 'Leadership Tier'
-                    : `Unlocks at ${level.next_level}-Star`}
-                </span>
-              </div>
-              <p className="font-mono text-lg font-bold text-success">
-                {isMaxLevel
-                  ? 'Executive Path'
-                  : level.next_level_bonus}
-              </p>
-              {isMaxLevel && (
-                <p className="mt-1 text-[10px] text-success/80">
-                  Develop 2 four-star agents to unlock Executive Director
-                </p>
-              )}
+          {/* Commission Tiers */}
+          <div className="flex min-w-[200px] flex-col gap-1.5">
+            <div className="mb-1 flex items-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5 text-primary" />
+              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Commission per Client
+              </span>
             </div>
+
+            {COMMISSION_TIERS.map((tier) => {
+              const isActive = tier.level === starLevel
+              const isReached = tier.level < starLevel
+              const isFuture = tier.level > starLevel
+
+              return (
+                <div
+                  key={tier.level}
+                  className={cn(
+                    'flex items-center justify-between rounded-md border px-2.5 py-1.5 transition-colors',
+                    isActive &&
+                      'border-success/40 bg-success/10',
+                    isReached &&
+                      'border-success/20 bg-success/5',
+                    isFuture &&
+                      'border-border/50 bg-muted/30',
+                  )}
+                >
+                  <div className="flex items-center gap-1.5">
+                    {isReached && (
+                      <CircleCheck className="h-3.5 w-3.5 text-success/60" />
+                    )}
+                    {isActive && (
+                      <div className="h-1.5 w-1.5 rounded-full bg-success" />
+                    )}
+                    {isFuture && (
+                      <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/30" />
+                    )}
+                    <span
+                      className={cn(
+                        'text-xs',
+                        isActive && 'font-medium text-success',
+                        isReached && 'text-success/60',
+                        isFuture && 'text-muted-foreground/50',
+                      )}
+                    >
+                      {tier.label}
+                    </span>
+                  </div>
+                  <span
+                    className={cn(
+                      'font-mono text-xs',
+                      isActive && 'font-bold text-success',
+                      isReached && 'text-success/60',
+                      isFuture && 'text-muted-foreground/50',
+                    )}
+                  >
+                    {tier.amount}
+                  </span>
+                </div>
+              )
+            })}
 
             {/* Bonus Milestone — show aspirational target */}
             <div className="rounded-lg border border-warning/20 bg-warning/5 px-3 py-2">
