@@ -4,6 +4,7 @@ import { auth } from '@/backend/auth'
 import prisma from '@/backend/prisma/client'
 import { EventType, PlatformStatus, PlatformType } from '@/types'
 import { createNotification } from '@/backend/services/notifications'
+import logger from '@/backend/logger'
 
 export type VerificationActionState = {
   success?: boolean
@@ -83,13 +84,14 @@ export async function verifyBetmgmManual(
           link: `/agent/new-client?client=${clientId}`,
           clientId,
         })
-      } catch {
-        // Notification failure should not block the main action
+      } catch (err) {
+        logger.warn('Notification failed after BetMGM verification', { error: err, clientId })
       }
     }
 
     return { success: true, message: 'BetMGM account verified successfully' }
-  } catch {
+  } catch (error) {
+    logger.error('BetMGM verification failed', { error, clientId })
     return { success: false, message: 'Failed to verify BetMGM account' }
   }
 }
