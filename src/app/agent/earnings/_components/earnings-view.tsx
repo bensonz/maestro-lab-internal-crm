@@ -12,6 +12,15 @@ import { PerformancePanel } from './performance-panel'
 import type { AgentKPIs } from '@/backend/services/agent-kpis'
 import type { HierarchyAgent, HierarchyNode } from '@/backend/data/hierarchy'
 
+function countFourStarInTree(nodes: HierarchyNode[]): number {
+  let count = 0
+  for (const node of nodes) {
+    if (node.starLevel >= 4) count++
+    count += countFourStarInTree(node.subordinates)
+  }
+  return count
+}
+
 interface Transaction {
   id: string
   client: string
@@ -43,6 +52,7 @@ interface EarningsViewProps {
 export function EarningsView({ earnings, kpis, hierarchy }: EarningsViewProps) {
   const { toast } = useToast()
 
+  const fourStarLeaders = countFourStarInTree(hierarchy.subordinateTree.subordinates)
   const available = earnings.totalEarnings - earnings.pendingPayout
 
   const handleWithdraw = () => {
@@ -71,8 +81,8 @@ export function EarningsView({ earnings, kpis, hierarchy }: EarningsViewProps) {
         <LevelProgressCard
           starLevel={hierarchy.agent.starLevel}
           approvedClients={kpis.approvedClients}
+          fourStarLeaders={fourStarLeaders}
           teamSize={hierarchy.teamSize}
-          directReports={hierarchy.subordinateTree.subordinates.length}
         />
 
         {/* C. Earnings Breakdown Table */}
