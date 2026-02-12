@@ -132,7 +132,7 @@ export function LevelProgressCard({
                 {fourStarLeaders}/2 &#9733;4 leaders
               </span>
               <span className="rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-medium text-warning leading-none">
-                {teamSize}/30 team
+                {teamSize}/30 clients
               </span>
             </div>
           </div>

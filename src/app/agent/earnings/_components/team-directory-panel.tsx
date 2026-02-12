@@ -102,32 +102,35 @@ export function TeamDirectoryPanel({ hierarchy }: TeamDirectoryPanelProps) {
                   Upline ({supervisorChain.length})
                 </p>
                 <div className="space-y-1">
-                  {supervisorChain.map((sup, idx) => (
-                    <div
-                      key={sup.id}
-                      className="flex items-center justify-between rounded bg-muted/20 px-2 py-1"
-                      style={{ marginLeft: idx * 8 }}
-                    >
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <div
-                          className={cn(
-                            'h-1.5 w-1.5 shrink-0 rounded-full',
-                            idx === 0 ? 'bg-primary' : 'bg-muted-foreground/40',
-                          )}
-                        />
-                        <span className="truncate text-sm text-foreground">
-                          {sup.name}
-                        </span>
+                  {[...supervisorChain].reverse().map((sup, idx, arr) => {
+                    const isDirectBoss = idx === arr.length - 1
+                    return (
+                      <div
+                        key={sup.id}
+                        className="flex items-center justify-between rounded bg-muted/20 px-2 py-1"
+                        style={{ marginLeft: idx * 8 }}
+                      >
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <div
+                            className={cn(
+                              'h-1.5 w-1.5 shrink-0 rounded-full',
+                              isDirectBoss ? 'bg-primary' : 'bg-muted-foreground/40',
+                            )}
+                          />
+                          <span className="truncate text-sm text-foreground">
+                            {sup.name}
+                          </span>
+                        </div>
+                        {sup.starLevel > 0 ? (
+                          <StarDisplay count={sup.starLevel} />
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground">
+                            Rookie
+                          </span>
+                        )}
                       </div>
-                      {sup.starLevel > 0 ? (
-                        <StarDisplay count={sup.starLevel} />
-                      ) : (
-                        <span className="text-[10px] text-muted-foreground">
-                          Rookie
-                        </span>
-                      )}
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
 
