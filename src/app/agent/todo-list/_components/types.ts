@@ -44,26 +44,25 @@ export interface GrowthClient {
   stage: string
   stageLabel: string
   daysInPipeline: number
-  directEarning: number
-  starEarning: number
-  downlineEarning: number
-  upstreamShare: number
-  recycledAmount: number
-  finalTake: number
-  poolPerLead: number
+  expectedIncome: number
   pendingTasks: number
 }
 
 export interface MaintenanceClient {
   id: string
   name: string
-  status: string
-  statusLabel: string
+  taskCategory: 'platform_verification' | 'high_priority'
   taskDescription: string
-  overdueDays: number
-  bonusRiskPercent: number
-  atRiskAmount: number
-  dueDate: string
+  daysRemaining: number
+  overduePercent: number
+}
+
+export interface TeamSupportItem {
+  id: string
+  agentName: string
+  agentPhone: string
+  hint: string
+  potentialEarning: number
 }
 
 export interface AgentProfile {
@@ -74,15 +73,10 @@ export interface AgentProfile {
 }
 
 export interface DailyGoalData {
-  earnedToday: number
-  dailyTarget: number
   potentialNew: number
-  potentialMaintenance: number
-  confirmedDirect: number
-  confirmedStar: number
-  confirmedDownline: number
-  overdueCount: number
-  overdueRiskAmount: number
+  overduePercent: number
+  bonusAmount: number
+  effectiveBonus: number
   completedTasks: number
   totalTasks: number
   currentStreak: number

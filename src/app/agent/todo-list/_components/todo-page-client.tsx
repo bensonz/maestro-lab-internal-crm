@@ -1,17 +1,15 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useMemo } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { AgentHeader } from './agent-header'
 import { GrowthPanel } from './growth-panel'
 import { MaintenancePanel } from './maintenance-panel'
-import { TaskList } from './task-list'
-import { FeedbackToast } from './feedback-toast'
+import { TeamSupport } from './task-list'
 import type {
-  Todo,
-  TimeRange,
   GrowthClient,
   MaintenanceClient,
+  TeamSupportItem,
   AgentProfile,
 } from './types'
 
@@ -82,38 +80,9 @@ interface TodoPageClientProps {
   earningsData: EarningsData
 }
 
-// $400 bonus pool per approved lead (matches commission rules)
-const POOL_PER_LEAD = 400
-
-function getEarningForTask(taskType: string): number {
-  const map: Record<string, number> = {
-    'Bank Setup': 50,
-    PayPal: 30,
-    Edgeboost: 40,
-    Platform: 200,
-    Verification: 25,
-    Document: 20,
-  }
-  return map[taskType] || 0
-}
-
-// Map our ToDoType enum values to display-friendly task types
-function mapTaskType(task: string): string {
-  const lower = task.toLowerCase()
-  if (lower.includes('bank') || lower.includes('debit')) return 'Bank Setup'
-  if (lower.includes('paypal')) return 'PayPal'
-  if (lower.includes('edgeboost')) return 'Edgeboost'
-  if (lower.includes('platform') || lower.includes('registration'))
-    return 'Platform'
-  if (
-    lower.includes('verif') ||
-    lower.includes('identity') ||
-    lower.includes('compliance')
-  )
-    return 'Verification'
-  if (lower.includes('document') || lower.includes('upload'))
-    return 'Document'
-  return 'Platform'
+// Expected income per client based on star level: 1★=$250, 2★=$300, 3★=$350, 4★=$400
+function getExpectedIncome(starLevel: number): number {
+  return 200 + Math.min(starLevel, 4) * 50
 }
 
 // Map intake statuses to growth stages
@@ -130,71 +99,10 @@ function mapStageLabel(status: string): { stage: string; label: string } {
   return map[status] || { stage: 'pending', label: status }
 }
 
-// Convert server todo into Lovable Todo shape
-function mapServerTodoToTodo(
-  serverTodo: ServerTodoData['pendingTasks'][0],
-): Todo {
-  const dueHours = parseDueToHours(serverTodo.due, serverTodo.overdue)
-  const meta = serverTodo.metadata as {
-    instructions?: {
-      mustDo?: string[]
-      mustNotDo?: string[]
-      successCriteria?: string
-    }
-  } | null
-
-  const defaultInstructions = {
-    mustDo: ['Follow task instructions carefully'],
-    mustNotDo: ['Do not skip required steps'],
-    successCriteria: 'Task completed per guidelines',
-  }
-
-  return {
-    id: serverTodo.id,
-    title: serverTodo.task,
-    description: serverTodo.description,
-    client: serverTodo.client,
-    clientId: serverTodo.clientId,
-    taskType: mapTaskType(serverTodo.task),
-    priority: serverTodo.overdue ? 'high' : dueHours <= 24 ? 'medium' : 'low',
-    completed: false,
-    dueHours,
-    triggerType:
-      serverTodo.createdByName === 'System' ? 'Rule' : 'Backoffice',
-    triggerSource: serverTodo.createdByName,
-    linkedStep: serverTodo.stepNumber,
-    createdAt: serverTodo.createdAt,
-    extensionsUsed: serverTodo.extensionsUsed,
-    maxExtensions: serverTodo.maxExtensions,
-    instructions: {
-      mustDo: meta?.instructions?.mustDo ?? defaultInstructions.mustDo,
-      mustNotDo: meta?.instructions?.mustNotDo ?? defaultInstructions.mustNotDo,
-      successCriteria:
-        meta?.instructions?.successCriteria ??
-        defaultInstructions.successCriteria,
-    },
-  }
-}
-
-function parseDueToHours(due: string, isOverdue: boolean): number {
-  const match = due.match(/(\d+)([dhm])/)
-  if (!match) return 72 // Default to 3 days if unparseable
-
-  const value = parseInt(match[1], 10)
-  const unit = match[2]
-
-  let hours = 0
-  if (unit === 'd') hours = value * 24
-  else if (unit === 'h') hours = value
-  else if (unit === 'm') hours = Math.ceil(value / 60)
-
-  return isOverdue ? -hours : hours
-}
-
 // Build growth clients from server client data
 function buildGrowthClients(
   clients: ServerClientData[],
-  earningsData: EarningsData,
+  starLevel: number,
 ): GrowthClient[] {
   const growthStatuses = [
     'PENDING',
@@ -220,30 +128,13 @@ function buildGrowthClients(
           )
         : 0
 
-      // Look up earnings for this client from real data
-      const clientEarnings = earningsData.recentTransactions.filter(
-        (t) => t.client === c.name,
-      )
-      const paidEarnings = clientEarnings
-        .filter((t) => t.status === 'Paid')
-        .reduce((sum, t) => sum + t.amount, 0)
-      const pendingEarnings = clientEarnings
-        .filter((t) => t.status === 'Pending')
-        .reduce((sum, t) => sum + t.amount, 0)
-
       return {
         id: c.id,
         name: c.name,
         stage,
         stageLabel: label,
         daysInPipeline: Math.abs(daysInPipeline),
-        directEarning: paidEarnings,
-        starEarning: 0,
-        downlineEarning: 0,
-        upstreamShare: 0,
-        recycledAmount: 0,
-        finalTake: paidEarnings + pendingEarnings,
-        poolPerLead: POOL_PER_LEAD,
+        expectedIncome: getExpectedIncome(starLevel),
         pendingTasks: c.nextTask ? 1 : 0,
       }
     })
@@ -256,23 +147,56 @@ function buildMaintenanceClients(
   return pendingTasks
     .filter((t) => t.overdue)
     .map((t) => {
-      const hoursOverdue = Math.abs(parseDueToHours(t.due, true))
-      const daysOverdue = Math.max(1, Math.ceil(hoursOverdue / 24))
+      const match = t.due.match(/(\d+)([dhm])/)
+      const hours = match
+        ? match[2] === 'd'
+          ? parseInt(match[1]) * 24
+          : match[2] === 'h'
+            ? parseInt(match[1])
+            : 1
+        : 72
+      const daysOverdue = Math.max(1, Math.ceil(hours / 24))
 
-      const bonusRiskPercent = Math.min(100, daysOverdue * 15)
+      const isHighPriority =
+        t.task.toLowerCase().includes('high') ||
+        t.task.toLowerCase().includes('urgent') ||
+        t.task.toLowerCase().includes('critical')
+
       return {
         id: t.id,
         name: t.client,
-        status: 'verification',
-        statusLabel: 'Re-Verification',
+        taskCategory: isHighPriority
+          ? ('high_priority' as const)
+          : ('platform_verification' as const),
         taskDescription: t.task,
-        overdueDays: daysOverdue,
-        bonusRiskPercent,
-        atRiskAmount: POOL_PER_LEAD * (bonusRiskPercent / 100),
-        dueDate: t.due,
+        daysRemaining: -daysOverdue,
+        overduePercent: daysOverdue, // 1% per day overdue
       }
     })
 }
+
+// ── Fake data for demo ──────────────────────────────────────────────
+const FAKE_GROWTH_CLIENTS: GrowthClient[] = [
+  { id: 'g1', name: 'Marcus Rivera', stage: 'in_progress', stageLabel: 'In Progress', daysInPipeline: 3, expectedIncome: 250, pendingTasks: 2 },
+  { id: 'g2', name: 'Sophia Chen', stage: 'phone_issued', stageLabel: 'Phone Issued', daysInPipeline: 1, expectedIncome: 250, pendingTasks: 3 },
+  { id: 'g3', name: 'Derek Williams', stage: 'review', stageLabel: 'Ready for Review', daysInPipeline: 7, expectedIncome: 250, pendingTasks: 0 },
+  { id: 'g4', name: 'Aisha Patel', stage: 'pending', stageLabel: 'Pending', daysInPipeline: 0, expectedIncome: 250, pendingTasks: 1 },
+]
+
+const FAKE_MAINTENANCE_CLIENTS: MaintenanceClient[] = [
+  { id: 'm1', name: 'Jason Torres', taskCategory: 'platform_verification', taskDescription: 'Verify DraftKings account screenshots', daysRemaining: 2, overduePercent: 0 },
+  { id: 'm2', name: 'Emily Nguyen', taskCategory: 'high_priority', taskDescription: 'Re-submit PayPal ownership verification', daysRemaining: -1, overduePercent: 1 },
+  { id: 'm3', name: 'Carlos Mendez', taskCategory: 'platform_verification', taskDescription: 'Upload FanDuel registration confirmation', daysRemaining: 1, overduePercent: 0 },
+  { id: 'm4', name: 'Lisa Chang', taskCategory: 'high_priority', taskDescription: 'Update expired ID document immediately', daysRemaining: -3, overduePercent: 3 },
+  { id: 'm5', name: 'Ryan Brooks', taskCategory: 'platform_verification', taskDescription: 'Confirm BetRivers account status', daysRemaining: -2, overduePercent: 2 },
+]
+
+const FAKE_TEAM_SUPPORT: TeamSupportItem[] = [
+  { id: 'ts1', agentName: 'Sarah Kim', agentPhone: '+1-555-0101', hint: 'Sarah is 1 step away from closing her first client — could use guidance on Phase 2 submission', potentialEarning: 200 },
+  { id: 'ts2', agentName: 'Jake Martinez', agentPhone: '+1-555-0102', hint: 'Jake has 3 clients stuck in PayPal setup — needs help troubleshooting verification', potentialEarning: 600 },
+  { id: 'ts3', agentName: 'Priya Sharma', agentPhone: '+1-555-0103', hint: 'Priya\'s BetMGM submission was rejected — help her prepare retry screenshots', potentialEarning: 250 },
+  { id: 'ts4', agentName: 'Tyler Johnson', agentPhone: '+1-555-0104', hint: 'Tyler is new and needs walkthrough on bank setup process for his first client', potentialEarning: 250 },
+]
 
 export function TodoPageClient({
   todoData,
@@ -281,141 +205,65 @@ export function TodoPageClient({
   agentStarLevel,
   earningsData,
 }: TodoPageClientProps) {
-  // Map server data to Lovable Todo shape
-  const initialTodos = useMemo(
-    () => todoData.pendingTasks.map(mapServerTodoToTodo),
-    [todoData.pendingTasks],
-  )
-
-  const [todos, setTodos] = useState<Todo[]>(initialTodos)
-  const [timeFilter, setTimeFilter] = useState<TimeRange>('3days')
-  const [showCompleted, setShowCompleted] = useState(false)
-
-  // Feedback state
-  const [showFeedback, setShowFeedback] = useState(false)
-  const [lastEarning, setLastEarning] = useState(0)
-  const [totalEarnedToday, setTotalEarnedToday] = useState(0)
-
-  // Build growth/maintenance data from server clients
+  // Build growth clients from server data, fall back to fake data
   const growthClients = useMemo(
-    () => buildGrowthClients(clients, earningsData),
-    [clients, earningsData],
+    () => {
+      const real = buildGrowthClients(clients, agentStarLevel)
+      return real.length > 0 ? real : FAKE_GROWTH_CLIENTS
+    },
+    [clients, agentStarLevel],
   )
+
+  // Build maintenance clients from server data, fall back to fake data
   const maintenanceClients = useMemo(
-    () => buildMaintenanceClients(todoData.pendingTasks),
+    () => {
+      const real = buildMaintenanceClients(todoData.pendingTasks)
+      return real.length > 0 ? real : FAKE_MAINTENANCE_CLIENTS
+    },
     [todoData.pendingTasks],
   )
 
-  // Filtered todos for execution layer
-  const filteredTodos = useMemo(() => {
-    const maxHours =
-      timeFilter === '1day' ? 24 : timeFilter === '3days' ? 72 : 168
-    return todos
-      .filter(
-        (t) => (t.dueHours < 0 && !t.completed) || t.dueHours <= maxHours,
-      )
-      .sort((a, b) => {
-        if (a.completed !== b.completed) return a.completed ? 1 : -1
-        return a.dueHours - b.dueHours
-      })
-  }, [todos, timeFilter])
+  // Team support — always fake for now (needs real subordinate data)
+  const teamSupport = FAKE_TEAM_SUPPORT
+
+  // Calculate total overdue percentage
+  const totalOverduePercent = useMemo(
+    () => maintenanceClients.reduce((s, c) => s + c.overduePercent, 0),
+    [maintenanceClients],
+  )
+
+  const bonusBase = 10000
+  const effectiveBonus = Math.max(0, bonusBase * ((100 - totalOverduePercent) / 100))
 
   // Agent profile
   const agent: AgentProfile = {
     name: agentName,
     starLevel: agentStarLevel,
-    totalClients: clients.length,
+    totalClients: clients.length || 8, // fallback for demo
     activeClients: clients.filter((c) =>
       ['PHONE_ISSUED', 'IN_EXECUTION'].includes(c.intakeStatus),
-    ).length,
+    ).length || 4, // fallback for demo
   }
 
+  // Total potential from growth clients
+  const potentialNew = growthClients.reduce((s, c) => s + c.expectedIncome, 0)
+
+  // Count today's tasks
+  const totalTasks = maintenanceClients.length + growthClients.reduce((s, c) => s + c.pendingTasks, 0)
+
   // Daily goal stats
-  const dailyGoal = useMemo(() => {
-    const todayTodos = todos.filter(
-      (t) => t.dueHours <= 24 || t.dueHours < 0,
-    )
-    const overdueCount = todos.filter(
-      (t) => !t.completed && t.dueHours < 0,
-    ).length
-
-    // Daily target scales with star level
-    const dailyTarget = agentStarLevel * 100 + 100
-
-    return {
-      earnedToday: totalEarnedToday,
-      dailyTarget,
-      potentialNew: growthClients.reduce((s, c) => s + c.finalTake, 0),
-      potentialMaintenance: maintenanceClients.reduce(
-        (s, c) => s + c.atRiskAmount,
-        0,
-      ),
-      confirmedDirect: earningsData.commission.paid,
-      confirmedStar: earningsData.commission.starSlices,
-      confirmedDownline: earningsData.overrides.overrideTotal,
-      overdueCount,
-      overdueRiskAmount: maintenanceClients
-        .filter((c) => c.overdueDays > 0)
-        .reduce((s, c) => s + c.atRiskAmount, 0),
-      completedTasks: todayTodos.filter((t) => t.completed).length,
-      totalTasks: todayTodos.length,
+  const dailyGoal = useMemo(
+    () => ({
+      potentialNew,
+      overduePercent: totalOverduePercent,
+      bonusAmount: bonusBase,
+      effectiveBonus,
+      completedTasks: todoData.completedToday,
+      totalTasks,
       currentStreak: todoData.completedToday,
-    }
-  }, [
-    todos,
-    totalEarnedToday,
-    growthClients,
-    maintenanceClients,
-    agentStarLevel,
-    earningsData,
-    todoData.completedToday,
-  ])
-
-  // Handlers
-  const handleUpload = useCallback((_todo: Todo) => {
-    // TODO: Open AI detection modal for screenshot upload
-    // For now, mark as completed directly
-    const earning = getEarningForTask(_todo.taskType)
-    setLastEarning(earning)
-    setTotalEarnedToday((prev) => prev + earning)
-    setTodos((prev) =>
-      prev.map((t) => (t.id === _todo.id ? { ...t, completed: true } : t)),
-    )
-    setShowFeedback(true)
-  }, [])
-
-  const handleExtend = useCallback((todoId: string) => {
-    setTodos((prev) =>
-      prev.map((t) =>
-        t.id === todoId && t.extensionsUsed < t.maxExtensions
-          ? {
-              ...t,
-              dueHours: t.dueHours + 72,
-              extensionsUsed: t.extensionsUsed + 1,
-            }
-          : t,
-      ),
-    )
-  }, [])
-
-  const handleReactivate = useCallback((todoId: string) => {
-    setTodos((prev) =>
-      prev.map((t) =>
-        t.id === todoId ? { ...t, completed: false, dueHours: 72 } : t,
-      ),
-    )
-  }, [])
-
-  const handleDismissFeedback = useCallback(() => {
-    setShowFeedback(false)
-  }, [])
-
-  const totalOverdue = maintenanceClients.filter(
-    (c) => c.overdueDays > 0,
-  ).length
-  const totalAtRisk = maintenanceClients
-    .filter((c) => c.overdueDays > 0)
-    .reduce((s, c) => s + c.atRiskAmount, 0)
+    }),
+    [potentialNew, totalOverduePercent, effectiveBonus, todoData.completedToday, totalTasks],
+  )
 
   return (
     <ScrollArea className="h-full">
@@ -423,38 +271,18 @@ export function TodoPageClient({
         {/* Tier 1: Context & Daily Goal */}
         <AgentHeader agent={agent} data={dailyGoal} />
 
-        {/* Tier 2 & 3: Growth + Maintenance */}
+        {/* Tier 2: Growth + Maintenance */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <GrowthPanel clients={growthClients} />
+          <GrowthPanel clients={growthClients} starLevel={agentStarLevel} />
           <MaintenancePanel
             clients={maintenanceClients}
-            totalOverdue={totalOverdue}
-            totalAtRisk={totalAtRisk}
+            totalOverduePercent={totalOverduePercent}
           />
         </div>
 
-        {/* Tier 4: Execution Layer */}
-        <TaskList
-          todos={filteredTodos}
-          timeFilter={timeFilter}
-          onTimeFilterChange={setTimeFilter}
-          onUpload={handleUpload}
-          onExtend={handleExtend}
-          onReactivate={handleReactivate}
-          showCompleted={showCompleted}
-          onShowCompletedChange={setShowCompleted}
-        />
+        {/* Tier 3: Team Support */}
+        <TeamSupport items={teamSupport} />
       </div>
-
-      {/* Feedback toast */}
-      <FeedbackToast
-        lastEarning={lastEarning}
-        totalEarnedToday={totalEarnedToday}
-        currentStreak={todoData.completedToday}
-        completedToday={dailyGoal.completedTasks}
-        show={showFeedback}
-        onDismiss={handleDismissFeedback}
-      />
     </ScrollArea>
   )
 }

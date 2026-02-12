@@ -6,7 +6,8 @@ import {
   AlertTriangle,
   CheckCircle2,
   Flame,
-  Target,
+  DollarSign,
+  ShieldCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { AgentProfile, DailyGoalData } from './types'
@@ -17,11 +18,6 @@ interface AgentHeaderProps {
 }
 
 export function AgentHeader({ agent, data }: AgentHeaderProps) {
-  const progressPercent =
-    data.dailyTarget > 0
-      ? Math.min(100, Math.round((data.earnedToday / data.dailyTarget) * 100))
-      : 0
-
   const taskPercent =
     data.totalTasks > 0
       ? Math.round((data.completedTasks / data.totalTasks) * 100)
@@ -74,99 +70,57 @@ export function AgentHeader({ agent, data }: AgentHeaderProps) {
         )}
       </div>
 
-      {/* Earnings progress */}
-      <div className="mb-4">
-        <div className="mb-1.5 flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <Target className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
-              Daily Target
-            </span>
-          </div>
-          <span className="font-mono text-sm font-semibold text-foreground">
-            ${data.earnedToday}
-            <span className="text-xs text-muted-foreground">
-              {' '}
-              / ${data.dailyTarget}
-            </span>
-          </span>
-        </div>
-        <div className="h-2 overflow-hidden rounded-full bg-muted/40">
-          <div
-            className={cn(
-              'h-full rounded-full transition-all duration-700',
-              progressPercent >= 100 ? 'bg-success' : 'bg-primary',
-            )}
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
-      </div>
-
       {/* Stat row */}
-      <div className="grid grid-cols-4 gap-3">
-        {/* Potential */}
-        <div className="rounded-md border border-border/40 bg-muted/15 px-3 py-2.5">
-          <p className="mb-1 text-[9px] uppercase tracking-widest text-muted-foreground">
-            Potential
-          </p>
-          <p className="font-mono text-base font-semibold text-foreground">
-            ${data.potentialNew + data.potentialMaintenance}
-          </p>
-          <p className="mt-0.5 font-mono text-[10px] text-muted-foreground">
-            <span className="text-success">${data.potentialNew}</span> +{' '}
-            <span className="text-primary">${data.potentialMaintenance}</span>
-          </p>
-        </div>
-
-        {/* Confirmed */}
+      <div className="grid grid-cols-3 gap-3">
+        {/* Potential earnings from new clients */}
         <div className="rounded-md border border-success/15 bg-success/5 px-3 py-2.5">
           <p className="mb-1 text-[9px] uppercase tracking-widest text-muted-foreground">
-            Confirmed
+            Potential Earnings
           </p>
-          <p className="font-mono text-base font-semibold text-success">
-            $
-            {data.confirmedDirect +
-              data.confirmedStar +
-              data.confirmedDownline}
-          </p>
-          <p className="mt-0.5 font-mono text-[10px] text-muted-foreground">
-            D:{data.confirmedDirect} &middot; S:{data.confirmedStar} &middot;
-            DL:{data.confirmedDownline}
+          <div className="flex items-center gap-1.5">
+            <DollarSign className="h-3.5 w-3.5 text-success" />
+            <p className="font-mono text-base font-semibold text-success">
+              ${data.potentialNew}
+            </p>
+          </div>
+          <p className="mt-0.5 text-[10px] text-muted-foreground">
+            from active leads
           </p>
         </div>
 
-        {/* Overdue */}
+        {/* Overdue % and bonus impact */}
         <div
           className={cn(
             'rounded-md border px-3 py-2.5',
-            data.overdueCount > 0
+            data.overduePercent > 0
               ? 'border-destructive/20 bg-destructive/5'
               : 'border-border/40 bg-muted/15',
           )}
         >
           <p className="mb-1 text-[9px] uppercase tracking-widest text-muted-foreground">
-            Overdue
+            Overdue Impact
           </p>
           <div className="flex items-center gap-1.5">
-            {data.overdueCount > 0 && (
+            {data.overduePercent > 0 ? (
               <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
+            ) : (
+              <ShieldCheck className="h-3.5 w-3.5 text-success" />
             )}
             <p
               className={cn(
                 'font-mono text-base font-semibold',
-                data.overdueCount > 0
+                data.overduePercent > 0
                   ? 'text-destructive'
-                  : 'text-muted-foreground',
+                  : 'text-success',
               )}
             >
-              {data.overdueCount}
+              {data.overduePercent}%
             </p>
           </div>
-          {data.overdueRiskAmount > 0 && (
-            <p className="mt-0.5 font-mono text-[10px] text-destructive">
-              ${data.overdueRiskAmount} at risk
-            </p>
-          )}
+          <p className="mt-0.5 font-mono text-[10px] text-muted-foreground">
+            Bonus: ${data.effectiveBonus.toLocaleString()} / $
+            {data.bonusAmount.toLocaleString()}
+          </p>
         </div>
 
         {/* Tasks */}
