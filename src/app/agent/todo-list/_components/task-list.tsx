@@ -1,12 +1,29 @@
 'use client'
 
-import { Users, Phone, DollarSign } from 'lucide-react'
+import { useState } from 'react'
+import { Users, Bell, DollarSign, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { TeamSupportItem } from './types'
 
 // Team Member Row
 
-function TeamMemberRow({ item }: { item: TeamSupportItem }) {
+function TeamMemberRow({
+  item,
+  onNudge,
+}: {
+  item: TeamSupportItem
+  onNudge: (memberId: string) => Promise<boolean>
+}) {
+  const [nudging, setNudging] = useState(false)
+  const [nudged, setNudged] = useState(false)
+
+  const handleNudge = async () => {
+    setNudging(true)
+    const success = await onNudge(item.id)
+    setNudging(false)
+    if (success) setNudged(true)
+  }
+
   return (
     <div
       className="flex items-center gap-3 border-b border-border/20 px-4 py-3 last:border-b-0"
@@ -25,26 +42,36 @@ function TeamMemberRow({ item }: { item: TeamSupportItem }) {
       {/* Hint */}
       <div className="min-w-0 flex-1">
         <p className="text-sm text-foreground">{item.hint}</p>
-        <div className="mt-0.5 flex items-center gap-1">
-          <DollarSign className="h-3 w-3 text-success" />
-          <span className="font-mono text-[10px] font-medium text-success">
-            ${item.potentialEarning} potential
-          </span>
+        <div className="mt-0.5 flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <DollarSign className="h-3 w-3 text-success" />
+            <span className="font-mono text-[10px] font-medium text-success">
+              ${item.potentialEarning} potential
+            </span>
+          </div>
+          {item.isOneStepAway && (
+            <span className="font-mono text-[10px] font-medium text-warning">
+              Almost there!
+            </span>
+          )}
         </div>
       </div>
 
-      {/* Call button */}
+      {/* Nudge button */}
       <Button
         variant="outline"
         size="sm"
         className="h-7 gap-1.5 px-3 text-[11px]"
-        onClick={() => {
-          window.location.href = `tel:${item.agentPhone}`
-        }}
-        data-testid={`call-btn-${item.id}`}
+        onClick={handleNudge}
+        disabled={nudging || nudged}
+        data-testid={`nudge-btn-${item.id}`}
       >
-        <Phone className="h-3 w-3" />
-        Call
+        {nudging ? (
+          <Loader2 className="h-3 w-3 animate-spin" />
+        ) : (
+          <Bell className="h-3 w-3" />
+        )}
+        {nudged ? 'Sent' : 'Nudge'}
       </Button>
     </div>
   )
@@ -54,9 +81,10 @@ function TeamMemberRow({ item }: { item: TeamSupportItem }) {
 
 interface TeamSupportProps {
   items: TeamSupportItem[]
+  onNudge: (memberId: string) => Promise<boolean>
 }
 
-export function TeamSupport({ items }: TeamSupportProps) {
+export function TeamSupport({ items, onNudge }: TeamSupportProps) {
   return (
     <div
       className="overflow-hidden rounded-lg border border-border bg-card"
@@ -83,12 +111,14 @@ export function TeamSupport({ items }: TeamSupportProps) {
       {/* Members */}
       <div className="max-h-[260px] overflow-y-auto">
         {items.length > 0 ? (
-          items.map((item) => <TeamMemberRow key={item.id} item={item} />)
+          items.map((item) => (
+            <TeamMemberRow key={item.id} item={item} onNudge={onNudge} />
+          ))
         ) : (
           <div className="py-8 text-center">
             <Users className="mx-auto mb-1.5 h-5 w-5 text-muted-foreground/30" />
             <p className="text-xs text-muted-foreground">
-              No team members need help right now
+              No team members to support
             </p>
           </div>
         )}
