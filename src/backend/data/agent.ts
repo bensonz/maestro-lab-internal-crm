@@ -306,8 +306,17 @@ export async function getAgentEarnings(agentId: string) {
     pendingPayout,
     thisMonth,
     recentTransactions,
-    commission: commissionSummary,
-    overrides: overrideEarnings,
+    commission: {
+      totalEarned: commissionSummary.totalEarned,
+      pending: commissionSummary.pending,
+      paid: commissionSummary.paid,
+      directBonuses: commissionSummary.directBonuses,
+      starSlices: commissionSummary.starSlices,
+    },
+    overrides: {
+      overrideTotal: overrideEarnings.overrideTotal,
+      ownTotal: overrideEarnings.ownTotal,
+    },
   }
 }
 
@@ -364,6 +373,7 @@ export async function getAgentTodos(agentId: string) {
     client: t.client ? `${t.client.firstName} ${t.client.lastName}` : 'N/A',
     clientId: t.clientId ?? '',
     due: t.dueDate ? formatRelativeTime(t.dueDate) : 'No deadline',
+    dueDate: t.dueDate?.toISOString() ?? null,
     overdue:
       t.status === ToDoStatus.OVERDUE || (t.dueDate ? t.dueDate < now : false),
     stepNumber: t.stepNumber ?? 1,
