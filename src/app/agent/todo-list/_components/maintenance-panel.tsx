@@ -1,22 +1,47 @@
 'use client'
 
-import { ShieldCheck, Clock, AlertTriangle, TrendingDown } from 'lucide-react'
+import {
+  ShieldCheck,
+  Upload,
+  CalendarPlus,
+  Loader2,
+} from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { MaintenanceClient } from './types'
 
 // Client Card
 
-function ClientCard({ client }: { client: MaintenanceClient }) {
+function ClientCard({
+  client,
+  onProcess,
+  onExtend,
+  isUploading,
+  isUploadingThis,
+  isExtendingThis,
+}: {
+  client: MaintenanceClient
+  onProcess: (todoId: string) => void
+  onExtend: (todoId: string) => void
+  isUploading: boolean
+  isUploadingThis: boolean
+  isExtendingThis: boolean
+}) {
   const isOverdue = client.daysRemaining < 0
   const absDays = Math.abs(client.daysRemaining)
-  const deadline = client.taskCategory === 'platform_verification' ? 3 : 2
+  const canExtend =
+    client.extensionsUsed < client.maxExtensions && !isExtendingThis
 
   return (
     <div
       className={cn(
         'rounded-md border bg-muted/10 px-3 py-2.5',
-        isOverdue ? 'border-destructive/30' : 'border-border/30',
+        client.urgency === 'critical'
+          ? 'border-destructive/30'
+          : client.urgency === 'warning'
+            ? 'border-warning/30'
+            : 'border-border/30',
       )}
       data-testid={`maintenance-client-${client.id}`}
     >
@@ -30,39 +55,105 @@ function ClientCard({ client }: { client: MaintenanceClient }) {
               variant="outline"
               className={cn(
                 'h-4 px-1.5 text-[9px]',
-                client.taskCategory === 'high_priority'
+                client.urgency === 'critical'
                   ? 'border-destructive/40 text-destructive'
-                  : 'border-warning/40 text-warning',
+                  : client.urgency === 'warning'
+                    ? 'border-warning/40 text-warning'
+                    : 'border-border text-muted-foreground',
               )}
             >
-              {client.taskCategory === 'high_priority'
-                ? `High Priority (${deadline}d)`
-                : `Verification (${deadline}d)`}
+              {client.urgency === 'critical'
+                ? 'Overdue'
+                : client.urgency === 'warning'
+                  ? 'Due Soon'
+                  : 'Pending'}
             </Badge>
           </div>
           <p className="mt-0.5 font-mono text-[10px] text-muted-foreground">
             {client.taskDescription}
             {client.overduePercent > 0 && (
-              <span className="text-destructive"> &middot; -{client.overduePercent}% bonus</span>
+              <span className="text-destructive">
+                {' '}
+                &middot; -{client.overduePercent}% bonus
+              </span>
             )}
           </p>
         </div>
-        <div className="flex-shrink-0 text-right">
-          {isOverdue ? (
-            <>
-              <p className="font-mono text-sm font-bold text-destructive">
-                {absDays}d
-              </p>
-              <p className="text-[9px] text-destructive">overdue</p>
-            </>
-          ) : (
-            <>
-              <p className="font-mono text-sm font-bold text-muted-foreground">
-                {client.daysRemaining}d
-              </p>
-              <p className="text-[9px] text-muted-foreground">left</p>
-            </>
+
+        {/* Time remaining + actions */}
+        <div className="flex flex-shrink-0 items-center gap-2">
+          {/* Process button */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-6 gap-1 px-2 text-[10px]"
+            onClick={() => onProcess(client.todoId)}
+            disabled={isUploading}
+            data-testid={`process-btn-${client.todoId}`}
+          >
+            {isUploadingThis ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Upload className="h-3 w-3" />
+            )}
+            Process
+          </Button>
+
+          {/* Extend button */}
+          {canExtend && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 gap-1 px-1.5 text-[10px] text-muted-foreground hover:text-foreground"
+              onClick={() => onExtend(client.todoId)}
+              disabled={isExtendingThis}
+              title={`${client.extensionsUsed}/${client.maxExtensions} extensions used`}
+              data-testid={`extend-btn-${client.todoId}`}
+            >
+              {isExtendingThis ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <CalendarPlus className="h-3 w-3" />
+              )}
+              +3d
+            </Button>
           )}
+          {isExtendingThis && !canExtend && (
+            <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+          )}
+
+          {/* Time display */}
+          <div className="w-10 text-right">
+            {isOverdue ? (
+              <>
+                <p className="font-mono text-sm font-bold text-destructive">
+                  {absDays}d
+                </p>
+                <p className="text-[9px] text-destructive">overdue</p>
+              </>
+            ) : client.daysRemaining === 99 ? (
+              <>
+                <p className="font-mono text-sm font-bold text-muted-foreground">
+                  —
+                </p>
+                <p className="text-[9px] text-muted-foreground">no due</p>
+              </>
+            ) : (
+              <>
+                <p
+                  className={cn(
+                    'font-mono text-sm font-bold',
+                    client.urgency === 'warning'
+                      ? 'text-warning'
+                      : 'text-muted-foreground',
+                  )}
+                >
+                  {client.daysRemaining}d
+                </p>
+                <p className="text-[9px] text-muted-foreground">left</p>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -74,11 +165,21 @@ function ClientCard({ client }: { client: MaintenanceClient }) {
 interface MaintenancePanelProps {
   clients: MaintenanceClient[]
   totalOverduePercent: number
+  onProcess: (todoId: string) => void
+  onExtend: (todoId: string) => void
+  isUploading: boolean
+  uploadingTodoId: string | null
+  extendingTodoId: string | null
 }
 
 export function MaintenancePanel({
   clients,
   totalOverduePercent,
+  onProcess,
+  onExtend,
+  isUploading,
+  uploadingTodoId,
+  extendingTodoId,
 }: MaintenancePanelProps) {
   return (
     <div
@@ -111,11 +212,21 @@ export function MaintenancePanel({
       </div>
 
       {/* Cards — sorted by days remaining (most urgent first) */}
-      <div className="max-h-[260px] space-y-2 overflow-y-auto p-3">
+      <div className="max-h-[320px] space-y-2 overflow-y-auto p-3">
         {clients.length > 0 ? (
           [...clients]
             .sort((a, b) => a.daysRemaining - b.daysRemaining)
-            .map((c) => <ClientCard key={c.id} client={c} />)
+            .map((c) => (
+              <ClientCard
+                key={c.todoId}
+                client={c}
+                onProcess={onProcess}
+                onExtend={onExtend}
+                isUploading={isUploading}
+                isUploadingThis={uploadingTodoId === c.todoId}
+                isExtendingThis={extendingTodoId === c.todoId}
+              />
+            ))
         ) : (
           <div className="py-8 text-center">
             <ShieldCheck className="mx-auto mb-1.5 h-5 w-5 text-muted-foreground/30" />
