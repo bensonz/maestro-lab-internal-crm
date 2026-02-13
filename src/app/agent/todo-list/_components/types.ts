@@ -1,7 +1,5 @@
 // Shared types for Agent To-Do System
 
-export type TimeRange = '1day' | '3days' | '7days'
-
 export type TaskType =
   | 'PayPal'
   | 'Edgeboost'
@@ -48,21 +46,30 @@ export interface GrowthClient {
   pendingTasks: number
 }
 
+export type MaintenanceUrgency = 'critical' | 'warning' | 'normal'
+
 export interface MaintenanceClient {
   id: string
+  todoId: string
   name: string
   taskCategory: 'platform_verification' | 'high_priority'
   taskDescription: string
   daysRemaining: number
   overduePercent: number
+  urgency: MaintenanceUrgency
+  extensionsUsed: number
+  maxExtensions: number
 }
 
 export interface TeamSupportItem {
   id: string
   agentName: string
-  agentPhone: string
   hint: string
   potentialEarning: number
+  currentStep: string
+  completedSteps: number
+  totalSteps: number
+  isOneStepAway: boolean
 }
 
 export interface AgentProfile {
