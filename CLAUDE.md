@@ -259,6 +259,36 @@ UI: `src/components/global-search.tsx` — exports `GlobalSearch` (CommandDialog
 
 Both top bars use `<SearchTrigger />` + `<GlobalSearch />`. Keyboard shortcut ⌘K / Ctrl+K opens the palette from anywhere.
 
+### Sales Interaction Page (Back Office)
+
+`/backoffice/sales-interaction` — Operational queue for managing client onboarding pipeline.
+
+**Layout:** Two-panel design mirroring the agent "My Clients" page:
+- **Left sidebar** (w-56): Summary panel with 4 status counts (Total Clients, In Progress, Pending Approval, Verification Needed) + Team Directory with agent search and tier-based grouping
+- **Right main area**: Search/sort toolbar + two collapsible sections
+
+**Two main collapsible sections:**
+1. **In Progress** — Contains 7 sub-stage categories (each collapsible):
+   - Pre-Qualification (`PENDING`, `PREQUAL_REVIEW`, `PREQUAL_APPROVED`)
+   - Ten Questions (early `IN_EXECUTION`)
+   - Waiting for Phone (`IN_EXECUTION` without phone assignment)
+   - Phone Issued (`PHONE_ISSUED`)
+   - Platform Registrations (`IN_EXECUTION` with pending platforms)
+   - Phone Returned (`IN_EXECUTION` with all platforms verified)
+   - Pending Approval (`READY_FOR_APPROVAL`)
+
+2. **Verification Needed** — Clients in `NEEDS_MORE_INFO`, `PENDING_EXTERNAL`, `EXECUTION_DELAYED` + verification/upload todos
+
+**Key files:**
+- `src/app/backoffice/sales-interaction/page.tsx` — Server Component fetching stats, hierarchy, intake clients, verification tasks
+- `src/app/backoffice/sales-interaction/_components/sales-interaction-view.tsx` — Main client component with collapsible sections
+- `src/app/backoffice/sales-interaction/_components/client-intake-list.tsx` — Client row list (no Card wrapper, fits inside collapsibles)
+- `src/app/backoffice/sales-interaction/_components/verification-tasks-table.tsx` — Verification task table (no Card wrapper)
+- `src/app/backoffice/sales-interaction/_components/document-review-modal.tsx` — Document review dialog
+- `src/backend/data/operations.ts` — Data queries: `getSalesInteractionStats()`, `getAgentHierarchy()`, `getIntakeClients()` (with `subStage` field), `getVerificationClients()`
+
+**Data types:** `InProgressSubStage` type exported from `operations.ts` defines the 7 sub-stages. Each `IntakeClient` has a `subStage` field computed by `determineSubStage()`.
+
 ### Path Aliases
 
 - `@/*` → `./src/*`
