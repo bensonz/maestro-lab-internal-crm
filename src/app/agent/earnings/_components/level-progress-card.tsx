@@ -1,13 +1,6 @@
 'use client'
 
-import {
-  Star,
-  TrendingUp,
-  Users,
-  Sparkles,
-  Crown,
-  CircleCheck,
-} from 'lucide-react'
+import { Star, Crown, Lock, Unlock } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
@@ -16,209 +9,131 @@ import { STAR_THRESHOLDS } from '@/lib/commission-constants'
 interface LevelProgressCardProps {
   starLevel: number
   approvedClients: number
+  fourStarLeaders: number
   teamSize: number
-  directReports: number
 }
 
-function renderStars(count: number, filled: boolean = true) {
-  return Array(count)
-    .fill(0)
-    .map((_, i) => (
-      <Star
-        key={i}
-        className={cn(
-          'h-4 w-4',
-          filled
-            ? 'fill-warning text-warning'
-            : 'text-muted-foreground/40',
-        )}
-      />
-    ))
+function Stars({ count, filled = true }: { count: number; filled?: boolean }) {
+  return (
+    <>
+      {Array(count)
+        .fill(0)
+        .map((_, i) => (
+          <Star
+            key={i}
+            className={cn(
+              'h-3.5 w-3.5',
+              filled
+                ? 'fill-warning text-warning'
+                : 'text-muted-foreground/30',
+            )}
+          />
+        ))}
+    </>
+  )
 }
 
-const COMMISSION_TIERS = [
-  { level: 0, label: 'Rookie', amount: '+$200' },
-  { level: 1, label: '1-Star', amount: '+$250' },
-  { level: 2, label: '2-Star', amount: '+$300' },
-  { level: 3, label: '3-Star', amount: '+$350' },
-  { level: 4, label: '4-Star', amount: '+$400' },
-]
+const PER_CLIENT = [200, 250, 300, 350, 400]
 
 export function LevelProgressCard({
   starLevel,
   approvedClients,
+  fourStarLeaders,
   teamSize,
 }: LevelProgressCardProps) {
   const current = STAR_THRESHOLDS[starLevel] ?? STAR_THRESHOLDS[0]
   const next = STAR_THRESHOLDS[Math.min(starLevel + 1, 4)]
   const isMaxLevel = starLevel >= 4
 
-  // Progress toward next level based on approved client count
-  const referralProgress = isMaxLevel
+  const clientProgress = isMaxLevel
     ? 100
     : Math.min(100, (approvedClients / next.min) * 100)
-
-  // Team size progress — next tier's min as reasonable target
-  const teamTarget = isMaxLevel ? teamSize : next.min
-  const teamProgress = Math.min(
-    100,
-    (teamSize / Math.max(teamTarget, 1)) * 100,
-  )
-
-  const level = {
-    current_level: starLevel,
-    current_label: current.label,
-    next_level: isMaxLevel ? 4 : starLevel + 1,
-    next_label: isMaxLevel ? 'Max Level' : next.label,
-    direct_referrals: {
-      current: approvedClients,
-      required: isMaxLevel ? approvedClients : next.min,
-    },
-    team_size: {
-      current: teamSize,
-      required: isMaxLevel ? teamSize : Math.max(teamTarget, 1),
-    },
-  }
+  const clientsToNext = isMaxLevel ? 0 : Math.max(0, next.min - approvedClients)
+  const nextPerClient = isMaxLevel ? 400 : PER_CLIENT[starLevel + 1]
 
   return (
     <Card
       className="card-terminal border-primary/30 bg-gradient-to-r from-primary/5 to-transparent"
       data-testid="level-progress-card"
     >
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-6">
-          {/* Current Level */}
-          <div className="flex-1">
-            <div className="mb-3 flex items-center gap-3">
-              <div className="flex items-center gap-1">
-                {renderStars(level.current_level)}
-                {renderStars(4 - level.current_level, false)}
-              </div>
-              <span className="text-sm font-medium text-foreground">
-                {level.current_label}
-              </span>
+      <CardContent className="px-4 py-3">
+        <div className="flex items-center gap-5">
+          {/* Star Level */}
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-0.5">
+              <Stars count={starLevel} />
+              <Stars count={4 - starLevel} filled={false} />
             </div>
-
-            {isMaxLevel ? (
-              <div className="mb-4 flex items-center gap-2 text-xs text-muted-foreground">
-                <Crown className="h-3.5 w-3.5 text-warning" />
-                <span className="font-medium text-warning">
-                  Maximum Star Level Reached
-                </span>
-              </div>
-            ) : (
-              <div className="mb-4 flex items-center gap-2 text-xs text-muted-foreground">
-                <span>Next Level:</span>
-                <div className="flex items-center gap-1">
-                  {renderStars(level.next_level)}
-                </div>
-                <span className="font-medium text-primary">
-                  {level.next_label}
-                </span>
-              </div>
-            )}
-
-            {/* Progress Bars */}
-            <div className="space-y-3">
-              <div>
-                <div className="mb-1 flex items-center justify-between text-xs">
-                  <span className="flex items-center gap-1 text-muted-foreground">
-                    <Users className="h-3 w-3" /> Approved Clients
-                  </span>
-                  <span className="font-mono">
-                    {level.direct_referrals.current} /{' '}
-                    {level.direct_referrals.required}
-                  </span>
-                </div>
-                <Progress value={referralProgress} className="h-2" />
-              </div>
-
-              <div>
-                <div className="mb-1 flex items-center justify-between text-xs">
-                  <span className="flex items-center gap-1 text-muted-foreground">
-                    <TrendingUp className="h-3 w-3" /> Team Size
-                  </span>
-                  <span className="font-mono">
-                    {level.team_size.current} / {level.team_size.required}
-                  </span>
-                </div>
-                <Progress value={teamProgress} className="h-2" />
-              </div>
-            </div>
+            <span className="text-sm font-semibold whitespace-nowrap">
+              {current.label}
+            </span>
           </div>
 
-          {/* Commission Tiers */}
-          <div className="flex min-w-[200px] flex-col gap-1.5">
-            <div className="mb-1 flex items-center gap-1.5">
-              <Sparkles className="h-3.5 w-3.5 text-primary" />
-              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Commission per Client
+          <div className="h-9 w-px shrink-0 bg-border/60" />
+
+          {/* Progress */}
+          <div className="min-w-[160px] max-w-[240px] flex-1">
+            <div className="mb-1 flex items-center justify-between text-[11px]">
+              <span className="text-muted-foreground">Clients Closed</span>
+              <span className="font-mono font-medium">
+                {approvedClients}/{isMaxLevel ? approvedClients : next.min}
               </span>
             </div>
+            <Progress value={clientProgress} className="h-1.5" />
+          </div>
 
-            {COMMISSION_TIERS.map((tier) => {
-              const isActive = tier.level === starLevel
-              const isReached = tier.level < starLevel
-              const isFuture = tier.level > starLevel
+          <div className="h-9 w-px shrink-0 bg-border/60" />
 
-              return (
-                <div
-                  key={tier.level}
-                  className={cn(
-                    'flex items-center justify-between rounded-md border px-2.5 py-1.5 transition-colors',
-                    isActive &&
-                      'border-success/40 bg-success/10',
-                    isReached &&
-                      'border-success/20 bg-success/5',
-                    isFuture &&
-                      'border-border/50 bg-muted/30',
-                  )}
-                >
-                  <div className="flex items-center gap-1.5">
-                    {isReached && (
-                      <CircleCheck className="h-3.5 w-3.5 text-success/60" />
-                    )}
-                    {isActive && (
-                      <div className="h-1.5 w-1.5 rounded-full bg-success" />
-                    )}
-                    {isFuture && (
-                      <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/30" />
-                    )}
-                    <span
-                      className={cn(
-                        'text-xs',
-                        isActive && 'font-medium text-success',
-                        isReached && 'text-success/60',
-                        isFuture && 'text-muted-foreground/50',
-                      )}
-                    >
-                      {tier.label}
-                    </span>
-                  </div>
-                  <span
-                    className={cn(
-                      'font-mono text-xs',
-                      isActive && 'font-bold text-success',
-                      isReached && 'text-success/60',
-                      isFuture && 'text-muted-foreground/50',
-                    )}
-                  >
-                    {tier.amount}
-                  </span>
-                </div>
-              )
-            })}
-
-            {/* Bonus Milestone — show aspirational target */}
-            <div className="rounded-lg border border-warning/20 bg-warning/5 px-3 py-2">
-              <div className="flex items-center gap-1.5">
-                <Crown className="h-3.5 w-3.5 text-warning" />
-                <span className="text-[11px] font-medium text-warning">
-                  {starLevel >= 5
-                    ? 'Unlock $30,000 at level 6'
-                    : 'Unlock $10,000 at level 5'}
-                </span>
+          {/* Next Unlock */}
+          {!isMaxLevel ? (
+            <div className="flex items-center gap-2 shrink-0" data-testid="next-star-unlock">
+              <Lock className="h-4 w-4 text-muted-foreground/60" />
+              <div>
+                <p className="text-[10px] leading-tight text-muted-foreground">
+                  Unlock at {next.label}
+                </p>
+                <p className="font-mono text-sm font-bold leading-tight text-primary">
+                  +${nextPerClient}/client
+                </p>
               </div>
+              {clientsToNext > 0 && (
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                  {clientsToNext} to go
+                </span>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 shrink-0" data-testid="next-star-unlock">
+              <Unlock className="h-4 w-4 text-success" />
+              <div>
+                <p className="text-[10px] leading-tight text-success/70">Max unlocked</p>
+                <p className="font-mono text-sm font-bold leading-tight text-success">
+                  +$400/client
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="h-9 w-px shrink-0 bg-border/60" />
+
+          {/* ED Leadership Goal */}
+          <div className="flex items-center gap-2 shrink-0" data-testid="ed-unlock">
+            <Crown className="h-4 w-4 text-warning" />
+            <div>
+              <p className="text-[10px] leading-tight text-muted-foreground">
+                Executive Director
+              </p>
+              <p className="font-mono text-sm font-bold leading-tight text-warning">
+                $10,000
+              </p>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-medium text-warning leading-none">
+                {fourStarLeaders}/2 &#9733;4 leaders
+              </span>
+              <span className="rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-medium text-warning leading-none">
+                {teamSize}/30 clients
+              </span>
             </div>
           </div>
         </div>

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Star, Users, TrendingUp, CheckCircle2, Circle, Crown } from 'lucide-react'
+import { Star, Users, TrendingUp, CheckCircle2, Circle, Crown, Gem, Trophy, Rocket } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import {
@@ -55,7 +55,6 @@ function countAtDepth(node: HierarchyNode, depth: number): number {
 
 export function TeamDirectoryPanel({ hierarchy }: TeamDirectoryPanelProps) {
   const { agent, supervisorChain, subordinateTree } = hierarchy
-  const upline = supervisorChain.length > 0 ? supervisorChain[0] : null
   const directTeam = subordinateTree.subordinates
   const level2Count = countAtDepth(subordinateTree, 1)
   const level3Count = countAtDepth(subordinateTree, 2)
@@ -95,24 +94,43 @@ export function TeamDirectoryPanel({ hierarchy }: TeamDirectoryPanelProps) {
 
           <Separator className="bg-border/50" />
 
-          {/* Upline */}
-          {upline && (
+          {/* Upline Chain */}
+          {supervisorChain.length > 0 && (
             <>
               <div className="space-y-2">
                 <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  Upline
+                  Upline ({supervisorChain.length})
                 </p>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-foreground">
-                    {upline.name}
-                  </span>
-                  {upline.starLevel > 0 ? (
-                    <StarDisplay count={upline.starLevel} />
-                  ) : (
-                    <span className="text-xs text-muted-foreground">
-                      Rookie
-                    </span>
-                  )}
+                <div className="space-y-1">
+                  {[...supervisorChain].reverse().map((sup, idx, arr) => {
+                    const isDirectBoss = idx === arr.length - 1
+                    return (
+                      <div
+                        key={sup.id}
+                        className="flex items-center justify-between rounded bg-muted/20 px-2 py-1"
+                        style={{ marginLeft: idx * 8 }}
+                      >
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <div
+                            className={cn(
+                              'h-1.5 w-1.5 shrink-0 rounded-full',
+                              isDirectBoss ? 'bg-primary' : 'bg-muted-foreground/40',
+                            )}
+                          />
+                          <span className="truncate text-sm text-foreground">
+                            {sup.name}
+                          </span>
+                        </div>
+                        {sup.starLevel > 0 ? (
+                          <StarDisplay count={sup.starLevel} />
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground">
+                            Rookie
+                          </span>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
 
@@ -211,14 +229,14 @@ export function TeamDirectoryPanel({ hierarchy }: TeamDirectoryPanelProps) {
 
       {/* Promotion Path Modal */}
       <Dialog open={showPromotionPath} onOpenChange={setShowPromotionPath}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-warning" />
-              Promotion Path
+              Your Promotion Path
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="space-y-5 py-2">
             {/* Current Position */}
             <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
               <p className="text-xs text-muted-foreground">Current Position</p>
@@ -238,14 +256,15 @@ export function TeamDirectoryPanel({ hierarchy }: TeamDirectoryPanelProps) {
               </div>
             </div>
 
-            {/* Milestones */}
+            {/* Star Level Milestones */}
             <div className="space-y-2">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Career Milestones
+                Star Levels
               </p>
               {STAR_THRESHOLDS.map((tier) => {
                 const reached = agent.starLevel >= tier.level
                 const isCurrent = agent.starLevel === tier.level
+                const perClient = 200 + tier.level * 50
                 return (
                   <div
                     key={tier.level}
@@ -270,31 +289,160 @@ export function TeamDirectoryPanel({ hierarchy }: TeamDirectoryPanelProps) {
                     </div>
                     <div className="text-right text-xs">
                       <span className="font-mono">{tier.min}+ clients</span>
-                      {tier.level > 0 && (
-                        <span className="ml-2 text-success">{tier.sliceBonus}/client</span>
-                      )}
+                      <span className={cn(
+                        'ml-2 font-semibold',
+                        reached ? 'text-success' : 'text-muted-foreground',
+                      )}>
+                        ${perClient}/client
+                      </span>
                     </div>
                   </div>
                 )
               })}
+            </div>
 
-              {/* Level 5+ Leadership */}
-              <div className="flex items-center justify-between rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 text-sm text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <Crown className="h-4 w-4 text-warning" />
-                  <span>5+ Leadership</span>
+            {/* Leadership Tiers Divider */}
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-warning/40 to-transparent" />
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-warning">
+                Leadership Tiers
+              </span>
+              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-warning/40 to-transparent" />
+            </div>
+
+            {/* Leadership Tiers */}
+            <div className="space-y-3">
+              {/* Executive Director */}
+              <div className="rounded-xl border border-warning/40 bg-gradient-to-r from-warning/10 via-warning/5 to-transparent p-3.5">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Crown className="h-4 w-4 text-warning" />
+                      <span className="text-sm font-bold text-warning">
+                        Executive Director
+                      </span>
+                    </div>
+                    <div className="mt-1 flex gap-0.5">
+                      {Array(5).fill(0).map((_, i) => (
+                        <Star key={i} className="h-3 w-3 fill-warning/60 text-warning/60" />
+                      ))}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-mono text-xl font-black text-warning">$10,000</p>
+                    <p className="text-[10px] text-muted-foreground">promotion bonus</p>
+                  </div>
                 </div>
-                <span className="text-xs font-mono text-warning">P&L Revenue Share</span>
+                <div className="mt-2.5 flex items-center gap-4 text-[11px] text-muted-foreground">
+                  <span>5% team revenue (quarterly)</span>
+                  <span className="text-border">|</span>
+                  <span>30+ team members</span>
+                  <span className="text-border">|</span>
+                  <span>2 four-star agents</span>
+                  <span className="text-border">|</span>
+                  <span>15+ clients/year</span>
+                </div>
+              </div>
+
+              {/* Senior Executive Director */}
+              <div className="rounded-xl border border-amber-500/40 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent p-3.5">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Gem className="h-4 w-4 text-amber-400" />
+                      <span className="text-sm font-bold text-amber-400">
+                        Senior Executive Director
+                      </span>
+                    </div>
+                    <div className="mt-1 flex gap-0.5">
+                      {Array(6).fill(0).map((_, i) => (
+                        <Star key={i} className="h-3 w-3 fill-amber-400/60 text-amber-400/60" />
+                      ))}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-mono text-xl font-black text-amber-400">$30,000</p>
+                    <p className="text-[10px] text-muted-foreground">promotion bonus</p>
+                  </div>
+                </div>
+                <div className="mt-2.5 flex items-center gap-4 text-[11px] text-muted-foreground">
+                  <span>10% team revenue (quarterly)</span>
+                  <span className="text-border">|</span>
+                  <span>20+ clients/year</span>
+                  <span className="text-border">|</span>
+                  <span>2 EDs</span>
+                </div>
+              </div>
+
+              {/* Managing Director */}
+              <div className="rounded-xl border border-orange-400/40 bg-gradient-to-r from-orange-400/10 via-orange-400/5 to-transparent p-3.5">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Trophy className="h-4 w-4 text-orange-400" />
+                      <span className="text-sm font-bold text-orange-400">
+                        Managing Director
+                      </span>
+                    </div>
+                    <div className="mt-1 flex gap-0.5">
+                      {Array(7).fill(0).map((_, i) => (
+                        <Star key={i} className="h-3 w-3 fill-orange-400/60 text-orange-400/60" />
+                      ))}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-mono text-xl font-black text-orange-400">$100,000</p>
+                    <p className="text-[10px] text-muted-foreground">promotion bonus</p>
+                  </div>
+                </div>
+                <div className="mt-2.5 flex items-center gap-4 text-[11px] text-muted-foreground">
+                  <span>15% team revenue (quarterly)</span>
+                  <span className="text-border">|</span>
+                  <span>25+ clients/year</span>
+                  <span className="text-border">|</span>
+                  <span>2 SEDs</span>
+                </div>
+              </div>
+
+              {/* CMO */}
+              <div className="rounded-xl border border-rose-400/50 bg-gradient-to-br from-rose-500/15 via-orange-400/10 to-amber-400/5 p-4 ring-1 ring-rose-400/20">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Rocket className="h-4.5 w-4.5 text-rose-400" />
+                      <span className="text-sm font-black tracking-wide text-rose-400">
+                        Chief Marketing Officer
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      The pinnacle of leadership
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-mono text-2xl font-black text-rose-400">$250,000</p>
+                    <p className="text-[10px] text-muted-foreground">promotion bonus</p>
+                  </div>
+                </div>
+                <div className="mt-2.5 flex items-center gap-4 text-[11px] text-muted-foreground">
+                  <span>20% team revenue (quarterly)</span>
+                  <span className="text-border">|</span>
+                  <span>30+ clients/year</span>
+                  <span className="text-border">|</span>
+                  <span>3 MDs</span>
+                </div>
               </div>
             </div>
 
             {/* Next Level Requirements */}
             {agent.starLevel < 4 && (
               <div className="rounded-lg border border-border/50 bg-muted/10 p-3">
-                <p className="text-xs text-muted-foreground">Next Level Requirements</p>
+                <p className="text-xs text-muted-foreground">Your Next Step</p>
                 <p className="mt-1 text-sm">
-                  Reach <span className="font-semibold text-primary">{STAR_THRESHOLDS[Math.min(agent.starLevel + 1, 4)].min} approved clients</span> to become a{' '}
-                  <span className="font-semibold">{STAR_THRESHOLDS[Math.min(agent.starLevel + 1, 4)].label}</span>
+                  Close <span className="font-semibold text-primary">{STAR_THRESHOLDS[Math.min(agent.starLevel + 1, 4)].min} clients</span> to become a{' '}
+                  <span className="font-semibold">{STAR_THRESHOLDS[Math.min(agent.starLevel + 1, 4)].label}</span> and earn{' '}
+                  <span className="font-semibold text-success">
+                    ${200 + (agent.starLevel + 1) * 50}/client
+                  </span>
                 </p>
               </div>
             )}

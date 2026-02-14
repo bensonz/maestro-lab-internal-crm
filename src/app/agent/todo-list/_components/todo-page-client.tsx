@@ -1,27 +1,28 @@
 'use client'
 
-import { useState, useMemo, useCallback, useRef } from 'react'
+import { useMemo, useState, useRef, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { AIDetectionModal } from '@/components/ai-detection-modal'
-import { DailyStatsRow } from './daily-stats-row'
-import { GrowthLevelCard } from './growth-level-card'
-import { QuickGuidePanel } from './quick-guide-panel'
-import { ConversionTasksCard } from './conversion-tasks-card'
-import { MaintenanceTasksCard, type MaintenanceTask } from './maintenance-tasks-card'
-import { StreakRewardCard } from './streak-reward-card'
-import { TeamComparisonCard } from './team-comparison-card'
-import { GrowthSignalsCard } from './growth-signals-card'
-import { TeamActionZone } from './team-action-zone'
+import { toast } from 'sonner'
+import { AgentHeader } from './agent-header'
+import { GrowthPanel } from './growth-panel'
+import { MaintenancePanel } from './maintenance-panel'
+import { TeamSupport } from './task-list'
 import { FeedbackToast } from './feedback-toast'
+import { AIDetectionModal } from '@/components/ai-detection-modal'
 import {
   uploadToDoScreenshots,
   confirmToDoUpload,
   requestToDoExtension,
-  type AIDetection,
+  nudgeTeamMember,
 } from '@/app/actions/todos'
-import { toast } from 'sonner'
-import type { Todo, TeamMember, TeamRanking } from './types'
+import type { AIDetection } from '@/app/actions/todos'
+import type {
+  GrowthClient,
+  MaintenanceClient,
+  MaintenanceUrgency,
+  TeamSupportItem,
+  AgentProfile,
+} from './types'
 
 // Server data shape from getAgentTodos + getAgentClients
 interface ServerTodoData {
@@ -36,6 +37,7 @@ interface ServerTodoData {
     client: string
     clientId: string
     due: string
+    dueDate: string | null
     overdue: boolean
     stepNumber: number
     createdAt: string
@@ -54,6 +56,16 @@ interface ServerClientData {
   step: number
   totalSteps: number
   deadline: string | null
+}
+
+interface ServerTeamMember {
+  id: string
+  name: string
+  currentStep: string
+  totalSteps: number
+  completedSteps: number
+  isOneStepAway: boolean
+  totalClients: number
 }
 
 interface EarningsData {
@@ -88,113 +100,146 @@ interface TodoPageClientProps {
   agentName: string
   agentStarLevel: number
   earningsData: EarningsData
-  teamMembers: TeamMember[]
-  teamRanking: TeamRanking
+  teamMembers: ServerTeamMember[]
 }
 
-// $400 bonus pool per approved lead (matches commission rules)
-const POOL_PER_LEAD = 400
-
-// Reward per task based on star level
-const REWARD_PER_TASK: Record<number, number> = {
-  0: 25, 1: 30, 2: 35, 3: 45, 4: 55, 5: 65, 6: 75,
+// Expected income per client based on star level: 1★=$250, 2★=$300, 3★=$350, 4★=$400
+function getExpectedIncome(starLevel: number): number {
+  return 200 + Math.min(starLevel, 4) * 50
 }
 
-function getEarningForTask(taskType: string): number {
-  const map: Record<string, number> = {
-    'Bank Setup': 50,
-    PayPal: 30,
-    Edgeboost: 40,
-    Platform: 200,
-    Verification: 25,
-    Document: 20,
+// Map intake statuses to growth stages
+function mapStageLabel(status: string): { stage: string; label: string } {
+  const map: Record<string, { stage: string; label: string }> = {
+    PENDING: { stage: 'pending', label: 'Pending' },
+    PHONE_ISSUED: { stage: 'phone_issued', label: 'Phone Issued' },
+    IN_EXECUTION: { stage: 'in_progress', label: 'In Progress' },
+    NEEDS_MORE_INFO: { stage: 'needs_info', label: 'Needs Info' },
+    PENDING_EXTERNAL: { stage: 'pending_external', label: 'Pending External' },
+    EXECUTION_DELAYED: { stage: 'delayed', label: 'Delayed' },
+    READY_FOR_APPROVAL: { stage: 'review', label: 'Ready for Review' },
   }
-  return map[taskType] || 0
+  return map[status] || { stage: 'pending', label: status }
 }
 
-// Map our ToDoType enum values to display-friendly task types
-function mapTaskType(task: string): string {
-  const lower = task.toLowerCase()
-  if (lower.includes('bank') || lower.includes('debit')) return 'Bank Setup'
-  if (lower.includes('paypal')) return 'PayPal'
-  if (lower.includes('edgeboost')) return 'Edgeboost'
-  if (lower.includes('platform') || lower.includes('registration')) return 'Platform'
-  if (lower.includes('verif') || lower.includes('identity') || lower.includes('compliance')) return 'Verification'
-  if (lower.includes('document') || lower.includes('upload')) return 'Document'
-  return 'Platform'
+// Build growth clients from server client data
+function buildGrowthClients(
+  clients: ServerClientData[],
+  starLevel: number,
+): GrowthClient[] {
+  const growthStatuses = [
+    'PENDING',
+    'PHONE_ISSUED',
+    'IN_EXECUTION',
+    'NEEDS_MORE_INFO',
+    'PENDING_EXTERNAL',
+    'EXECUTION_DELAYED',
+    'READY_FOR_APPROVAL',
+  ]
+
+  return clients
+    .filter((c) => growthStatuses.includes(c.intakeStatus))
+    .map((c) => {
+      const { stage, label } = mapStageLabel(c.intakeStatus)
+      const daysInPipeline = c.deadline
+        ? Math.max(
+            0,
+            Math.ceil(
+              (Date.now() - new Date(c.deadline).getTime()) /
+                (1000 * 60 * 60 * 24),
+            ),
+          )
+        : 0
+
+      return {
+        id: c.id,
+        name: c.name,
+        stage,
+        stageLabel: label,
+        daysInPipeline: Math.abs(daysInPipeline),
+        expectedIncome: getExpectedIncome(starLevel),
+        pendingTasks: c.nextTask ? 1 : 0,
+      }
+    })
 }
 
-// Map intake statuses to display labels
-function mapStageLabel(status: string): string {
-  const map: Record<string, string> = {
-    PENDING: 'Pending',
-    PHONE_ISSUED: 'Phone Issued',
-    IN_EXECUTION: 'In Progress',
-    NEEDS_MORE_INFO: 'Needs Info',
-    PENDING_EXTERNAL: 'Pending External',
-    EXECUTION_DELAYED: 'Delayed',
-    READY_FOR_APPROVAL: 'Ready for Review',
-  }
-  return map[status] || status
+// Classify urgency based on remaining time
+function classifyUrgency(daysRemaining: number): MaintenanceUrgency {
+  if (daysRemaining < 0) return 'critical' // overdue
+  if (daysRemaining <= 1) return 'warning' // due within 24h
+  return 'normal'
 }
 
-function parseDueToHours(due: string, isOverdue: boolean): number {
-  const match = due.match(/(\d+)([dhm])/)
-  if (!match) return 72
-
-  const value = parseInt(match[1], 10)
-  const unit = match[2]
-
-  let hours = 0
-  if (unit === 'd') hours = value * 24
-  else if (unit === 'h') hours = value
-  else if (unit === 'm') hours = Math.ceil(value / 60)
-
-  return isOverdue ? -hours : hours
-}
-
-// Convert server todo into Todo shape
-function mapServerTodoToTodo(
-  serverTodo: ServerTodoData['pendingTasks'][0],
-): Todo {
-  const dueHours = parseDueToHours(serverTodo.due, serverTodo.overdue)
-  const meta = serverTodo.metadata as {
-    instructions?: {
-      mustDo?: string[]
-      mustNotDo?: string[]
-      successCriteria?: string
+// Build maintenance clients from ALL pending todo data (not just overdue)
+function buildMaintenanceClients(
+  pendingTasks: ServerTodoData['pendingTasks'],
+): MaintenanceClient[] {
+  return pendingTasks.map((t) => {
+    let daysRemaining: number
+    if (t.dueDate) {
+      const due = new Date(t.dueDate)
+      const now = new Date()
+      // Use Math.floor so partially-overdue days round to -1, not 0
+      daysRemaining = Math.floor(
+        (due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+      )
+    } else {
+      daysRemaining = 99 // no deadline = not urgent
     }
-  } | null
 
-  const defaultInstructions = {
-    mustDo: ['Follow task instructions carefully'],
-    mustNotDo: ['Do not skip required steps'],
-    successCriteria: 'Task completed per guidelines',
-  }
+    const isHighPriority =
+      t.task.toLowerCase().includes('high') ||
+      t.task.toLowerCase().includes('urgent') ||
+      t.task.toLowerCase().includes('critical')
 
-  return {
-    id: serverTodo.id,
-    title: serverTodo.task,
-    description: serverTodo.description,
-    client: serverTodo.client,
-    clientId: serverTodo.clientId,
-    taskType: mapTaskType(serverTodo.task),
-    priority: serverTodo.overdue ? 'high' : dueHours <= 24 ? 'medium' : 'low',
-    completed: false,
-    dueHours,
-    triggerType: serverTodo.createdByName === 'System' ? 'Rule' : 'Backoffice',
-    triggerSource: serverTodo.createdByName,
-    linkedStep: serverTodo.stepNumber,
-    createdAt: serverTodo.createdAt,
-    extensionsUsed: serverTodo.extensionsUsed,
-    maxExtensions: serverTodo.maxExtensions,
-    instructions: {
-      mustDo: meta?.instructions?.mustDo ?? defaultInstructions.mustDo,
-      mustNotDo: meta?.instructions?.mustNotDo ?? defaultInstructions.mustNotDo,
-      successCriteria:
-        meta?.instructions?.successCriteria ?? defaultInstructions.successCriteria,
-    },
-  }
+    const urgency = classifyUrgency(daysRemaining)
+    const overduePercent = daysRemaining < 0 ? Math.abs(daysRemaining) : 0
+
+    return {
+      id: t.clientId || t.id,
+      todoId: t.id,
+      name: t.client,
+      taskCategory: isHighPriority
+        ? ('high_priority' as const)
+        : ('platform_verification' as const),
+      taskDescription: t.task,
+      daysRemaining,
+      overduePercent,
+      urgency,
+      extensionsUsed: t.extensionsUsed,
+      maxExtensions: t.maxExtensions,
+    }
+  })
+}
+
+// Map server team members to TeamSupportItem
+function buildTeamSupport(
+  members: ServerTeamMember[],
+  starLevel: number,
+): TeamSupportItem[] {
+  return members.map((m) => {
+    let hint: string
+    if (m.isOneStepAway) {
+      hint = `${m.name} is 1 step away from closing a client — could use guidance`
+    } else if (m.completedSteps === 0 && m.totalClients === 0) {
+      hint = `${m.name} is new and needs walkthrough on the onboarding process`
+    } else if (m.currentStep === 'No active client') {
+      hint = `${m.name} has no active clients — help them get started`
+    } else {
+      hint = `${m.name} is at "${m.currentStep}" — ${m.completedSteps}/${m.totalSteps} platforms done`
+    }
+
+    return {
+      id: m.id,
+      agentName: m.name,
+      hint,
+      potentialEarning: getExpectedIncome(starLevel),
+      currentStep: m.currentStep,
+      completedSteps: m.completedSteps,
+      totalSteps: m.totalSteps,
+      isOneStepAway: m.isOneStepAway,
+    }
+  })
 }
 
 export function TodoPageClient({
@@ -204,360 +249,326 @@ export function TodoPageClient({
   agentStarLevel,
   earningsData,
   teamMembers,
-  teamRanking,
 }: TodoPageClientProps) {
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Map server data to Todo shape
-  const initialTodos = useMemo(
-    () => todoData.pendingTasks.map(mapServerTodoToTodo),
-    [todoData.pendingTasks],
+  // Local state for task mutations
+  const [completedTodoIds, setCompletedTodoIds] = useState<Set<string>>(
+    new Set(),
   )
+  const [extendedTodos, setExtendedTodos] = useState<
+    Map<string, { newDueDate: Date; extensionsUsed: number }>
+  >(new Map())
 
-  const [todos, setTodos] = useState<Todo[]>(initialTodos)
-
-  // Upload / AI detection flow state
-  const [selectedTodo, setSelectedTodo] = useState<Todo | null>(null)
+  // Upload workflow state
+  const [selectedTodoId, setSelectedTodoId] = useState<string | null>(null)
   const [detections, setDetections] = useState<AIDetection[]>([])
   const [uploadPreviewUrl, setUploadPreviewUrl] = useState('')
   const [isUploading, setIsUploading] = useState(false)
+  const [showAIModal, setShowAIModal] = useState(false)
 
-  // Feedback state
+  // Extension workflow state
+  const [extendingTodoId, setExtendingTodoId] = useState<string | null>(null)
+
+  // Feedback toast state
   const [showFeedback, setShowFeedback] = useState(false)
-  const [lastEarning, setLastEarning] = useState(0)
-  const [totalEarnedToday, setTotalEarnedToday] = useState(0)
 
-  // Build conversion clients from server client data
-  const conversionClients = useMemo(() => {
-    const growthStatuses = [
-      'PENDING', 'PHONE_ISSUED', 'IN_EXECUTION', 'NEEDS_MORE_INFO',
-      'PENDING_EXTERNAL', 'EXECUTION_DELAYED', 'READY_FOR_APPROVAL',
-    ]
-    return clients
-      .filter((c) => growthStatuses.includes(c.intakeStatus))
-      .map((c) => ({
-        id: c.id,
-        name: c.name,
-        currentStep: c.nextTask || mapStageLabel(c.intakeStatus),
-        completedSteps: c.step,
-        totalSteps: c.totalSteps,
-        isOneStepAway: c.totalSteps > 0 && (c.totalSteps - c.step) === 1,
-        payoutOnComplete: POOL_PER_LEAD,
-      }))
-  }, [clients])
-
-  // Build maintenance tasks from pending todos
-  const maintenanceTasks: MaintenanceTask[] = useMemo(() => {
-    return todos
-      .filter((t) => !t.completed)
-      .map((t) => {
-        const urgency: MaintenanceTask['urgency'] =
-          t.dueHours <= -1 || t.dueHours <= 6 ? 'critical'
-            : t.dueHours <= 18 ? 'warning'
-              : 'normal'
-
-        const earlyBonus = t.dueHours > 24 ? getEarningForTask(t.taskType) : 0
-
-        return {
-          id: t.id,
-          clientName: t.client,
-          taskDescription: t.title,
-          remainingHours: t.dueHours,
-          urgency,
-          earlyBonus,
-          streakImpact: t.dueHours < 0 ? 'Streak at risk' : '',
-        }
-      })
-  }, [todos])
-
-  const earlyCompletionBonus = maintenanceTasks
-    .filter((t) => t.earlyBonus > 0)
-    .reduce((sum, t) => sum + t.earlyBonus, 0)
-
-  // One-step-away count for quick guide
-  const oneStepAwayCount = conversionClients.filter((c) => c.isOneStepAway).length
-
-  // Daily targets
-  const dailyTarget = Math.max(1, agentStarLevel + 1)
-  const overdueCount = todos.filter((t) => !t.completed && t.dueHours < 0).length
-
-  // Daily stats computations
-  const maintenanceTotalCount = maintenanceTasks.length
-  const overdueRiskAmount = overdueCount * (REWARD_PER_TASK[agentStarLevel] ?? 25)
-  const potentialEarnings = conversionClients.length * 400 + maintenanceTasks.length * (REWARD_PER_TASK[agentStarLevel] ?? 25)
-  const confirmedEarnings = todoData.completedToday * (REWARD_PER_TASK[agentStarLevel] ?? 25)
-
-  // Streak multiplier based on streak days
-  const streakMultiplier = todoData.completedToday >= 20 ? 2.0
-    : todoData.completedToday >= 10 ? 1.5
-      : todoData.completedToday >= 5 ? 1.2
-        : todoData.completedToday >= 3 ? 1.1
-          : 1.0
-
-  // Handle "Process" click — open file picker for the maintenance task
-  const handleProcess = useCallback((taskId: string) => {
-    const todo = todos.find((t) => t.id === taskId)
-    if (!todo) return
-    setSelectedTodo(todo)
-    // Trigger file picker
-    fileInputRef.current?.click()
-  }, [todos])
-
-  // Handle file selection
-  const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (!files || files.length === 0 || !selectedTodo) {
-      setSelectedTodo(null)
-      return
-    }
-
-    setIsUploading(true)
-
-    // Create preview URL from first file
-    const previewUrl = URL.createObjectURL(files[0])
-    setUploadPreviewUrl(previewUrl)
-
-    // Build FormData
-    const formData = new FormData()
-    for (const file of files) {
-      formData.append('files', file)
-    }
-
-    try {
-      const result = await uploadToDoScreenshots(selectedTodo.id, formData)
-      if (result.success && result.detections) {
-        setDetections(result.detections)
-      } else {
-        toast.error(result.error || 'Upload failed')
-        setSelectedTodo(null)
-      }
-    } catch {
-      toast.error('Upload failed')
-      setSelectedTodo(null)
-    } finally {
-      setIsUploading(false)
-      // Reset file input
-      if (fileInputRef.current) fileInputRef.current.value = ''
-    }
-  }, [selectedTodo])
-
-  // Handle AI detection confirm
-  const handleConfirmUpload = useCallback(async () => {
-    if (!selectedTodo || detections.length === 0) return
-
-    try {
-      const result = await confirmToDoUpload(selectedTodo.id, detections)
-      if (result.success) {
-        const earning = getEarningForTask(selectedTodo.taskType)
-        setLastEarning(earning)
-        setTotalEarnedToday((prev) => prev + earning)
-        setTodos((prev) =>
-          prev.map((t) => (t.id === selectedTodo.id ? { ...t, completed: true } : t)),
-        )
-        setShowFeedback(true)
-        toast.success('Task completed!')
-        router.refresh()
-      } else {
-        toast.error(result.error || 'Confirmation failed')
-      }
-    } catch {
-      toast.error('Confirmation failed')
-    } finally {
-      setSelectedTodo(null)
-      setDetections([])
-      setUploadPreviewUrl('')
-    }
-  }, [selectedTodo, detections, router])
-
-  // Handle extend deadline
-  const handleExtend = useCallback(async (taskId: string) => {
-    const result = await requestToDoExtension(taskId)
-    if (result.success) {
-      setTodos((prev) =>
-        prev.map((t) =>
-          t.id === taskId && t.extensionsUsed < t.maxExtensions
-            ? { ...t, dueHours: t.dueHours + 72, extensionsUsed: t.extensionsUsed + 1 }
-            : t,
-        ),
-      )
-      toast.success('Deadline extended by 3 days')
-      router.refresh()
-    } else {
-      toast.error(result.error || 'Extension failed')
-    }
-  }, [router])
-
-  const handleDismissFeedback = useCallback(() => {
-    setShowFeedback(false)
+  // Reset selectedTodoId when file picker is canceled (no onChange fires)
+  useEffect(() => {
+    const input = fileInputRef.current
+    if (!input) return
+    const handleCancel = () => setSelectedTodoId(null)
+    input.addEventListener('cancel', handleCancel)
+    return () => input.removeEventListener('cancel', handleCancel)
   }, [])
 
-  // Build first detection for AI modal
-  const firstDetection = detections[0]
-  const detectedData = firstDetection
-    ? {
-        platform: firstDetection.extracted.platform,
-        username: firstDetection.extracted.username,
-        password: firstDetection.extracted.password,
-        contentType: firstDetection.contentType,
-        confidence: firstDetection.confidence * 100,
+  // Build growth clients from server data
+  const growthClients = useMemo(
+    () => buildGrowthClients(clients, agentStarLevel),
+    [clients, agentStarLevel],
+  )
+
+  // Build maintenance clients from ALL pending tasks, filtering out completed
+  const maintenanceClients = useMemo(() => {
+    const all = buildMaintenanceClients(todoData.pendingTasks)
+    return all
+      .filter((c) => !completedTodoIds.has(c.todoId))
+      .map((c) => {
+        const ext = extendedTodos.get(c.todoId)
+        if (ext) {
+          const now = new Date()
+          const newDaysRemaining = Math.floor(
+            (ext.newDueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+          )
+          return {
+            ...c,
+            daysRemaining: newDaysRemaining,
+            urgency: classifyUrgency(newDaysRemaining),
+            overduePercent: newDaysRemaining < 0 ? Math.abs(newDaysRemaining) : 0,
+            extensionsUsed: ext.extensionsUsed,
+          }
+        }
+        return c
+      })
+  }, [todoData.pendingTasks, completedTodoIds, extendedTodos])
+
+  // Team support — from real subordinate data
+  const teamSupport = useMemo(
+    () => buildTeamSupport(teamMembers, agentStarLevel),
+    [teamMembers, agentStarLevel],
+  )
+
+  // Calculate total overdue percentage
+  const totalOverduePercent = useMemo(
+    () => maintenanceClients.reduce((s, c) => s + c.overduePercent, 0),
+    [maintenanceClients],
+  )
+
+  // Use actual earnings for bonus calculation
+  const bonusBase = earningsData.commission.totalEarned || earningsData.totalEarnings
+  const effectiveBonus = Math.max(0, bonusBase * ((100 - totalOverduePercent) / 100))
+
+  // Agent profile
+  const agent: AgentProfile = {
+    name: agentName,
+    starLevel: agentStarLevel,
+    totalClients: clients.length,
+    activeClients: clients.filter((c) =>
+      ['PHONE_ISSUED', 'IN_EXECUTION'].includes(c.intakeStatus),
+    ).length,
+  }
+
+  // Total potential from growth clients
+  const potentialNew = growthClients.reduce((s, c) => s + c.expectedIncome, 0)
+
+  // Count today's tasks
+  const totalTasks =
+    maintenanceClients.length +
+    growthClients.reduce((s, c) => s + c.pendingTasks, 0)
+
+  const completedToday =
+    todoData.completedToday + completedTodoIds.size
+
+  // Daily goal stats
+  const dailyGoal = useMemo(
+    () => ({
+      potentialNew,
+      overduePercent: totalOverduePercent,
+      bonusAmount: bonusBase,
+      effectiveBonus,
+      completedTasks: completedToday,
+      totalTasks: totalTasks + completedTodoIds.size,
+      currentStreak: completedToday,
+    }),
+    [
+      potentialNew,
+      totalOverduePercent,
+      bonusBase,
+      effectiveBonus,
+      completedToday,
+      totalTasks,
+      completedTodoIds.size,
+    ],
+  )
+
+  // ── Upload/Process workflow ──────────────────────────────────────
+
+  const handleProcess = useCallback((todoId: string) => {
+    setSelectedTodoId(todoId)
+    fileInputRef.current?.click()
+  }, [])
+
+  const handleFileSelect = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files
+      if (!files?.length || !selectedTodoId) {
+        // User canceled file picker — reset selection
+        setSelectedTodoId(null)
+        return
       }
-    : {}
+
+      setIsUploading(true)
+      // Hoist so both try and catch can revoke on failure
+      let previewUrl = ''
+      try {
+        const formData = new FormData()
+        for (let i = 0; i < files.length; i++) {
+          formData.append('files', files[i])
+        }
+
+        // Create preview from first file
+        previewUrl = URL.createObjectURL(files[0])
+        setUploadPreviewUrl(previewUrl)
+
+        const result = await uploadToDoScreenshots(selectedTodoId, formData)
+        if (result.success && result.detections) {
+          setDetections(result.detections)
+          setShowAIModal(true)
+        } else {
+          URL.revokeObjectURL(previewUrl)
+          setUploadPreviewUrl('')
+          toast.error(result.error || 'Upload failed')
+        }
+      } catch {
+        if (previewUrl) URL.revokeObjectURL(previewUrl)
+        setUploadPreviewUrl('')
+        toast.error('Failed to upload screenshots')
+      } finally {
+        setIsUploading(false)
+        // Reset file input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = ''
+        }
+      }
+    },
+    [selectedTodoId],
+  )
+
+  const handleConfirmUpload = useCallback(async () => {
+    if (!selectedTodoId || detections.length === 0) return
+
+    try {
+      const result = await confirmToDoUpload(selectedTodoId, detections)
+      if (result.success) {
+        setCompletedTodoIds((prev) => new Set([...prev, selectedTodoId]))
+        toast.success('Task completed!')
+        setShowFeedback(true)
+        router.refresh()
+      } else {
+        toast.error(result.error || 'Failed to confirm upload')
+      }
+    } catch {
+      toast.error('Failed to confirm upload')
+    } finally {
+      // Closing the modal triggers onOpenChange which handles URL cleanup
+      setShowAIModal(false)
+    }
+  }, [selectedTodoId, detections, router])
+
+  // ── Extension workflow ───────────────────────────────────────────
+
+  const handleExtend = useCallback(
+    async (todoId: string) => {
+      setExtendingTodoId(todoId)
+      try {
+        const result = await requestToDoExtension(todoId)
+        if (result.success && result.newDueDate) {
+          const task = maintenanceClients.find((c) => c.todoId === todoId)
+          setExtendedTodos((prev) => {
+            const next = new Map(prev)
+            next.set(todoId, {
+              newDueDate: new Date(result.newDueDate!),
+              extensionsUsed: (task?.extensionsUsed ?? 0) + 1,
+            })
+            return next
+          })
+          toast.success('Deadline extended by 3 days')
+          router.refresh()
+        } else {
+          toast.error(result.error || 'Failed to extend deadline')
+        }
+      } catch {
+        toast.error('Failed to extend deadline')
+      } finally {
+        setExtendingTodoId(null)
+      }
+    },
+    [maintenanceClients, router],
+  )
+
+  // ── Nudge workflow ───────────────────────────────────────────────
+
+  const handleNudge = useCallback(
+    async (memberId: string): Promise<boolean> => {
+      try {
+        const result = await nudgeTeamMember(memberId)
+        if (result.success) {
+          toast.success('Nudge sent!')
+          return true
+        } else {
+          toast.error(result.error || 'Failed to send nudge')
+          return false
+        }
+      } catch {
+        toast.error('Failed to send nudge')
+        return false
+      }
+    },
+    [],
+  )
 
   return (
-    <ScrollArea className="h-full">
-      <div className="p-6 animate-fade-in">
-        {/* Page title */}
-        <div className="mb-4">
-          <h1 className="text-lg font-semibold text-foreground">
-            Daily Action & Growth Hub
-          </h1>
-          <p className="text-xs text-muted-foreground font-mono mt-0.5">
-            Every action has immediate value — track your level, streaks, and team rank
-          </p>
-        </div>
+    <>
+      <div className="mx-auto max-w-[1400px] animate-fade-in space-y-4 p-6">
+        {/* Tier 1: Context & Daily Goal */}
+        <AgentHeader agent={agent} data={dailyGoal} />
 
-        {/* TOP: Growth Level Bar */}
-        <div className="mb-4">
-          <GrowthLevelCard
-            currentLevel={agentStarLevel}
-            tasksCompleted={todoData.completedToday}
-            tasksForNextLevel={todos.filter((t) => !t.completed).length}
-            rewardPotential={REWARD_PER_TASK[agentStarLevel] ?? 25}
+        {/* Tier 2: Growth + Maintenance */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <GrowthPanel clients={growthClients} starLevel={agentStarLevel} />
+          <MaintenancePanel
+            clients={maintenanceClients}
+            totalOverduePercent={totalOverduePercent}
+            onProcess={handleProcess}
+            onExtend={handleExtend}
+            isUploading={isUploading}
+            uploadingTodoId={selectedTodoId}
+            extendingTodoId={extendingTodoId}
           />
         </div>
 
-        {/* Daily Stats Row */}
-        <div className="mb-4">
-          <DailyStatsRow
-            potentialEarnings={potentialEarnings}
-            confirmedEarnings={confirmedEarnings}
-            overdueCount={overdueCount}
-            overdueRiskAmount={overdueRiskAmount}
-            maintenanceCompleted={maintenanceTotalCount - overdueCount}
-            maintenanceTotal={maintenanceTotalCount}
-            tasksCompleted={todoData.completedToday}
-            tasksTotal={todoData.completedToday + todos.filter((t) => !t.completed).length}
-          />
-        </div>
-
-        {/* MAIN: Left Guide + Center Actions */}
-        <div className="flex gap-4 mb-4">
-          <div className="hidden lg:block w-[280px] flex-shrink-0">
-            <QuickGuidePanel
-              agentName={agentName}
-              starLevel={agentStarLevel}
-              totalClients={clients.length}
-              overdueCount={overdueCount}
-              completedToday={todoData.completedToday}
-              pendingTasksCount={todos.filter((t) => !t.completed).length}
-              oneStepAwayCount={oneStepAwayCount}
-            />
-          </div>
-          <div className="flex-1 min-w-0 grid grid-cols-1 xl:grid-cols-2 gap-4">
-            <ConversionTasksCard
-              clients={conversionClients}
-              dailyCompleted={todoData.completedToday}
-              dailyTarget={dailyTarget}
-            />
-            <MaintenanceTasksCard
-              tasks={maintenanceTasks}
-              earlyCompletionBonus={earlyCompletionBonus}
-              onProcess={handleProcess}
-              onExtend={handleExtend}
-            />
-          </div>
-        </div>
-
-        {/* Mobile-only guide */}
-        <div className="lg:hidden mb-4">
-          <QuickGuidePanel
-            agentName={agentName}
-            starLevel={agentStarLevel}
-            totalClients={clients.length}
-            overdueCount={overdueCount}
-            completedToday={todoData.completedToday}
-            pendingTasksCount={todos.filter((t) => !t.completed).length}
-            oneStepAwayCount={oneStepAwayCount}
-          />
-        </div>
-
-        {/* MIDDLE: Streak + Team Comparison */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-          <StreakRewardCard
-            currentStreak={todoData.completedToday}
-            rewardMultiplier={streakMultiplier}
-            avgCompletionDays={2.5}
-          />
-          <TeamComparisonCard
-            percentile={teamRanking.percentile}
-            myRank={teamRanking.myRank}
-            totalMembers={teamRanking.totalMembers}
-            speed={teamRanking.speed}
-            stability={teamRanking.stability}
-            influence={teamRanking.influence}
-          />
-        </div>
-
-        {/* BOTTOM: Growth Signals */}
-        <div className="mb-4">
-          <GrowthSignalsCard currentStar={agentStarLevel} />
-        </div>
-
-        {/* BOTTOM: Team Action Zone (only if has subordinates) */}
-        {teamMembers.length > 0 && (
-          <TeamActionZone members={teamMembers} />
-        )}
+        {/* Tier 3: Team Support */}
+        <TeamSupport items={teamSupport} onNudge={handleNudge} />
       </div>
 
-      {/* Hidden file input for screenshot upload */}
+      {/* Hidden file input for upload workflow */}
       <input
         ref={fileInputRef}
         type="file"
+        accept="image/jpeg,image/png,image/webp"
         multiple
-        accept="image/*"
         className="hidden"
         onChange={handleFileSelect}
-        data-testid="screenshot-file-input"
+        data-testid="todo-file-input"
       />
 
       {/* AI Detection Modal */}
-      {selectedTodo && detections.length > 0 && (
+      {detections.length > 0 && (
         <AIDetectionModal
-          open={!!selectedTodo && detections.length > 0}
+          open={showAIModal}
           onOpenChange={(open) => {
+            setShowAIModal(open)
+            // User dismissed modal without confirming — clean up
             if (!open) {
-              setSelectedTodo(null)
-              setDetections([])
+              if (uploadPreviewUrl) URL.revokeObjectURL(uploadPreviewUrl)
               setUploadPreviewUrl('')
+              setDetections([])
+              setSelectedTodoId(null)
             }
           }}
           imageUrl={uploadPreviewUrl}
-          detectedData={detectedData}
+          detectedData={{
+            platform: detections[0].extracted.platform,
+            username: detections[0].extracted.username,
+            password: detections[0].extracted.password,
+            contentType: detections[0].contentType,
+            confidence: Math.round(detections[0].confidence * 100),
+          }}
           onConfirm={handleConfirmUpload}
           onOverride={handleConfirmUpload}
         />
       )}
 
-      {/* Loading overlay for upload */}
-      {isUploading && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80">
-          <div className="flex flex-col items-center gap-2">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-            <p className="text-sm text-muted-foreground">Uploading screenshots...</p>
-          </div>
-        </div>
-      )}
-
-      {/* Feedback toast */}
+      {/* Feedback toast on task completion */}
       <FeedbackToast
-        lastEarning={lastEarning}
-        totalEarnedToday={totalEarnedToday}
-        currentStreak={todoData.completedToday}
-        completedToday={todoData.completedToday}
+        lastEarning={0}
+        totalEarnedToday={0}
+        currentStreak={completedToday}
+        completedToday={completedToday}
         show={showFeedback}
-        onDismiss={handleDismissFeedback}
+        onDismiss={() => setShowFeedback(false)}
       />
-    </ScrollArea>
+    </>
   )
 }

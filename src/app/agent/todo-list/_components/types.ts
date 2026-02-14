@@ -1,7 +1,5 @@
 // Shared types for Agent To-Do System
 
-export type TimeRange = '1day' | '3days' | '7days'
-
 export type TaskType =
   | 'PayPal'
   | 'Edgeboost'
@@ -44,26 +42,34 @@ export interface GrowthClient {
   stage: string
   stageLabel: string
   daysInPipeline: number
-  directEarning: number
-  starEarning: number
-  downlineEarning: number
-  upstreamShare: number
-  recycledAmount: number
-  finalTake: number
-  poolPerLead: number
+  expectedIncome: number
   pendingTasks: number
 }
 
+export type MaintenanceUrgency = 'critical' | 'warning' | 'normal'
+
 export interface MaintenanceClient {
   id: string
+  todoId: string
   name: string
-  status: string
-  statusLabel: string
+  taskCategory: 'platform_verification' | 'high_priority'
   taskDescription: string
-  overdueDays: number
-  bonusRiskPercent: number
-  atRiskAmount: number
-  dueDate: string
+  daysRemaining: number
+  overduePercent: number
+  urgency: MaintenanceUrgency
+  extensionsUsed: number
+  maxExtensions: number
+}
+
+export interface TeamSupportItem {
+  id: string
+  agentName: string
+  hint: string
+  potentialEarning: number
+  currentStep: string
+  completedSteps: number
+  totalSteps: number
+  isOneStepAway: boolean
 }
 
 export interface AgentProfile {
@@ -74,37 +80,11 @@ export interface AgentProfile {
 }
 
 export interface DailyGoalData {
-  earnedToday: number
-  dailyTarget: number
   potentialNew: number
-  potentialMaintenance: number
-  confirmedDirect: number
-  confirmedStar: number
-  confirmedDownline: number
-  overdueCount: number
-  overdueRiskAmount: number
+  overduePercent: number
+  bonusAmount: number
+  effectiveBonus: number
   completedTasks: number
   totalTasks: number
   currentStreak: number
-}
-
-// New types for redesigned hub
-
-export interface TeamMember {
-  id: string
-  name: string
-  currentStep: string
-  totalSteps: number
-  completedSteps: number
-  isOneStepAway: boolean
-  totalClients: number
-}
-
-export interface TeamRanking {
-  percentile: number
-  myRank: number
-  totalMembers: number
-  speed: number
-  stability: number
-  influence: number
 }
