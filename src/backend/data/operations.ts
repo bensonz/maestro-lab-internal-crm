@@ -10,27 +10,44 @@ import {
 // ==========================================
 
 export async function getSalesInteractionStats() {
-  const [clientCount, agentCount, activeApps, pendingCount] = await Promise.all(
+  const [totalClients, inProgress, pendingApproval, verificationNeeded] = await Promise.all(
     [
-      prisma.client.count(),
-      prisma.user.count({ where: { role: UserRole.AGENT } }),
       prisma.client.count({
         where: {
           intakeStatus: {
-            in: [IntakeStatus.IN_EXECUTION, IntakeStatus.PHONE_ISSUED],
+            notIn: [IntakeStatus.APPROVED, IntakeStatus.REJECTED, IntakeStatus.INACTIVE, IntakeStatus.PARTNERSHIP_ENDED],
           },
         },
       }),
       prisma.client.count({
         where: {
           intakeStatus: {
-            in: [IntakeStatus.PENDING, IntakeStatus.PREQUAL_REVIEW, IntakeStatus.READY_FOR_APPROVAL],
+            in: [
+              IntakeStatus.PENDING,
+              IntakeStatus.PREQUAL_REVIEW,
+              IntakeStatus.PREQUAL_APPROVED,
+              IntakeStatus.PHONE_ISSUED,
+              IntakeStatus.IN_EXECUTION,
+              IntakeStatus.READY_FOR_APPROVAL,
+            ],
+          },
+        },
+      }),
+      prisma.client.count({
+        where: {
+          intakeStatus: IntakeStatus.READY_FOR_APPROVAL,
+        },
+      }),
+      prisma.client.count({
+        where: {
+          intakeStatus: {
+            in: [IntakeStatus.NEEDS_MORE_INFO, IntakeStatus.PENDING_EXTERNAL, IntakeStatus.EXECUTION_DELAYED],
           },
         },
       }),
     ],
   )
-  return { clientCount, agentCount, activeApps, pendingCount }
+  return { totalClients, inProgress, pendingApproval, verificationNeeded }
 }
 
 interface AgentInHierarchy {
@@ -157,6 +174,15 @@ export type IntakeStatusType =
   | 'ready'
   | 'followup'
 
+export type InProgressSubStage =
+  | 'pre-qualification'
+  | 'ten-questions'
+  | 'waiting-for-phone'
+  | 'phone-issued'
+  | 'platform-registrations'
+  | 'phone-returned'
+  | 'pending-approval'
+
 export interface IntakeClient {
   id: string
   name: string
@@ -171,6 +197,8 @@ export interface IntakeClient {
   canAssignPhone: boolean
   canReviewPrequal: boolean
   pendingPlatform?: string
+  /** Sub-stage for grouping within "In Progress" or "Verification Needed" sections */
+  subStage: InProgressSubStage | 'verification-needed'
 }
 
 export async function getIntakeClients(): Promise<IntakeClient[]> {
@@ -183,7 +211,9 @@ export async function getIntakeClients(): Promise<IntakeClient[]> {
           IntakeStatus.PREQUAL_APPROVED,
           IntakeStatus.NEEDS_MORE_INFO,
           IntakeStatus.PENDING_EXTERNAL,
+          IntakeStatus.EXECUTION_DELAYED,
           IntakeStatus.READY_FOR_APPROVAL,
+          IntakeStatus.PHONE_ISSUED,
           IntakeStatus.IN_EXECUTION,
         ],
       },
@@ -232,6 +262,7 @@ export async function getIntakeClients(): Promise<IntakeClient[]> {
       canAssignPhone,
       canReviewPrequal,
       pendingPlatform,
+      subStage: determineSubStage(client),
     }
   })
 }
@@ -296,6 +327,63 @@ function determineDetailedStatus(client: {
 
   // Default to needs info
   return { statusType: 'needs_info', status: 'Needs More Info' }
+}
+
+function determineSubStage(client: {
+  intakeStatus: IntakeStatus
+  phoneAssignment: { id: string } | null
+  platforms: { platformType: PlatformType; status: string }[]
+  prequalCompleted?: boolean
+}): InProgressSubStage | 'verification-needed' {
+  // Verification needed statuses
+  if (
+    client.intakeStatus === IntakeStatus.NEEDS_MORE_INFO ||
+    client.intakeStatus === IntakeStatus.PENDING_EXTERNAL ||
+    client.intakeStatus === IntakeStatus.EXECUTION_DELAYED
+  ) {
+    return 'verification-needed'
+  }
+
+  // Pre-Qualification: PENDING, PREQUAL_REVIEW, PREQUAL_APPROVED
+  if (
+    client.intakeStatus === IntakeStatus.PENDING ||
+    client.intakeStatus === IntakeStatus.PREQUAL_REVIEW ||
+    client.intakeStatus === IntakeStatus.PREQUAL_APPROVED
+  ) {
+    return 'pre-qualification'
+  }
+
+  // Pending Approval
+  if (client.intakeStatus === IntakeStatus.READY_FOR_APPROVAL) {
+    return 'pending-approval'
+  }
+
+  // Phone Issued
+  if (client.intakeStatus === IntakeStatus.PHONE_ISSUED) {
+    return 'phone-issued'
+  }
+
+  // IN_EXECUTION: differentiate between sub-stages based on context
+  if (client.intakeStatus === IntakeStatus.IN_EXECUTION) {
+    // If no phone assigned yet, waiting for phone
+    if (!client.phoneAssignment) {
+      return 'waiting-for-phone'
+    }
+
+    // Check if platforms have pending work
+    const pendingPlatforms = client.platforms.filter(
+      (p) => p.status !== 'VERIFIED',
+    )
+    if (pendingPlatforms.length > 0) {
+      return 'platform-registrations'
+    }
+
+    // All platforms done = phone returned / wrapping up
+    return 'phone-returned'
+  }
+
+  // Fallback for any remaining IN_EXECUTION-like states
+  return 'ten-questions'
 }
 
 function getStatusTypeColor(statusType: IntakeStatusType): string {

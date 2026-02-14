@@ -2,10 +2,9 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Eye, CheckCircle, Clock } from 'lucide-react'
+import { Eye, Clock } from 'lucide-react'
 import type { VerificationTask } from '@/backend/data/operations'
 import { PlatformType } from '@/types'
 import { cn } from '@/lib/utils'
@@ -25,115 +24,104 @@ export function VerificationTasksTable({
     null,
   )
 
+  if (tasks.length === 0) {
+    return (
+      <p className="py-6 text-center text-sm text-muted-foreground">
+        {selectedAgentId
+          ? 'No tasks for selected agent'
+          : 'No verification tasks pending'}
+      </p>
+    )
+  }
+
   return (
     <>
-      <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
-        <CardHeader className="pb-4">
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              <CheckCircle className="h-4 w-4" />
-              Active Client Verification
-            </div>
-            <Badge variant="outline" className="font-mono">
-              {tasks.length}
-            </Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {tasks.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
-              {selectedAgentId
-                ? 'No tasks for selected agent'
-                : 'No verification tasks pending'}
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-xs uppercase tracking-wider text-muted-foreground border-b border-border/30">
-                    <th className="pb-3 font-medium">Client</th>
-                    <th className="pb-3 font-medium">Platform</th>
-                    <th className="pb-3 font-medium">Task</th>
-                    <th className="pb-3 font-medium">Agent</th>
-                    <th className="pb-3 font-medium">Deadline</th>
-                    <th className="pb-3 font-medium">Status</th>
-                    <th className="pb-3 font-medium sr-only">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tasks.map((task) => (
-                    <tr
-                      key={task.id}
-                      className="border-b border-border/20 last:border-0"
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border/30 text-left text-xs uppercase tracking-wider text-muted-foreground">
+              <th className="px-4 py-3 font-medium">Client</th>
+              <th className="px-4 py-3 font-medium">Platform</th>
+              <th className="px-4 py-3 font-medium">Task</th>
+              <th className="px-4 py-3 font-medium">Agent</th>
+              <th className="px-4 py-3 font-medium">Deadline</th>
+              <th className="px-4 py-3 font-medium">Status</th>
+              <th className="sr-only px-4 py-3 font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tasks.map((task) => (
+              <tr
+                key={task.id}
+                className="border-b border-border/20 last:border-0"
+                data-testid={`verification-row-${task.id}`}
+              >
+                <td className="px-4 py-3">
+                  {task.clientId ? (
+                    <Link
+                      href={`/backoffice/client-management?client=${task.clientId}`}
+                      className="font-medium text-foreground hover:text-primary hover:underline"
                     >
-                      <td className="py-3">
-                        {task.clientId ? (
-                          <Link
-                            href={`/backoffice/client-management?client=${task.clientId}`}
-                            className="font-medium text-foreground hover:text-primary hover:underline"
-                          >
-                            {task.clientName}
-                          </Link>
-                        ) : (
-                          <span className="text-muted-foreground">
-                            {task.clientName}
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3">
-                        <PlatformBadge platformType={task.platformType} />
-                      </td>
-                      <td className="py-3 text-muted-foreground">
-                        {task.task}
-                      </td>
-                      <td className="py-3 text-muted-foreground">
-                        {task.agentName}
-                      </td>
-                      <td className="py-3">
-                        {task.clientDeadline ? (
-                          <DeadlineCountdown
-                            deadline={task.clientDeadline}
-                            variant="inline"
-                          />
-                        ) : (
-                          <div className="flex items-center gap-1.5 text-muted-foreground">
-                            <Clock className="h-3.5 w-3.5" />
-                            {task.deadlineLabel}
-                          </div>
-                        )}
-                      </td>
-                      <td className="py-3">
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            'text-xs',
-                            task.status === 'Done'
-                              ? 'bg-success/20 text-success border-success/30'
-                              : 'bg-warning/20 text-warning border-warning/30',
-                          )}
-                        >
-                          {task.status}
-                        </Badge>
-                      </td>
-                      <td className="py-3">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => setSelectedTask(task)}
-                        >
-                          <Eye className="h-4 w-4" />
-                          <span className="sr-only">Review documents</span>
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                      {task.clientName}
+                    </Link>
+                  ) : (
+                    <span className="text-muted-foreground">
+                      {task.clientName}
+                    </span>
+                  )}
+                </td>
+                <td className="px-4 py-3">
+                  <PlatformBadge platformType={task.platformType} />
+                </td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  {task.task}
+                </td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  {task.agentName}
+                </td>
+                <td className="px-4 py-3">
+                  {task.clientDeadline ? (
+                    <DeadlineCountdown
+                      deadline={task.clientDeadline}
+                      variant="inline"
+                    />
+                  ) : (
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <Clock className="h-3.5 w-3.5" />
+                      {task.deadlineLabel}
+                    </div>
+                  )}
+                </td>
+                <td className="px-4 py-3">
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      'text-xs',
+                      task.status === 'Done'
+                        ? 'border-success/30 bg-success/20 text-success'
+                        : 'border-warning/30 bg-warning/20 text-warning',
+                    )}
+                  >
+                    {task.status}
+                  </Badge>
+                </td>
+                <td className="px-4 py-3">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => setSelectedTask(task)}
+                    data-testid={`review-doc-${task.id}`}
+                  >
+                    <Eye className="h-4 w-4" />
+                    <span className="sr-only">Review documents</span>
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {selectedTask && selectedTask.clientId && selectedTask.platformType && (
         <DocumentReviewModal
