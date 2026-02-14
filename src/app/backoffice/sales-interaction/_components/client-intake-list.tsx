@@ -50,7 +50,7 @@ export function ClientIntakeList({
 
   if (clients.length === 0) {
     return (
-      <p className="py-6 text-center text-sm text-muted-foreground">
+      <p className="py-4 text-center text-xs text-muted-foreground">
         {selectedAgentId
           ? 'No clients for selected agent'
           : 'No clients in this category'}
@@ -59,65 +59,65 @@ export function ClientIntakeList({
   }
 
   return (
-    <div className="divide-y divide-border/30">
+    <div className="divide-y divide-border/20">
       {clients.map((client) => (
         <div
           key={client.id}
-          className="flex items-center justify-between bg-card/50 px-4 py-3 transition-colors hover:bg-card"
+          className="grid grid-cols-[1fr_auto_auto] items-center gap-3 px-5 py-2 transition-colors hover:bg-muted/30"
           data-testid={`intake-row-${client.id}`}
         >
-          <div className="min-w-0 flex-1 space-y-1">
-            <div className="flex items-center gap-2">
-              <Link
-                href={`/backoffice/client-management?client=${client.id}`}
-                className="truncate font-medium text-foreground hover:text-primary hover:underline"
-              >
-                {client.name}
-              </Link>
-              <Badge
-                variant="outline"
-                className={cn('shrink-0 text-xs', client.statusColor)}
-              >
-                {client.status}
-              </Badge>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span>{getStatusTypeLabel(client.statusType)}</span>
-              <span className="text-muted-foreground/50">&bull;</span>
-              <Link
-                href={`/backoffice/agent-management/${client.agentId}`}
-                className="text-primary hover:underline"
-              >
-                {client.agentName}
-              </Link>
-            </div>
+          {/* Name + agent */}
+          <div className="flex min-w-0 items-center gap-2">
+            <Link
+              href={`/backoffice/client-management?client=${client.id}`}
+              className="truncate text-sm font-medium text-foreground hover:text-primary hover:underline"
+            >
+              {client.name}
+            </Link>
+            <span className="text-[10px] text-muted-foreground/60">&bull;</span>
+            <Link
+              href={`/backoffice/agent-management/${client.agentId}`}
+              className="shrink-0 text-[11px] text-muted-foreground hover:text-primary"
+            >
+              {client.agentName}
+            </Link>
+            <Badge
+              variant="outline"
+              className={cn('ml-auto shrink-0 text-[10px]', client.statusColor)}
+            >
+              {client.status}
+            </Badge>
           </div>
-          <div className="flex shrink-0 items-center gap-4">
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <Clock className="h-4 w-4" />
-              {client.daysLabel}
-            </div>
+
+          {/* Days */}
+          <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+            <Clock className="h-3 w-3" />
+            {client.daysLabel}
+          </div>
+
+          {/* Action */}
+          <div className="w-28 text-right">
             {client.canApprove ? (
               <Button
                 size="sm"
                 onClick={() => handleApprove(client.id, client.name)}
                 disabled={isPending}
-                className="border-success/30 bg-success/20 text-success hover:bg-success/30"
+                className="h-7 border-success/30 bg-success/20 px-2.5 text-xs text-success hover:bg-success/30"
                 data-testid={`approve-${client.id}`}
               >
-                <Check className="mr-1 h-4 w-4" />
+                <Check className="mr-1 h-3 w-3" />
                 Approve
               </Button>
             ) : client.canReviewPrequal ? (
               <Button
                 size="sm"
                 variant="outline"
-                className="border-warning/30 bg-warning/10 text-warning hover:bg-warning/20"
+                className="h-7 border-warning/30 bg-warning/10 px-2.5 text-xs text-warning hover:bg-warning/20"
                 asChild
               >
                 <Link href={`/backoffice/client-management?client=${client.id}`}>
-                  <Shield className="mr-1 h-4 w-4" />
-                  Review Pre-Qual
+                  <Shield className="mr-1 h-3 w-3" />
+                  Review
                 </Link>
               </Button>
             ) : client.statusType === 'pending_platform' ? (
@@ -126,26 +126,26 @@ export function ClientIntakeList({
                 onClick={() => handleVerifyBetmgm(client.id, client.name)}
                 disabled={isPending}
                 variant="outline"
-                className="border-primary/30 text-primary hover:bg-primary/10"
+                className="h-7 border-primary/30 px-2.5 text-xs text-primary hover:bg-primary/10"
                 data-testid={`verify-betmgm-${client.id}`}
               >
-                <Shield className="mr-1 h-4 w-4" />
-                Verify BetMGM
+                <Shield className="mr-1 h-3 w-3" />
+                Verify
               </Button>
             ) : client.canAssignPhone ? (
-              <Link href="/backoffice/phone-tracking">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="border-primary/30 text-primary hover:bg-primary/10"
-                  data-testid={`assign-phone-${client.id}`}
-                >
-                  <Phone className="mr-1 h-4 w-4" />
-                  Assign Phone
-                </Button>
-              </Link>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 border-primary/30 px-2.5 text-xs text-primary hover:bg-primary/10"
+                asChild
+              >
+                <Link href="/backoffice/phone-tracking" data-testid={`assign-phone-${client.id}`}>
+                  <Phone className="mr-1 h-3 w-3" />
+                  Phone
+                </Link>
+              </Button>
             ) : client.statusType === 'followup' ? (
-              <span className="text-sm text-primary">
+              <span className="text-[11px] text-muted-foreground">
                 {client.status.includes('Due today')
                   ? 'Due today'
                   : client.status.match(/\d+ days left/)?.[0] || ''}
@@ -156,14 +156,4 @@ export function ClientIntakeList({
       ))}
     </div>
   )
-}
-
-function getStatusTypeLabel(statusType: string): string {
-  const labels: Record<string, string> = {
-    needs_info: 'Document Review',
-    pending_platform: 'Platform Verification',
-    ready: 'Approval',
-    followup: 'Follow-up',
-  }
-  return labels[statusType] || statusType
 }

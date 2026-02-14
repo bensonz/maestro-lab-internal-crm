@@ -110,6 +110,7 @@ interface SubStageGroup {
   label: string
   icon: React.ElementType
   headerColor: string
+  step: number
 }
 
 const inProgressSubStages: SubStageGroup[] = [
@@ -118,42 +119,49 @@ const inProgressSubStages: SubStageGroup[] = [
     label: 'Pre-Qualification',
     icon: FileText,
     headerColor: 'text-muted-foreground',
+    step: 1,
   },
   {
     key: 'ten-questions',
     label: 'Ten Questions',
     icon: FileCheck,
     headerColor: 'text-primary',
+    step: 2,
   },
   {
     key: 'waiting-for-phone',
     label: 'Waiting for Phone',
     icon: Phone,
     headerColor: 'text-warning',
+    step: 3,
   },
   {
     key: 'phone-issued',
     label: 'Phone Issued',
     icon: MonitorSmartphone,
     headerColor: 'text-primary',
+    step: 4,
   },
   {
     key: 'platform-registrations',
     label: 'Platform Registrations',
     icon: Shield,
     headerColor: 'text-primary',
+    step: 5,
   },
   {
     key: 'phone-returned',
     label: 'Phone Returned',
     icon: PhoneOff,
     headerColor: 'text-muted-foreground',
+    step: 6,
   },
   {
     key: 'pending-approval',
     label: 'Pending Approval',
     icon: Hourglass,
     headerColor: 'text-warning',
+    step: 7,
   },
 ]
 
@@ -168,8 +176,8 @@ export function SalesInteractionView({
   const [clientSearch, setClientSearch] = useState('')
   const [summaryFilter, setSummaryFilter] = useState<SummaryFilter>('total')
   const [sortOption, setSortOption] = useState<SortOption>('priority')
-  const [inProgressOpen, setInProgressOpen] = useState(true)
-  const [verificationOpen, setVerificationOpen] = useState(true)
+  const [inProgressOpen, setInProgressOpen] = useState(false)
+  const [verificationOpen, setVerificationOpen] = useState(false)
 
   // Filter hierarchy by search
   const filteredHierarchy = useMemo(() => {
@@ -238,6 +246,15 @@ export function SalesInteractionView({
     }
   }, [filteredIntake, filteredTasks, inProgressClients, verificationClients])
 
+  // Sub-stage counts for the overview strip
+  const subStageCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const stage of inProgressSubStages) {
+      counts[stage.key] = inProgressClients.filter((c) => c.subStage === stage.key).length
+    }
+    return counts
+  }, [inProgressClients])
+
   // What sections to show based on summary filter
   const showInProgress =
     summaryFilter === 'total' || summaryFilter === 'in-progress' || summaryFilter === 'pending-approval'
@@ -284,12 +301,7 @@ export function SalesInteractionView({
             data-testid="summary-filter-total"
           >
             <div className="flex items-center gap-2">
-              <Users
-                className={cn(
-                  'h-4 w-4',
-                  summaryFilter === 'total' ? 'text-primary' : 'text-primary',
-                )}
-              />
+              <Users className="h-4 w-4 text-primary" />
               <span className="text-xs">Total Clients</span>
             </div>
             <span
@@ -499,7 +511,7 @@ export function SalesInteractionView({
 
         {/* Collapsible Sections Content */}
         <ScrollArea className="flex-1">
-          <div className="space-y-4 p-4">
+          <div className="space-y-3 p-4">
             {/* ── In Progress Section ── */}
             {showInProgress && (
               <Collapsible
@@ -510,34 +522,58 @@ export function SalesInteractionView({
                 <CollapsibleTrigger asChild>
                   <button
                     className={cn(
-                      'flex w-full items-center justify-between rounded-t-md bg-muted/50 px-4 py-3 transition-colors hover:bg-muted',
-                      !inProgressOpen && 'rounded-b-md',
+                      'flex w-full items-center justify-between rounded-lg border border-border/50 bg-card px-4 py-3 shadow-sm transition-colors hover:bg-accent/5',
+                      inProgressOpen && 'rounded-b-none border-b-0',
                     )}
                   >
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
                       {inProgressOpen ? (
                         <ChevronDown className="h-4 w-4 text-muted-foreground" />
                       ) : (
                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
                       )}
-                      <Clock className="h-4 w-4 text-primary" />
-                      <span className="text-sm font-semibold text-primary">
-                        In Progress
-                      </span>
+                      <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10">
+                        <Clock className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="text-left">
+                        <span className="text-sm font-semibold text-foreground">
+                          In Progress
+                        </span>
+                        {!inProgressOpen && (
+                          <div className="mt-0.5 flex items-center gap-1.5">
+                            {inProgressSubStages.map((stage) => {
+                              const count = subStageCounts[stage.key] || 0
+                              if (count === 0) return null
+                              return (
+                                <span
+                                  key={stage.key}
+                                  className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                                  title={stage.label}
+                                >
+                                  {stage.label.split(' ').map(w => w[0]).join('')} {count}
+                                </span>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <span className="rounded bg-background px-2 py-0.5 font-mono text-xs text-muted-foreground">
+                    <Badge
+                      variant="outline"
+                      className="h-6 border-primary/30 bg-primary/10 px-2.5 font-mono text-xs font-semibold text-primary"
+                    >
                       {inProgressClients.length}
-                    </span>
+                    </Badge>
                   </button>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <div className="overflow-hidden rounded-b-md border border-t-0 border-border/50">
+                  <div className="overflow-hidden rounded-b-lg border border-t-0 border-border/50 shadow-sm">
                     {inProgressClients.length === 0 ? (
                       <p className="py-8 text-center text-sm text-muted-foreground">
                         No clients in progress
                       </p>
                     ) : (
-                      <div className="space-y-0">
+                      <div>
                         {inProgressSubStages.map((stage) => {
                           const stageClients = summaryFilter === 'pending-approval'
                             ? inProgressClients.filter((c) => c.subStage === 'pending-approval')
@@ -570,42 +606,54 @@ export function SalesInteractionView({
                 <CollapsibleTrigger asChild>
                   <button
                     className={cn(
-                      'flex w-full items-center justify-between rounded-t-md bg-muted/50 px-4 py-3 transition-colors hover:bg-muted',
-                      !verificationOpen && 'rounded-b-md',
+                      'flex w-full items-center justify-between rounded-lg border border-border/50 bg-card px-4 py-3 shadow-sm transition-colors hover:bg-accent/5',
+                      verificationOpen && 'rounded-b-none border-b-0',
                     )}
                   >
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
                       {verificationOpen ? (
                         <ChevronDown className="h-4 w-4 text-muted-foreground" />
                       ) : (
                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
                       )}
-                      <AlertCircle className="h-4 w-4 text-destructive" />
-                      <span className="text-sm font-semibold text-destructive">
-                        Verification Needed
-                      </span>
+                      <div className="flex h-7 w-7 items-center justify-center rounded-md bg-destructive/10">
+                        <AlertCircle className="h-4 w-4 text-destructive" />
+                      </div>
+                      <div className="text-left">
+                        <span className="text-sm font-semibold text-foreground">
+                          Verification Needed
+                        </span>
+                        {!verificationOpen && verificationClients.length + filteredTasks.length > 0 && (
+                          <p className="mt-0.5 text-[10px] text-muted-foreground">
+                            {verificationClients.length > 0 && `${verificationClients.length} clients`}
+                            {verificationClients.length > 0 && filteredTasks.length > 0 && ' · '}
+                            {filteredTasks.length > 0 && `${filteredTasks.length} tasks`}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <span className="rounded bg-background px-2 py-0.5 font-mono text-xs text-muted-foreground">
+                    <Badge
+                      variant="outline"
+                      className="h-6 border-destructive/30 bg-destructive/10 px-2.5 font-mono text-xs font-semibold text-destructive"
+                    >
                       {verificationClients.length + filteredTasks.length}
-                    </span>
+                    </Badge>
                   </button>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <div className="overflow-hidden rounded-b-md border border-t-0 border-border/50">
+                  <div className="overflow-hidden rounded-b-lg border border-t-0 border-border/50 shadow-sm">
                     {verificationClients.length === 0 && filteredTasks.length === 0 ? (
                       <p className="py-8 text-center text-sm text-muted-foreground">
                         No verification tasks pending
                       </p>
                     ) : (
-                      <div className="space-y-0">
-                        {/* Intake clients needing verification */}
+                      <div>
                         {verificationClients.length > 0 && (
                           <ClientIntakeList
                             clients={verificationClients}
                             selectedAgentId={selectedAgentId}
                           />
                         )}
-                        {/* Verification tasks (document review) */}
                         {filteredTasks.length > 0 && (
                           <VerificationTasksTable
                             tasks={filteredTasks}
@@ -633,7 +681,7 @@ function SubStageSection({
   stage: SubStageGroup
   clients: IntakeClient[]
 }) {
-  const [isOpen, setIsOpen] = useState(true)
+  const [isOpen, setIsOpen] = useState(false)
   const Icon = stage.icon
 
   if (clients.length === 0) return null
@@ -646,28 +694,37 @@ function SubStageSection({
     >
       <CollapsibleTrigger asChild>
         <button
-          className={cn(
-            'flex w-full items-center justify-between border-b border-border/30 bg-card/30 px-6 py-2 transition-colors hover:bg-card/50',
-          )}
+          className="flex w-full items-center justify-between border-b border-border/30 px-5 py-2.5 transition-colors hover:bg-muted/30"
         >
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             {isOpen ? (
               <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
             ) : (
               <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
             )}
+            <span className="flex h-5 w-5 items-center justify-center rounded bg-muted text-[10px] font-bold text-muted-foreground">
+              {stage.step}
+            </span>
             <Icon className={cn('h-3.5 w-3.5', stage.headerColor)} />
             <span className={cn('text-xs font-medium', stage.headerColor)}>
               {stage.label}
             </span>
           </div>
-          <Badge variant="outline" className="h-5 px-1.5 font-mono text-[10px]">
+          <Badge
+            variant="outline"
+            className={cn(
+              'h-5 px-1.5 font-mono text-[10px]',
+              clients.length > 0 ? 'border-primary/30 bg-primary/5 text-primary' : '',
+            )}
+          >
             {clients.length}
           </Badge>
         </button>
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <ClientIntakeList clients={clients} selectedAgentId={null} />
+        <div className="border-b border-border/20 bg-muted/10">
+          <ClientIntakeList clients={clients} selectedAgentId={null} />
+        </div>
       </CollapsibleContent>
     </Collapsible>
   )
