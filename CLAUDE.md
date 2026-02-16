@@ -49,9 +49,9 @@ Clients progress through `IntakeStatus` states:
 
 Each client is onboarded to 11 platforms (8 sports betting + 3 financial), tracked via `ClientPlatform` with individual `PlatformStatus`.
 
-### Client Onboarding (2-Phase Workflow)
+### Client Onboarding (4-Phase Pipeline)
 
-Client onboarding at `/agent/new-client` uses a 2-phase workflow:
+Client onboarding at `/agent/new-client` uses a 4-phase pipeline visible on a single page:
 
 **Phase 1: Pre-qualification** — Three sub-steps:
 1. **ID Verification** (Step 1.1) — Agent uploads client ID (with OCR extraction), confirms extracted data
@@ -60,7 +60,16 @@ Client onboarding at `/agent/new-client` uses a 2-phase workflow:
 
 Submitting creates the Client record with `prequalCompleted: true` and 11 ClientPlatform records. BetMGM status is always `PENDING_REVIEW` regardless of agent result. `agentResult` field stores what agent reported ("success"/"failed"). Screenshots stored on `ClientPlatform.screenshots`. The page stays (no redirect) and starts polling for BetMGM verification.
 
-**Phase 2: Full Application** — Unlocked only after BetMGM is verified (backoffice manual review via `verifyBetmgmManual()`). Agent fills Basic Info, Address, and Compliance sections (6 groups: Banking, PayPal, Platform History, Criminal/Legal, Risk Assessment, Language). Submit updates the existing Client and redirects to `/agent/clients`.
+**Phase 2: 10 Questions (Full Application)** — Unlocked only after BetMGM is verified (backoffice manual review via `verifyBetmgmManual()`). Agent fills Basic Info, Address, and Compliance sections (6 groups: Banking, PayPal, Platform History, Criminal/Legal, Risk Assessment, Language). Submit updates the existing Client but does NOT change `intakeStatus` — status stays as-is (PREQUAL_APPROVED). Agent stays on the page and sees the "Awaiting Phone" status card. Backoffice handles the transition to PHONE_ISSUED.
+
+**Phase 3: In Processing** — Read-only status cards showing:
+- **Awaiting Phone** (PREQUAL_APPROVED + 10Q submitted) — Clock icon, waiting for backoffice phone assignment
+- **Phone Issued** (PHONE_ISSUED) — Shows assigned phone number and execution deadline
+- **Platform Registration** (IN_EXECUTION) — Platform progress bar (X/11 verified) + prominent link to Upload Center at `/agent/clients/[id]`
+
+**Phase 4: Pending Approval** — Read-only status card (READY_FOR_APPROVAL) showing "Under backoffice review."
+
+**Display State Logic:** After Phase 2 form submission, the page switches from editable form to read-only `PhaseStatusCard` components. The `displayState` is computed from `currentPhase` + questionnaire data to determine which card to show. For read-only phases, Save Draft is hidden and the submit button shows a status label.
 
 **Layout:** Fixed sidebar (`w-56`) for Pipeline | Form (center, full-width) | Risk Panel (right, resizable). Pipeline sidebar is not resizable; form + risk panel use a 2-panel `ResizablePanelGroup`.
 
@@ -74,19 +83,24 @@ Submitting creates the Client record with `prequalCompleted: true` and 11 Client
 - `src/app/agent/new-client/_components/new-client-page-client.tsx` — Client wrapper that destructures ClientForm output into layout
 - `src/app/agent/new-client/_components/gmail-section.tsx` — Gmail/password inputs (standalone)
 - `src/app/agent/new-client/_components/betmgm-check-section.tsx` — BetMGM success/fail + 2 screenshot uploads
-- `src/app/agent/new-client/_components/compliance-groups.tsx` — 6 collapsible groups with 10+ questions, exports `ComplianceData` interface + `EMPTY_COMPLIANCE_DATA`
+- `src/app/agent/new-client/_components/compliance-groups.tsx` — 6 collapsible groups (collapsed by default) with completion badges, expand/collapse all toggle, SSN show/hide, exports `ComplianceData` interface + `EMPTY_COMPLIANCE_DATA`
 - `src/app/agent/new-client/_components/risk-panel.tsx` — Always-visible right sidebar with 8 compliance rules, risk factors, compliance summary
+- `src/app/agent/new-client/_components/compute-risk-level.ts` — Shared `computeRiskLevel()` utility used by both `client-form.tsx` and `risk-panel.tsx`
+- `src/app/agent/new-client/_components/form-progress.tsx` — Sticky segmented progress bar below StatusHeader, clickable segments scroll to sections
 - `src/app/agent/new-client/_components/new-client-layout.tsx` — Fixed sidebar + 2-panel resizable layout (Form | Risk Panel)
-- `src/app/agent/new-client/_components/pipeline-panel.tsx` — Phase-based pipeline sidebar (Phase 4→1, collapsible sections, names only)
+- `src/app/agent/new-client/_components/pipeline-panel.tsx` — Phase-based pipeline sidebar (Phase 1→4, collapsible sections, names only)
 - `src/lib/client-phase.ts` — `getClientPhase()` utility + `PHASE_COUNT`, `PHASE_SHORT_LABELS` constants
 - `src/app/agent/new-client/_components/phase-header.tsx` — Visual phase label divider
 - `src/app/agent/new-client/_components/phase-gate.tsx` — Locked/unlocked divider between phases
+- `src/app/agent/new-client/_components/phase-status-card.tsx` — Read-only status cards for Phase 3/4 (awaiting-phone, phone-issued, platform-registration, pending-approval)
 
 **Schema additions:** `Client.gmailAccount`, `Client.gmailPassword`, `Client.prequalCompleted`, `Client.riskFlags` (Json); `ApplicationDraft.clientId`, `ApplicationDraft.phase`
 
 **ClientForm return pattern:** `ClientForm` returns `{ form: JSX, riskPanel: JSX }` instead of JSX directly, allowing the layout to place form and risk panel in separate resizable panels. The `NewClientPageClient` wrapper handles this destructuring.
 
-**Risk Panel:** Always-visible right sidebar with 8 compliance rules (ID expiry, PayPal previously used, platforms used, own bank pin [backoffice], company money [backoffice], debanked, multiple PayPal, 8+ platforms). Two rules (#4, #5) are backoffice-only placeholders. Risk level computed as HIGH/MEDIUM/LOW based on compliance data.
+**Risk Panel:** Always-visible right sidebar with 6 compliance rules (ID expiry, PayPal previously used, platforms used, debanked, multiple PayPal, 8+ platforms). Risk level computed as HIGH/MEDIUM/LOW via shared `computeRiskLevel()` utility.
+
+**Form UX:** Form content is max-width constrained (`max-w-3xl mx-auto`). All input sections use `Field`/`FieldLabel`/`FieldError` components and standard `Input` (h-9). Compliance groups default to collapsed with completion badges. A sticky progress bar below the header shows step completion status. StepCards and compliance groups use accordion animations. Agent confirmation checkbox appears both in the risk panel and inline at the bottom of Phase 2 form. Phone is collected only in Step 1.2 (Gmail section), not duplicated in Basic Info.
 
 **Override Tracking:** When agent manually edits AI-extracted ID fields, changes are tracked in `overriddenFields` and displayed in the risk panel.
 
@@ -103,7 +117,14 @@ Submitting creates the Client record with `prequalCompleted: true` and 11 Client
 
 **BetMGM Polling:** After Phase 1 submit, the client page polls `checkBetmgmStatus()` every 60 seconds. When verified, a toast notification appears and Phase 2 unlocks. Polling also detects `RETRY_PENDING` status and updates the retry UI.
 
-**Phase 2 URL:** `?client=<clientId>` — page.tsx fetches Client + BetMGM status + retry state and passes to ClientForm.
+**Phase 2+ URL:** `?client=<clientId>` — page.tsx fetches Client + BetMGM status + retry state + phone assignment + execution deadline + all platform statuses (for progress) and passes to ClientForm via NewClientPageClient.
+
+**Status transitions for onboarding flow:**
+- Phase 2 submit does NOT change status (stays PREQUAL_APPROVED)
+- PREQUAL_APPROVED → PHONE_ISSUED (backoffice assigns phone via `assignPhone()`)
+- PHONE_ISSUED → IN_EXECUTION (backoffice transitions)
+- IN_EXECUTION → READY_FOR_APPROVAL (backoffice transitions)
+- Phone assignment eligible statuses: PENDING, PREQUAL_APPROVED, APPROVED
 
 ### Key Patterns
 
@@ -259,6 +280,38 @@ UI: `src/components/global-search.tsx` — exports `GlobalSearch` (CommandDialog
 
 Both top bars use `<SearchTrigger />` + `<GlobalSearch />`. Keyboard shortcut ⌘K / Ctrl+K opens the palette from anywhere.
 
+### Agent Dashboard (`/agent`) — "Cockpit" Layout
+
+Server Component dashboard with 6 parallel data fetches. Designed to answer 3 questions in under 5 seconds: "How much money am I making?", "What do I need to do RIGHT NOW?", "Am I leveling up?" — everything fits one screen, no scrolling.
+
+**Layout:** Single-column, 3 sections + footer:
+1. **Hero Banner** — money metrics + star level progression
+2. **Do Now** — urgent action queue
+3. **Pipeline + Scorecard** — 2-column grid
+
+**Hero Banner:** Single `card-terminal` with `border-primary/20`. Money row (4-column grid): Total Earned (`text-3xl text-success`, biggest number), Pending Payout (`text-xl text-warning`), This Month (`text-xl`), MoM Trend (green/red pill). Level row: 4 star icons (filled `fill-warning` / empty `text-muted-foreground/30`) + thin `<Progress>` bar + "X to go" or "Max level". Context line: `$X/close · Top Y% · Z% success rate` (income per close = `200 + min(starLevel, 4) * 50`).
+
+**Do Now:** Section header with "DO NOW" + count badges (overdue in destructive pill, due-today in warning pill) + "Action Hub" link. Max 6 items from `PriorityAction[]`. Each row: colored dot + title + client name (mono) + relative time + ChevronRight. Overdue rows get `border-destructive/20 bg-destructive/5`. Empty state: "Nothing urgent — nice work." with CheckCircle icon.
+
+**Pipeline:** `card-terminal` with compact rows for 4 active stages (Pre-qualification, Phone Issued, In Execution, Ready for Approval) + divider + approved (green) / rejected (red) counts. Footer: "View Clients →" link.
+
+**Scorecard:** `card-terminal` with 5 compact rows: Success Rate (color-coded >=80 green, >=50 warning, <50 red), Avg Conversion (days or em-dash), Overdue Tasks (red if >0), Total Clients, Ranking (primary pill "Top X%").
+
+**Key files:**
+- `src/app/agent/page.tsx` — Server Component with 6 parallel data fetches
+- `src/app/agent/loading.tsx` — Skeleton matching cockpit layout
+- `src/app/agent/_components/dashboard/hero-banner.tsx` — Money + level banner (Server Component)
+- `src/app/agent/_components/dashboard/do-now.tsx` — Urgent actions list (Server Component)
+- `src/app/agent/_components/dashboard/pipeline-scorecard.tsx` — Exports `Pipeline` + `Scorecard` (Server Component)
+
+**Data functions** (in `src/backend/data/agent.ts`):
+- `getAgentDashboardStats()` — Client counts, earnings, MoM change (uses `thisMonthEarnings` vs `lastMonthEarnings`)
+- `getAgentClientStats()` — Extended with pipeline sub-stages: `prequal`, `phoneIssued`, `inExecution`, `readyForApproval`
+- `getAgentPriorityActions()` — 5 parallel queries merged into `PriorityAction[]` (max 8)
+- `getAgentTeamRanking()` — Percentile ranking by success rate
+- `getCommissionTierInfo()` — Star level, tier progress, clients to next (from `commission.ts`)
+- `getAgentKPIs()` — Success rate, avg days, overdue todos (from `agent-kpis.ts`)
+
 ### Sales Interaction Page (Back Office)
 
 `/backoffice/sales-interaction` — Operational queue for managing client onboarding pipeline.
@@ -277,17 +330,73 @@ Both top bars use `<SearchTrigger />` + `<GlobalSearch />`. Keyboard shortcut �
    - Phone Returned (`IN_EXECUTION` with all platforms verified)
    - Pending Approval (`READY_FOR_APPROVAL`)
 
-2. **Verification Needed** — Clients in `NEEDS_MORE_INFO`, `PENDING_EXTERNAL`, `EXECUTION_DELAYED` + verification/upload todos
+2. **Verification Needed** — Clients in `NEEDS_MORE_INFO`, `PENDING_EXTERNAL`, `EXECUTION_DELAYED` + verification/upload todos + Post-Approval Verification sub-section
+
+**Exception states & progress indicators:**
+- Each `IntakeClient` includes `exceptionStates: ExceptionState[]` computed by `computeExceptionStates()` — flags like `overdue`, `deadline-approaching`, `platform-rejection`, `needs-more-info`, `extension-pending`, `execution-delayed`
+- `platformProgress: { verified, total }` — platform verification progress per client
+- `executionDeadline`, `deadlineExtensions`, `pendingExtensionRequest`, `rejectedPlatforms` — enrichment fields from query
+- Sub-stage headers show exception count badges (e.g., "2 alerts")
+- Client rows show `ExceptionBadgeGroup`, `PlatformProgressBar` (for platform-registrations), `DeadlineCountdown`, extension indicators
+- Urgent/overdue clients get left border accent (red for overdue, yellow for warnings)
+
+**Post-Approval Verification:**
+- `getPostApprovalVerificationClients()` — queries APPROVED clients with `PlatformStatus.LIMITED` platforms OR pending VERIFICATION/PROVIDE_INFO todos
+- `PostApprovalClient` type with `limitedPlatforms[]`, `pendingVerificationTodos`, `daysSinceApproval`
+- Rendered as sub-section inside "Verification Needed" collapsible
 
 **Key files:**
-- `src/app/backoffice/sales-interaction/page.tsx` — Server Component fetching stats, hierarchy, intake clients, verification tasks
-- `src/app/backoffice/sales-interaction/_components/sales-interaction-view.tsx` — Main client component with collapsible sections
-- `src/app/backoffice/sales-interaction/_components/client-intake-list.tsx` — Client row list (no Card wrapper, fits inside collapsibles)
+- `src/app/backoffice/sales-interaction/page.tsx` — Server Component fetching stats, hierarchy, intake clients, verification tasks, post-approval clients
+- `src/app/backoffice/sales-interaction/_components/sales-interaction-view.tsx` — Main client component with collapsible sections, exception counts, post-approval sub-section
+- `src/app/backoffice/sales-interaction/_components/client-intake-list.tsx` — Enhanced client rows with exception badges, progress bar, deadline, extensions
+- `src/app/backoffice/sales-interaction/_components/exception-badges.tsx` — ExceptionBadge + ExceptionBadgeGroup components
+- `src/app/backoffice/sales-interaction/_components/platform-progress.tsx` — PlatformProgressBar component
+- `src/app/backoffice/sales-interaction/_components/post-approval-list.tsx` — Post-approval verification client list
 - `src/app/backoffice/sales-interaction/_components/verification-tasks-table.tsx` — Verification task table (no Card wrapper)
 - `src/app/backoffice/sales-interaction/_components/document-review-modal.tsx` — Document review dialog
-- `src/backend/data/operations.ts` — Data queries: `getSalesInteractionStats()`, `getAgentHierarchy()`, `getIntakeClients()` (with `subStage` field), `getVerificationClients()`
+- `src/backend/data/operations.ts` — Data queries: `getSalesInteractionStats()`, `getAgentHierarchy()`, `getIntakeClients()` (with enrichment), `getVerificationClients()`, `getPostApprovalVerificationClients()`, `computeExceptionStates()`
+- `src/test/backend/data/operations-sales.test.ts` — Tests for exception states, progress computation
 
-**Data types:** `InProgressSubStage` type exported from `operations.ts` defines the 7 sub-stages. Each `IntakeClient` has a `subStage` field computed by `determineSubStage()`.
+**Data types:** `InProgressSubStage`, `ExceptionType`, `ExceptionState`, `PostApprovalClient` types exported from `operations.ts`. Each `IntakeClient` has enriched fields for exceptions, progress, deadlines, and extensions.
+
+### Backoffice Action Hub (`/backoffice/todo-list`)
+
+Operational command center for backoffice daily workflows. Route kept as `/backoffice/todo-list` to avoid breaking notification links. Nav label is "Action Hub" with Zap icon.
+
+**Layout:** 3-tier structure — header stats → 2-column panels (Daily Ops + Action Queue) → full-width Agent Task overview.
+
+**Tier 1: Header** — User name + role badge + 3 stat cards (P&L Status, Pending Actions, Overdue Tasks).
+
+**Tier 2 Left: Daily Operations Panel**
+- **P&L Check Card** — Amber when pending (button to complete), green when done (shows who/when). Calls `markDailyPnlComplete()` server action. Backed by `DailyCheck` model with `@@unique([type, date])`.
+- **Fund Alerts List** — Scrollable list of client accounts with shortfalls (< -$10) or surpluses (> $1000). Color-coded badges. Quick stats: transfers today, pending settlements.
+
+**Tier 2 Right: Action Queue Panel**
+- Aggregated pending backoffice actions sorted by urgency (critical > high > normal).
+- 6 action types: BetMGM review, screenshot review, extension request, client approval, phone pending, settlement review.
+- Each row links to the relevant backoffice page. Grouped by type with count badges.
+
+**Tier 3: Agent Task Overview**
+- Enhanced todo list with search, type filter, and "Create Task" button.
+- Agent-grouped cards with task rows. Each row has a "Complete" button.
+- Create Task dialog: title, description, agent select, due date, priority.
+
+**Schema additions:** `DailyCheck` model, `DailyCheckType` enum (`PNL_RECONCILIATION`, `FUND_REVIEW`), `BACKOFFICE_CUSTOM` added to `ToDoType` enum.
+
+**Key files:**
+- `src/backend/data/action-hub.ts` — Data queries: `getActionHubStats()`, `getDailyPnlStatus()`, `getFundAlerts()`, `getPendingBackofficeActions()`, `getEnhancedBackofficeTodos()`, `getActiveAgents()`
+- `src/app/actions/action-hub.ts` — Server actions: `markDailyPnlComplete()`, `createBackofficeTodo()`, `completeTodoAsBackoffice()`, `reassignTodo()`
+- `src/app/backoffice/todo-list/page.tsx` — Server Component with 6 parallel data fetches
+- `src/app/backoffice/todo-list/_components/action-hub-view.tsx` — Main client orchestrator
+- `src/app/backoffice/todo-list/_components/backoffice-header.tsx` — Header + 3 stat cards
+- `src/app/backoffice/todo-list/_components/daily-ops-panel.tsx` — P&L + fund alerts wrapper
+- `src/app/backoffice/todo-list/_components/pnl-check-card.tsx` — P&L daily check card
+- `src/app/backoffice/todo-list/_components/fund-alerts-list.tsx` — Fund alerts scrollable list
+- `src/app/backoffice/todo-list/_components/action-queue-panel.tsx` — Pending actions queue
+- `src/app/backoffice/todo-list/_components/agent-task-overview.tsx` — Enhanced todo list + create dialog
+- `src/app/backoffice/todo-list/_components/types.ts` — Shared types re-exported from data layer
+- `src/test/backend/actions/action-hub.test.ts` — Server action tests (21 tests)
+- `src/test/backend/data/action-hub.test.ts` — Data query tests (7 tests)
 
 ### Path Aliases
 
@@ -380,12 +489,16 @@ pnpm test src/test/backend/actions/phones.test.ts  # Specific file
 - `src/test/backend/utils/csv.test.ts` — CSV generation utility (escaping, BOM, edge cases)
 - `src/test/backend/services/commission.test.ts` — Commission distribution algorithm, star level calculation
 - `src/test/backend/data/agent-detail.test.ts` — Agent detail data query
+- `src/test/backend/data/operations-sales.test.ts` — Exception states (computeExceptionStates), platform progress computation, multiple simultaneous exceptions
+- `src/test/backend/data/agent-dashboard.test.ts` — Agent dashboard: recent activity, priority actions, pipeline stats, MoM earnings fix
 - `src/test/backend/services/transaction.test.ts` — Transaction ledger: record, balance, reversal, history
 - `src/test/backend/data/hierarchy.test.ts` — Team hierarchy: supervisor chain, subordinate tree, rollup
 - `src/test/backend/services/closure.test.ts` — Client closure: balance verification, close client, auth/role guards
 - `src/test/backend/services/notifications.test.ts` — Notification service: create, query, mark-as-read, role notifications
 - `src/test/backend/actions/notifications.test.ts` — Notification server actions: auth guards, get/mark-read
 - `src/test/backend/api/search.test.ts` — Search API route: auth, role-based visibility, query filtering, link paths
+- `src/test/backend/actions/action-hub.test.ts` — Action Hub server actions: P&L check, create/complete/reassign todos, auth/role guards
+- `src/test/backend/data/action-hub.test.ts` — Action Hub data queries: stats, P&L status, pending actions aggregation, active agents
 
 ---
 
