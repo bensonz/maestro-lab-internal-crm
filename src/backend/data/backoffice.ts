@@ -213,6 +213,7 @@ function mapToDoTypeToLabel(type: ToDoType): string {
     [ToDoType.PHONE_SIGNOUT]: 'Phone Issuance',
     [ToDoType.PHONE_RETURN]: 'Phone Return',
     [ToDoType.VERIFICATION]: 'Approval',
+    [ToDoType.BACKOFFICE_CUSTOM]: 'Custom Task',
   }
   return map[type] || type
 }
@@ -828,4 +829,180 @@ function getPlatformAbbrev(platformType: PlatformType): string {
     [PlatformType.EDGEBOOST]: 'EB',
   }
   return map[platformType] || platformType
+}
+
+// ============================================================================
+// Client Life Cycle Panel — unapproved clients only
+// ============================================================================
+
+const LIFECYCLE_STATUS_FILTER = {
+  notIn: [
+    IntakeStatus.APPROVED,
+    IntakeStatus.REJECTED,
+    IntakeStatus.INACTIVE,
+    IntakeStatus.PARTNERSHIP_ENDED,
+  ],
+}
+
+export async function getLifecycleClients() {
+  const clients = await prisma.client.findMany({
+    where: { intakeStatus: LIFECYCLE_STATUS_FILTER },
+    include: {
+      agent: {
+        select: { name: true },
+      },
+      platforms: {
+        select: {
+          platformType: true,
+          status: true,
+          screenshots: true,
+          username: true,
+          reviewedBy: true,
+          reviewedAt: true,
+          agentResult: true,
+          retryAfter: true,
+          retryCount: true,
+          reviewNotes: true,
+        },
+      },
+      phoneAssignment: {
+        select: {
+          phoneNumber: true,
+        },
+      },
+      fundMovementsFrom: {
+        where: { status: 'completed' },
+        select: { amount: true },
+      },
+      fundMovementsTo: {
+        where: { status: 'completed' },
+        select: { amount: true },
+      },
+      transactions: {
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        select: {
+          id: true,
+          type: true,
+          amount: true,
+          description: true,
+          createdAt: true,
+          platformType: true,
+        },
+      },
+      eventLogs: {
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+        include: {
+          user: { select: { name: true } },
+        },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  return clients.map((client) => {
+    const activePlatforms = client.platforms
+      .filter((p) => p.status === PlatformStatus.VERIFIED)
+      .map((p) => getPlatformAbbrev(p.platformType))
+    const allPlatforms = client.platforms.map((p) =>
+      getPlatformAbbrev(p.platformType),
+    )
+
+    const fundsIn = client.fundMovementsTo.reduce(
+      (sum, fm) => sum + Number(fm.amount),
+      0,
+    )
+    const fundsOut = client.fundMovementsFrom.reduce(
+      (sum, fm) => sum + Number(fm.amount),
+      0,
+    )
+    const totalFunds = fundsIn - fundsOut
+
+    return {
+      id: client.id,
+      name: `${client.firstName} ${client.lastName}`,
+      phone: client.phoneAssignment?.phoneNumber ?? client.phone ?? '',
+      email: client.email,
+      start: formatDate(client.createdAt),
+      funds: `$${Math.abs(totalFunds).toLocaleString()}`,
+      platforms: allPlatforms,
+      activePlatforms,
+      intakeStatus: client.intakeStatus,
+      agent: client.agent?.name ?? null,
+      address: client.address,
+      city: client.city,
+      state: client.state,
+      zipCode: client.zipCode,
+      country: client.country,
+      idDocument: client.idDocument,
+      questionnaire: client.questionnaire,
+      platformDetails: client.platforms.map((p) => ({
+        platformType: p.platformType,
+        status: p.status,
+        screenshots: p.screenshots,
+        username: p.username,
+        reviewedBy: p.reviewedBy,
+        reviewedAt: p.reviewedAt?.toISOString() ?? null,
+        agentResult: p.agentResult,
+        retryAfter: p.retryAfter?.toISOString() ?? null,
+        retryCount: p.retryCount,
+        reviewNotes: p.reviewNotes,
+      })),
+      transactions: client.transactions.map((t) => ({
+        id: t.id,
+        type: t.type,
+        amount: Number(t.amount),
+        description: t.description ?? '',
+        date: t.createdAt.toISOString(),
+        platformType: t.platformType,
+      })),
+      eventLogs: client.eventLogs.map((e) => ({
+        id: e.id,
+        eventType: e.eventType,
+        description: e.description,
+        userName: e.user?.name ?? 'System',
+        createdAt: e.createdAt.toISOString(),
+      })),
+    }
+  })
+}
+
+export interface LifecycleStats {
+  total: number
+  inProgress: number
+  pendingReview: number
+  verification: number
+}
+
+export async function getLifecycleStats(): Promise<LifecycleStats> {
+  const clients = await prisma.client.findMany({
+    where: { intakeStatus: LIFECYCLE_STATUS_FILTER },
+    select: { intakeStatus: true },
+  })
+
+  const total = clients.length
+
+  const inProgress = clients.filter(
+    (c) =>
+      c.intakeStatus === IntakeStatus.PREQUAL_APPROVED ||
+      c.intakeStatus === IntakeStatus.PHONE_ISSUED ||
+      c.intakeStatus === IntakeStatus.IN_EXECUTION,
+  ).length
+
+  const pendingReview = clients.filter(
+    (c) =>
+      c.intakeStatus === IntakeStatus.PENDING ||
+      c.intakeStatus === IntakeStatus.PREQUAL_REVIEW ||
+      c.intakeStatus === IntakeStatus.READY_FOR_APPROVAL,
+  ).length
+
+  const verification = clients.filter(
+    (c) =>
+      c.intakeStatus === IntakeStatus.NEEDS_MORE_INFO ||
+      c.intakeStatus === IntakeStatus.PENDING_EXTERNAL ||
+      c.intakeStatus === IntakeStatus.EXECUTION_DELAYED,
+  ).length
+
+  return { total, inProgress, pendingReview, verification }
 }

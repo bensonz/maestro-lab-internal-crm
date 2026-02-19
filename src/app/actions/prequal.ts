@@ -171,7 +171,7 @@ export async function submitPrequalification(
         type: EventType.PLATFORM_STATUS_CHANGE,
         title: 'BetMGM verification needed',
         message: `${firstName} ${lastName} submitted pre-qualification (${agentResultLabel}) — BetMGM review required`,
-        link: `/backoffice/client-management?client=${client.id}`,
+        link: `/backoffice/client-lifecycle?client=${client.id}`,
         clientId: client.id,
       })
     } catch (err) {

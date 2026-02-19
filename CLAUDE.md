@@ -357,7 +357,37 @@ Server Component dashboard with 6 parallel data fetches. Designed to answer 3 qu
 - `src/backend/data/operations.ts` — Data queries: `getSalesInteractionStats()`, `getAgentHierarchy()`, `getIntakeClients()` (with enrichment), `getVerificationClients()`, `getPostApprovalVerificationClients()`, `computeExceptionStates()`
 - `src/test/backend/data/operations-sales.test.ts` — Tests for exception states, progress computation
 
-**Data types:** `InProgressSubStage`, `ExceptionType`, `ExceptionState`, `PostApprovalClient` types exported from `operations.ts`. Each `IntakeClient` has enriched fields for exceptions, progress, deadlines, and extensions.
+**Data types:** `InProgressSubStage`, `ExceptionType`, `ExceptionState`, `PostApprovalClient` types exported from `operations.ts`. Each `IntakeClient` has enriched fields for exceptions, progress, deadlines, extensions, and ID review data.
+
+**ID Verification sub-stage (formerly Pre-Qualification):**
+- The first sub-stage in "In Progress" is labeled "ID Verification" (step 1)
+- Status labels: `PENDING` → "ID Upload Pending", `PREQUAL_REVIEW` → "ID Review Needed", `PREQUAL_APPROVED` → "ID Verified"
+- `IntakeClient` includes ID review fields for pre-qualification clients: `idImageUrl`, `extractedData`, `overriddenFields`, `betmgmScreenshots`, `betmgmAgentResult`, `betmgmRetryCount`
+- "Review" button on `PREQUAL_REVIEW` clients opens `IdReviewModal` (not a navigation link)
+- `src/app/backoffice/sales-interaction/_components/id-review-modal.tsx` — ID review dialog with extracted data, override warnings, expiry check, approve/reject/reject-retry actions (calls `approvePrequal`, `rejectPrequal`, `rejectPrequalWithRetry` from `src/app/actions/backoffice.ts`)
+
+### Client Life Cycle Panel (`/backoffice/client-lifecycle`)
+
+Application-stage client detail view for unapproved clients. Separates "application pipeline" from "client management" (approved clients only).
+
+**Purpose:** Shows ONLY unapproved clients (excludes APPROVED, REJECTED, INACTIVE, PARTNERSHIP_ENDED). Client name links from Sales Interaction and search results for unapproved clients point here instead of Client Management. Approved clients graduate to Client Management; rejected clients never appear in either.
+
+**Layout:** Reuses `ClientSidebar`, `ClientList`, `ClientDetail` components from `client-management`. Same URL-based selection pattern (`?client=<id>`).
+
+**Key files:**
+- `src/app/backoffice/client-lifecycle/page.tsx` — Server Component with parallel data fetches
+- `src/app/backoffice/client-lifecycle/_components/client-lifecycle-page.tsx` — Client component wrapping shared client management components
+- `src/backend/data/backoffice.ts` — `getLifecycleClients()` (same shape as `getAllClients()` with status filter), `getLifecycleStats()` (total, inProgress, pendingReview, verification counts)
+- `src/app/backoffice/client-management/_components/map-client.ts` — Extracted shared mapping utilities: `mapServerClientToClient()`, `mapIntakeStatusToClientStatus()`, `mapPlatformsToBetting()`, `mapEventTypeToTimelineType()`, `mapFinanceStatus()`, `findPlatformDetail()`
+
+**Link routing rules:**
+- Sales Interaction client names → `/backoffice/client-lifecycle?client=<id>`
+- Verification tasks table client names → `/backoffice/client-lifecycle?client=<id>`
+- Global search (backoffice, unapproved) → `/backoffice/client-lifecycle?client=<id>`
+- Global search (backoffice, APPROVED/PARTNERSHIP_ENDED) → `/backoffice/client-management?client=<id>`
+- Notification links from prequal/betmgm-retry → `/backoffice/client-lifecycle?client=<id>`
+- Post-approval list → `/backoffice/client-management?client=<id>` (unchanged, these are approved)
+- Nav: "Client Life Cycle" (UserCheck icon) between "Sales Interaction" and "Client Management"
 
 ### Backoffice Action Hub (`/backoffice/todo-list`)
 

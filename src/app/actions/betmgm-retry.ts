@@ -103,7 +103,7 @@ export async function retryBetmgmSubmission(
         type: EventType.PLATFORM_STATUS_CHANGE,
         title: 'BetMGM resubmitted for review',
         message: `${clientName} BetMGM resubmitted (attempt ${platform.retryCount + 1}, agent reported: ${agentResult})`,
-        link: `/backoffice/client-management?client=${clientId}`,
+        link: `/backoffice/client-lifecycle?client=${clientId}`,
         clientId,
       })
     } catch (err) {
@@ -112,6 +112,7 @@ export async function retryBetmgmSubmission(
 
     revalidatePath(`/agent/new-client`)
     revalidatePath('/backoffice/client-management')
+    revalidatePath('/backoffice/client-lifecycle')
 
     return { success: true, message: 'BetMGM resubmitted for review' }
   } catch (error) {

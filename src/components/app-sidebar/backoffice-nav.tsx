@@ -5,11 +5,12 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard,
   Users,
+  UserCheck,
   UserCog,
   Phone,
   Wallet,
   ClipboardList,
-  CheckSquare,
+  Zap,
   Receipt,
   DollarSign,
   Handshake,
@@ -47,6 +48,11 @@ const navItems: NavItem[] = [
     icon: ClipboardList,
   },
   {
+    title: 'Client Life Cycle',
+    href: '/backoffice/client-lifecycle',
+    icon: UserCheck,
+  },
+  {
     title: 'Client Management',
     href: '/backoffice/client-management',
     icon: Users,
@@ -56,7 +62,7 @@ const navItems: NavItem[] = [
     href: '/backoffice/agent-management',
     icon: UserCog,
   },
-  { title: 'Tasks', href: '/backoffice/todo-list', icon: CheckSquare },
+  { title: 'Action Hub', href: '/backoffice/todo-list', icon: Zap },
   {
     title: 'Fund Allocation',
     href: '/backoffice/fund-allocation',

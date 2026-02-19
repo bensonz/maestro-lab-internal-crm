@@ -37,7 +37,8 @@ import {
 import { cn } from '@/lib/utils'
 import { ClientIntakeList } from './client-intake-list'
 import { VerificationTasksTable } from './verification-tasks-table'
-import type { IntakeClient, VerificationTask, InProgressSubStage } from '@/backend/data/operations'
+import { PostApprovalList } from './post-approval-list'
+import type { IntakeClient, VerificationTask, InProgressSubStage, PostApprovalClient } from '@/backend/data/operations'
 
 // ── Types ───────────────────────────────────────────
 interface AgentInHierarchy {
@@ -65,6 +66,7 @@ interface SalesInteractionViewProps {
   agentHierarchy: HierarchyGroup[]
   clientIntake: IntakeClient[]
   verificationTasks: VerificationTask[]
+  postApprovalClients: PostApprovalClient[]
 }
 
 // ── Summary filter items (4 statuses only) ──────────
@@ -105,71 +107,79 @@ const summaryItems: {
 ]
 
 // ── In Progress sub-stage definitions ───────────────
+// Matches the actual agent onboarding workflow:
+// Step 1: Pre-Qual (ID, Gmail, BetMGM)
+// Step 2: Ten Questions (screening + schedule bank)
+// Step 2a: Awaiting Phone (backoffice decides, agent waits)
+// Step 2b: Phone Issued (device distributed, execution window starts)
+// Step 3: Platform Registration (3 financial + 9 sportsbook)
+// Step 3a: Phone Return (device returned, materials uploaded)
+// Step 4: Pending Approval (backoffice final review → Client Management)
 interface SubStageGroup {
   key: InProgressSubStage
   label: string
+  stepLabel: string
   icon: React.ElementType
   headerColor: string
-  step: number
 }
 
 const inProgressSubStages: SubStageGroup[] = [
   {
     key: 'pre-qualification',
-    label: 'Pre-Qualification',
+    label: 'ID Verification',
+    stepLabel: '1',
     icon: FileText,
     headerColor: 'text-muted-foreground',
-    step: 1,
   },
   {
     key: 'ten-questions',
     label: 'Ten Questions',
+    stepLabel: '2',
     icon: FileCheck,
     headerColor: 'text-primary',
-    step: 2,
   },
   {
     key: 'waiting-for-phone',
-    label: 'Waiting for Phone',
+    label: 'Awaiting Phone',
+    stepLabel: '2a',
     icon: Phone,
     headerColor: 'text-warning',
-    step: 3,
   },
   {
     key: 'phone-issued',
     label: 'Phone Issued',
+    stepLabel: '2b',
     icon: MonitorSmartphone,
     headerColor: 'text-primary',
-    step: 4,
   },
   {
     key: 'platform-registrations',
-    label: 'Platform Registrations',
+    label: 'Platform Registration',
+    stepLabel: '3',
     icon: Shield,
     headerColor: 'text-primary',
-    step: 5,
   },
   {
     key: 'phone-returned',
-    label: 'Phone Returned',
+    label: 'Phone Return',
+    stepLabel: '3a',
     icon: PhoneOff,
     headerColor: 'text-muted-foreground',
-    step: 6,
   },
   {
     key: 'pending-approval',
     label: 'Pending Approval',
+    stepLabel: '4',
     icon: Hourglass,
     headerColor: 'text-warning',
-    step: 7,
   },
 ]
 
 export function SalesInteractionView({
-  stats,
   agentHierarchy,
   clientIntake,
   verificationTasks,
+  postApprovalClients,
 }: SalesInteractionViewProps) {
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null)
   const [agentSearch, setAgentSearch] = useState('')
@@ -225,6 +235,22 @@ export function SalesInteractionView({
     return result
   }, [verificationTasks, selectedAgentId, clientSearch])
 
+  // Filter post-approval clients by agent and search
+  const filteredPostApproval = useMemo(() => {
+    let result = selectedAgentId
+      ? postApprovalClients.filter((c) => c.agentId === selectedAgentId)
+      : postApprovalClients
+    if (clientSearch) {
+      const q = clientSearch.toLowerCase()
+      result = result.filter(
+        (c) =>
+          c.name.toLowerCase().includes(q) ||
+          c.agentName.toLowerCase().includes(q),
+      )
+    }
+    return result
+  }, [postApprovalClients, selectedAgentId, clientSearch])
+
   // Separate intake clients into "In Progress" and "Verification Needed"
   const inProgressClients = useMemo(
     () => filteredIntake.filter((c) => c.subStage !== 'verification-needed'),
@@ -239,18 +265,29 @@ export function SalesInteractionView({
   // Dynamic counts
   const dynamicCounts = useMemo(() => {
     return {
-      totalClients: filteredIntake.length + filteredTasks.length,
+      totalClients: filteredIntake.length + filteredTasks.length + filteredPostApproval.length,
       inProgress: inProgressClients.length,
       pendingApproval: filteredIntake.filter((c) => c.subStage === 'pending-approval').length,
-      verificationNeeded: verificationClients.length + filteredTasks.length,
+      verificationNeeded: verificationClients.length + filteredTasks.length + filteredPostApproval.length,
     }
-  }, [filteredIntake, filteredTasks, inProgressClients, verificationClients])
+  }, [filteredIntake, filteredTasks, filteredPostApproval, inProgressClients, verificationClients])
 
   // Sub-stage counts for the overview strip
   const subStageCounts = useMemo(() => {
     const counts: Record<string, number> = {}
     for (const stage of inProgressSubStages) {
       counts[stage.key] = inProgressClients.filter((c) => c.subStage === stage.key).length
+    }
+    return counts
+  }, [inProgressClients])
+
+  // Exception counts per sub-stage
+  const subStageExceptionCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const stage of inProgressSubStages) {
+      counts[stage.key] = inProgressClients.filter(
+        (c) => c.subStage === stage.key && c.exceptionStates.length > 0,
+      ).length
     }
     return counts
   }, [inProgressClients])
@@ -488,7 +525,7 @@ export function SalesInteractionView({
           <p className="text-xs text-muted-foreground">
             Showing{' '}
             <span className="font-mono font-medium text-foreground">
-              {inProgressClients.length + verificationClients.length + filteredTasks.length}
+              {inProgressClients.length + verificationClients.length + filteredTasks.length + filteredPostApproval.length}
             </span>{' '}
             items
           </p>
@@ -586,6 +623,7 @@ export function SalesInteractionView({
                               key={stage.key}
                               stage={stage}
                               clients={stageClients}
+                              exceptionCount={subStageExceptionCounts[stage.key] || 0}
                             />
                           )
                         })}
@@ -623,11 +661,13 @@ export function SalesInteractionView({
                         <span className="text-sm font-semibold text-foreground">
                           Verification Needed
                         </span>
-                        {!verificationOpen && verificationClients.length + filteredTasks.length > 0 && (
+                        {!verificationOpen && (verificationClients.length + filteredTasks.length + filteredPostApproval.length) > 0 && (
                           <p className="mt-0.5 text-[10px] text-muted-foreground">
                             {verificationClients.length > 0 && `${verificationClients.length} clients`}
-                            {verificationClients.length > 0 && filteredTasks.length > 0 && ' · '}
+                            {verificationClients.length > 0 && (filteredTasks.length > 0 || filteredPostApproval.length > 0) && ' · '}
                             {filteredTasks.length > 0 && `${filteredTasks.length} tasks`}
+                            {filteredTasks.length > 0 && filteredPostApproval.length > 0 && ' · '}
+                            {filteredPostApproval.length > 0 && `${filteredPostApproval.length} post-approval`}
                           </p>
                         )}
                       </div>
@@ -636,13 +676,13 @@ export function SalesInteractionView({
                       variant="outline"
                       className="h-6 border-destructive/30 bg-destructive/10 px-2.5 font-mono text-xs font-semibold text-destructive"
                     >
-                      {verificationClients.length + filteredTasks.length}
+                      {verificationClients.length + filteredTasks.length + filteredPostApproval.length}
                     </Badge>
                   </button>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <div className="overflow-hidden rounded-b-lg border border-t-0 border-border/50 shadow-sm">
-                    {verificationClients.length === 0 && filteredTasks.length === 0 ? (
+                    {verificationClients.length === 0 && filteredTasks.length === 0 && filteredPostApproval.length === 0 ? (
                       <p className="py-8 text-center text-sm text-muted-foreground">
                         No verification tasks pending
                       </p>
@@ -659,6 +699,25 @@ export function SalesInteractionView({
                             tasks={filteredTasks}
                             selectedAgentId={selectedAgentId}
                           />
+                        )}
+                        {filteredPostApproval.length > 0 && (
+                          <div data-testid="post-approval-section">
+                            <div className="flex items-center gap-2 border-t border-border/30 px-5 py-2.5">
+                              <span className="text-xs font-medium text-muted-foreground">
+                                Post-Approval Verification
+                              </span>
+                              <Badge
+                                variant="outline"
+                                className="h-5 px-1.5 font-mono text-[10px] text-muted-foreground"
+                              >
+                                {filteredPostApproval.length}
+                              </Badge>
+                            </div>
+                            <PostApprovalList
+                              clients={filteredPostApproval}
+                              selectedAgentId={selectedAgentId}
+                            />
+                          </div>
                         )}
                       </div>
                     )}
@@ -677,9 +736,11 @@ export function SalesInteractionView({
 function SubStageSection({
   stage,
   clients,
+  exceptionCount,
 }: {
   stage: SubStageGroup
   clients: IntakeClient[]
+  exceptionCount: number
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const Icon = stage.icon
@@ -702,13 +763,21 @@ function SubStageSection({
             ) : (
               <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
             )}
-            <span className="flex h-5 w-5 items-center justify-center rounded bg-muted text-[10px] font-bold text-muted-foreground">
-              {stage.step}
+            <span className="flex h-5 min-w-5 items-center justify-center rounded bg-muted px-1 text-[10px] font-bold text-muted-foreground">
+              {stage.stepLabel}
             </span>
             <Icon className={cn('h-3.5 w-3.5', stage.headerColor)} />
             <span className={cn('text-xs font-medium', stage.headerColor)}>
               {stage.label}
             </span>
+            {exceptionCount > 0 && (
+              <span
+                className="text-[10px] text-muted-foreground"
+                data-testid={`substage-alerts-${stage.key}`}
+              >
+                · {exceptionCount} {exceptionCount === 1 ? 'alert' : 'alerts'}
+              </span>
+            )}
           </div>
           <Badge
             variant="outline"

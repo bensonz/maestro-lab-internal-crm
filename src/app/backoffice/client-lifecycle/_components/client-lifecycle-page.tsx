@@ -1,31 +1,27 @@
 'use client'
 
 import { useState, useMemo, useCallback, useEffect } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
-import { ClientSidebar } from './client-sidebar'
-import { ClientList } from './client-list'
-import { ClientDetail } from './client-detail'
+import { useSearchParams } from 'next/navigation'
+import { ClientSidebar } from '../../client-management/_components/client-sidebar'
+import { ClientList } from '../../client-management/_components/client-list'
+import { ClientDetail } from '../../client-management/_components/client-detail'
 import type {
   Client,
   ServerClientData,
-  ServerClientStats,
   ViewPlatformStatus,
-} from './types'
-import { mapServerClientToClient } from './map-client'
+} from '../../client-management/_components/types'
+import { mapServerClientToClient } from '../../client-management/_components/map-client'
+import type { LifecycleStats } from '@/backend/data/backoffice'
 
-// ============================================================================
-// Component
-// ============================================================================
-
-interface ClientManagementPageProps {
+interface ClientLifecyclePageProps {
   serverClients: ServerClientData[]
-  stats: ServerClientStats
+  stats: LifecycleStats
 }
 
-export function ClientManagementPage({
+export function ClientLifecyclePage({
   serverClients,
   stats,
-}: ClientManagementPageProps) {
+}: ClientLifecyclePageProps) {
   // Map server data to view model once
   const clients = useMemo(
     () => serverClients.map(mapServerClientToClient),
@@ -34,7 +30,6 @@ export function ClientManagementPage({
 
   // URL-based client selection
   const searchParams = useSearchParams()
-  const router = useRouter()
   const clientIdParam = searchParams.get('client')
 
   // State
@@ -45,7 +40,8 @@ export function ClientManagementPage({
     }
     return null
   })
-  // Sync selectedClient when server data refreshes (e.g. after approve/reject)
+
+  // Sync selectedClient when server data refreshes
   useEffect(() => {
     if (selectedClient) {
       const updated = clients.find((c) => c.id === selectedClient.id)
@@ -57,12 +53,8 @@ export function ClientManagementPage({
 
   const [searchQuery, setSearchQuery] = useState('')
   const [platformFilter, setPlatformFilter] = useState('all')
-  const [statusFilter, setStatusFilter] = useState<
-    ViewPlatformStatus | 'all'
-  >('all')
-  const [sortByFunds, setSortByFunds] = useState<'desc' | 'asc' | 'none'>(
-    'none',
-  )
+  const [statusFilter, setStatusFilter] = useState<ViewPlatformStatus | 'all'>('all')
+  const [sortByFunds, setSortByFunds] = useState<'desc' | 'asc' | 'none'>('none')
 
   // Filtered clients
   const filteredClients = useMemo(() => {
@@ -71,27 +63,18 @@ export function ClientManagementPage({
         const matchesSearch =
           client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           client.companyPhone.includes(searchQuery) ||
-          client.companyEmail
-            .toLowerCase()
-            .includes(searchQuery.toLowerCase())
+          client.companyEmail.toLowerCase().includes(searchQuery.toLowerCase())
 
         if (!matchesSearch) return false
 
-        // Platform and status filter
         if (platformFilter !== 'all' && statusFilter !== 'all') {
-          const platform = client.bettingPlatforms.find(
-            (p) => p.id === platformFilter,
-          )
+          const platform = client.bettingPlatforms.find((p) => p.id === platformFilter)
           if (!platform || platform.status !== statusFilter) return false
         } else if (platformFilter !== 'all') {
-          const platform = client.bettingPlatforms.find(
-            (p) => p.id === platformFilter,
-          )
+          const platform = client.bettingPlatforms.find((p) => p.id === platformFilter)
           if (!platform) return false
         } else if (statusFilter !== 'all') {
-          const hasStatus = client.bettingPlatforms.some(
-            (p) => p.status === statusFilter,
-          )
+          const hasStatus = client.bettingPlatforms.some((p) => p.status === statusFilter)
           if (!hasStatus) return false
         }
 
@@ -115,6 +98,14 @@ export function ClientManagementPage({
     [clients],
   )
 
+  // Map lifecycle stats to the format ClientSidebar expects
+  const sidebarStats = useMemo(() => ({
+    total: stats.total,
+    active: stats.inProgress,
+    closed: 0, // Lifecycle panel has no closed clients by definition
+    furtherVerification: stats.pendingReview + stats.verification,
+  }), [stats])
+
   // Detail view
   if (selectedClient) {
     return (
@@ -129,9 +120,9 @@ export function ClientManagementPage({
 
   // List view
   return (
-    <div className="flex h-full animate-fade-in">
+    <div className="flex h-full animate-fade-in" data-testid="client-lifecycle-page">
       <ClientSidebar
-        stats={stats}
+        stats={sidebarStats}
         platformFilter={platformFilter}
         onPlatformFilterChange={setPlatformFilter}
         statusFilter={statusFilter}

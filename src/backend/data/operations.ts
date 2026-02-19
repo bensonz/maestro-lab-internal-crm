@@ -1,5 +1,5 @@
 import prisma from '@/backend/prisma/client'
-import { ToDoStatus, IntakeStatus, UserRole, PlatformType } from '@/types'
+import { ToDoStatus, IntakeStatus, UserRole, PlatformType, PlatformStatus, ExtensionRequestStatus } from '@/types'
 import {
   getPlatformTypeFromName,
   PLATFORM_INFO,
@@ -183,6 +183,20 @@ export type InProgressSubStage =
   | 'phone-returned'
   | 'pending-approval'
 
+export type ExceptionType =
+  | 'deadline-approaching'
+  | 'overdue'
+  | 'platform-rejection'
+  | 'needs-more-info'
+  | 'extension-pending'
+  | 'execution-delayed'
+
+export interface ExceptionState {
+  type: ExceptionType
+  label: string
+  platformName?: string
+}
+
 export interface IntakeClient {
   id: string
   name: string
@@ -199,6 +213,23 @@ export interface IntakeClient {
   pendingPlatform?: string
   /** Sub-stage for grouping within "In Progress" or "Verification Needed" sections */
   subStage: InProgressSubStage | 'verification-needed'
+  executionDeadline: Date | null
+  deadlineExtensions: number
+  pendingExtensionRequest: { id: string; requestedDays: number; reason: string } | null
+  platformProgress: { verified: number; total: number }
+  exceptionStates: ExceptionState[]
+  rejectedPlatforms: string[]
+  // ID review data (populated for pre-qualification clients)
+  idImageUrl?: string | null
+  extractedData?: {
+    firstName: string; lastName: string; middleName?: string
+    dateOfBirth?: string; address?: string; city?: string
+    state?: string; zip?: string; idExpiry?: string
+  }
+  overriddenFields?: string[]
+  betmgmScreenshots?: string[]
+  betmgmAgentResult?: string | null
+  betmgmRetryCount?: number
 }
 
 export async function getIntakeClients(): Promise<IntakeClient[]> {
@@ -221,14 +252,18 @@ export async function getIntakeClients(): Promise<IntakeClient[]> {
     include: {
       agent: { select: { id: true, name: true } },
       platforms: {
-        select: { platformType: true, status: true },
-        where: { status: { not: 'VERIFIED' } },
+        select: { platformType: true, status: true, screenshots: true, agentResult: true, retryCount: true },
       },
       toDos: {
         where: { status: { in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS] } },
         select: { type: true, dueDate: true },
       },
       phoneAssignment: { select: { id: true } },
+      extensionRequests: {
+        where: { status: ExtensionRequestStatus.PENDING },
+        select: { id: true, requestedDays: true, reason: true },
+        take: 1,
+      },
     },
     orderBy: { statusChangedAt: 'desc' },
   })
@@ -238,15 +273,88 @@ export async function getIntakeClients(): Promise<IntakeClient[]> {
       (Date.now() - client.statusChangedAt.getTime()) / (1000 * 60 * 60 * 24),
     )
 
-    // Determine detailed status
+    // Filter non-verified platforms for status determination (matches old behavior)
+    const nonVerifiedPlatforms = client.platforms.filter(
+      (p) => p.status !== PlatformStatus.VERIFIED,
+    )
+
+    // Determine detailed status using only non-verified platforms
     const { statusType, status, pendingPlatform } =
-      determineDetailedStatus(client)
+      determineDetailedStatus({ ...client, platforms: nonVerifiedPlatforms })
     const canApprove = client.intakeStatus === IntakeStatus.READY_FOR_APPROVAL
     const canAssignPhone =
       (client.intakeStatus === IntakeStatus.PENDING ||
         client.intakeStatus === IntakeStatus.APPROVED) &&
       !client.phoneAssignment
     const canReviewPrequal = client.intakeStatus === IntakeStatus.PREQUAL_REVIEW
+
+    // Platform progress (verified vs total)
+    const verifiedCount = client.platforms.filter(
+      (p) => p.status === PlatformStatus.VERIFIED,
+    ).length
+    const totalPlatforms = client.platforms.length
+
+    // Rejected platforms
+    const rejectedPlatforms = client.platforms
+      .filter((p) => p.status === PlatformStatus.REJECTED)
+      .map((p) => formatPlatformShort(p.platformType))
+
+    // Pending extension request
+    const pendingExt = client.extensionRequests[0] ?? null
+    const pendingExtensionRequest = pendingExt
+      ? { id: pendingExt.id, requestedDays: pendingExt.requestedDays, reason: pendingExt.reason }
+      : null
+
+    // Exception states
+    const exceptionStates = computeExceptionStates({
+      intakeStatus: client.intakeStatus,
+      executionDeadline: client.executionDeadline,
+      rejectedPlatforms,
+      hasPendingExtension: !!pendingExtensionRequest,
+    })
+
+    // ID review data — only populated for pre-qualification stage clients
+    const subStage = determineSubStage({ ...client, platforms: nonVerifiedPlatforms })
+    let idImageUrl: string | null | undefined
+    let extractedData: IntakeClient['extractedData']
+    let overriddenFields: string[] | undefined
+    let betmgmScreenshots: string[] | undefined
+    let betmgmAgentResult: string | null | undefined
+    let betmgmRetryCount: number | undefined
+
+    if (subStage === 'pre-qualification') {
+      idImageUrl = client.idDocument
+      // Parse questionnaire for extracted data + overridden fields
+      try {
+        if (client.questionnaire) {
+          const q = typeof client.questionnaire === 'string'
+            ? JSON.parse(client.questionnaire)
+            : client.questionnaire
+          extractedData = {
+            firstName: (q.firstName as string) || client.firstName,
+            lastName: (q.lastName as string) || client.lastName,
+            middleName: (q.middleName as string) || undefined,
+            dateOfBirth: (q.dateOfBirth as string) || undefined,
+            address: (q.address as string) || client.address || undefined,
+            city: (q.city as string) || client.city || undefined,
+            state: (q.state as string) || client.state || undefined,
+            zip: (q.zipCode as string) || client.zipCode || undefined,
+            idExpiry: (q.idExpiry as string) || undefined,
+          }
+          if (Array.isArray(q.overriddenFields)) {
+            overriddenFields = q.overriddenFields as string[]
+          }
+        }
+      } catch { /* ignore parse errors */ }
+
+      // BetMGM platform data
+      const betmgm = client.platforms.find((p) => p.platformType === PlatformType.BETMGM)
+      if (betmgm) {
+        betmgmScreenshots = betmgm.screenshots
+        betmgmAgentResult = betmgm.agentResult
+        betmgmRetryCount = betmgm.retryCount
+      }
+    }
 
     return {
       id: client.id,
@@ -262,7 +370,132 @@ export async function getIntakeClients(): Promise<IntakeClient[]> {
       canAssignPhone,
       canReviewPrequal,
       pendingPlatform,
-      subStage: determineSubStage(client),
+      subStage,
+      executionDeadline: client.executionDeadline,
+      deadlineExtensions: client.deadlineExtensions,
+      pendingExtensionRequest,
+      platformProgress: { verified: verifiedCount, total: totalPlatforms },
+      exceptionStates,
+      rejectedPlatforms,
+      idImageUrl,
+      extractedData,
+      overriddenFields,
+      betmgmScreenshots,
+      betmgmAgentResult,
+      betmgmRetryCount,
+    }
+  })
+}
+
+export function computeExceptionStates(params: {
+  intakeStatus: IntakeStatus
+  executionDeadline: Date | null
+  rejectedPlatforms: string[]
+  hasPendingExtension: boolean
+}): ExceptionState[] {
+  const exceptions: ExceptionState[] = []
+
+  // Deadline-based exceptions
+  if (params.executionDeadline) {
+    const now = new Date()
+    const diffMs = params.executionDeadline.getTime() - now.getTime()
+    const diffDays = diffMs / (1000 * 60 * 60 * 24)
+
+    if (diffDays < 0) {
+      exceptions.push({ type: 'overdue', label: 'Overdue' })
+    } else if (diffDays <= 2) {
+      exceptions.push({ type: 'deadline-approaching', label: 'Deadline approaching' })
+    }
+  }
+
+  // Platform rejection exceptions
+  for (const platformName of params.rejectedPlatforms) {
+    exceptions.push({
+      type: 'platform-rejection',
+      label: `${platformName} rejected`,
+      platformName,
+    })
+  }
+
+  // Status-based exceptions
+  if (params.intakeStatus === IntakeStatus.NEEDS_MORE_INFO) {
+    exceptions.push({ type: 'needs-more-info', label: 'Needs more info' })
+  }
+  if (params.intakeStatus === IntakeStatus.EXECUTION_DELAYED) {
+    exceptions.push({ type: 'execution-delayed', label: 'Execution delayed' })
+  }
+
+  // Extension pending
+  if (params.hasPendingExtension) {
+    exceptions.push({ type: 'extension-pending', label: 'Extension pending' })
+  }
+
+  return exceptions
+}
+
+// ── Post-Approval Verification ──────────────────────
+
+export interface PostApprovalClient {
+  id: string
+  name: string
+  agentId: string
+  agentName: string
+  approvedAt: Date | null
+  daysSinceApproval: number
+  limitedPlatforms: { platformType: PlatformType; name: string }[]
+  pendingVerificationTodos: number
+}
+
+export async function getPostApprovalVerificationClients(): Promise<PostApprovalClient[]> {
+  const clients = await prisma.client.findMany({
+    where: {
+      intakeStatus: IntakeStatus.APPROVED,
+      OR: [
+        { platforms: { some: { status: PlatformStatus.LIMITED } } },
+        {
+          toDos: {
+            some: {
+              type: { in: ['VERIFICATION', 'PROVIDE_INFO'] },
+              status: { in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS] },
+            },
+          },
+        },
+      ],
+    },
+    include: {
+      agent: { select: { id: true, name: true } },
+      platforms: {
+        where: { status: PlatformStatus.LIMITED },
+        select: { platformType: true },
+      },
+      toDos: {
+        where: {
+          type: { in: ['VERIFICATION', 'PROVIDE_INFO'] },
+          status: { in: [ToDoStatus.PENDING, ToDoStatus.IN_PROGRESS] },
+        },
+        select: { id: true },
+      },
+    },
+    orderBy: { statusChangedAt: 'desc' },
+  })
+
+  return clients.map((client) => {
+    const daysSinceApproval = Math.floor(
+      (Date.now() - client.statusChangedAt.getTime()) / (1000 * 60 * 60 * 24),
+    )
+
+    return {
+      id: client.id,
+      name: `${client.firstName} ${client.lastName}`,
+      agentId: client.agent.id,
+      agentName: client.agent.name || 'Unassigned',
+      approvedAt: client.statusChangedAt,
+      daysSinceApproval,
+      limitedPlatforms: client.platforms.map((p) => ({
+        platformType: p.platformType,
+        name: formatPlatformShort(p.platformType),
+      })),
+      pendingVerificationTodos: client.toDos.length,
     }
   })
 }
@@ -274,12 +507,12 @@ function determineDetailedStatus(client: {
 }): { statusType: IntakeStatusType; status: string; pendingPlatform?: string } {
   // Check prequal review — primary state for newly submitted clients
   if (client.intakeStatus === IntakeStatus.PREQUAL_REVIEW) {
-    return { statusType: 'ready', status: 'Pre-Qual: Review Needed' }
+    return { statusType: 'ready', status: 'ID Review Needed' }
   }
 
   // Check prequal approved — waiting for next steps
   if (client.intakeStatus === IntakeStatus.PREQUAL_APPROVED) {
-    return { statusType: 'followup', status: 'Pre-Qual Approved' }
+    return { statusType: 'followup', status: 'ID Verified' }
   }
 
   // Check if needs more info
@@ -325,8 +558,8 @@ function determineDetailedStatus(client: {
     return { statusType: 'followup', status: 'Follow-up' }
   }
 
-  // Default to needs info
-  return { statusType: 'needs_info', status: 'Needs More Info' }
+  // Default to needs info (PENDING clients awaiting ID upload)
+  return { statusType: 'needs_info', status: 'ID Upload Pending' }
 }
 
 function determineSubStage(client: {

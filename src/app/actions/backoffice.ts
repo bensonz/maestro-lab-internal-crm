@@ -25,6 +25,7 @@ export async function approveClientIntake(
 
   if (result.success) {
     revalidatePath('/backoffice/client-management')
+    revalidatePath('/backoffice/client-lifecycle')
     revalidatePath('/backoffice/sales-interaction')
     revalidatePath('/backoffice')
     revalidatePath(`/agent/clients/${clientId}`)
@@ -52,6 +53,7 @@ export async function rejectClientIntake(
 
   if (result.success) {
     revalidatePath('/backoffice/client-management')
+    revalidatePath('/backoffice/client-lifecycle')
     revalidatePath('/backoffice/sales-interaction')
     revalidatePath('/backoffice')
     revalidatePath(`/agent/clients/${clientId}`)
@@ -91,6 +93,7 @@ export async function approvePrequal(
 
   if (result.success) {
     revalidatePath('/backoffice/client-management')
+    revalidatePath('/backoffice/client-lifecycle')
     revalidatePath('/backoffice/sales-interaction')
     revalidatePath('/backoffice')
   }
@@ -117,6 +120,7 @@ export async function rejectPrequal(
 
   if (result.success) {
     revalidatePath('/backoffice/client-management')
+    revalidatePath('/backoffice/client-lifecycle')
     revalidatePath('/backoffice/sales-interaction')
     revalidatePath('/backoffice')
   }
@@ -195,6 +199,7 @@ export async function rejectPrequalWithRetry(
     }
 
     revalidatePath('/backoffice/client-management')
+    revalidatePath('/backoffice/client-lifecycle')
     revalidatePath('/backoffice/sales-interaction')
     revalidatePath('/backoffice')
 
@@ -270,6 +275,7 @@ export async function updatePlatformStatus(
   })
 
   revalidatePath('/backoffice/client-management')
+  revalidatePath('/backoffice/client-lifecycle')
   return { success: true }
 }
 
