@@ -475,8 +475,10 @@ export function ApplicationReviewList({ applications, agents }: Props) {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="rookie">Rookie</SelectItem>
-                              <SelectItem value="rising">Rising</SelectItem>
-                              <SelectItem value="veteran">Veteran</SelectItem>
+                              <SelectItem value="1-star">1-Star</SelectItem>
+                              <SelectItem value="2-star">2-Star</SelectItem>
+                              <SelectItem value="3-star">3-Star</SelectItem>
+                              <SelectItem value="4-star">4-Star</SelectItem>
                             </SelectContent>
                           </Select>
                         </Field>

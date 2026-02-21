@@ -2,16 +2,16 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Current State: Phase 2 — Bonus & Commission System
+## Current State: Phase 2 — Bonus & Commission System (Partially Wired)
 
-The backend now has a fully functional **commission system** in addition to the Phase 1 Agent Application flow. Most pages still render using mock data for UI, but the commission/bonus backend is real and tested.
+The backend has a fully functional **commission system** with real DB queries wired into key UI pages. Some pages still fall back to mock data for non-commission fields (KPIs, client pipeline, etc.).
 
 ### What's Live (backed by database)
 
-- **Prisma schema** with 8 models: `User`, `AgentApplication`, `EventLog`, `Client`, `BonusPool`, `BonusAllocation`, `PromotionLog`, `QuarterlySettlement`
+- **Prisma schema** with 9 models: `User`, `AgentApplication`, `EventLog`, `Client`, `ClientDraft`, `BonusPool`, `BonusAllocation`, `PromotionLog`, `QuarterlySettlement`
 - **Agent Application form** on login page ("Apply as Agent" tab) — uploads both ID + Address Proof documents
 - **Application review** in backoffice Agent Management ("Pending Applications" tab) — shows both documents
-- **Agent Directory** in backoffice Agent Management ("Agent Directory" tab) — queries real User table
+- **Agent Directory** in backoffice Agent Management ("Agent Directory" tab) — queries real User table, star-level-based filter
 - **Login Management** page (`/backoffice/login-management`) — full CRUD for all users from DB
 - **User management** server actions (create, update, toggle, reset password)
 - **Commission system** — $400 fixed bonus pool per approved client, star-level-based distribution up hierarchy
@@ -19,16 +19,28 @@ The backend now has a fully functional **commission system** in addition to the 
 - **Commission payment** server actions (mark paid, bulk mark paid)
 - **Leadership promotion** system (ED/SED/MD/CMO tiers with eligibility checks)
 - **Quarterly settlement** calculation for leadership-tier agents
+- **Backoffice Commissions page** — real bonus pools, pending payouts, leaderboard, mark-paid actions
+- **Agent Dashboard** — real earnings + star level from DB (pipeline/KPIs still mock)
+- **Agent Earnings page** — real allocation history from DB (hierarchy/KPIs still mock)
+- **Agent Clients page** — real clients from DB if available, falls back to mock
+- **Agent Detail page** (backoffice) — real agent profile, earnings, hierarchy from DB
+- **Agent New Client page** — 4-step intake form with drafts panel, risk assessment, auto-save, and submission to real Client record
+- **Client draft** server actions (create, save, submit, delete) — auth-guarded, ownership-checked
 - **Search API** (simplified — searches Users only)
 - **NextAuth v5** credentials-based authentication with JWT sessions
 
+### What's Partially Wired (real DB + mock fallbacks)
+
+These pages fetch real commission/earnings data from DB but still use mock data for some fields:
+- Agent dashboard — earnings/star level real, pipeline stats mock
+- Agent earnings — transaction history real, KPIs/hierarchy mock
+- Agent clients — DB clients if available, otherwise mock
+
 ### What's Mock (UI shell only)
 
-All other pages use static mock data from `src/lib/mock-data.ts` and no-op stubs from `src/lib/mock-actions.ts`:
-- Agent dashboard, clients UI, earnings UI, team, todos
-- Backoffice overview, sales interaction, client management UI, settlements UI, commissions UI, fund allocation, partners, profit sharing, reports, phone tracking, action hub
-
-**Note:** The commission backend is real but UI pages haven't been wired yet — they still show mock data.
+Remaining pages use static mock data from `src/lib/mock-data.ts` and no-op stubs from `src/lib/mock-actions.ts`:
+- Agent team, todos, settings
+- Backoffice overview, sales interaction, client management UI, settlements UI, fund allocation, partners, profit sharing, reports, phone tracking, action hub
 
 ## Commands
 
@@ -72,16 +84,17 @@ This is a CRM for managing client onboarding across multiple sports betting plat
 
 ### Database Schema (Phase 2)
 
-8 models in `prisma/schema.prisma`:
+9 models in `prisma/schema.prisma`:
 
 - **User** — All staff accounts (agents, admins, backoffice, finance). Includes hierarchy (supervisorId self-relation), profile fields, star level/tier, leadershipTier (NONE/ED/SED/MD/CMO).
 - **AgentApplication** — Public application form submissions. Status: PENDING → APPROVED/REJECTED. Links to reviewer (User) and created user on approval. Stores `idDocument` and `addressDocument` upload paths.
-- **Client** — Minimal client record. Status: PENDING → APPROVED. Links to closer (User via closerId). One optional BonusPool.
+- **Client** — Minimal client record. Status: PENDING → APPROVED. Links to closer (User via closerId). One optional BonusPool. Optional `fromDraft` back-link.
+- **ClientDraft** — Agent-owned draft for new client intake. Status: DRAFT → SUBMITTED. 4-step form data (pre-qual, background, platforms, contract). Links to closer (User via closerId) and optional resultClient (Client). Stores risk flags, platform data (Json), and document paths.
 - **BonusPool** — One per approved client ($400 fixed). Tracks closer snapshot, distribution stats, has many BonusAllocation[].
 - **BonusAllocation** — Individual payout line. Type: DIRECT ($200 to closer), STAR_SLICE (star pool walk), BACKFILL (remaining to highest supervisor). Status: PENDING → PAID.
 - **PromotionLog** — Immutable audit of star level and leadership tier changes.
 - **QuarterlySettlement** — Leadership P&L commission. Status: DRAFT → APPROVED → PAID. Unique per [leaderId, year, quarter].
-- **EventLog** — Append-only audit trail. EventType enum covers login, application, user management, commission, and leadership events.
+- **EventLog** — Append-only audit trail. EventType enum covers login, application, user management, commission, leadership, and client draft events.
 
 ### User Roles
 
@@ -123,6 +136,44 @@ Four roles defined in `UserRole` enum: `AGENT`, `BACKOFFICE`, `ADMIN`, `FINANCE`
 - `src/app/backoffice/login-management/_components/create-user-dialog.tsx` — Create user (real actions)
 - `src/app/backoffice/login-management/_components/edit-user-dialog.tsx` — Edit/toggle/reset (real actions)
 
+### Client Draft / New Client Flow
+
+Agents create new clients through a 4-step intake form at `/agent/new-client`.
+
+**Steps:**
+1. **Pre-Qual** — First/last name, email, phone, ID document, ID number/expiry, assigned Gmail, BetMGM check
+2. **Background** — SSN document, secondary address, criminal record, banking/PayPal/sportsbook history, risk flags
+3. **Platforms** — Platform-by-platform registration (username, account ID, screenshot) for all 11 platforms
+4. **Contract** — Contract document upload, submission checklist
+
+**Layout:** 3-panel — left drafts panel (w-56), center form, right risk assessment panel (w-56)
+
+**Auto-save:** 500ms debounced save on field changes. Flushes before step navigation or submission.
+
+**Risk Assessment:** Pure function `calculateRiskScore()` computes a score from flags:
+- ID expires <75 days: +10, PayPal previously used: +10, De-banked: +30, Criminal record: +30, Undisclosed info: +20
+- Address mismatch: informational only (0 points)
+- Thresholds: 0-29 low, 30-49 medium, 50+ high
+
+**Submission:** Validates required fields (firstName, lastName, contractDocument), creates a real `Client` record (PENDING status), marks draft as SUBMITTED.
+
+**Key files:**
+- `src/app/agent/new-client/page.tsx` — Server component: auth, load drafts + selected draft
+- `src/app/agent/new-client/_components/new-client-view.tsx` — Client: 3-panel layout orchestrator
+- `src/app/agent/new-client/_components/drafts-panel.tsx` — Left panel: draft list + create/delete
+- `src/app/agent/new-client/_components/step-indicator.tsx` — 4-step progress indicator
+- `src/app/agent/new-client/_components/client-form.tsx` — Form state, auto-save, step navigation
+- `src/app/agent/new-client/_components/step1-prequal.tsx` — Step 1 fields
+- `src/app/agent/new-client/_components/step2-background.tsx` — Step 2 fields + risk flag toggles
+- `src/app/agent/new-client/_components/step3-platforms.tsx` — Platform grid using PLATFORM_INFO
+- `src/app/agent/new-client/_components/step3-platform-card.tsx` — Individual platform card
+- `src/app/agent/new-client/_components/step4-contract.tsx` — Contract upload + checklist
+- `src/app/agent/new-client/_components/risk-panel.tsx` — Right panel: risk score + flags
+- `src/app/actions/client-drafts.ts` — CRUD server actions (create, save, submit, delete)
+- `src/backend/data/client-drafts.ts` — Draft queries (by closer, by ID, ownership check)
+- `src/lib/validations/client-draft.ts` — Zod per-step + submit schemas
+- `src/lib/risk-score.ts` — Pure risk score calculation
+
 ### Bonus & Commission System
 
 **$400 fixed bonus pool per approved client:**
@@ -143,8 +194,15 @@ The closer participates in both the $200 direct AND the star pool walk.
 
 **Leadership Tiers** (ED/SED/MD/CMO): Require minimum approved clients + qualified subordinates. Each tier has a promotion bonus and quarterly P&L commission percentage.
 
+**Unified Tier/Level Naming Convention:**
+- Star levels: `Rookie`, `1-Star`, `2-Star`, `3-Star`, `4-Star` (display labels from `STAR_THRESHOLDS`)
+- DB `tier` field stores: `rookie`, `1-star`, `2-star`, `3-star`, `4-star` (via `getTierForStarLevel()`)
+- Leadership tiers: `Executive Director`, `Senior Executive Director`, `Managing Director`, `Chief Marketing Officer`
+- Use `getAgentDisplayTier(starLevel, leadershipTier)` from `commission-constants.ts` for all UI display — shows leadership tier label when applicable, otherwise star level label
+- Old tier names (`rising`, `veteran`, `senior`, `Elite`, `Starter`) are **dead** — do not use
+
 **Key files:**
-- `src/lib/commission-constants.ts` — Star thresholds, bonus pool amounts, leadership tier config
+- `src/lib/commission-constants.ts` — Star thresholds, bonus pool amounts, leadership tier config, `getAgentDisplayTier()` helper
 - `src/backend/services/star-pool-distribution.ts` — Pure distribution algorithm
 - `src/backend/services/star-level.ts` — Star level calculation + recalculation
 - `src/backend/services/bonus-pool.ts` — Bonus pool creation orchestrator
@@ -233,7 +291,7 @@ vi.mock('@/backend/auth', () => ({ auth: mockAuth }))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 ```
 
-### Existing Tests (11 files, 114 tests)
+### Existing Tests (13 files, 145 tests)
 
 **Phase 1 — Agent Application (4 files, 41 tests):**
 - `src/test/backend/actions/agent-application.test.ts` — Validation, email uniqueness, happy path, addressDocument
@@ -250,6 +308,10 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 - `src/test/backend/actions/commission.test.ts` — Mark paid, bulk mark paid, auth guards
 - `src/test/backend/actions/leadership.test.ts` — Promote, quarterly settlement, approve/pay settlement
 
+**Client Draft (2 files, 31 tests):**
+- `src/test/backend/actions/client-drafts.test.ts` — CRUD actions, auth guards, ownership checks, submit validation
+- `src/test/lib/risk-score.test.ts` — Score boundaries, flag weights, addressMismatch exclusion
+
 ---
 
 ## Page Inventory
@@ -258,10 +320,11 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 
 | Route | Page File | Data Source |
 |-------|-----------|-------------|
-| `/agent` | `src/app/agent/page.tsx` | Mock — dashboard cockpit |
-| `/agent/clients` | `src/app/agent/clients/page.tsx` | Mock — client list |
+| `/agent` | `src/app/agent/page.tsx` | **Real DB** — earnings/star level; Mock — pipeline/KPIs |
+| `/agent/clients` | `src/app/agent/clients/page.tsx` | **Real DB** — client list (fallback mock if empty) |
+| `/agent/new-client` | `src/app/agent/new-client/page.tsx` | **Real DB** — 4-step intake form with drafts + risk panel |
 | `/agent/clients/[id]` | `src/app/agent/clients/[id]/page.tsx` | Mock — client detail |
-| `/agent/earnings` | `src/app/agent/earnings/page.tsx` | Mock — earnings + KPIs |
+| `/agent/earnings` | `src/app/agent/earnings/page.tsx` | **Real DB** — allocations; Mock — KPIs/hierarchy |
 | `/agent/team` | `src/app/agent/team/page.tsx` | Mock — hierarchy tree |
 | `/agent/todo-list` | `src/app/agent/todo-list/page.tsx` | Mock — todo list |
 | `/agent/settings` | `src/app/agent/settings/page.tsx` | Mock — user settings |
@@ -271,18 +334,18 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 | Route | Page File | Data Source |
 |-------|-----------|-------------|
 | `/backoffice` | `src/app/backoffice/page.tsx` | Mock — overview |
-| `/backoffice/agent-management` | page.tsx | **Real DB** — Agent Directory + Pending Applications (2 tabs) |
-| `/backoffice/agent-management/[id]` | page.tsx | Mock — agent detail |
+| `/backoffice/agent-management` | page.tsx | **Real DB** — Agent Directory (star-level filter) + Pending Applications |
+| `/backoffice/agent-management/[id]` | page.tsx | **Real DB** — agent profile, earnings, hierarchy |
 | `/backoffice/login-management` | page.tsx | **Real DB** — all users CRUD |
 | `/backoffice/client-management` | page.tsx | Mock — client list |
 | `/backoffice/client-settlement` | page.tsx | Mock — settlements |
-| `/backoffice/commissions` | page.tsx | Mock — commissions |
+| `/backoffice/commissions` | page.tsx | **Real DB** — bonus pools, payouts, leaderboard, mark-paid actions |
 | `/backoffice/fund-allocation` | page.tsx | Mock — fund movements |
 | `/backoffice/partners` | page.tsx | Mock — partners |
 | `/backoffice/phone-tracking` | page.tsx | Mock — phones |
 | `/backoffice/profit-sharing` | page.tsx | Mock — profit sharing |
 | `/backoffice/reports` | page.tsx | Mock — reports |
-| `/backoffice/sales-interaction` | page.tsx | Mock — sales pipeline |
+| `/backoffice/sales-interaction` | page.tsx | Mock — sales pipeline (star badges in team directory) |
 | `/backoffice/todo-list` | page.tsx | Mock — action hub |
 
 ### Auth
@@ -398,6 +461,12 @@ DATABASE_URL="<neon-url>" pnpm db:migrate:deploy  # Production: applies pending 
 | David Wilson | APPROVED | Marcus Rivera (2★) | $400 distributed, all PAID | Star pool: Marcus 2 slices + James 2 slices |
 | Emily Chen | APPROVED | Jamie Torres (0★) | $400 distributed, all PENDING | Star pool: Marcus 2 slices + James 2 slices |
 | Robert Kim | PENDING | Marcus Rivera | No pool yet | Pending approval |
+
+### Sample Client Drafts
+
+| Draft | Status | Step | Closer | Notes |
+|-------|--------|------|--------|-------|
+| Sarah Martinez | DRAFT | 2 | Marcus Rivera | Partially filled (name, email, phone, ID doc) |
 
 ---
 

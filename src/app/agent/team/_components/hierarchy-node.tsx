@@ -4,12 +4,8 @@ import { useState } from 'react'
 import { ChevronRight, ChevronDown, Star } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import type { HierarchyNode as HierarchyNodeType } from '@/backend/data/hierarchy'
-
-function starLabel(starLevel: number, tier: string): string {
-  if (starLevel === 0) return tier
-  return `${starLevel}★`
-}
+import { STAR_THRESHOLDS } from '@/lib/commission-constants'
+import type { HierarchyNode as HierarchyNodeType } from '@/types/backend-types'
 
 export function HierarchyNode({
   node,
@@ -58,7 +54,7 @@ export function HierarchyNode({
           className="min-w-[3.5rem] justify-center gap-0.5 text-[10px]"
         >
           {node.starLevel > 0 && <Star className="h-2.5 w-2.5" />}
-          {starLabel(node.starLevel, node.tier)}
+          {STAR_THRESHOLDS[node.starLevel]?.label ?? `${node.starLevel}-Star`}
         </Badge>
 
         {/* Name */}

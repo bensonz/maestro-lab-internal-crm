@@ -3,10 +3,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Users, UserCheck, CheckCircle2, TrendingUp, Star } from 'lucide-react'
+import { STAR_THRESHOLDS } from '@/lib/commission-constants'
 import type {
   HierarchyAgent,
   HierarchyNode as HierarchyNodeType,
-} from '@/backend/data/hierarchy'
+} from '@/types/backend-types'
 import { HierarchyNode } from './hierarchy-node'
 import { cn } from '@/lib/utils'
 
@@ -66,11 +67,6 @@ function formatStat(key: string, rollup: TeamViewProps['rollup']): string {
       : '--'
   }
   return String(rollup[key as keyof typeof rollup] ?? 0)
-}
-
-function starLabel(starLevel: number, tier: string): string {
-  if (starLevel === 0) return tier
-  return `${starLevel}★`
 }
 
 const tierOrder = ['rookie', '1-star', '2-star', '3-star', '4-star']
@@ -142,7 +138,7 @@ export function TeamView({ hierarchy, rollup, currentUserId }: TeamViewProps) {
                   className="gap-0.5 text-[10px]"
                 >
                   {sup.starLevel > 0 && <Star className="h-2.5 w-2.5" />}
-                  {starLabel(sup.starLevel, sup.tier)}
+                  {STAR_THRESHOLDS[sup.starLevel]?.label ?? `${sup.starLevel}-Star`}
                 </Badge>
                 <span className="text-foreground">{sup.name}</span>
                 {i === reversedChain.length - 1 && (
@@ -169,7 +165,7 @@ export function TeamView({ hierarchy, rollup, currentUserId }: TeamViewProps) {
                 {hierarchy.agent.starLevel > 0 && (
                   <Star className="h-2.5 w-2.5" />
                 )}
-                {starLabel(hierarchy.agent.starLevel, hierarchy.agent.tier)}
+                {STAR_THRESHOLDS[hierarchy.agent.starLevel]?.label ?? `${hierarchy.agent.starLevel}-Star`}
               </Badge>
               {hierarchy.agent.name}
               <span className="text-[10px] text-muted-foreground">(you)</span>
@@ -226,7 +222,7 @@ export function TeamView({ hierarchy, rollup, currentUserId }: TeamViewProps) {
                     variant="outline"
                     className="gap-1.5 px-3 py-1 text-xs"
                   >
-                    {tier}
+                    {STAR_THRESHOLDS[tierOrder.indexOf(tier)]?.label ?? tier}
                     <span className="font-bold">
                       {rollup.tierBreakdown[tier]}
                     </span>

@@ -17,11 +17,14 @@ import {
   type ApplicationRow,
 } from './application-review-list'
 import { cn } from '@/lib/utils'
+import { getAgentDisplayTier } from '@/lib/commission-constants'
 
 interface Agent {
   id: string
   name: string
   tier: string
+  starLevel: number
+  leadershipTier: string
   phone: string
   start: string
   clients: number
@@ -59,9 +62,19 @@ type TabKey = 'agents' | 'applications'
 type SortField = 'start' | 'clients' | 'working' | null
 type SortDirection = 'asc' | 'desc'
 
+function getStarLabel(agent: Agent): string {
+  return getAgentDisplayTier(agent.starLevel, agent.leadershipTier)
+}
+
 function buildTierOptions(agents: Agent[]): string[] {
-  const tiers = new Set(agents.map((a) => a.tier))
-  return ['All', ...Array.from(tiers).sort()]
+  const seen = new Map<number, string>()
+  for (const a of agents) {
+    if (!seen.has(a.starLevel)) {
+      seen.set(a.starLevel, getStarLabel(a))
+    }
+  }
+  const sorted = Array.from(seen.entries()).sort(([a], [b]) => a - b)
+  return ['All', ...sorted.map(([, label]) => label)]
 }
 
 function getInitials(name: string) {
@@ -106,7 +119,7 @@ export function AgentList({
         agent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         agent.phone.includes(searchQuery)
       const matchesTier =
-        selectedTier === 'All' || agent.tier === selectedTier
+        selectedTier === 'All' || getStarLabel(agent) === selectedTier
       return matchesSearch && matchesTier
     })
   }, [agents, searchQuery, selectedTier])
@@ -160,7 +173,8 @@ export function AgentList({
   const tierCounts = useMemo(() => {
     const counts: Record<string, number> = { All: agents.length }
     for (const agent of agents) {
-      counts[agent.tier] = (counts[agent.tier] || 0) + 1
+      const label = getStarLabel(agent)
+      counts[label] = (counts[label] || 0) + 1
     }
     return counts
   }, [agents])
@@ -251,7 +265,7 @@ export function AgentList({
         {/* Tier Filter */}
         <div className="space-y-2">
           <p className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground">
-            Filter by Tier
+            Filter by Star Level
           </p>
           <div className="flex flex-wrap gap-1">
             {tierOptions.map((tier) => (
@@ -449,7 +463,7 @@ export function AgentList({
                                 {agent.name}
                               </span>
                               <span className="shrink-0 text-xs text-warning">
-                                {agent.tier}
+                                {getStarLabel(agent)}
                               </span>
                             </div>
                           </td>

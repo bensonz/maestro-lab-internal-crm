@@ -6,10 +6,10 @@
  */
 export const STAR_THRESHOLDS = [
   { level: 0, label: 'Rookie', min: 1, max: 2, sliceBonus: '$0' },
-  { level: 1, label: '1-Star Agent', min: 3, max: 6, sliceBonus: '$50' },
-  { level: 2, label: '2-Star Agent', min: 7, max: 12, sliceBonus: '$100' },
-  { level: 3, label: '3-Star Agent', min: 13, max: 20, sliceBonus: '$150' },
-  { level: 4, label: '4-Star Agent', min: 21, max: Infinity, sliceBonus: '$200' },
+  { level: 1, label: '1-Star', min: 3, max: 6, sliceBonus: '$50' },
+  { level: 2, label: '2-Star', min: 7, max: 12, sliceBonus: '$100' },
+  { level: 3, label: '3-Star', min: 13, max: 20, sliceBonus: '$150' },
+  { level: 4, label: '4-Star', min: 21, max: Infinity, sliceBonus: '$200' },
 ] as const
 
 /**
@@ -83,3 +83,15 @@ export const LEADERSHIP_TIERS = [
 ] as const
 
 export type LeadershipTierConfig = (typeof LEADERSHIP_TIERS)[number]
+
+/**
+ * Returns the display label for an agent based on their star level and leadership tier.
+ * Use this everywhere in UI to display an agent's tier consistently.
+ */
+export function getAgentDisplayTier(starLevel: number, leadershipTier: string = 'NONE'): string {
+  if (leadershipTier !== 'NONE') {
+    const lt = LEADERSHIP_TIERS.find(t => t.tier === leadershipTier)
+    return lt?.label ?? leadershipTier
+  }
+  return STAR_THRESHOLDS[starLevel]?.label ?? `${starLevel}-Star`
+}

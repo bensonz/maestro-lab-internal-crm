@@ -17,11 +17,8 @@ export function calculateStarLevel(approvedCount: number): number {
  * Returns the tier label for a given star level.
  */
 export function getTierForStarLevel(starLevel: number): string {
-  const threshold = STAR_THRESHOLDS.find((t) => t.level === starLevel)
-  if (!threshold) return 'rookie'
   if (starLevel === 0) return 'rookie'
-  if (starLevel <= 2) return 'rising'
-  return 'senior'
+  return `${starLevel}-star`
 }
 
 /**

@@ -30,6 +30,8 @@ export default async function AgentManagementPage() {
     id: a.id,
     name: a.name,
     tier: a.tier,
+    starLevel: a.starLevel,
+    leadershipTier: a.leadershipTier,
     phone: a.phone || '',
     start: new Date(a.createdAt).toLocaleDateString(),
     clients: 0,

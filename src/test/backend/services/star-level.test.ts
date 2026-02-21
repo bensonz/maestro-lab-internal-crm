@@ -70,14 +70,11 @@ describe('getTierForStarLevel', () => {
     expect(getTierForStarLevel(0)).toBe('rookie')
   })
 
-  it('returns rising for 1-2', () => {
-    expect(getTierForStarLevel(1)).toBe('rising')
-    expect(getTierForStarLevel(2)).toBe('rising')
-  })
-
-  it('returns senior for 3-4', () => {
-    expect(getTierForStarLevel(3)).toBe('senior')
-    expect(getTierForStarLevel(4)).toBe('senior')
+  it('returns N-star for levels 1-4', () => {
+    expect(getTierForStarLevel(1)).toBe('1-star')
+    expect(getTierForStarLevel(2)).toBe('2-star')
+    expect(getTierForStarLevel(3)).toBe('3-star')
+    expect(getTierForStarLevel(4)).toBe('4-star')
   })
 })
 
@@ -144,7 +141,7 @@ describe('recalculateAgentStarLevel', () => {
     expect(result).toEqual({ starLevel: 2, changed: true })
     expect(mockPrisma.user.update).toHaveBeenCalledWith({
       where: { id: 'u1' },
-      data: { starLevel: 2, tier: 'rising' },
+      data: { starLevel: 2, tier: '2-star' },
     })
     expect(mockPrisma.promotionLog.create).toHaveBeenCalledTimes(1)
     expect(mockPrisma.eventLog.create).toHaveBeenCalledTimes(1)

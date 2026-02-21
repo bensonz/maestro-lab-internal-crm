@@ -45,7 +45,7 @@ async function main() {
   })
   console.log(`  Created GM: ${gm.email}`)
 
-  // James Park — 4★ senior agent (top of hierarchy)
+  // James Park — 4★ agent (top of hierarchy)
   const jamesPark = await prisma.user.upsert({
     where: { email: 'james.park@test.com' },
     update: {},
@@ -55,7 +55,7 @@ async function main() {
       name: 'James Park',
       role: 'AGENT',
       phone: '(555) 100-0003',
-      tier: 'senior',
+      tier: '4-star',
       starLevel: 4,
       gender: 'Male',
       dateOfBirth: new Date('1990-06-20'),
@@ -69,19 +69,19 @@ async function main() {
       loginAccount: 'jpark',
     },
   })
-  console.log(`  Created senior agent: ${jamesPark.email}`)
+  console.log(`  Created 4-star agent: ${jamesPark.email}`)
 
-  // Marcus Rivera — 2★ rising agent (supervised by James Park)
+  // Marcus Rivera — 2★ agent (supervised by James Park)
   const agent = await prisma.user.upsert({
     where: { email: 'agent@test.com' },
-    update: { supervisorId: jamesPark.id, starLevel: 2, tier: 'rising' },
+    update: { supervisorId: jamesPark.id, starLevel: 2, tier: '2-star' },
     create: {
       email: 'agent@test.com',
       passwordHash,
       name: 'Marcus Rivera',
       role: 'AGENT',
       phone: '(555) 100-0001',
-      tier: 'rising',
+      tier: '2-star',
       starLevel: 2,
       gender: 'Male',
       dateOfBirth: new Date('1998-03-15'),
@@ -327,6 +327,25 @@ async function main() {
     },
   })
   console.log(`  Created client 3 (Robert Kim) — pending, no bonus pool`)
+
+  // ── Sample Client Draft ────────────────────────────────
+
+  await prisma.clientDraft.deleteMany({ where: { closerId: agent.id } })
+  const sampleDraft = await prisma.clientDraft.create({
+    data: {
+      closerId: agent.id,
+      status: 'DRAFT',
+      step: 2,
+      firstName: 'Sarah',
+      lastName: 'Martinez',
+      email: 'sarah.m@example.com',
+      phone: '(555) 600-0001',
+      idDocument: '/uploads/sample-client-id.jpg',
+      idNumber: 'DL-55667788',
+      idExpiry: new Date('2028-08-20'),
+    },
+  })
+  console.log(`  Created sample client draft: ${sampleDraft.id} (step 2, for Marcus)`)
 
   // ── Event Logs ─────────────────────────────────────────
 

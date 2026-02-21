@@ -110,7 +110,7 @@ describe('approveApplication', () => {
 
     const result = await approveApplication('app-1', {
       supervisorId: 'sup-1',
-      tier: 'rising',
+      tier: '1-star',
       notes: 'Good candidate',
     })
 
@@ -127,7 +127,7 @@ describe('approveApplication', () => {
     expect(userCreate.data.email).toBe('john@example.com')
     expect(userCreate.data.role).toBe('AGENT')
     expect(userCreate.data.supervisorId).toBe('sup-1')
-    expect(userCreate.data.tier).toBe('rising')
+    expect(userCreate.data.tier).toBe('1-star')
     expect(userCreate.data.idDocument).toBe('/uploads/id.jpg')
     expect(userCreate.data.addressDocument).toBe('/uploads/address-proof.jpg')
 

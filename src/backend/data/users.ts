@@ -29,6 +29,7 @@ export async function getAllAgents() {
       phone: true,
       tier: true,
       starLevel: true,
+      leadershipTier: true,
       isActive: true,
       createdAt: true,
       supervisorId: true,
