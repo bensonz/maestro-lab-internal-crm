@@ -1,6 +1,5 @@
-import { auth } from '@/backend/auth'
-import { redirect, notFound } from 'next/navigation'
-import { getAgentDetail } from '@/backend/data/backoffice'
+import { MOCK_AGENT_DETAIL } from '@/lib/mock-data'
+import { getAgentIdList } from '@/backend/data/users'
 import { AgentDetailView } from './_components/agent-detail-view'
 
 export default async function AgentDetailPage({
@@ -8,12 +7,17 @@ export default async function AgentDetailPage({
 }: {
   params: Promise<{ id: string }>
 }) {
-  const session = await auth()
-  if (!session?.user) redirect('/login')
-
   const { id } = await params
-  const agent = await getAgentDetail(id)
-  if (!agent) notFound()
+  const agentIds = await getAgentIdList()
+  const currentIndex = agentIds.indexOf(id)
+  const prevAgentId = currentIndex > 0 ? agentIds[currentIndex - 1] : null
+  const nextAgentId = currentIndex < agentIds.length - 1 ? agentIds[currentIndex + 1] : null
 
-  return <AgentDetailView agent={agent} />
+  return (
+    <AgentDetailView
+      agent={MOCK_AGENT_DETAIL}
+      prevAgentId={prevAgentId}
+      nextAgentId={nextAgentId}
+    />
+  )
 }

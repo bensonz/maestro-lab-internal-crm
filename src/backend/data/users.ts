@@ -62,6 +62,15 @@ export async function getUserById(id: string) {
   })
 }
 
+export async function getAgentIdList() {
+  const agents = await prisma.user.findMany({
+    where: { role: 'AGENT' },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true },
+  })
+  return agents.map((a) => a.id)
+}
+
 export async function getActiveAgents() {
   return prisma.user.findMany({
     where: { role: 'AGENT', isActive: true },

@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ArrowLeft,
+  ChevronUp,
+  ChevronDown,
   Star,
   Phone,
   MapPin,
@@ -26,13 +28,15 @@ import {
 } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { EditableField } from './editable-field'
-import type { AgentDetailData } from '@/backend/data/backoffice'
+import type { AgentDetailData } from '@/types/backend-types'
 
 interface AgentDetailViewProps {
   agent: AgentDetailData
+  prevAgentId?: string | null
+  nextAgentId?: string | null
 }
 
-export function AgentDetailView({ agent }: AgentDetailViewProps) {
+export function AgentDetailView({ agent, prevAgentId, nextAgentId }: AgentDetailViewProps) {
   const router = useRouter()
   const [showIdModal, setShowIdModal] = useState(false)
   const [agentData, setAgentData] = useState(agent)
@@ -55,17 +59,41 @@ export function AgentDetailView({ agent }: AgentDetailViewProps) {
 
   return (
     <div className="space-y-6 p-6 animate-fade-in">
-      {/* Header with Back Button */}
+      {/* Header with Back Button and Prev/Next */}
       <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          onClick={() => router.push('/backoffice/agent-management')}
-          className="gap-2"
-          data-testid="agent-detail-back"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            onClick={() => router.push('/backoffice/agent-management')}
+            className="gap-2"
+            data-testid="agent-detail-back"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </Button>
+          <div className="flex flex-col">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              disabled={!prevAgentId}
+              onClick={() => prevAgentId && handleNavigateToAgent(prevAgentId)}
+              data-testid="agent-detail-prev"
+            >
+              <ChevronUp className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              disabled={!nextAgentId}
+              onClick={() => nextAgentId && handleNavigateToAgent(nextAgentId)}
+              data-testid="agent-detail-next"
+            >
+              <ChevronDown className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/20">
             <span className="text-sm font-medium text-primary">
