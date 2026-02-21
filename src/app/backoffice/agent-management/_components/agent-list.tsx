@@ -71,6 +71,13 @@ function getStarLabel(agent: Agent): string {
   return getAgentDisplayTier(agent.starLevel, agent.leadershipTier)
 }
 
+const LEADERSHIP_RANK: Record<string, number> = { NONE: 0, ED: 1, SED: 2, MD: 3, CMO: 4 }
+
+/** Numeric rank for sorting: higher = higher rank. Rookie=0, 1★=1, ..., 4★=4, ED=5, SED=6, MD=7, CMO=8 */
+function getAgentRank(agent: Agent): number {
+  return agent.starLevel + (LEADERSHIP_RANK[agent.leadershipTier] || 0)
+}
+
 /** Always show all 9 levels in the filter: Rookie → 1★ → 2★ → 3★ → 4★ → ED → SED → MD → CMO */
 function buildTierOptions(): string[] {
   const starLabels = STAR_THRESHOLDS.map((t) => t.label)
@@ -127,7 +134,10 @@ export function AgentList({
   }, [agents, searchQuery, selectedTier])
 
   const sortedAgents = useMemo(() => {
-    if (!sortField) return filteredAgents
+    if (!sortField) {
+      // Default: highest rank first
+      return [...filteredAgents].sort((a, b) => getAgentRank(b) - getAgentRank(a))
+    }
     return [...filteredAgents].sort((a, b) => {
       let cmp = 0
       switch (sortField) {

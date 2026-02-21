@@ -22,6 +22,19 @@ interface TreeNode {
   children: TreeNode[]
 }
 
+const LEADERSHIP_RANK: Record<string, number> = { NONE: 0, ED: 1, SED: 2, MD: 3, CMO: 4 }
+
+function getAgentRank(agent: Agent): number {
+  return agent.starLevel + (LEADERSHIP_RANK[agent.leadershipTier] || 0)
+}
+
+function sortNodesByRank(nodes: TreeNode[]): void {
+  nodes.sort((a, b) => getAgentRank(b.agent) - getAgentRank(a.agent))
+  for (const node of nodes) {
+    if (node.children.length > 0) sortNodesByRank(node.children)
+  }
+}
+
 function buildTree(agents: Agent[]): TreeNode[] {
   const map = new Map<string, TreeNode>()
   const roots: TreeNode[] = []
@@ -39,6 +52,7 @@ function buildTree(agents: Agent[]): TreeNode[] {
     }
   }
 
+  sortNodesByRank(roots)
   return roots
 }
 
