@@ -36,63 +36,68 @@ export async function submitAgentApplication(formData: FormData) {
 
   const data = parsed.data
 
-  // Check email uniqueness against User table
-  const existingUser = await prisma.user.findUnique({
-    where: { email: data.email },
-  })
-  if (existingUser) {
-    return {
-      success: false,
-      errors: { email: ['An account with this email already exists'] },
+  try {
+    // Check email uniqueness against User table
+    const existingUser = await prisma.user.findUnique({
+      where: { email: data.email },
+    })
+    if (existingUser) {
+      return {
+        success: false,
+        errors: { email: ['An account with this email already exists'] },
+      }
     }
-  }
 
-  // Check email uniqueness against pending applications
-  const existingApp = await prisma.agentApplication.findFirst({
-    where: { email: data.email, status: 'PENDING' },
-  })
-  if (existingApp) {
-    return {
-      success: false,
-      errors: { email: ['A pending application with this email already exists'] },
+    // Check email uniqueness against pending applications
+    const existingApp = await prisma.agentApplication.findFirst({
+      where: { email: data.email, status: 'PENDING' },
+    })
+    if (existingApp) {
+      return {
+        success: false,
+        errors: { email: ['A pending application with this email already exists'] },
+      }
     }
+
+    // Hash password
+    const hashedPassword = await hash(data.password, 12)
+
+    // Create application
+    const application = await prisma.agentApplication.create({
+      data: {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        phone: data.phone,
+        password: hashedPassword,
+        gender: data.gender || null,
+        dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : null,
+        citizenship: data.citizenship || null,
+        address: data.address || null,
+        city: data.city || null,
+        state: data.state || null,
+        zipCode: data.zipCode || null,
+        country: 'US',
+        idDocument: idDocumentPath || null,
+        addressDocument: addressDocumentPath || null,
+        idExpiry: data.idExpiry ? new Date(data.idExpiry) : null,
+        zelle: data.zelle || null,
+        referredByName: data.referredByName || null,
+      },
+    })
+
+    // Log event
+    await prisma.eventLog.create({
+      data: {
+        eventType: 'APPLICATION_SUBMITTED',
+        description: `Agent application submitted by ${data.firstName} ${data.lastName}`,
+        metadata: { applicationId: application.id, email: data.email },
+      },
+    })
+
+    return { success: true, applicationId: application.id }
+  } catch (err) {
+    console.error('[submitAgentApplication] Error:', err)
+    return { success: false, error: String(err) }
   }
-
-  // Hash password
-  const hashedPassword = await hash(data.password, 12)
-
-  // Create application
-  const application = await prisma.agentApplication.create({
-    data: {
-      firstName: data.firstName,
-      lastName: data.lastName,
-      email: data.email,
-      phone: data.phone,
-      password: hashedPassword,
-      gender: data.gender || null,
-      dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : null,
-      citizenship: data.citizenship || null,
-      address: data.address || null,
-      city: data.city || null,
-      state: data.state || null,
-      zipCode: data.zipCode || null,
-      country: 'US',
-      idDocument: idDocumentPath || null,
-      addressDocument: addressDocumentPath || null,
-      idExpiry: data.idExpiry ? new Date(data.idExpiry) : null,
-      zelle: data.zelle || null,
-      referredByName: data.referredByName || null,
-    },
-  })
-
-  // Log event
-  await prisma.eventLog.create({
-    data: {
-      eventType: 'APPLICATION_SUBMITTED',
-      description: `Agent application submitted by ${data.firstName} ${data.lastName}`,
-      metadata: { applicationId: application.id, email: data.email },
-    },
-  })
-
-  return { success: true, applicationId: application.id }
 }

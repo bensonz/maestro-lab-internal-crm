@@ -356,6 +356,8 @@ export function ApplicationForm() {
       } else if (result.errors) {
         setErrors(result.errors as FormErrors)
         navigateToFirstError(Object.keys(result.errors))
+      } else if ('error' in result && result.error) {
+        setGlobalError(result.error as string)
       }
     } catch {
       setGlobalError('Something went wrong. Please try again.')
