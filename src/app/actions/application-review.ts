@@ -31,6 +31,15 @@ export async function approveApplication(
     return { success: false, error: 'Application has already been reviewed' }
   }
 
+  // Check if a user with this email already exists
+  const existingUser = await prisma.user.findUnique({
+    where: { email: application.email },
+    select: { id: true },
+  })
+  if (existingUser) {
+    return { success: false, error: `A user with email ${application.email} already exists` }
+  }
+
   // Create user from application data
   const user = await prisma.user.create({
     data: {

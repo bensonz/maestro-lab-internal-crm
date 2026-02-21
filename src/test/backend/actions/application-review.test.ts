@@ -18,6 +18,7 @@ vi.mock('next/cache', () => ({
 const { mockPrisma } = vi.hoisted(() => ({
   mockPrisma: {
     user: {
+      findUnique: vi.fn(),
       create: vi.fn(),
     },
     agentApplication: {
@@ -61,6 +62,7 @@ describe('approveApplication', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockPrisma.agentApplication.findUnique.mockResolvedValue(MOCK_APP)
+    mockPrisma.user.findUnique.mockResolvedValue(null) // no existing user by default
     mockPrisma.user.create.mockResolvedValue({
       id: 'user-new',
       name: 'John Doe',
@@ -103,6 +105,16 @@ describe('approveApplication', () => {
     const result = await approveApplication('app-1', {})
     expect(result.success).toBe(false)
     expect(result.error).toBe('Application has already been reviewed')
+  })
+
+  it('returns error when user with same email already exists', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN', name: 'Admin' } })
+    mockPrisma.user.findUnique.mockResolvedValue({ id: 'existing-user' })
+
+    const result = await approveApplication('app-1', {})
+    expect(result.success).toBe(false)
+    expect(result.error).toContain('already exists')
+    expect(mockPrisma.user.create).not.toHaveBeenCalled()
   })
 
   it('creates user and updates application on success', async () => {
