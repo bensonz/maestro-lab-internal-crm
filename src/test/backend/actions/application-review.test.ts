@@ -20,6 +20,7 @@ const { mockPrisma } = vi.hoisted(() => ({
     user: {
       findUnique: vi.fn(),
       create: vi.fn(),
+      delete: vi.fn(),
     },
     agentApplication: {
       findUnique: vi.fn(),
@@ -32,7 +33,7 @@ const { mockPrisma } = vi.hoisted(() => ({
 }))
 vi.mock('@/backend/prisma/client', () => ({ default: mockPrisma }))
 
-import { approveApplication, rejectApplication } from '@/app/actions/application-review'
+import { approveApplication, rejectApplication, revertApplicationToPending } from '@/app/actions/application-review'
 
 const MOCK_APP = {
   id: 'app-1',
@@ -239,5 +240,86 @@ describe('rejectApplication', () => {
     expect(update.data.reviewedById).toBe('admin-1')
 
     expect(mockPrisma.eventLog.create).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('revertApplicationToPending', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockPrisma.agentApplication.update.mockResolvedValue({})
+    mockPrisma.eventLog.create.mockResolvedValue({})
+    mockPrisma.user.delete.mockResolvedValue({})
+  })
+
+  it('rejects unauthenticated users', async () => {
+    mockAuth.mockResolvedValue(null)
+    const result = await revertApplicationToPending('app-1')
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('Not authenticated')
+  })
+
+  it('rejects non-admin/backoffice users', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'AGENT', name: 'A' } })
+    const result = await revertApplicationToPending('app-1')
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('Not authorized')
+  })
+
+  it('returns error if application is already pending', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN', name: 'Admin' } })
+    mockPrisma.agentApplication.findUnique.mockResolvedValue(MOCK_APP)
+
+    const result = await revertApplicationToPending('app-1')
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('Application is already pending')
+  })
+
+  it('reverts a rejected application to pending', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN', name: 'Admin' } })
+    mockPrisma.agentApplication.findUnique.mockResolvedValue({
+      ...MOCK_APP,
+      status: 'REJECTED',
+      resultUserId: null,
+    })
+
+    const result = await revertApplicationToPending('app-1')
+    expect(result.success).toBe(true)
+
+    const update = mockPrisma.agentApplication.update.mock.calls[0][0]
+    expect(update.data.status).toBe('PENDING')
+    expect(update.data.reviewedById).toBeNull()
+    expect(update.data.resultUserId).toBeNull()
+    expect(mockPrisma.user.delete).not.toHaveBeenCalled()
+    expect(mockPrisma.eventLog.create).toHaveBeenCalledTimes(1)
+  })
+
+  it('reverts an approved application and deletes the created user', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN', name: 'Admin' } })
+    mockPrisma.agentApplication.findUnique.mockResolvedValue({
+      ...MOCK_APP,
+      status: 'APPROVED',
+      resultUserId: 'user-created',
+    })
+
+    const result = await revertApplicationToPending('app-1')
+    expect(result.success).toBe(true)
+
+    expect(mockPrisma.user.delete).toHaveBeenCalledWith({ where: { id: 'user-created' } })
+    expect(mockPrisma.agentApplication.update.mock.calls[0][0].data.status).toBe('PENDING')
+  })
+
+  it('returns error if approved user has dependent records', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN', name: 'Admin' } })
+    mockPrisma.agentApplication.findUnique.mockResolvedValue({
+      ...MOCK_APP,
+      status: 'APPROVED',
+      resultUserId: 'user-with-deps',
+    })
+    mockPrisma.user.delete.mockRejectedValue(new Error('Foreign key constraint'))
+
+    const result = await revertApplicationToPending('app-1')
+    expect(result.success).toBe(false)
+    expect(result.error).toContain('dependent records')
+    expect(mockPrisma.agentApplication.update).not.toHaveBeenCalled()
   })
 })

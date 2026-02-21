@@ -169,3 +169,65 @@ export async function rejectApplication(
 
   return { success: true }
 }
+
+export async function revertApplicationToPending(applicationId: string) {
+  const session = await auth()
+  if (!session?.user) {
+    return { success: false, error: 'Not authenticated' }
+  }
+
+  const role = session.user.role
+  if (role !== 'ADMIN' && role !== 'BACKOFFICE') {
+    return { success: false, error: 'Not authorized' }
+  }
+
+  const application = await prisma.agentApplication.findUnique({
+    where: { id: applicationId },
+  })
+
+  if (!application) {
+    return { success: false, error: 'Application not found' }
+  }
+
+  if (application.status === 'PENDING') {
+    return { success: false, error: 'Application is already pending' }
+  }
+
+  // If approved, delete the created User (only if safe to do so)
+  if (application.status === 'APPROVED' && application.resultUserId) {
+    try {
+      await prisma.user.delete({
+        where: { id: application.resultUserId },
+      })
+    } catch {
+      return {
+        success: false,
+        error: 'Cannot revert: the created agent account has dependent records (clients, commissions, etc.)',
+      }
+    }
+  }
+
+  await prisma.agentApplication.update({
+    where: { id: applicationId },
+    data: {
+      status: 'PENDING',
+      reviewedById: null,
+      reviewedAt: null,
+      reviewNotes: null,
+      resultUserId: null,
+    },
+  })
+
+  await prisma.eventLog.create({
+    data: {
+      eventType: 'APPLICATION_REJECTED', // reuse closest event type
+      description: `Application reverted to pending for ${application.firstName} ${application.lastName}`,
+      userId: session.user.id,
+      metadata: { applicationId, email: application.email, action: 'revert_to_pending' },
+    },
+  })
+
+  revalidatePath('/backoffice/agent-management')
+
+  return { success: true }
+}

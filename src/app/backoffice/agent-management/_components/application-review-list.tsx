@@ -32,10 +32,11 @@ import {
   ChevronRight,
   Clock,
   Loader2,
+  Undo2,
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { toast } from 'sonner'
-import { approveApplication, rejectApplication } from '@/app/actions/application-review'
+import { approveApplication, rejectApplication, revertApplicationToPending } from '@/app/actions/application-review'
 import type { ApplicationStatus } from '@/types'
 
 export interface ApplicationRow {
@@ -85,6 +86,25 @@ export function ApplicationReviewList({ applications, agents }: Props) {
   const [notes, setNotes] = useState('')
   const [rejectReason, setRejectReason] = useState('')
   const [rejectError, setRejectError] = useState('')
+
+  const [revertingId, setRevertingId] = useState<string | null>(null)
+
+  const handleRevert = async (app: ApplicationRow) => {
+    setRevertingId(app.id)
+    try {
+      const result = await revertApplicationToPending(app.id)
+      if (result.success) {
+        toast.success(`Application for ${app.firstName} ${app.lastName} reverted to pending`)
+        router.refresh()
+      } else {
+        toast.error(result.error || 'Failed to revert')
+      }
+    } catch {
+      toast.error('Something went wrong')
+    } finally {
+      setRevertingId(null)
+    }
+  }
 
   const pending = applications.filter((a) => a.status === 'PENDING')
   const reviewed = applications.filter((a) => a.status !== 'PENDING')
@@ -274,6 +294,21 @@ export function ApplicationReviewList({ applications, agents }: Props) {
                       ? formatDistanceToNow(new Date(app.reviewedAt), { addSuffix: true })
                       : ''}
                   </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground gap-1 shrink-0"
+                    onClick={() => handleRevert(app)}
+                    disabled={revertingId === app.id}
+                    data-testid={`revert-app-${app.id}`}
+                  >
+                    {revertingId === app.id ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Undo2 className="h-3 w-3" />
+                    )}
+                    Revert
+                  </Button>
                 </div>
               ))}
             </div>
