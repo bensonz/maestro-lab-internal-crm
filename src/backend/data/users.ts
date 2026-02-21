@@ -79,3 +79,17 @@ export async function getActiveAgents() {
     orderBy: { name: 'asc' },
   })
 }
+
+export async function getAgentsForHierarchy() {
+  return prisma.user.findMany({
+    where: { role: 'AGENT', isActive: true },
+    orderBy: { starLevel: 'desc' },
+    select: {
+      id: true,
+      name: true,
+      starLevel: true,
+      leadershipTier: true,
+      _count: { select: { closedClients: true } },
+    },
+  })
+}

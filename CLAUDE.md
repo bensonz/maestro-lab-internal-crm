@@ -34,13 +34,20 @@ The backend has a fully functional **commission system** with real DB queries wi
 These pages fetch real commission/earnings data from DB but still use mock data for some fields:
 - Agent dashboard — earnings/star level real, pipeline stats mock
 - Agent earnings — transaction history real, KPIs/hierarchy mock
-- Agent clients — DB clients if available, otherwise mock
+- Agent clients — DB clients + drafts from real DB, falls back to mock if empty
+- Backoffice sales interaction — Team directory sidebar uses real agents from DB (grouped by display tier); In Progress section uses real ClientDraft records (4 steps); verification/post-approval still mock
+
+### Draft/Client Separation
+
+- **Agent "My Clients" page** — Shows in-progress `ClientDraft` records grouped by step (1-4) at the top, with clickable links back to `/agent/new-client?draft=<id>`. Approved/submitted clients appear in status groups below. PENDING clients are filtered out (they exist as drafts).
+- **Backoffice "Sales Interaction" page** — In Progress section shows 4 step-based sub-stages (Step 1–4) sourced from real `ClientDraft` DB records via `getAllDrafts()`. Falls back to mock data if DB unavailable.
+- **Backoffice "Client Management" page** — Intended to show only APPROVED clients (currently mock).
 
 ### What's Mock (UI shell only)
 
 Remaining pages use static mock data from `src/lib/mock-data.ts` and no-op stubs from `src/lib/mock-actions.ts`:
 - Agent team, todos, settings
-- Backoffice overview, sales interaction, client management UI, settlements UI, fund allocation, partners, profit sharing, reports, phone tracking, action hub
+- Backoffice overview, client management UI, settlements UI, fund allocation, partners, profit sharing, reports, phone tracking, action hub
 
 ## Commands
 
@@ -170,7 +177,7 @@ Agents create new clients through a 4-step intake form at `/agent/new-client`.
 - `src/app/agent/new-client/_components/step4-contract.tsx` — Contract upload + checklist
 - `src/app/agent/new-client/_components/risk-panel.tsx` — Right panel: risk score + flags
 - `src/app/actions/client-drafts.ts` — CRUD server actions (create, save, submit, delete)
-- `src/backend/data/client-drafts.ts` — Draft queries (by closer, by ID, ownership check)
+- `src/backend/data/client-drafts.ts` — Draft queries (by closer, by ID, ownership check, getAllDrafts for backoffice)
 - `src/lib/validations/client-draft.ts` — Zod per-step + submit schemas
 - `src/lib/risk-score.ts` — Pure risk score calculation
 
@@ -189,10 +196,18 @@ Agents create new clients through a 4-step intake form at `/agent/new-client`.
 
 The closer participates in both the $200 direct AND the star pool walk.
 
+**Progression Ladder** (linear — each level is a distinct rank):
+
+```
+Rookie (0★) → 1★ → 2★ → 3★ → 4★ → ED → SED → MD → CMO
+```
+
 **Star Level Thresholds** (defined in `src/lib/commission-constants.ts`):
 - 0★ Rookie: 1-2 clients | 1★: 3-6 | 2★: 7-12 | 3★: 13-20 | 4★: 21+
 
-**Leadership Tiers** (ED/SED/MD/CMO): Require minimum approved clients + qualified subordinates. Each tier has a promotion bonus and quarterly P&L commission percentage.
+**Leadership Tiers** — promotions **beyond** 4-Star, not equivalent to it. ED is effectively the 5th level, SED the 6th, etc. Each requires minimum approved clients + qualified 4★ subordinates. Each has a promotion bonus and quarterly P&L commission percentage.
+- ED: 30 clients + 2 subs with 4★ | SED: 50 clients + 4 subs | MD: 100 clients + 6 subs | CMO: 200 clients + 10 subs
+- An ED/SED/MD/CMO agent still has `starLevel: 4` in DB (since they passed the 21-client threshold), but the `leadershipTier` field distinguishes them. **Never display them as "4-Star"** — always show their leadership title.
 
 **Unified Tier/Level Naming Convention:**
 - Star levels: `Rookie`, `1-Star`, `2-Star`, `3-Star`, `4-Star` (display labels from `STAR_THRESHOLDS`)
@@ -321,7 +336,7 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 | Route | Page File | Data Source |
 |-------|-----------|-------------|
 | `/agent` | `src/app/agent/page.tsx` | **Real DB** — earnings/star level; Mock — pipeline/KPIs |
-| `/agent/clients` | `src/app/agent/clients/page.tsx` | **Real DB** — client list (fallback mock if empty) |
+| `/agent/clients` | `src/app/agent/clients/page.tsx` | **Real DB** — client list + drafts grouped by step (fallback mock if empty) |
 | `/agent/new-client` | `src/app/agent/new-client/page.tsx` | **Real DB** — 4-step intake form with drafts + risk panel |
 | `/agent/clients/[id]` | `src/app/agent/clients/[id]/page.tsx` | Mock — client detail |
 | `/agent/earnings` | `src/app/agent/earnings/page.tsx` | **Real DB** — allocations; Mock — KPIs/hierarchy |
@@ -345,7 +360,7 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 | `/backoffice/phone-tracking` | page.tsx | Mock — phones |
 | `/backoffice/profit-sharing` | page.tsx | Mock — profit sharing |
 | `/backoffice/reports` | page.tsx | Mock — reports |
-| `/backoffice/sales-interaction` | page.tsx | Mock — sales pipeline (star badges in team directory) |
+| `/backoffice/sales-interaction` | page.tsx | **Real DB** — Team directory (agents by tier) + ClientDraft (4 steps); Mock — verification, post-approval |
 | `/backoffice/todo-list` | page.tsx | Mock — action hub |
 
 ### Auth
@@ -437,15 +452,35 @@ DATABASE_URL="<neon-url>" pnpm db:migrate:deploy  # Production: applies pending 
 
 ### Users
 
-| Role | Email | Password | Name | Star Level | Supervisor |
-|------|-------|----------|------|------------|------------|
-| Admin | admin@test.com | password123 | Sarah Chen | — | — |
-| Admin (GM) | gm@test.com | password123 | Tom Adams | — | — |
-| Agent | james.park@test.com | password123 | James Park | 4★ | — |
-| Agent | agent@test.com | password123 | Marcus Rivera | 2★ | James Park |
-| Agent | jamie.torres@example.com | approved123 | Jamie Torres | 0★ | Marcus Rivera |
+| Role | Email | Password | Name | Star Level | Leadership | Supervisor |
+|------|-------|----------|------|------------|------------|------------|
+| Admin | admin@test.com | password123 | Sarah Chen | — | — | — |
+| Admin (GM) | gm@test.com | password123 | Tom Adams | — | — | — |
+| Backoffice | backoffice@test.com | password123 | Nina Patel | — | — | — |
+| Finance | finance@test.com | password123 | David Chen | — | — | — |
+| Agent | victor.hayes@test.com | password123 | Victor Hayes | 4★ | CMO | — |
+| Agent | diana.foster@test.com | password123 | Diana Foster | 4★ | MD | Victor Hayes |
+| Agent | rachel.kim@test.com | password123 | Rachel Kim | 4★ | SED | — |
+| Agent | james.park@test.com | password123 | James Park | 4★ | ED | — |
+| Agent | ryan.mitchell@test.com | password123 | Ryan Mitchell | 4★ | — | Diana Foster |
+| Agent | lisa.wang@test.com | password123 | Lisa Wang | 3★ | — | James Park |
+| Agent | agent@test.com | password123 | Marcus Rivera | 2★ | — | James Park |
+| Agent | tony.russo@test.com | password123 | Tony Russo | 2★ | — | Rachel Kim |
+| Agent | derek.nguyen@test.com | password123 | Derek Nguyen | 1★ | — | Lisa Wang |
+| Agent | carlos.mendez@test.com | password123 | Carlos Mendez | 1★ | — | Marcus Rivera |
+| Agent | kevin.okafor@test.com | password123 | Kevin Okafor | 1★ | — | Rachel Kim |
+| Agent | priya.sharma@test.com | password123 | Priya Sharma | 0★ | — | Lisa Wang |
+| Agent | aisha.williams@test.com | password123 | Aisha Williams | 0★ | — | Marcus Rivera |
+| Agent | sofia.reyes@test.com | password123 | Sofia Reyes | 0★ | — | Tony Russo |
+| Agent | jamie.torres@example.com | approved123 | Jamie Torres | 0★ | — | Marcus Rivera |
 
-**Hierarchy:** James Park (4★) → Marcus Rivera (2★) → Jamie Torres (0★ rookie)
+Note: Leadership agents (ED/SED/MD/CMO) have `starLevel: 4` in DB (they passed the 21-client threshold) but display as their leadership title, not "4-Star". The progression is: Rookie → 1★ → 2★ → 3★ → 4★ → ED → SED → MD → CMO.
+
+**Hierarchy (Branch 1):** James Park (ED) → Marcus Rivera (2★) → Jamie Torres (Rookie), Carlos Mendez (1★), Aisha Williams (Rookie)
+                                           → Lisa Wang (3★) → Derek Nguyen (1★), Priya Sharma (Rookie)
+**Hierarchy (Branch 2):** Rachel Kim (SED) → Tony Russo (2★) → Sofia Reyes (Rookie)
+                                            → Kevin Okafor (1★)
+**Hierarchy (Branch 3):** Victor Hayes (CMO) → Diana Foster (MD) → Ryan Mitchell (4★)
 
 ### Applications
 

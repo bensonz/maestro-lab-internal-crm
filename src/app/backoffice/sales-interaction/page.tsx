@@ -1,477 +1,120 @@
 import {
-  getSalesInteractionStats,
-  getAgentHierarchy,
-  getIntakeClients,
-  getVerificationClients,
-  getPostApprovalVerificationClients,
-} from '@/backend/data/operations'
-import type { IntakeClient, VerificationTask, PostApprovalClient } from '@/backend/data/operations'
-import { PlatformType } from '@/types'
+  MOCK_SALES_STATS,
+  MOCK_SALES_HIERARCHY,
+  MOCK_INTAKE_CLIENTS,
+  MOCK_VERIFICATION_TASKS,
+  MOCK_POST_APPROVAL_CLIENTS,
+  MOCK_LIFECYCLE_CLIENTS,
+} from '@/lib/mock-data'
 import { SalesInteractionView } from './_components/sales-interaction-view'
+import { getAllDrafts } from '@/backend/data/client-drafts'
+import { getAgentsForHierarchy } from '@/backend/data/users'
+import { getAgentDisplayTier, LEADERSHIP_TIERS, STAR_THRESHOLDS } from '@/lib/commission-constants'
+import type { IntakeClient, InProgressSubStage } from '@/types/backend-types'
 
-// ── Helper: default enrichment fields for demo clients ──
-const NO_EXCEPTIONS: IntakeClient['exceptionStates'] = []
-const NO_PROGRESS: IntakeClient['platformProgress'] = { verified: 0, total: 0 }
+function stepToSubStage(step: number): InProgressSubStage {
+  const map: Record<number, InProgressSubStage> = {
+    1: 'step-1',
+    2: 'step-2',
+    3: 'step-3',
+    4: 'step-4',
+  }
+  return map[step] || 'step-1'
+}
 
-// ── DEMO: fake clients for every sub-stage ──────────
-const DEMO_INTAKE: IntakeClient[] = [
-  // ── In Progress → Pre-Qualification ──
-  {
-    id: 'demo-prequal-1',
-    name: 'Alice Morgan',
-    status: 'ID Upload Pending',
-    statusType: 'needs_info',
-    statusColor: 'bg-muted text-muted-foreground border-muted',
-    agentId: 'demo-agent',
-    agentName: 'Marcus Rivera',
-    days: 1,
-    daysLabel: '1 day',
-    canApprove: false,
-    canAssignPhone: false,
-    canReviewPrequal: false,
-    subStage: 'pre-qualification',
-    executionDeadline: null,
-    deadlineExtensions: 0,
-    pendingExtensionRequest: null,
-    platformProgress: NO_PROGRESS,
-    exceptionStates: NO_EXCEPTIONS,
-    rejectedPlatforms: [],
-  },
-  {
-    id: 'demo-prequal-2',
-    name: 'Brian Chen',
-    status: 'ID Review Needed',
-    statusType: 'ready',
-    statusColor: 'bg-chart-4/20 text-chart-4 border-chart-4/30',
-    agentId: 'demo-agent',
-    agentName: 'Marcus Rivera',
-    days: 0,
-    daysLabel: 'Today',
-    canApprove: false,
-    canAssignPhone: false,
-    canReviewPrequal: true,
-    subStage: 'pre-qualification',
-    executionDeadline: null,
-    deadlineExtensions: 0,
-    pendingExtensionRequest: null,
-    platformProgress: NO_PROGRESS,
-    exceptionStates: NO_EXCEPTIONS,
-    rejectedPlatforms: [],
-  },
-
-  // ── In Progress → Ten Questions ──
-  {
-    id: 'demo-ten-q-1',
-    name: 'Catherine Davis',
-    status: 'Full Application',
-    statusType: 'followup',
-    statusColor: 'bg-primary/20 text-primary border-primary/30',
-    agentId: 'demo-agent-2',
-    agentName: 'Sarah Kim',
-    days: 2,
-    daysLabel: '2 days',
-    canApprove: false,
-    canAssignPhone: false,
-    canReviewPrequal: false,
-    subStage: 'ten-questions',
-    executionDeadline: null,
-    deadlineExtensions: 0,
-    pendingExtensionRequest: null,
-    platformProgress: NO_PROGRESS,
-    exceptionStates: NO_EXCEPTIONS,
-    rejectedPlatforms: [],
-  },
-
-  // ── In Progress → Waiting for Phone ──
-  {
-    id: 'demo-wait-phone-1',
-    name: 'David Thompson',
-    status: 'In Execution',
-    statusType: 'followup',
-    statusColor: 'bg-primary/20 text-primary border-primary/30',
-    agentId: 'demo-agent-2',
-    agentName: 'Sarah Kim',
-    days: 3,
-    daysLabel: '3 days',
-    canApprove: false,
-    canAssignPhone: true,
-    canReviewPrequal: false,
-    subStage: 'waiting-for-phone',
-    executionDeadline: new Date(Date.now() + 4 * 86400000),
-    deadlineExtensions: 0,
-    pendingExtensionRequest: null,
-    platformProgress: NO_PROGRESS,
-    exceptionStates: [{ type: 'deadline-approaching', label: 'Deadline approaching' }],
-    rejectedPlatforms: [],
-  },
-  {
-    id: 'demo-wait-phone-2',
-    name: 'Emily Rodriguez',
-    status: 'In Execution',
-    statusType: 'followup',
-    statusColor: 'bg-primary/20 text-primary border-primary/30',
-    agentId: 'demo-agent',
-    agentName: 'Marcus Rivera',
-    days: 1,
-    daysLabel: '1 day',
-    canApprove: false,
-    canAssignPhone: true,
-    canReviewPrequal: false,
-    subStage: 'waiting-for-phone',
-    executionDeadline: null,
-    deadlineExtensions: 0,
-    pendingExtensionRequest: null,
-    platformProgress: NO_PROGRESS,
-    exceptionStates: NO_EXCEPTIONS,
-    rejectedPlatforms: [],
-  },
-
-  // ── In Progress → Phone Issued ──
-  {
-    id: 'demo-phone-issued-1',
-    name: 'Frank Williams',
-    status: 'Phone Issued',
-    statusType: 'followup',
-    statusColor: 'bg-primary/20 text-primary border-primary/30',
-    agentId: 'demo-agent',
-    agentName: 'Marcus Rivera',
-    days: 4,
-    daysLabel: '4 days',
-    canApprove: false,
-    canAssignPhone: false,
-    canReviewPrequal: false,
-    subStage: 'phone-issued',
-    executionDeadline: new Date(Date.now() + 10 * 86400000),
-    deadlineExtensions: 1,
-    pendingExtensionRequest: null,
-    platformProgress: NO_PROGRESS,
-    exceptionStates: NO_EXCEPTIONS,
-    rejectedPlatforms: [],
-  },
-
-  // ── In Progress → Platform Registrations ──
-  {
-    id: 'demo-platform-reg-1',
-    name: 'Grace Lee',
-    status: 'Pending DraftKings',
-    statusType: 'pending_platform',
-    statusColor: 'bg-accent/20 text-accent border-accent/30',
-    agentId: 'demo-agent-2',
-    agentName: 'Sarah Kim',
-    days: 5,
-    daysLabel: '5 days',
-    canApprove: false,
-    canAssignPhone: false,
-    canReviewPrequal: false,
-    pendingPlatform: 'DraftKings',
-    subStage: 'platform-registrations',
-    executionDeadline: new Date(Date.now() + 7 * 86400000),
-    deadlineExtensions: 0,
-    pendingExtensionRequest: null,
-    platformProgress: { verified: 6, total: 11 },
-    exceptionStates: [{ type: 'platform-rejection', label: 'Caesars rejected', platformName: 'Caesars' }],
-    rejectedPlatforms: ['Caesars'],
-  },
-  {
-    id: 'demo-platform-reg-2',
-    name: 'Henry Park',
-    status: 'Pending FanDuel',
-    statusType: 'pending_platform',
-    statusColor: 'bg-accent/20 text-accent border-accent/30',
-    agentId: 'demo-agent',
-    agentName: 'Marcus Rivera',
-    days: 3,
-    daysLabel: '3 days',
-    canApprove: false,
-    canAssignPhone: false,
-    canReviewPrequal: false,
-    pendingPlatform: 'FanDuel',
-    subStage: 'platform-registrations',
-    executionDeadline: new Date(Date.now() + 5 * 86400000),
-    deadlineExtensions: 0,
-    pendingExtensionRequest: null,
-    platformProgress: { verified: 8, total: 11 },
-    exceptionStates: NO_EXCEPTIONS,
-    rejectedPlatforms: [],
-  },
-
-  // ── In Progress → Phone Returned ──
-  {
-    id: 'demo-phone-returned-1',
-    name: 'Isabella Martinez',
-    status: 'Follow-up (2 days left)',
-    statusType: 'followup',
-    statusColor: 'bg-primary/20 text-primary border-primary/30',
-    agentId: 'demo-agent-2',
-    agentName: 'Sarah Kim',
-    days: 7,
-    daysLabel: '7 days',
-    canApprove: false,
-    canAssignPhone: false,
-    canReviewPrequal: false,
-    subStage: 'phone-returned',
-    executionDeadline: new Date(Date.now() + 2 * 86400000),
-    deadlineExtensions: 0,
-    pendingExtensionRequest: null,
-    platformProgress: { verified: 11, total: 11 },
-    exceptionStates: [{ type: 'deadline-approaching', label: 'Deadline approaching' }],
-    rejectedPlatforms: [],
-  },
-
-  // ── In Progress → Pending Approval ──
-  {
-    id: 'demo-pending-approval-1',
-    name: 'James Wilson',
-    status: 'Ready to Approve',
-    statusType: 'ready',
-    statusColor: 'bg-chart-4/20 text-chart-4 border-chart-4/30',
-    agentId: 'demo-agent',
-    agentName: 'Marcus Rivera',
-    days: 1,
-    daysLabel: '1 day',
-    canApprove: true,
-    canAssignPhone: false,
-    canReviewPrequal: false,
-    subStage: 'pending-approval',
-    executionDeadline: null,
-    deadlineExtensions: 0,
-    pendingExtensionRequest: null,
-    platformProgress: { verified: 11, total: 11 },
-    exceptionStates: NO_EXCEPTIONS,
-    rejectedPlatforms: [],
-  },
-  {
-    id: 'demo-pending-approval-2',
-    name: 'Karen Johnson',
-    status: 'Ready to Approve',
-    statusType: 'ready',
-    statusColor: 'bg-chart-4/20 text-chart-4 border-chart-4/30',
-    agentId: 'demo-agent-2',
-    agentName: 'Sarah Kim',
-    days: 0,
-    daysLabel: 'Today',
-    canApprove: true,
-    canAssignPhone: false,
-    canReviewPrequal: false,
-    subStage: 'pending-approval',
-    executionDeadline: null,
-    deadlineExtensions: 0,
-    pendingExtensionRequest: null,
-    platformProgress: { verified: 11, total: 11 },
-    exceptionStates: NO_EXCEPTIONS,
-    rejectedPlatforms: [],
-  },
-
-  // ── Verification Needed ──
-  {
-    id: 'demo-verify-1',
-    name: 'Liam O\'Brien',
-    status: 'Needs More Info',
-    statusType: 'needs_info',
-    statusColor: 'bg-destructive/20 text-destructive border-destructive/30',
-    agentId: 'demo-agent',
-    agentName: 'Marcus Rivera',
-    days: 2,
-    daysLabel: '2 days',
-    canApprove: false,
-    canAssignPhone: false,
-    canReviewPrequal: false,
-    subStage: 'verification-needed',
-    executionDeadline: new Date(Date.now() + 3 * 86400000),
-    deadlineExtensions: 0,
-    pendingExtensionRequest: null,
-    platformProgress: { verified: 4, total: 11 },
-    exceptionStates: [{ type: 'needs-more-info', label: 'Needs more info' }],
-    rejectedPlatforms: [],
-  },
-  {
-    id: 'demo-verify-2',
-    name: 'Mia Nakamura',
-    status: 'Pending External',
-    statusType: 'needs_info',
-    statusColor: 'bg-destructive/20 text-destructive border-destructive/30',
-    agentId: 'demo-agent-2',
-    agentName: 'Sarah Kim',
-    days: 4,
-    daysLabel: '4 days',
-    canApprove: false,
-    canAssignPhone: false,
-    canReviewPrequal: false,
-    subStage: 'verification-needed',
-    executionDeadline: null,
-    deadlineExtensions: 0,
-    pendingExtensionRequest: null,
-    platformProgress: { verified: 7, total: 11 },
-    exceptionStates: NO_EXCEPTIONS,
-    rejectedPlatforms: [],
-  },
-  {
-    id: 'demo-verify-3',
-    name: 'Noah Petrov',
-    status: 'Execution Delayed',
-    statusType: 'needs_info',
-    statusColor: 'bg-warning/20 text-warning border-warning/30',
-    agentId: 'demo-agent',
-    agentName: 'Marcus Rivera',
-    days: 6,
-    daysLabel: '6 days',
-    canApprove: false,
-    canAssignPhone: false,
-    canReviewPrequal: false,
-    subStage: 'verification-needed',
-    executionDeadline: new Date(Date.now() - 2 * 86400000),
-    deadlineExtensions: 1,
-    pendingExtensionRequest: { id: 'demo-ext-1', requestedDays: 3, reason: 'Waiting for external verification' },
-    platformProgress: { verified: 5, total: 11 },
-    exceptionStates: [
-      { type: 'overdue', label: 'Overdue' },
-      { type: 'execution-delayed', label: 'Execution delayed' },
-      { type: 'extension-pending', label: 'Extension pending' },
-    ],
-    rejectedPlatforms: [],
-  },
-
-  // ── Demo: Multiple simultaneous exceptions ──
-  {
-    id: 'demo-multi-exception',
-    name: 'Oscar Ramirez',
-    status: 'Pending BetMGM',
-    statusType: 'pending_platform',
-    statusColor: 'bg-accent/20 text-accent border-accent/30',
-    agentId: 'demo-agent-2',
-    agentName: 'Sarah Kim',
-    days: 8,
-    daysLabel: '8 days',
-    canApprove: false,
-    canAssignPhone: false,
-    canReviewPrequal: false,
-    pendingPlatform: 'BetMGM',
-    subStage: 'platform-registrations',
-    executionDeadline: new Date(Date.now() - 1 * 86400000),
-    deadlineExtensions: 2,
-    pendingExtensionRequest: null,
-    platformProgress: { verified: 3, total: 11 },
-    exceptionStates: [
-      { type: 'overdue', label: 'Overdue' },
-      { type: 'platform-rejection', label: 'FanDuel rejected', platformName: 'FanDuel' },
-      { type: 'platform-rejection', label: 'Caesars rejected', platformName: 'Caesars' },
-    ],
-    rejectedPlatforms: ['FanDuel', 'Caesars'],
-  },
-]
-
-const DEMO_VERIFICATION_TASKS: VerificationTask[] = [
-  {
-    id: 'demo-vtask-1',
-    clientId: 'demo-verify-1',
-    clientName: 'Liam O\'Brien',
-    platformType: PlatformType.BETMGM,
-    platformLabel: 'BetMGM',
-    task: 'ID Verification',
-    agentId: 'demo-agent',
-    agentName: 'Marcus Rivera',
-    deadline: new Date(Date.now() + 2 * 86400000),
-    daysUntilDue: 2,
-    deadlineLabel: '2 days',
-    clientDeadline: new Date(Date.now() + 5 * 86400000),
-    status: 'Pending',
-    screenshots: [],
-  },
-  {
-    id: 'demo-vtask-2',
-    clientId: 'demo-verify-2',
-    clientName: 'Mia Nakamura',
-    platformType: PlatformType.DRAFTKINGS,
-    platformLabel: 'DraftKings',
-    task: 'Bank Statement',
-    agentId: 'demo-agent-2',
-    agentName: 'Sarah Kim',
-    deadline: new Date(Date.now() + 1 * 86400000),
-    daysUntilDue: 1,
-    deadlineLabel: '1 day',
-    clientDeadline: new Date(Date.now() + 3 * 86400000),
-    status: 'Pending',
-    screenshots: [],
-  },
-  {
-    id: 'demo-vtask-3',
-    clientId: 'demo-verify-3',
-    clientName: 'Noah Petrov',
-    platformType: PlatformType.FANDUEL,
-    platformLabel: 'FanDuel',
-    task: 'Address Proof',
-    agentId: 'demo-agent',
-    agentName: 'Marcus Rivera',
-    deadline: null,
-    daysUntilDue: null,
-    deadlineLabel: 'No deadline',
-    clientDeadline: null,
-    status: 'Pending',
-    screenshots: [],
-  },
-]
-
-const DEMO_POST_APPROVAL: PostApprovalClient[] = [
-  {
-    id: 'demo-post-1',
-    name: 'Patricia Green',
-    agentId: 'demo-agent',
-    agentName: 'Marcus Rivera',
-    approvedAt: new Date(Date.now() - 5 * 86400000),
-    daysSinceApproval: 5,
-    limitedPlatforms: [
-      { platformType: PlatformType.DRAFTKINGS, name: 'DraftKings' },
-      { platformType: PlatformType.CAESARS, name: 'Caesars' },
-    ],
-    pendingVerificationTodos: 2,
-  },
-  {
-    id: 'demo-post-2',
-    name: 'Robert Taylor',
-    agentId: 'demo-agent-2',
-    agentName: 'Sarah Kim',
-    approvedAt: new Date(Date.now() - 12 * 86400000),
-    daysSinceApproval: 12,
-    limitedPlatforms: [
-      { platformType: PlatformType.FANDUEL, name: 'FanDuel' },
-    ],
-    pendingVerificationTodos: 1,
-  },
-]
+// Tier sort order: leadership tiers first (CMO→MD→SED→ED), then star levels descending (4★→Rookie)
+const TIER_SORT_ORDER: Record<string, number> = {}
+// Leadership tiers: highest first — CMO=0, MD=1, SED=2, ED=3
+// LEADERSHIP_TIERS array is [ED, SED, MD, CMO], so reverse index for sort
+for (let i = 0; i < LEADERSHIP_TIERS.length; i++) {
+  TIER_SORT_ORDER[LEADERSHIP_TIERS[i].label] = LEADERSHIP_TIERS.length - 1 - i
+}
+// Star levels: 4-Star next, then descending — 4★=4, 3★=5, 2★=6, 1★=7, Rookie=8
+for (let i = STAR_THRESHOLDS.length - 1; i >= 0; i--) {
+  TIER_SORT_ORDER[STAR_THRESHOLDS[i].label] = LEADERSHIP_TIERS.length + (STAR_THRESHOLDS.length - 1 - i)
+}
 
 export default async function SalesInteractionPage() {
-  const [stats, hierarchy, intake, tasks, postApproval] = await Promise.all([
-    getSalesInteractionStats(),
-    getAgentHierarchy(),
-    getIntakeClients(),
-    getVerificationClients(),
-    getPostApprovalVerificationClients(),
-  ])
-
-  // Merge demo data with real data
-  const allIntake = [...DEMO_INTAKE, ...intake]
-  const allTasks = [...DEMO_VERIFICATION_TASKS, ...tasks]
-  const allPostApproval = [...DEMO_POST_APPROVAL, ...postApproval]
-
-  // Recompute stats to include demo data
-  const demoInProgress = DEMO_INTAKE.filter((c) => c.subStage !== 'verification-needed').length
-  const demoPendingApproval = DEMO_INTAKE.filter((c) => c.subStage === 'pending-approval').length
-  const demoVerification = DEMO_INTAKE.filter((c) => c.subStage === 'verification-needed').length
-
-  const mergedStats = {
-    totalClients: stats.totalClients + DEMO_INTAKE.length + DEMO_POST_APPROVAL.length,
-    inProgress: stats.inProgress + demoInProgress,
-    pendingApproval: stats.pendingApproval + demoPendingApproval,
-    verificationNeeded: stats.verificationNeeded + demoVerification + DEMO_POST_APPROVAL.length,
+  // Fetch real agents from DB for team directory
+  let agentHierarchy = MOCK_SALES_HIERARCHY
+  try {
+    const agents = await getAgentsForHierarchy()
+    if (agents.length > 0) {
+      // Group agents by their display tier label
+      const groups = new Map<string, { id: string; name: string; level: string; stars: number; clientCount: number }[]>()
+      for (const a of agents) {
+        const tierLabel = getAgentDisplayTier(a.starLevel, a.leadershipTier)
+        if (!groups.has(tierLabel)) groups.set(tierLabel, [])
+        groups.get(tierLabel)!.push({
+          id: a.id,
+          name: a.name ?? 'Unknown',
+          level: tierLabel,
+          stars: a.starLevel,
+          clientCount: a._count.closedClients,
+        })
+      }
+      // Sort groups by tier rank
+      agentHierarchy = [...groups.entries()]
+        .sort(([a], [b]) => (TIER_SORT_ORDER[a] ?? 99) - (TIER_SORT_ORDER[b] ?? 99))
+        .map(([level, agents]) => ({ level, agents }))
+    }
+  } catch {
+    // DB not available, fall back to mock
   }
+
+  // Fetch real drafts from DB
+  let draftIntake: IntakeClient[] = []
+  try {
+    const drafts = await getAllDrafts()
+    draftIntake = drafts.map((d) => ({
+      id: d.id,
+      name: d.firstName && d.lastName
+        ? `${d.firstName} ${d.lastName}`
+        : d.firstName || 'Untitled Draft',
+      status: 'DRAFT',
+      statusType: 'pending_platform' as const,
+      statusColor: 'text-muted-foreground',
+      agentId: d.closerId,
+      agentName: d.closer?.name ?? 'Unknown',
+      days: Math.floor(
+        (Date.now() - new Date(d.updatedAt).getTime()) / (1000 * 60 * 60 * 24),
+      ),
+      daysLabel: `${Math.floor((Date.now() - new Date(d.updatedAt).getTime()) / (1000 * 60 * 60 * 24))}d`,
+      canApprove: false,
+      canAssignPhone: false,
+      subStage: stepToSubStage(d.step),
+      executionDeadline: null,
+      deadlineExtensions: 0,
+      pendingExtensionRequest: null,
+      platformProgress: { verified: 0, total: 0 },
+      exceptionStates: [],
+      rejectedPlatforms: [],
+    }))
+  } catch {
+    // DB not available, fall back to mock
+  }
+
+  // Use real drafts if available, otherwise mock data
+  const clientIntake = draftIntake.length > 0 ? draftIntake : MOCK_INTAKE_CLIENTS
+
+  // Compute stats from actual data
+  const stats = draftIntake.length > 0
+    ? {
+        totalClients: draftIntake.length,
+        inProgress: draftIntake.length,
+        pendingApproval: draftIntake.filter((c) => c.subStage === 'step-4').length,
+        verificationNeeded: 0,
+      }
+    : MOCK_SALES_STATS
 
   return (
     <SalesInteractionView
-      stats={mergedStats}
-      agentHierarchy={hierarchy}
-      clientIntake={allIntake}
-      verificationTasks={allTasks}
-      postApprovalClients={allPostApproval}
+      stats={stats}
+      agentHierarchy={agentHierarchy}
+      clientIntake={clientIntake}
+      verificationTasks={MOCK_VERIFICATION_TASKS}
+      postApprovalClients={MOCK_POST_APPROVAL_CLIENTS}
+      lifecycleClients={MOCK_LIFECYCLE_CLIENTS}
     />
   )
 }
