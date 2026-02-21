@@ -47,8 +47,19 @@ export const EventType = {
   LEADERSHIP_PROMOTED: 'LEADERSHIP_PROMOTED',
   ALLOCATION_PAID: 'ALLOCATION_PAID',
   QUARTERLY_SETTLEMENT_CREATED: 'QUARTERLY_SETTLEMENT_CREATED',
+  CLIENT_DRAFT_CREATED: 'CLIENT_DRAFT_CREATED',
+  CLIENT_DRAFT_SUBMITTED: 'CLIENT_DRAFT_SUBMITTED',
 } as const
 export type EventType = (typeof EventType)[keyof typeof EventType]
+
+// --- Client Draft Enums ---
+
+export const ClientDraftStatus = {
+  DRAFT: 'DRAFT',
+  SUBMITTED: 'SUBMITTED',
+} as const
+export type ClientDraftStatus =
+  (typeof ClientDraftStatus)[keyof typeof ClientDraftStatus]
 
 // --- Commission System Enums ---
 

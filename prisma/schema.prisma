@@ -57,6 +57,11 @@ enum QuarterlySettlementStatus {
   PAID
 }
 
+enum ClientDraftStatus {
+  DRAFT
+  SUBMITTED
+}
+
 enum EventType {
   LOGIN
   LOGOUT
@@ -73,6 +78,8 @@ enum EventType {
   LEADERSHIP_PROMOTED
   ALLOCATION_PAID
   QUARTERLY_SETTLEMENT_CREATED
+  CLIENT_DRAFT_CREATED
+  CLIENT_DRAFT_SUBMITTED
 }
 
 // ─── User ────────────────────────────────────────────────
@@ -124,6 +131,7 @@ model User {
   allocationsPaidBy      BonusAllocation[]  @relation("AllocationPayer")
   promotionLogs          PromotionLog[]
   quarterlySettlements   QuarterlySettlement[]
+  clientDrafts           ClientDraft[]      @relation("DraftCloser")
 }
 
 // ─── Agent Application ───────────────────────────────────
@@ -195,6 +203,57 @@ model Client {
   updatedAt  DateTime  @updatedAt
 
   bonusPool BonusPool?
+  fromDraft ClientDraft? @relation("DraftResult")
+}
+
+// ─── Client Draft ──────────────────────────────────────
+
+model ClientDraft {
+  id     String            @id @default(cuid())
+  status ClientDraftStatus @default(DRAFT)
+  step   Int               @default(1)
+
+  // Step 1: Pre-Qual
+  firstName        String?
+  lastName         String?
+  email            String?
+  phone            String?
+  idDocument       String?
+  idNumber         String?
+  idExpiry         DateTime?
+  assignedGmail    String?
+  betmgmCheckPassed Boolean?
+
+  // Step 2: Background
+  ssnDocument        String?
+  secondAddress      String?
+  hasCriminalRecord  Boolean?
+  criminalRecordNotes String?
+  bankingHistory     String?
+  paypalHistory      String?
+  sportsbookHistory  String?
+
+  // Step 3: Platforms
+  platformData Json?
+
+  // Step 4: Contract
+  contractDocument String?
+
+  // Risk flags
+  paypalPreviouslyUsed Boolean @default(false)
+  addressMismatch      Boolean @default(false)
+  debankedHistory      Boolean @default(false)
+  debankedBank         String?
+  undisclosedInfo      Boolean @default(false)
+
+  // Relations
+  closerId       String
+  closer         User    @relation("DraftCloser", fields: [closerId], references: [id])
+  resultClientId String? @unique
+  resultClient   Client? @relation("DraftResult", fields: [resultClientId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ─── Bonus Pool ─────────────────────────────────────────

@@ -5,8 +5,9 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard,
   Users,
-  UsersRound,
   UserPlus,
+  UsersRound,
+
   DollarSign,
   CheckSquare,
   Settings,
@@ -33,6 +34,7 @@ const navItems: NavItem[] = [
   { title: 'Dashboard', href: '/agent', icon: LayoutDashboard, exact: true },
   { title: 'My Clients', href: '/agent/clients', icon: Users },
   { title: 'New Client', href: '/agent/new-client', icon: UserPlus },
+
   { title: 'Earnings', href: '/agent/earnings', icon: DollarSign },
   // HIDE this as per request
   // { title: 'My Team', href: '/agent/team', icon: UsersRound },

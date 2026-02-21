@@ -312,6 +312,40 @@ export interface AIDetection {
   extracted: Record<string, string>
 }
 
+// --- Client Draft Types ---
+
+export interface ClientDraftSummary {
+  id: string
+  firstName: string | null
+  lastName: string | null
+  step: number
+  updatedAt: Date
+  status: string
+}
+
+export type RiskLevel = 'low' | 'medium' | 'high'
+
+export interface RiskAssessment {
+  level: RiskLevel
+  score: number
+  flags: {
+    idExpiringSoon: boolean
+    paypalPreviouslyUsed: boolean
+    addressMismatch: boolean
+    debankedHistory: boolean
+    criminalRecord: boolean
+    undisclosedInfo: boolean
+  }
+}
+
+export interface PlatformEntry {
+  platform: string
+  username: string
+  accountId: string
+  screenshot: string
+  status: string
+}
+
 // --- Commission System Types ---
 
 export interface AllocationLine {
