@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import {
   Search,
   ChevronDown,
@@ -35,10 +35,14 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 import { ClientIntakeList } from './client-intake-list'
 import { VerificationTasksTable } from './verification-tasks-table'
 import { PostApprovalList } from './post-approval-list'
-import type { IntakeClient, VerificationTask, InProgressSubStage, PostApprovalClient } from '@/backend/data/operations'
+import { ClientDetail } from '../../client-management/_components/client-detail'
+import { mapServerClientToClient } from '../../client-management/_components/map-client'
+import type { Client, ServerClientData } from '../../client-management/_components/types'
+import type { IntakeClient, VerificationTask, InProgressSubStage, PostApprovalClient } from '@/types/backend-types'
 
 // ── Types ───────────────────────────────────────────
 interface AgentInHierarchy {
@@ -67,6 +71,7 @@ interface SalesInteractionViewProps {
   clientIntake: IntakeClient[]
   verificationTasks: VerificationTask[]
   postApprovalClients: PostApprovalClient[]
+  lifecycleClients: ServerClientData[]
 }
 
 // ── Summary filter items (4 statuses only) ──────────
@@ -180,6 +185,7 @@ export function SalesInteractionView({
   clientIntake,
   verificationTasks,
   postApprovalClients,
+  lifecycleClients,
 }: SalesInteractionViewProps) {
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null)
   const [agentSearch, setAgentSearch] = useState('')
@@ -188,6 +194,33 @@ export function SalesInteractionView({
   const [sortOption, setSortOption] = useState<SortOption>('priority')
   const [inProgressOpen, setInProgressOpen] = useState(false)
   const [verificationOpen, setVerificationOpen] = useState(false)
+
+  // Client detail panel state (lifecycle clients mapped to view model)
+  const mappedClients = useMemo(
+    () => lifecycleClients.map(mapServerClientToClient),
+    [lifecycleClients],
+  )
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null)
+
+  const handleSelectClient = useCallback(
+    (clientId: string) => {
+      const target = mappedClients.find((c) => c.id === clientId)
+      if (target) {
+        setSelectedClient(target)
+      } else {
+        toast.error('Client record not found')
+      }
+    },
+    [mappedClients],
+  )
+
+  const handleNavigateToClient = useCallback(
+    (clientId: string) => {
+      const target = mappedClients.find((c) => c.id === clientId)
+      if (target) setSelectedClient(target)
+    },
+    [mappedClients],
+  )
 
   // Filter hierarchy by search
   const filteredHierarchy = useMemo(() => {
@@ -298,6 +331,15 @@ export function SalesInteractionView({
   const showVerification =
     summaryFilter === 'total' || summaryFilter === 'verification-needed'
 
+  // Per-agent active client counts (in-progress + verification needed)
+  const agentActiveCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const c of clientIntake) {
+      counts[c.agentId] = (counts[c.agentId] || 0) + 1
+    }
+    return counts
+  }, [clientIntake])
+
   // Selected agent name
   const selectedAgentName = useMemo(() => {
     if (!selectedAgentId) return null
@@ -307,6 +349,18 @@ export function SalesInteractionView({
     }
     return null
   }, [agentHierarchy, selectedAgentId])
+
+  // Show client detail panel when a client is selected
+  if (selectedClient) {
+    return (
+      <ClientDetail
+        client={selectedClient}
+        allClients={mappedClients}
+        onBack={() => setSelectedClient(null)}
+        onNavigateToClient={handleNavigateToClient}
+      />
+    )
+  }
 
   return (
     <div className="flex h-full animate-fade-in" data-testid="sales-interaction-view">
@@ -439,21 +493,20 @@ export function SalesInteractionView({
                       )}
                       data-testid={`agent-filter-${agent.id}`}
                     >
-                      <span className="truncate text-xs font-medium">
-                        {agent.name}
-                      </span>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="truncate text-xs font-medium">
+                          {agent.name}
+                        </span>
+                      </div>
                       <div className="flex shrink-0 items-center gap-1.5">
-                        {agent.clientCount > 0 && (
+                        {(agentActiveCounts[agent.id] || 0) > 0 && (
                           <Badge
                             variant="outline"
-                            className="h-4 border-warning/30 bg-warning/10 px-1 font-mono text-[10px] text-warning"
+                            className="h-4 border-primary/30 bg-primary/10 px-1 font-mono text-[10px] text-primary"
                           >
-                            {agent.clientCount}
+                            {agentActiveCounts[agent.id]}
                           </Badge>
                         )}
-                        <span className="font-mono text-[10px] text-muted-foreground">
-                          {agent.clientCount}
-                        </span>
                       </div>
                     </button>
                   ))}
@@ -624,6 +677,7 @@ export function SalesInteractionView({
                               stage={stage}
                               clients={stageClients}
                               exceptionCount={subStageExceptionCounts[stage.key] || 0}
+                              onSelectClient={handleSelectClient}
                             />
                           )
                         })}
@@ -692,12 +746,14 @@ export function SalesInteractionView({
                           <ClientIntakeList
                             clients={verificationClients}
                             selectedAgentId={selectedAgentId}
+                            onSelectClient={handleSelectClient}
                           />
                         )}
                         {filteredTasks.length > 0 && (
                           <VerificationTasksTable
                             tasks={filteredTasks}
                             selectedAgentId={selectedAgentId}
+                            onSelectClient={handleSelectClient}
                           />
                         )}
                         {filteredPostApproval.length > 0 && (
@@ -737,10 +793,12 @@ function SubStageSection({
   stage,
   clients,
   exceptionCount,
+  onSelectClient,
 }: {
   stage: SubStageGroup
   clients: IntakeClient[]
   exceptionCount: number
+  onSelectClient?: (clientId: string) => void
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const Icon = stage.icon
@@ -792,7 +850,7 @@ function SubStageSection({
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="border-b border-border/20 bg-muted/10">
-          <ClientIntakeList clients={clients} selectedAgentId={null} />
+          <ClientIntakeList clients={clients} selectedAgentId={null} onSelectClient={onSelectClient} />
         </div>
       </CollapsibleContent>
     </Collapsible>
