@@ -479,6 +479,10 @@ export function ApplicationReviewList({ applications, agents }: Props) {
                               <SelectItem value="2-star">2-Star</SelectItem>
                               <SelectItem value="3-star">3-Star</SelectItem>
                               <SelectItem value="4-star">4-Star</SelectItem>
+                              <SelectItem value="ED">Executive Director</SelectItem>
+                              <SelectItem value="SED">Senior Exec. Director</SelectItem>
+                              <SelectItem value="MD">Managing Director</SelectItem>
+                              <SelectItem value="CMO">Chief Marketing Officer</SelectItem>
                             </SelectContent>
                           </Select>
                         </Field>

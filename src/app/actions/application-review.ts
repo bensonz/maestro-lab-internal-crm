@@ -40,6 +40,19 @@ export async function approveApplication(
     return { success: false, error: `A user with email ${application.email} already exists` }
   }
 
+  // Derive starLevel, tier, and leadershipTier from selected tier value
+  const LEADERSHIP_VALUES = ['ED', 'SED', 'MD', 'CMO'] as const
+  const STAR_LEVEL_MAP: Record<string, number> = {
+    'rookie': 0, '1-star': 1, '2-star': 2, '3-star': 3, '4-star': 4,
+  }
+
+  const selectedTier = data.tier || 'rookie'
+  const isLeadership = LEADERSHIP_VALUES.includes(selectedTier as typeof LEADERSHIP_VALUES[number])
+
+  const starLevel = isLeadership ? 4 : (STAR_LEVEL_MAP[selectedTier] ?? 0)
+  const leadershipTier = isLeadership ? selectedTier : 'NONE'
+  const dbTier = isLeadership ? '4-star' : selectedTier
+
   // Create user from application data
   const user = await prisma.user.create({
     data: {
@@ -62,7 +75,9 @@ export async function approveApplication(
       idExpiry: application.idExpiry,
       zelle: application.zelle,
       supervisorId: data.supervisorId || null,
-      tier: data.tier || 'rookie',
+      tier: dbTier,
+      starLevel,
+      leadershipTier: leadershipTier as 'NONE' | 'ED' | 'SED' | 'MD' | 'CMO',
     },
   })
 

@@ -154,6 +154,28 @@ describe('approveApplication', () => {
     expect(mockPrisma.eventLog.create).toHaveBeenCalledTimes(1)
   })
 
+  it('sets starLevel and leadershipTier when assigning leadership tier', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN', name: 'Admin' } })
+
+    await approveApplication('app-1', { tier: 'ED' })
+
+    const userCreate = mockPrisma.user.create.mock.calls[0][0]
+    expect(userCreate.data.tier).toBe('4-star')
+    expect(userCreate.data.starLevel).toBe(4)
+    expect(userCreate.data.leadershipTier).toBe('ED')
+  })
+
+  it('sets correct starLevel for regular star tiers', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN', name: 'Admin' } })
+
+    await approveApplication('app-1', { tier: '3-star' })
+
+    const userCreate = mockPrisma.user.create.mock.calls[0][0]
+    expect(userCreate.data.tier).toBe('3-star')
+    expect(userCreate.data.starLevel).toBe(3)
+    expect(userCreate.data.leadershipTier).toBe('NONE')
+  })
+
   it('allows BACKOFFICE role', async () => {
     mockAuth.mockResolvedValue({ user: { id: 'bo-1', role: 'BACKOFFICE', name: 'BO' } })
 
