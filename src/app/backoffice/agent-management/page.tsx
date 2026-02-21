@@ -39,6 +39,7 @@ export default async function AgentManagementPage() {
     successRate: 0,
     delayRate: 0,
     avgDaysToConvert: null as number | null,
+    supervisorId: a.supervisorId,
   }))
 
   return (

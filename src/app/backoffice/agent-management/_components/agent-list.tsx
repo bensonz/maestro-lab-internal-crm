@@ -11,13 +11,16 @@ import {
   FileText,
   TrendingUp,
   Target,
+  LayoutList,
+  Network,
 } from 'lucide-react'
 import {
   ApplicationReviewList,
   type ApplicationRow,
 } from './application-review-list'
+import { AgentTreeView } from './agent-tree-view'
 import { cn } from '@/lib/utils'
-import { getAgentDisplayTier } from '@/lib/commission-constants'
+import { getAgentDisplayTier, STAR_THRESHOLDS, LEADERSHIP_TIERS } from '@/lib/commission-constants'
 
 interface Agent {
   id: string
@@ -32,6 +35,7 @@ interface Agent {
   successRate: number
   delayRate: number
   avgDaysToConvert: number | null
+  supervisorId: string | null
 }
 
 interface AgentStats {
@@ -59,6 +63,7 @@ interface AgentListProps {
 }
 
 type TabKey = 'agents' | 'applications'
+type ViewMode = 'table' | 'tree'
 type SortField = 'start' | 'clients' | 'working' | null
 type SortDirection = 'asc' | 'desc'
 
@@ -66,15 +71,11 @@ function getStarLabel(agent: Agent): string {
   return getAgentDisplayTier(agent.starLevel, agent.leadershipTier)
 }
 
-function buildTierOptions(agents: Agent[]): string[] {
-  const seen = new Map<number, string>()
-  for (const a of agents) {
-    if (!seen.has(a.starLevel)) {
-      seen.set(a.starLevel, getStarLabel(a))
-    }
-  }
-  const sorted = Array.from(seen.entries()).sort(([a], [b]) => a - b)
-  return ['All', ...sorted.map(([, label]) => label)]
+/** Always show all 9 levels in the filter: Rookie → 1★ → 2★ → 3★ → 4★ → ED → SED → MD → CMO */
+function buildTierOptions(): string[] {
+  const starLabels = STAR_THRESHOLDS.map((t) => t.label)
+  const leadershipLabels = LEADERSHIP_TIERS.map((t) => t.label)
+  return ['All', ...starLabels, ...leadershipLabels]
 }
 
 function getInitials(name: string) {
@@ -110,6 +111,7 @@ export function AgentList({
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedTier, setSelectedTier] = useState('All')
   const [activeTab, setActiveTab] = useState<TabKey>('agents')
+  const [viewMode, setViewMode] = useState<ViewMode>('table')
   const [sortField, setSortField] = useState<SortField>(null)
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
 
@@ -169,7 +171,7 @@ export function AgentList({
   }, [filteredAgents])
 
   // Tier options and counts
-  const tierOptions = useMemo(() => buildTierOptions(agents), [agents])
+  const tierOptions = useMemo(() => buildTierOptions(), [])
   const tierCounts = useMemo(() => {
     const counts: Record<string, number> = { All: agents.length }
     for (const agent of agents) {
@@ -265,7 +267,7 @@ export function AgentList({
         {/* Tier Filter */}
         <div className="space-y-2">
           <p className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground">
-            Filter by Star Level
+            Filter by Level
           </p>
           <div className="flex flex-wrap gap-1">
             {tierOptions.map((tier) => (
@@ -291,16 +293,46 @@ export function AgentList({
 
       {/* Right: agent directory */}
       <div className="flex-1 space-y-4 overflow-auto p-6">
-        {/* Search */}
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search agents..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-            data-testid="agent-search-input"
-          />
+        {/* Search + View Mode Toggle */}
+        <div className="flex items-center gap-3">
+          <div className="relative max-w-md flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search agents..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+              data-testid="agent-search-input"
+            />
+          </div>
+          <div className="flex items-center gap-0.5 rounded-md border border-border p-0.5">
+            <button
+              onClick={() => setViewMode('table')}
+              className={cn(
+                'flex h-7 w-7 items-center justify-center rounded transition-colors',
+                viewMode === 'table'
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+              title="Table view"
+              data-testid="view-mode-table"
+            >
+              <LayoutList className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('tree')}
+              className={cn(
+                'flex h-7 w-7 items-center justify-center rounded transition-colors',
+                viewMode === 'tree'
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+              title="Tree view"
+              data-testid="view-mode-tree"
+            >
+              <Network className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         {/* Tab Toggle */}
@@ -348,36 +380,44 @@ export function AgentList({
                 <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
                   Agent Directory ({filteredAgents.length})
                 </CardTitle>
-                <div className="flex items-center gap-3 text-xs">
-                  <span className="text-muted-foreground">
-                    Avg Success:{' '}
-                    <span
-                      className={cn(
-                        'font-mono font-medium',
-                        avgSuccessRate >= 80 ? 'text-success' : 'text-warning',
-                      )}
-                    >
-                      {avgSuccessRate}%
+                {viewMode === 'table' && (
+                  <div className="flex items-center gap-3 text-xs">
+                    <span className="text-muted-foreground">
+                      Avg Success:{' '}
+                      <span
+                        className={cn(
+                          'font-mono font-medium',
+                          avgSuccessRate >= 80 ? 'text-success' : 'text-warning',
+                        )}
+                      >
+                        {avgSuccessRate}%
+                      </span>
                     </span>
-                  </span>
-                  <span className="text-muted-foreground">
-                    Avg Delay:{' '}
-                    <span
-                      className={cn(
-                        'font-mono font-medium',
-                        avgDelayRate <= 15
-                          ? 'text-success'
-                          : 'text-destructive',
-                      )}
-                    >
-                      {avgDelayRate}%
+                    <span className="text-muted-foreground">
+                      Avg Delay:{' '}
+                      <span
+                        className={cn(
+                          'font-mono font-medium',
+                          avgDelayRate <= 15
+                            ? 'text-success'
+                            : 'text-destructive',
+                        )}
+                      >
+                        {avgDelayRate}%
+                      </span>
                     </span>
-                  </span>
-                </div>
+                  </div>
+                )}
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              {sortedAgents.length === 0 ? (
+              {viewMode === 'tree' ? (
+                <AgentTreeView
+                  agents={filteredAgents}
+                  allAgents={agents}
+                  hasActiveFilter={searchQuery !== '' || selectedTier !== 'All'}
+                />
+              ) : sortedAgents.length === 0 ? (
                 <p className="py-8 text-center text-muted-foreground">
                   {agents.length === 0
                     ? 'No agents registered'

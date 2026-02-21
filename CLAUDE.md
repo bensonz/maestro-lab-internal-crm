@@ -11,7 +11,7 @@ The backend has a fully functional **commission system** with real DB queries wi
 - **Prisma schema** with 9 models: `User`, `AgentApplication`, `EventLog`, `Client`, `ClientDraft`, `BonusPool`, `BonusAllocation`, `PromotionLog`, `QuarterlySettlement`
 - **Agent Application form** on login page ("Apply as Agent" tab) — uploads both ID + Address Proof documents
 - **Application review** in backoffice Agent Management ("Pending Applications" tab) — shows both documents
-- **Agent Directory** in backoffice Agent Management ("Agent Directory" tab) — queries real User table, star-level-based filter
+- **Agent Directory** in backoffice Agent Management ("Agent Directory" tab) — queries real User table, star-level-based filter, toggleable table/tree view (tree shows upline→subordinate hierarchy with expand/collapse, ancestor-preserving search)
 - **Login Management** page (`/backoffice/login-management`) — full CRUD for all users from DB
 - **User management** server actions (create, update, toggle, reset password)
 - **Commission system** — $400 fixed bonus pool per approved client, star-level-based distribution up hierarchy
@@ -349,7 +349,7 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 | Route | Page File | Data Source |
 |-------|-----------|-------------|
 | `/backoffice` | `src/app/backoffice/page.tsx` | Mock — overview |
-| `/backoffice/agent-management` | page.tsx | **Real DB** — Agent Directory (star-level filter) + Pending Applications |
+| `/backoffice/agent-management` | page.tsx | **Real DB** — Agent Directory (star-level filter, table/tree view toggle) + Pending Applications |
 | `/backoffice/agent-management/[id]` | page.tsx | **Real DB** — agent profile, earnings, hierarchy |
 | `/backoffice/login-management` | page.tsx | **Real DB** — all users CRUD |
 | `/backoffice/client-management` | page.tsx | Mock — client list |
