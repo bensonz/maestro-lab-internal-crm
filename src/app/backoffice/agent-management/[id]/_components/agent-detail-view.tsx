@@ -59,9 +59,9 @@ export function AgentDetailView({ agent, prevAgentId, nextAgentId }: AgentDetail
 
   return (
     <div className="space-y-6 p-6 animate-fade-in">
-      {/* Header with Back Button and Prev/Next */}
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-1">
+      {/* Header with Back Button + Nav Arrows */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
           <Button
             variant="ghost"
             onClick={() => router.push('/backoffice/agent-management')}
@@ -71,54 +71,55 @@ export function AgentDetailView({ agent, prevAgentId, nextAgentId }: AgentDetail
             <ArrowLeft className="h-4 w-4" />
             Back
           </Button>
-          <div className="flex flex-col">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6"
-              disabled={!prevAgentId}
-              onClick={() => prevAgentId && handleNavigateToAgent(prevAgentId)}
-              data-testid="agent-detail-prev"
-            >
-              <ChevronUp className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6"
-              disabled={!nextAgentId}
-              onClick={() => nextAgentId && handleNavigateToAgent(nextAgentId)}
-              data-testid="agent-detail-next"
-            >
-              <ChevronDown className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/20">
-            <span className="text-sm font-medium text-primary">
-              {agentData.name
-                .split(' ')
-                .map((n) => n[0])
-                .join('')}
-            </span>
-          </div>
-          <div>
-            <h1 className="text-xl font-semibold" data-testid="agent-detail-name">
-              {agentData.name}
-            </h1>
-            <div className="mt-0.5 flex items-center gap-2">
-              {agentData.stars ? (
-                <div className="flex items-center">
-                  {renderStars(agentData.stars)}
-                </div>
-              ) : (
-                <Badge className="bg-warning/20 text-[10px] text-warning">
-                  {agentData.tier}
-                </Badge>
-              )}
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/20">
+              <span className="text-sm font-medium text-primary">
+                {agentData.name
+                  .split(' ')
+                  .map((n) => n[0])
+                  .join('')}
+              </span>
+            </div>
+            <div>
+              <h1 className="text-xl font-semibold" data-testid="agent-detail-name">
+                {agentData.name}
+              </h1>
+              <div className="mt-0.5 flex items-center gap-2">
+                {agentData.stars ? (
+                  <div className="flex items-center">
+                    {renderStars(agentData.stars)}
+                  </div>
+                ) : (
+                  <Badge className="bg-warning/20 text-[10px] text-warning">
+                    {agentData.tier}
+                  </Badge>
+                )}
+              </div>
             </div>
           </div>
+        </div>
+
+        <div className="flex flex-col gap-1" data-testid="agent-nav-arrows">
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-7 w-7"
+            disabled={!prevAgentId}
+            onClick={() => prevAgentId && handleNavigateToAgent(prevAgentId)}
+            data-testid="agent-nav-prev"
+          >
+            <ChevronUp className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-7 w-7"
+            disabled={!nextAgentId}
+            onClick={() => nextAgentId && handleNavigateToAgent(nextAgentId)}
+            data-testid="agent-nav-next"
+          >
+            <ChevronDown className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
