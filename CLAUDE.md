@@ -2,9 +2,34 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Current State: Phase 1 — Agent Application Flow
+
+The backend has been wiped and rebuilt with a minimal schema. Most pages still render using mock data (`src/lib/mock-data.ts`). The first real backend flow is the **Agent Application** system, which is fully functional end-to-end.
+
+### What's Live (backed by database)
+
+- **Prisma schema** with 3 models: `User`, `AgentApplication`, `EventLog`
+- **Agent Application form** on login page ("Apply as Agent" tab) — uploads both ID + Address Proof documents
+- **Application review** in backoffice Agent Management ("Pending Applications" tab) — shows both documents
+- **Agent Directory** in backoffice Agent Management ("Agent Directory" tab) — queries real User table
+- **Login Management** page (`/backoffice/login-management`) — full CRUD for all users from DB
+- **User management** server actions (create, update, toggle, reset password)
+- **Search API** (simplified — searches Users only)
+- **NextAuth v5** credentials-based authentication with JWT sessions
+
+### What's Mock (UI shell only)
+
+All other pages use static mock data from `src/lib/mock-data.ts` and no-op stubs from `src/lib/mock-actions.ts`:
+- Agent dashboard, clients, earnings, team, todos
+- Backoffice overview, sales interaction, client management, settlements, commissions, fund allocation, partners, profit sharing, reports, phone tracking, action hub
+
 ## Commands
 
 ```bash
+# Docker (local PostgreSQL)
+docker compose up -d        # Start PostgreSQL container
+docker compose down         # Stop PostgreSQL container
+
 # Development
 pnpm dev                    # Start Next.js dev server (localhost:3000)
 pnpm build                  # Production build
@@ -13,20 +38,21 @@ pnpm lint                   # Run ESLint
 # Testing
 pnpm test                   # Run Vitest in watch mode
 pnpm test:run               # Run tests once (CI mode)
-pnpm test src/lib/platforms.test.ts  # Run specific test file
 
-# Database (local)
-docker compose up -d       # Start PostgreSQL (port 5432)
-pnpm db:migrate            # Create/apply migrations (local dev)
+# Database (requires DATABASE_URL + running PostgreSQL)
+pnpm db:migrate             # Create/apply migrations (local dev)
 pnpm db:migrate --name <description>  # Create a new migration
-pnpm prisma generate       # Regenerate Prisma client
-pnpm db:seed               # Seed database (tsx prisma/seed.ts)
-
-# Database (production — Neon)
-DATABASE_URL="<neon-url>" pnpm db:migrate:deploy     # Apply pending migrations
-DATABASE_URL="<neon-url>" pnpm db:migrate:status     # Check migration status
-DATABASE_URL="<neon-url>" pnpm prisma studio         # Browse production data
+npx prisma generate         # Regenerate Prisma client
+npx tsx prisma/seed.ts      # Seed database (pnpm db:seed also works)
 ```
+
+### Local Development Setup
+
+1. `docker compose up -d` — starts PostgreSQL (credentials in `.env`)
+2. `npx prisma migrate dev` — creates/applies migrations
+3. `npx prisma generate` — generates Prisma client
+4. `npx tsx prisma/seed.ts` — seeds test accounts + sample application
+5. `pnpm dev` — starts the app at localhost:3000
 
 ## Architecture
 
@@ -37,94 +63,53 @@ This is a CRM for managing client onboarding across multiple sports betting plat
 - **Agent Portal** (`/agent/*`) - Field agents manage their assigned clients through the onboarding process
 - **Back Office** (`/backoffice/*`) - Staff oversee all clients, agents, and financial operations
 
+### Database Schema (Phase 1)
+
+3 models in `prisma/schema.prisma`:
+
+- **User** — All staff accounts (agents, admins, backoffice, finance). Includes hierarchy (supervisorId self-relation), profile fields, star level/tier.
+- **AgentApplication** — Public application form submissions. Status: PENDING → APPROVED/REJECTED. Links to reviewer (User) and created user on approval. Stores `idDocument` and `addressDocument` upload paths.
+- **EventLog** — Append-only audit trail. EventType enum covers login, application, user management events.
+
 ### User Roles
 
 Four roles defined in `UserRole` enum: `AGENT`, `BACKOFFICE`, `ADMIN`, `FINANCE`
 
-### Client Lifecycle
+### Agent Application Flow
 
-Clients progress through `IntakeStatus` states:
-`PENDING` → `PHONE_ISSUED` → `IN_EXECUTION` → `READY_FOR_APPROVAL` → `APPROVED/REJECTED`
-`APPROVED` → `PARTNERSHIP_ENDED` (terminal — closure workflow)
+1. Applicant fills out multi-step form on login page (`/login` → "Apply as Agent" tab)
+2. Form validates with Zod (`src/lib/validations/agent-application.ts`)
+3. `submitAgentApplication()` server action — **public, no auth required**:
+   - Validates fields, checks email uniqueness (User + AgentApplication tables)
+   - Hashes password with bcrypt, creates AgentApplication record
+   - Logs APPLICATION_SUBMITTED event
+4. Admin/Backoffice reviews in Agent Management → Pending Applications tab
+5. `approveApplication()` — Creates User from application data, links resultUserId
+6. `rejectApplication()` — Updates status with reason
 
-Each client is onboarded to 11 platforms (8 sports betting + 3 financial), tracked via `ClientPlatform` with individual `PlatformStatus`.
-
-### Client Onboarding (4-Phase Pipeline)
-
-Client onboarding at `/agent/new-client` uses a 4-phase pipeline visible on a single page:
-
-**Phase 1: Pre-qualification** — Three sub-steps:
-1. **ID Verification** (Step 1.1) — Agent uploads client ID (with OCR extraction), confirms extracted data
-2. **Gmail Account** (Step 1.2) — Agent enters company-created Gmail/password
-3. **BetMGM Registration Check** (Step 1.3) — Agent records BetMGM registration result (success/failed); uploads screenshots for both outcomes (success: login + deposit, failed: rejection screenshot)
-
-Submitting creates the Client record with `prequalCompleted: true` and 11 ClientPlatform records. BetMGM status is always `PENDING_REVIEW` regardless of agent result. `agentResult` field stores what agent reported ("success"/"failed"). Screenshots stored on `ClientPlatform.screenshots`. The page stays (no redirect) and starts polling for BetMGM verification.
-
-**Phase 2: 10 Questions (Full Application)** — Unlocked only after BetMGM is verified (backoffice manual review via `verifyBetmgmManual()`). Agent fills Basic Info, Address, and Compliance sections (6 groups: Banking, PayPal, Platform History, Criminal/Legal, Risk Assessment, Language). Submit updates the existing Client but does NOT change `intakeStatus` — status stays as-is (PREQUAL_APPROVED). Agent stays on the page and sees the "Awaiting Phone" status card. Backoffice handles the transition to PHONE_ISSUED.
-
-**Phase 3: In Processing** — Read-only status cards showing:
-- **Awaiting Phone** (PREQUAL_APPROVED + 10Q submitted) — Clock icon, waiting for backoffice phone assignment
-- **Phone Issued** (PHONE_ISSUED) — Shows assigned phone number and execution deadline
-- **Platform Registration** (IN_EXECUTION) — Platform progress bar (X/11 verified) + prominent link to Upload Center at `/agent/clients/[id]`
-
-**Phase 4: Pending Approval** — Read-only status card (READY_FOR_APPROVAL) showing "Under backoffice review."
-
-**Display State Logic:** After Phase 2 form submission, the page switches from editable form to read-only `PhaseStatusCard` components. The `displayState` is computed from `currentPhase` + questionnaire data to determine which card to show. For read-only phases, Save Draft is hidden and the submit button shows a status label.
-
-**Layout:** Fixed sidebar (`w-56`) for Pipeline | Form (center, full-width) | Risk Panel (right, resizable). Pipeline sidebar is not resizable; form + risk panel use a 2-panel `ResizablePanelGroup`.
+**Form Step Layout (3 steps):**
+- **Step 1 — Account**: Email, password/confirm (2 rows)
+- **Step 2 — Identity**: ID document upload, first/last name, gender/DOB/phone, legal status/ID expiry, address (5 rows)
+- **Step 3 — Details**: Address proof upload, city/state/zip, zelle/referred by (3 rows)
 
 **Key files:**
-- `src/app/actions/prequal.ts` — `submitPrequalification()`, `updateGmailCredentials()`
-- `src/app/actions/betmgm-verification.ts` — `verifyBetmgmManual()` (backoffice), `checkBetmgmStatus()` (agent polling, returns retry info)
-- `src/app/actions/betmgm-retry.ts` — `retryBetmgmSubmission()` (agent resubmits after reject-with-retry)
-- `src/lib/validations/prequal.ts` — Zod schema for Phase 1 data (includes betmgmResult + screenshot URL fields)
-- `src/app/api/upload/route.ts` — File upload API endpoint (POST, accepts FormData with file/entity/entityId/type/platformCode)
-- `src/app/agent/new-client/_components/client-form.tsx` — Main form orchestrator; returns `{ form, riskPanel }` object
-- `src/app/agent/new-client/_components/new-client-page-client.tsx` — Client wrapper that destructures ClientForm output into layout
-- `src/app/agent/new-client/_components/gmail-section.tsx` — Gmail/password inputs (standalone)
-- `src/app/agent/new-client/_components/betmgm-check-section.tsx` — BetMGM success/fail + 2 screenshot uploads
-- `src/app/agent/new-client/_components/compliance-groups.tsx` — 6 collapsible groups (collapsed by default) with completion badges, expand/collapse all toggle, SSN show/hide, exports `ComplianceData` interface + `EMPTY_COMPLIANCE_DATA`
-- `src/app/agent/new-client/_components/risk-panel.tsx` — Always-visible right sidebar with 8 compliance rules, risk factors, compliance summary
-- `src/app/agent/new-client/_components/compute-risk-level.ts` — Shared `computeRiskLevel()` utility used by both `client-form.tsx` and `risk-panel.tsx`
-- `src/app/agent/new-client/_components/form-progress.tsx` — Sticky segmented progress bar below StatusHeader, clickable segments scroll to sections
-- `src/app/agent/new-client/_components/new-client-layout.tsx` — Fixed sidebar + 2-panel resizable layout (Form | Risk Panel)
-- `src/app/agent/new-client/_components/pipeline-panel.tsx` — Phase-based pipeline sidebar (Phase 1→4, collapsible sections, names only)
-- `src/lib/client-phase.ts` — `getClientPhase()` utility + `PHASE_COUNT`, `PHASE_SHORT_LABELS` constants
-- `src/app/agent/new-client/_components/phase-header.tsx` — Visual phase label divider
-- `src/app/agent/new-client/_components/phase-gate.tsx` — Locked/unlocked divider between phases
-- `src/app/agent/new-client/_components/phase-status-card.tsx` — Read-only status cards for Phase 3/4 (awaiting-phone, phone-issued, platform-registration, pending-approval)
-
-**Schema additions:** `Client.gmailAccount`, `Client.gmailPassword`, `Client.prequalCompleted`, `Client.riskFlags` (Json); `ApplicationDraft.clientId`, `ApplicationDraft.phase`
-
-**ClientForm return pattern:** `ClientForm` returns `{ form: JSX, riskPanel: JSX }` instead of JSX directly, allowing the layout to place form and risk panel in separate resizable panels. The `NewClientPageClient` wrapper handles this destructuring.
-
-**Risk Panel:** Always-visible right sidebar with 6 compliance rules (ID expiry, PayPal previously used, platforms used, debanked, multiple PayPal, 8+ platforms). Risk level computed as HIGH/MEDIUM/LOW via shared `computeRiskLevel()` utility.
-
-**Form UX:** Form content is max-width constrained (`max-w-3xl mx-auto`). All input sections use `Field`/`FieldLabel`/`FieldError` components and standard `Input` (h-9). Compliance groups default to collapsed with completion badges. A sticky progress bar below the header shows step completion status. StepCards and compliance groups use accordion animations. Agent confirmation checkbox appears both in the risk panel and inline at the bottom of Phase 2 form. Phone is collected only in Step 1.2 (Gmail section), not duplicated in Basic Info.
-
-**Override Tracking:** When agent manually edits AI-extracted ID fields, changes are tracked in `overriddenFields` and displayed in the risk panel.
-
-**ID Expiration Check:** During ID upload, if the ID expiry date is within 75 days a warning is shown. If expired (<=0 days), Phase 1 submission is blocked.
-
-**BetMGM Two-Party Review:** BetMGM verification is a two-party workflow: agent uploads evidence (always) → backoffice reviews → approve / reject (permanent) / reject (retry 24h). Three outcomes:
-- **Approve** (`approvePrequal`) — sets BetMGM to `VERIFIED`, transitions client to `PREQUAL_APPROVED`
-- **Reject** (`rejectPrequal`) — permanently rejects client
-- **Reject (Retry 24h)** (`rejectPrequalWithRetry`) — sets BetMGM to `RETRY_PENDING` with 24h cooldown, client stays at `PREQUAL_REVIEW`
-
-**BetMGM Retry Flow:** After reject-with-retry, the agent sees a cooldown banner. Once expired, they can upload new screenshots and resubmit via `retryBetmgmSubmission()`. BetMGM goes back to `PENDING_REVIEW` for another round of backoffice review.
-
-**Schema additions for retry:** `ClientPlatform.agentResult` (String?), `ClientPlatform.retryAfter` (DateTime?), `ClientPlatform.retryCount` (Int, default 0). `PlatformStatus.RETRY_PENDING` enum value.
-
-**BetMGM Polling:** After Phase 1 submit, the client page polls `checkBetmgmStatus()` every 60 seconds. When verified, a toast notification appears and Phase 2 unlocks. Polling also detects `RETRY_PENDING` status and updates the retry UI.
-
-**Phase 2+ URL:** `?client=<clientId>` — page.tsx fetches Client + BetMGM status + retry state + phone assignment + execution deadline + all platform statuses (for progress) and passes to ClientForm via NewClientPageClient.
-
-**Status transitions for onboarding flow:**
-- Phase 2 submit does NOT change status (stays PREQUAL_APPROVED)
-- PREQUAL_APPROVED → PHONE_ISSUED (backoffice assigns phone via `assignPhone()`)
-- PHONE_ISSUED → IN_EXECUTION (backoffice transitions)
-- IN_EXECUTION → READY_FOR_APPROVAL (backoffice transitions)
-- Phone assignment eligible statuses: PENDING, PREQUAL_APPROVED, APPROVED
+- `src/app/login/page.tsx` — Sign In + Apply tabs
+- `src/app/login/_components/application-form.tsx` — Multi-step form (3 steps)
+- `src/app/actions/agent-application.ts` — Submit action (public)
+- `src/app/actions/application-review.ts` — Approve/reject actions (admin/backoffice)
+- `src/app/actions/user-management.ts` — CRUD user actions (admin)
+- `src/lib/validations/agent-application.ts` — Zod schemas (full + per-step)
+- `src/backend/data/applications.ts` — Application queries
+- `src/backend/data/users.ts` — User queries
+- `src/app/backoffice/agent-management/_components/application-review-list.tsx` — Review UI
+- `src/app/backoffice/agent-management/_components/approve-application-dialog.tsx`
+- `src/app/backoffice/agent-management/_components/reject-application-dialog.tsx`
+- `src/app/api/upload/public/route.ts` — Public upload for ID documents
+- `src/app/api/agents/search/route.ts` — Public agent name search (for referral autocomplete)
+- `src/app/backoffice/login-management/page.tsx` — Login Management page (server component)
+- `src/app/backoffice/login-management/_components/login-management-view.tsx` — Users table + search
+- `src/app/backoffice/login-management/_components/create-user-dialog.tsx` — Create user (real actions)
+- `src/app/backoffice/login-management/_components/edit-user-dialog.tsx` — Edit/toggle/reset (real actions)
 
 ### Key Patterns
 
@@ -132,25 +117,20 @@ Submitting creates the Client record with `prequalCompleted: true` and 11 Client
 
 ```typescript
 const session = await auth();
-if (!session?.user) redirect("/login");
+if (!session?.user) return { success: false, error: 'Not authenticated' }
 ```
 
-**Database Access**: Prisma client singleton at `@/lib/prisma/client`. Always import from there, not `@prisma/client` directly.
+**Database Access**: Prisma 7 with `@prisma/adapter-pg` driver adapter. Client singleton at `@/backend/prisma/client` creates a `pg.Pool` from `DATABASE_URL` and passes it via `PrismaPg` adapter. Gracefully returns a proxy when DATABASE_URL is not set (allows build without DB). `pg` and `@prisma/adapter-pg` are listed in `serverExternalPackages` in `next.config.ts`. CLI config lives in `prisma.config.ts` (not in the schema).
 
-**Type Exports**: Use `@/types` for Prisma model types and enums - it re-exports from `@prisma/client` plus UI-specific types.
+**Type Exports**: Use `@/types` for Prisma model types and enums. Use `@/types/backend-types` for complex types used by UI components.
 
-**Storage Abstraction**: `@/lib/storage` provides `StorageProvider` interface. Currently local filesystem only. Use `getStorage()` for singleton access.
-
-**Platform Utilities**: `@/lib/platforms` provides metadata (names, abbreviations, categories) for the 11 supported platforms.
-
-**CSV Export**: `@/backend/utils/csv` provides `generateCSV()` and `csvResponse()`. Export API routes at `/api/export/{clients,settlements,agents}` require ADMIN or BACKOFFICE role. Pages use the `ExportCSVButton` client component for download triggers.
+**Platform Utilities**: `@/lib/platforms` provides metadata for the 11 supported platforms.
 
 **UI Components**: shadcn/ui (new-york style) in `@/components/ui/`. Icons from `lucide-react`.
 
-**Form Fields**: Use `Field` component from `@/components/ui/field` instead of raw `Label` + `Input` combinations. The Field component provides consistent spacing, error handling, and accessibility.
+**Form Fields**: Use `Field` component from `@/components/ui/field` instead of raw `Label` + `Input` combinations.
 
 ```tsx
-// Prefer this:
 import { Field, FieldLabel, FieldError } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 
@@ -159,13 +139,6 @@ import { Input } from '@/components/ui/input'
   <Input id="email" name="email" />
   <FieldError>{errors?.email}</FieldError>
 </Field>
-
-// Instead of:
-<div className="space-y-2">
-  <Label htmlFor="email">Email</Label>
-  <Input id="email" name="email" />
-  {errors?.email && <p className="text-destructive">{errors.email}</p>}
-</div>
 ```
 
 ### Test IDs
@@ -173,260 +146,11 @@ import { Input } from '@/components/ui/input'
 Add `data-testid` attributes to all interactive and significant UI elements for automated testing. Use descriptive kebab-case names:
 
 ```tsx
-// Buttons & actions
 <Button data-testid="submit-client-form">Submit</Button>
-<Button data-testid="approve-extension-btn">Approve</Button>
-
-// Inputs & forms
 <Input data-testid="client-first-name" />
-<form data-testid="new-client-form">
-
-// Cards, sections & containers
 <Card data-testid="client-card-{clientId}">
-<div data-testid="deadline-countdown">
-<div data-testid="extension-request-dialog">
-
-// Table rows
 <tr data-testid="client-row-{clientId}">
 ```
-
-This enables reliable UI automation. Always add `data-testid` to: buttons, form inputs, modals/dialogs, cards, table rows, nav links, and status badges.
-
-### Commission System
-
-`src/backend/services/commission.ts` — Core commission logic:
-- `createBonusPool(clientId)` — Creates $400 pool when client is approved, distributes immediately
-- `distributeStarPool(poolId)` — Walks hierarchy upward, assigns $50 slices capped by star level
-- `recalculateStarLevel(agentId)` — Updates agent tier based on approved client count
-- `getAgentCommissionSummary(agentId)` — Query for UI: total earned, pending, paid
-
-Key rules:
-- $200 direct bonus always goes to closer
-- $200 star pool = 4 slices × $50, distributed up hierarchy
-- Each agent takes min(starLevel, remainingSlices)
-- Leftover slices → backfill to highest-star ancestor, then recycle to company
-- Star levels frozen at distribution time (immutable)
-- Leadership (5★+) uses separate `LeadershipPayout` model (P&L revenue share)
-
-### Transaction System
-
-`src/backend/services/transaction.ts` — Append-only financial ledger:
-- `recordTransaction(data)` — Single entry point for creating transactions (never use prisma.transaction.create directly)
-- `recordTransactionFromFundMovement(fm, userId)` — Converts FundMovement into 1-2 Transaction entries
-- `recordCommissionTransaction(allocation, userId)` — Records commission payouts
-- `getClientBalance(clientId, platform?)` — Calculates balance from transaction history
-- `getClientBalanceBreakdown(clientId)` — Per-platform balance breakdown
-- `reverseTransaction(id, reason, userId)` — Creates offsetting ADJUSTMENT (never deletes)
-- `getTransactionHistory(filters)` — Paginated query with type/platform/date filters
-
-Key rules:
-- Transactions are NEVER updated or deleted (append-only)
-- To reverse: mark original as "reversed" + create ADJUSTMENT entry
-- Every FundMovement automatically creates matching Transaction(s) via hook in `src/app/actions/fund-movements.ts`
-- TransactionType enum: DEPOSIT, WITHDRAWAL, INTERNAL_TRANSFER, COMMISSION_PAYOUT, FEE, ADJUSTMENT
-
-### Team Hierarchy
-
-`src/backend/data/hierarchy.ts` — Agent hierarchy queries:
-- `getAgentHierarchy(agentId)` — Returns supervisor chain (upward) + subordinate tree (downward)
-- `getTeamRollup(agentId)` — Aggregates metrics across entire subordinate tree
-- `getAllSubordinateIds(agentId)` — BFS to get all descendant agent IDs
-
-Team page at `/agent/team` shows supervisor chain, expandable subordinate tree, and team stats.
-
-### Client Closure
-
-`src/backend/services/closure.ts` — Partnership end workflow:
-- `verifyZeroBalances(clientId)` — Checks all platform balances are zero via transaction ledger
-- `closeClient(data)` — Validates status + balances, updates to PARTNERSHIP_ENDED, logs event, cancels open todos
-- `getClosureDetails(clientId)` — Query for closure info display
-
-Server action at `src/app/actions/closure.ts` — ADMIN/BACKOFFICE only. Admin can skip balance check.
-PARTNERSHIP_ENDED is a terminal state reachable only from APPROVED.
-
-### Notification System
-
-`src/backend/services/notifications.ts` — Notification creation and queries:
-- `createNotification(params)` — Create a notification for a specific user
-- `notifyRole(params)` — Create notifications for all users with matching role(s)
-- `getUserNotifications(userId, options?)` — Get notifications (supports unreadOnly filter, limit)
-- `getUnreadCount(userId)` — Get unread notification count
-- `markAsRead(notificationId, userId)` — Mark single notification read (userId guard prevents IDOR)
-- `markAllAsRead(userId)` — Mark all unread notifications read
-
-Server actions at `src/app/actions/notifications.ts` — Auth-guarded wrappers for the service.
-
-Notifications are auto-generated from key actions (fire-and-forget, never blocks main action):
-- Client approval/rejection → notifies the agent (`status-transition.ts`)
-- Settlement confirm/reject → notifies ADMIN + BACKOFFICE (`settlements.ts`)
-- Extension request created → notifies ADMIN + BACKOFFICE (`extensions.ts`)
-- Extension approved/rejected → notifies the requesting agent (`extensions.ts`)
-- Todo completed → notifies ADMIN + BACKOFFICE (`todos.ts`)
-
-UI: `src/components/notification-dropdown.tsx` — Shared dropdown used in both agent and backoffice top bars.
-
-### Global Search
-
-`src/app/api/search/route.ts` — GET route searching clients, agents, and tasks:
-- Accepts `?q=` query parameter (minimum 2 characters)
-- Role-based visibility: agents only see their own clients/tasks, backoffice/admin see all
-- Agents do not receive agent search results
-- Returns typed results with `link` paths appropriate to the user's role
-
-UI: `src/components/global-search.tsx` — exports `GlobalSearch` (CommandDialog) + `SearchTrigger` (button/input):
-- `SearchTrigger variant="input"` — styled like a search input with ⌘K badge (used in backoffice)
-- `SearchTrigger variant="icon"` — compact icon button (used in agent)
-- `GlobalSearch` — cmdk-based command palette with debounced server search, grouped results (Clients/Agents/Tasks), keyboard navigation
-
-Both top bars use `<SearchTrigger />` + `<GlobalSearch />`. Keyboard shortcut ⌘K / Ctrl+K opens the palette from anywhere.
-
-### Agent Dashboard (`/agent`) — "Cockpit" Layout
-
-Server Component dashboard with 6 parallel data fetches. Designed to answer 3 questions in under 5 seconds: "How much money am I making?", "What do I need to do RIGHT NOW?", "Am I leveling up?" — everything fits one screen, no scrolling.
-
-**Layout:** Single-column, 3 sections + footer:
-1. **Hero Banner** — money metrics + star level progression
-2. **Do Now** — urgent action queue
-3. **Pipeline + Scorecard** — 2-column grid
-
-**Hero Banner:** Single `card-terminal` with `border-primary/20`. Money row (4-column grid): Total Earned (`text-3xl text-success`, biggest number), Pending Payout (`text-xl text-warning`), This Month (`text-xl`), MoM Trend (green/red pill). Level row: 4 star icons (filled `fill-warning` / empty `text-muted-foreground/30`) + thin `<Progress>` bar + "X to go" or "Max level". Context line: `$X/close · Top Y% · Z% success rate` (income per close = `200 + min(starLevel, 4) * 50`).
-
-**Do Now:** Section header with "DO NOW" + count badges (overdue in destructive pill, due-today in warning pill) + "Action Hub" link. Max 6 items from `PriorityAction[]`. Each row: colored dot + title + client name (mono) + relative time + ChevronRight. Overdue rows get `border-destructive/20 bg-destructive/5`. Empty state: "Nothing urgent — nice work." with CheckCircle icon.
-
-**Pipeline:** `card-terminal` with compact rows for 4 active stages (Pre-qualification, Phone Issued, In Execution, Ready for Approval) + divider + approved (green) / rejected (red) counts. Footer: "View Clients →" link.
-
-**Scorecard:** `card-terminal` with 5 compact rows: Success Rate (color-coded >=80 green, >=50 warning, <50 red), Avg Conversion (days or em-dash), Overdue Tasks (red if >0), Total Clients, Ranking (primary pill "Top X%").
-
-**Key files:**
-- `src/app/agent/page.tsx` — Server Component with 6 parallel data fetches
-- `src/app/agent/loading.tsx` — Skeleton matching cockpit layout
-- `src/app/agent/_components/dashboard/hero-banner.tsx` — Money + level banner (Server Component)
-- `src/app/agent/_components/dashboard/do-now.tsx` — Urgent actions list (Server Component)
-- `src/app/agent/_components/dashboard/pipeline-scorecard.tsx` — Exports `Pipeline` + `Scorecard` (Server Component)
-
-**Data functions** (in `src/backend/data/agent.ts`):
-- `getAgentDashboardStats()` — Client counts, earnings, MoM change (uses `thisMonthEarnings` vs `lastMonthEarnings`)
-- `getAgentClientStats()` — Extended with pipeline sub-stages: `prequal`, `phoneIssued`, `inExecution`, `readyForApproval`
-- `getAgentPriorityActions()` — 5 parallel queries merged into `PriorityAction[]` (max 8)
-- `getAgentTeamRanking()` — Percentile ranking by success rate
-- `getCommissionTierInfo()` — Star level, tier progress, clients to next (from `commission.ts`)
-- `getAgentKPIs()` — Success rate, avg days, overdue todos (from `agent-kpis.ts`)
-
-### Sales Interaction Page (Back Office)
-
-`/backoffice/sales-interaction` — Operational queue for managing client onboarding pipeline.
-
-**Layout:** Two-panel design mirroring the agent "My Clients" page:
-- **Left sidebar** (w-56): Summary panel with 4 status counts (Total Clients, In Progress, Pending Approval, Verification Needed) + Team Directory with agent search and tier-based grouping
-- **Right main area**: Search/sort toolbar + two collapsible sections
-
-**Two main collapsible sections:**
-1. **In Progress** — Contains 7 sub-stage categories (each collapsible):
-   - Pre-Qualification (`PENDING`, `PREQUAL_REVIEW`, `PREQUAL_APPROVED`)
-   - Ten Questions (early `IN_EXECUTION`)
-   - Waiting for Phone (`IN_EXECUTION` without phone assignment)
-   - Phone Issued (`PHONE_ISSUED`)
-   - Platform Registrations (`IN_EXECUTION` with pending platforms)
-   - Phone Returned (`IN_EXECUTION` with all platforms verified)
-   - Pending Approval (`READY_FOR_APPROVAL`)
-
-2. **Verification Needed** — Clients in `NEEDS_MORE_INFO`, `PENDING_EXTERNAL`, `EXECUTION_DELAYED` + verification/upload todos + Post-Approval Verification sub-section
-
-**Exception states & progress indicators:**
-- Each `IntakeClient` includes `exceptionStates: ExceptionState[]` computed by `computeExceptionStates()` — flags like `overdue`, `deadline-approaching`, `platform-rejection`, `needs-more-info`, `extension-pending`, `execution-delayed`
-- `platformProgress: { verified, total }` — platform verification progress per client
-- `executionDeadline`, `deadlineExtensions`, `pendingExtensionRequest`, `rejectedPlatforms` — enrichment fields from query
-- Sub-stage headers show exception count badges (e.g., "2 alerts")
-- Client rows show `ExceptionBadgeGroup`, `PlatformProgressBar` (for platform-registrations), `DeadlineCountdown`, extension indicators
-- Urgent/overdue clients get left border accent (red for overdue, yellow for warnings)
-
-**Post-Approval Verification:**
-- `getPostApprovalVerificationClients()` — queries APPROVED clients with `PlatformStatus.LIMITED` platforms OR pending VERIFICATION/PROVIDE_INFO todos
-- `PostApprovalClient` type with `limitedPlatforms[]`, `pendingVerificationTodos`, `daysSinceApproval`
-- Rendered as sub-section inside "Verification Needed" collapsible
-
-**Key files:**
-- `src/app/backoffice/sales-interaction/page.tsx` — Server Component fetching stats, hierarchy, intake clients, verification tasks, post-approval clients
-- `src/app/backoffice/sales-interaction/_components/sales-interaction-view.tsx` — Main client component with collapsible sections, exception counts, post-approval sub-section
-- `src/app/backoffice/sales-interaction/_components/client-intake-list.tsx` — Enhanced client rows with exception badges, progress bar, deadline, extensions
-- `src/app/backoffice/sales-interaction/_components/exception-badges.tsx` — ExceptionBadge + ExceptionBadgeGroup components
-- `src/app/backoffice/sales-interaction/_components/platform-progress.tsx` — PlatformProgressBar component
-- `src/app/backoffice/sales-interaction/_components/post-approval-list.tsx` — Post-approval verification client list
-- `src/app/backoffice/sales-interaction/_components/verification-tasks-table.tsx` — Verification task table (no Card wrapper)
-- `src/app/backoffice/sales-interaction/_components/document-review-modal.tsx` — Document review dialog
-- `src/backend/data/operations.ts` — Data queries: `getSalesInteractionStats()`, `getAgentHierarchy()`, `getIntakeClients()` (with enrichment), `getVerificationClients()`, `getPostApprovalVerificationClients()`, `computeExceptionStates()`
-- `src/test/backend/data/operations-sales.test.ts` — Tests for exception states, progress computation
-
-**Data types:** `InProgressSubStage`, `ExceptionType`, `ExceptionState`, `PostApprovalClient` types exported from `operations.ts`. Each `IntakeClient` has enriched fields for exceptions, progress, deadlines, extensions, and ID review data.
-
-**ID Verification sub-stage (formerly Pre-Qualification):**
-- The first sub-stage in "In Progress" is labeled "ID Verification" (step 1)
-- Status labels: `PENDING` → "ID Upload Pending", `PREQUAL_REVIEW` → "ID Review Needed", `PREQUAL_APPROVED` → "ID Verified"
-- `IntakeClient` includes ID review fields for pre-qualification clients: `idImageUrl`, `extractedData`, `overriddenFields`, `betmgmScreenshots`, `betmgmAgentResult`, `betmgmRetryCount`
-- "Review" button on `PREQUAL_REVIEW` clients opens `IdReviewModal` (not a navigation link)
-- `src/app/backoffice/sales-interaction/_components/id-review-modal.tsx` — ID review dialog with extracted data, override warnings, expiry check, approve/reject/reject-retry actions (calls `approvePrequal`, `rejectPrequal`, `rejectPrequalWithRetry` from `src/app/actions/backoffice.ts`)
-
-### Client Life Cycle Panel (`/backoffice/client-lifecycle`)
-
-Application-stage client detail view for unapproved clients. Separates "application pipeline" from "client management" (approved clients only).
-
-**Purpose:** Shows ONLY unapproved clients (excludes APPROVED, REJECTED, INACTIVE, PARTNERSHIP_ENDED). Client name links from Sales Interaction and search results for unapproved clients point here instead of Client Management. Approved clients graduate to Client Management; rejected clients never appear in either.
-
-**Layout:** Reuses `ClientSidebar`, `ClientList`, `ClientDetail` components from `client-management`. Same URL-based selection pattern (`?client=<id>`).
-
-**Key files:**
-- `src/app/backoffice/client-lifecycle/page.tsx` — Server Component with parallel data fetches
-- `src/app/backoffice/client-lifecycle/_components/client-lifecycle-page.tsx` — Client component wrapping shared client management components
-- `src/backend/data/backoffice.ts` — `getLifecycleClients()` (same shape as `getAllClients()` with status filter), `getLifecycleStats()` (total, inProgress, pendingReview, verification counts)
-- `src/app/backoffice/client-management/_components/map-client.ts` — Extracted shared mapping utilities: `mapServerClientToClient()`, `mapIntakeStatusToClientStatus()`, `mapPlatformsToBetting()`, `mapEventTypeToTimelineType()`, `mapFinanceStatus()`, `findPlatformDetail()`
-
-**Link routing rules:**
-- Sales Interaction client names → `/backoffice/client-lifecycle?client=<id>`
-- Verification tasks table client names → `/backoffice/client-lifecycle?client=<id>`
-- Global search (backoffice, unapproved) → `/backoffice/client-lifecycle?client=<id>`
-- Global search (backoffice, APPROVED/PARTNERSHIP_ENDED) → `/backoffice/client-management?client=<id>`
-- Notification links from prequal/betmgm-retry → `/backoffice/client-lifecycle?client=<id>`
-- Post-approval list → `/backoffice/client-management?client=<id>` (unchanged, these are approved)
-- Nav: "Client Life Cycle" (UserCheck icon) between "Sales Interaction" and "Client Management"
-
-### Backoffice Action Hub (`/backoffice/todo-list`)
-
-Operational command center for backoffice daily workflows. Route kept as `/backoffice/todo-list` to avoid breaking notification links. Nav label is "Action Hub" with Zap icon.
-
-**Layout:** 3-tier structure — header stats → 2-column panels (Daily Ops + Action Queue) → full-width Agent Task overview.
-
-**Tier 1: Header** — User name + role badge + 3 stat cards (P&L Status, Pending Actions, Overdue Tasks).
-
-**Tier 2 Left: Daily Operations Panel**
-- **P&L Check Card** — Amber when pending (button to complete), green when done (shows who/when). Calls `markDailyPnlComplete()` server action. Backed by `DailyCheck` model with `@@unique([type, date])`.
-- **Fund Alerts List** — Scrollable list of client accounts with shortfalls (< -$10) or surpluses (> $1000). Color-coded badges. Quick stats: transfers today, pending settlements.
-
-**Tier 2 Right: Action Queue Panel**
-- Aggregated pending backoffice actions sorted by urgency (critical > high > normal).
-- 6 action types: BetMGM review, screenshot review, extension request, client approval, phone pending, settlement review.
-- Each row links to the relevant backoffice page. Grouped by type with count badges.
-
-**Tier 3: Agent Task Overview**
-- Enhanced todo list with search, type filter, and "Create Task" button.
-- Agent-grouped cards with task rows. Each row has a "Complete" button.
-- Create Task dialog: title, description, agent select, due date, priority.
-
-**Schema additions:** `DailyCheck` model, `DailyCheckType` enum (`PNL_RECONCILIATION`, `FUND_REVIEW`), `BACKOFFICE_CUSTOM` added to `ToDoType` enum.
-
-**Key files:**
-- `src/backend/data/action-hub.ts` — Data queries: `getActionHubStats()`, `getDailyPnlStatus()`, `getFundAlerts()`, `getPendingBackofficeActions()`, `getEnhancedBackofficeTodos()`, `getActiveAgents()`
-- `src/app/actions/action-hub.ts` — Server actions: `markDailyPnlComplete()`, `createBackofficeTodo()`, `completeTodoAsBackoffice()`, `reassignTodo()`
-- `src/app/backoffice/todo-list/page.tsx` — Server Component with 6 parallel data fetches
-- `src/app/backoffice/todo-list/_components/action-hub-view.tsx` — Main client orchestrator
-- `src/app/backoffice/todo-list/_components/backoffice-header.tsx` — Header + 3 stat cards
-- `src/app/backoffice/todo-list/_components/daily-ops-panel.tsx` — P&L + fund alerts wrapper
-- `src/app/backoffice/todo-list/_components/pnl-check-card.tsx` — P&L daily check card
-- `src/app/backoffice/todo-list/_components/fund-alerts-list.tsx` — Fund alerts scrollable list
-- `src/app/backoffice/todo-list/_components/action-queue-panel.tsx` — Pending actions queue
-- `src/app/backoffice/todo-list/_components/agent-task-overview.tsx` — Enhanced todo list + create dialog
-- `src/app/backoffice/todo-list/_components/types.ts` — Shared types re-exported from data layer
-- `src/test/backend/actions/action-hub.test.ts` — Server action tests (21 tests)
-- `src/test/backend/data/action-hub.test.ts` — Data query tests (7 tests)
 
 ### Path Aliases
 
@@ -434,9 +158,7 @@ Operational command center for backoffice daily workflows. Route kept as `/backo
 
 ---
 
-## Testing Requirements
-
-**Every feature must include test files.** When implementing a new feature, write tests alongside the production code.
+## Testing
 
 ### Test Setup
 
@@ -445,284 +167,169 @@ Operational command center for backoffice daily workflows. Route kept as `/backo
 - **Setup file**: `src/test/setup.ts`
 - **Test location**: `src/test/` directory, mirroring source structure
 
-### What to Test
-
-For **server actions** (`src/app/actions/*.ts`):
-- Auth guard (unauthenticated → error)
-- Role authorization (wrong role → error)
-- Validation (missing/invalid inputs → error)
-- Happy path (correct inputs → success + side effects)
-- Edge cases (duplicate, not found, invalid state transitions)
-
-For **service functions** (`src/backend/services/*.ts`):
-- Core business logic
-- State transitions (valid + invalid)
-- Edge cases
-
-For **data queries** (`src/backend/data/*.ts`):
-- Test with mocked Prisma client
-- Verify correct query parameters
-
-For **React components** (when they contain significant logic):
-- Rendering with various props
-- User interactions (clicks, form submissions)
-- Conditional rendering based on state
-
 ### Test Conventions
 
 ```typescript
-// File naming: mirror the source path
-// src/app/actions/phones.ts → src/test/backend/actions/phones.test.ts
-// src/backend/services/status-transition.ts → src/test/backend/services/status-transition.test.ts
-
-// Mock pattern for auth
-vi.mock('@/backend/auth', () => ({ auth: vi.fn() }))
-
-// Mock pattern for Prisma
-vi.mock('@/backend/prisma/client', () => ({
-  default: {
-    client: { findUnique: vi.fn(), update: vi.fn() },
-    // ... mock each model used
+// Use vi.hoisted() for mock objects referenced in vi.mock factories
+const { mockPrisma } = vi.hoisted(() => ({
+  mockPrisma: {
+    user: { findUnique: vi.fn(), create: vi.fn() },
   },
 }))
+vi.mock('@/backend/prisma/client', () => ({ default: mockPrisma }))
 
-// Mock pattern for next/navigation
-vi.mock('next/navigation', () => ({
-  redirect: vi.fn((url: string) => { throw new Error(`REDIRECT:${url}`) }),
-}))
+// Mock auth
+const { mockAuth } = vi.hoisted(() => ({ mockAuth: vi.fn() }))
+vi.mock('@/backend/auth', () => ({ auth: mockAuth }))
 
-// Mock pattern for next/cache
-vi.mock('next/cache', () => ({
-  revalidatePath: vi.fn(),
-}))
+// Mock next/cache
+vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 ```
 
-### Running Tests
+### Existing Tests (4 files, 41 tests)
 
-```bash
-pnpm test              # Watch mode
-pnpm test:run          # Single run (CI)
-pnpm test src/test/backend/actions/phones.test.ts  # Specific file
-```
+- `src/test/backend/actions/agent-application.test.ts` — Validation, email uniqueness, happy path, addressDocument
+- `src/test/backend/actions/application-review.test.ts` — Auth guards, approve/reject, edge cases, addressDocument copy
+- `src/test/backend/actions/user-management.test.ts` — CRUD user actions, auth/role guards
+- `src/test/backend/data/applications.test.ts` — Query functions, stats
 
-### Existing Tests (Reference)
+---
 
-- `src/test/backend/actions/clients.test.ts` — createClient, saveDraft, deleteDraft actions
-- `src/test/backend/actions/prequal.test.ts` — submitPrequalification, updateGmailCredentials, BetMGM screenshot handling
-- `src/test/backend/actions/betmgm-verification.test.ts` — verifyBetmgmManual, checkBetmgmStatus actions (including RETRY_PENDING)
-- `src/test/backend/actions/betmgm-retry.test.ts` — retryBetmgmSubmission: auth, ownership, status, cooldown guards + happy path
-- `src/test/backend/actions/upload.test.ts` — Upload API route validation, storage integration
-- `src/test/backend/validations/client.test.ts` — client form validation
-- `src/test/backend/validations/prequal.test.ts` — prequal form validation, BetMGM conditional screenshot requirements
-- `src/test/backend/lib/platforms.test.ts` — platform utilities
-- `src/test/backend/lib/client-phase.test.ts` — client phase determination (status + prequal + BetMGM gates)
-- `src/test/backend/utils/csv.test.ts` — CSV generation utility (escaping, BOM, edge cases)
-- `src/test/backend/services/commission.test.ts` — Commission distribution algorithm, star level calculation
-- `src/test/backend/data/agent-detail.test.ts` — Agent detail data query
-- `src/test/backend/data/operations-sales.test.ts` — Exception states (computeExceptionStates), platform progress computation, multiple simultaneous exceptions
-- `src/test/backend/data/agent-dashboard.test.ts` — Agent dashboard: recent activity, priority actions, pipeline stats, MoM earnings fix
-- `src/test/backend/services/transaction.test.ts` — Transaction ledger: record, balance, reversal, history
-- `src/test/backend/data/hierarchy.test.ts` — Team hierarchy: supervisor chain, subordinate tree, rollup
-- `src/test/backend/services/closure.test.ts` — Client closure: balance verification, close client, auth/role guards
-- `src/test/backend/services/notifications.test.ts` — Notification service: create, query, mark-as-read, role notifications
-- `src/test/backend/actions/notifications.test.ts` — Notification server actions: auth guards, get/mark-read
-- `src/test/backend/api/search.test.ts` — Search API route: auth, role-based visibility, query filtering, link paths
-- `src/test/backend/actions/action-hub.test.ts` — Action Hub server actions: P&L check, create/complete/reassign todos, auth/role guards
-- `src/test/backend/data/action-hub.test.ts` — Action Hub data queries: stats, P&L status, pending actions aggregation, active agents
+## Page Inventory
+
+### Agent Portal
+
+| Route | Page File | Data Source |
+|-------|-----------|-------------|
+| `/agent` | `src/app/agent/page.tsx` | Mock — dashboard cockpit |
+| `/agent/clients` | `src/app/agent/clients/page.tsx` | Mock — client list |
+| `/agent/clients/[id]` | `src/app/agent/clients/[id]/page.tsx` | Mock — client detail |
+| `/agent/earnings` | `src/app/agent/earnings/page.tsx` | Mock — earnings + KPIs |
+| `/agent/team` | `src/app/agent/team/page.tsx` | Mock — hierarchy tree |
+| `/agent/todo-list` | `src/app/agent/todo-list/page.tsx` | Mock — todo list |
+| `/agent/settings` | `src/app/agent/settings/page.tsx` | Mock — user settings |
+
+### Back Office
+
+| Route | Page File | Data Source |
+|-------|-----------|-------------|
+| `/backoffice` | `src/app/backoffice/page.tsx` | Mock — overview |
+| `/backoffice/agent-management` | page.tsx | **Real DB** — Agent Directory + Pending Applications (2 tabs) |
+| `/backoffice/agent-management/[id]` | page.tsx | Mock — agent detail |
+| `/backoffice/login-management` | page.tsx | **Real DB** — all users CRUD |
+| `/backoffice/client-management` | page.tsx | Mock — client list |
+| `/backoffice/client-settlement` | page.tsx | Mock — settlements |
+| `/backoffice/commissions` | page.tsx | Mock — commissions |
+| `/backoffice/fund-allocation` | page.tsx | Mock — fund movements |
+| `/backoffice/partners` | page.tsx | Mock — partners |
+| `/backoffice/phone-tracking` | page.tsx | Mock — phones |
+| `/backoffice/profit-sharing` | page.tsx | Mock — profit sharing |
+| `/backoffice/reports` | page.tsx | Mock — reports |
+| `/backoffice/sales-interaction` | page.tsx | Mock — sales pipeline |
+| `/backoffice/todo-list` | page.tsx | Mock — action hub |
+
+### Auth
+
+| Route | File | Notes |
+|-------|------|-------|
+| `/login` | `src/app/login/page.tsx` | **Real auth** + Apply tab |
+| `/api/auth/[...nextauth]` | route.ts | NextAuth v5 handlers |
 
 ---
 
 ## Next.js Best Practices (App Router)
 
-### Data Fetching
-
-- **Server Components by default** — fetch data directly in components, no `useEffect`
-- **Server Actions for mutations** — `'use server'` functions, form actions
-- **No API routes for internal data** — only for external webhooks/third-party integrations
-- **Parallel fetching** — `Promise.all()` or multiple awaits in same component
-
 ### Component Architecture
 
-- **Server Components** — data fetching, heavy deps, SEO content
+- **Server Components** — data fetching, layout, SEO content
 - **Client Components** — interactivity, hooks, browser APIs
 - **`'use client'`** — only at the boundary, push it down as far as possible
 - **Composition pattern** — pass Server Components as children to Client Components
 
-### File Structure
-
-```
-app/
-├── (portal)/               # Route groups for shared layouts
-│   ├── layout.tsx
-│   └── clients/
-│       ├── page.tsx        # Server Component (default)
-│       └── _components/    # Co-located components
-├── actions/                # Server Actions (centralized)
-│   └── clients.ts          # 'use server' functions
-└── lib/                    # Shared utilities
-```
-
-### Forms
-
-- **Server Actions** over API routes
-- **`useActionState`** (React 19) for form state + pending
-- **`useFormStatus`** for submit button states
-- **Progressive enhancement** — forms work without JS
-
 ### Action-Responsive UI
 
-Every user action (submit, upload, delete, etc.) must provide **both** immediate and persistent feedback:
-
-- **Toast notification** — immediate feedback on success or failure (action-response). Always use `toast.success()` or `toast.error()` so the user knows something happened.
-- **Inline error messages** — persistent error text next to the relevant field/control. Errors stay visible until the user retries or the issue is resolved. Toasts auto-dismiss and are not sufficient alone for errors.
-- **Loading states** — disable buttons and show spinners during async operations.
-
-```tsx
-// Pattern: toast + inline error for failures
-try {
-  await doAction()
-  toast.success('Action completed')
-} catch (err) {
-  const message = err instanceof Error ? err.message : 'Action failed'
-  setError(message)        // persists on page
-  toast.error(message)     // immediate feedback
-}
-```
-
-### Validation
-
-- **Zod** for schema validation
-- **Validate on server** — never trust client
-- **Return typed errors** from Server Actions
-
-### Caching & Revalidation
-
-- **`revalidatePath()`** / **`revalidateTag()`** after mutations
-- **`unstable_cache()`** for expensive operations
-- **Avoid over-caching** — Next.js 15 is less aggressive by default
-
-### Auth
-
-- **Middleware** for route protection
-- **Server-side session checks** in layouts/pages
-- **Don't expose sensitive data** in Client Components
-
----
-
-## Production Deployment
-
-**Live site:** https://maestro-lab-internal-crm.vercel.app (Vercel, private access only)
-
-**Database:** Neon PostgreSQL (auto-provisioned by Vercel)
-
-### Schema Changes (Prisma Migrate)
-
-The project uses **Prisma Migrate** for schema management. Migrations are auto-deployed during the Vercel build (`prisma migrate deploy` in the build script).
-
-**Local development workflow:**
-
-1. Edit `prisma/schema.prisma`
-2. Run `pnpm db:migrate --name <description>` — creates a migration SQL file and applies it locally
-3. Commit the new migration file in `prisma/migrations/`
-4. On deploy, `prisma migrate deploy` runs automatically and applies pending migrations to Neon
-
-**Manual production commands (if needed):**
-
-```bash
-DATABASE_URL="<neon-url>" pnpm db:migrate:deploy   # Apply pending migrations
-DATABASE_URL="<neon-url>" pnpm db:migrate:status    # Check what's applied
-```
-
-**Important:** Do NOT use `prisma db push` — it bypasses migration history. Always use `prisma migrate dev` locally to generate proper migration files.
-
-If a migration is destructive (dropping columns/tables with data), Prisma will warn during `migrate dev`. Review the generated SQL in `prisma/migrations/<timestamp>_<name>/migration.sql` before committing.
-
-### Environment Variables (Vercel)
-
-| Variable | Required | Notes |
-|----------|----------|-------|
-| `DATABASE_URL` | Yes | Auto-set by Neon integration |
-| `AUTH_SECRET` | Yes | Must be 32+ characters (`openssl rand -base64 32`) |
-| `STORAGE_PROVIDER` | Yes | `vercel-blob` for production |
-| `BLOB_READ_WRITE_TOKEN` | Yes | Auto-set by Vercel Blob integration |
-
-Do NOT set `AUTH_URL` on Vercel — NextAuth v5 auto-detects from `VERCEL_URL`.
+Every user action must provide feedback:
+- **Toast notification** — immediate feedback via `toast.success()` / `toast.error()`
+- **Inline error messages** — persistent error text near the control
+- **Loading states** — disable buttons and show spinners during async operations
 
 ---
 
 ## Tailwind CSS v4 Notes
 
-This project uses **Tailwind CSS v4** (`@tailwindcss/postcss` v4). Key differences from v3:
+This project uses **Tailwind CSS v4** (`@tailwindcss/postcss` v4).
 
 ### Arbitrary Value Syntax
 
 In arbitrary values, **use underscores `_` to represent spaces**, not commas.
 
 ```tsx
-// CORRECT (Tailwind v4) — underscores become spaces in CSS output
+// CORRECT (Tailwind v4)
 <div className="grid grid-cols-[1fr_120px_100px_140px_40px]" />
-// → grid-template-columns: 1fr 120px 100px 140px 40px;
 
-// WRONG (Tailwind v3 syntax) — commas produce invalid CSS, grid silently fails
+// WRONG (Tailwind v3 syntax)
 <div className="grid grid-cols-[1fr,120px,100px,140px,40px]" />
-// → grid-template-columns: 1fr,120px,100px,140px,40px; ← INVALID
-```
-
-This applies to all arbitrary CSS values: `grid-cols-[...]`, `grid-rows-[...]`, `translate-[...]`, etc.
-
-The card component (`src/components/ui/card.tsx`) already uses correct v4 syntax as reference:
-```
-grid-cols-[1fr_auto]
-grid-rows-[auto_auto]
 ```
 
 ---
 
-## Current Violations to Fix
+## Database Infrastructure
 
-### 1. API Route for Internal Data ❌
+### Local Development (Docker)
 
-`src/app/api/agent/dashboard/route.ts` — fetches dashboard data via API route.
+`docker-compose.yml` runs PostgreSQL 16 Alpine with:
+- **User**: `crm` / **Password**: `crm_dev_password` / **DB**: `crm_db`
+- Port `5432` exposed to host
+- Persistent volume `crm_pgdata`
+- Health check via `pg_isready`
 
-**Fix:** Delete this route. Fetch directly in Server Component or use Server Action.
+`.env` contains `DATABASE_URL=postgresql://crm:crm_dev_password@127.0.0.1:5432/crm_db`
 
-### 2. Excessive `'use client'` at Page Level ❌
+### Prisma 7 Architecture
 
-Almost all pages are marked `'use client'`:
+Prisma 7 separates CLI config from runtime config:
 
-- All `/backoffice/*` pages including layout
-- `/agent/new-client/page.tsx`
-- `/login/page.tsx`
+- **CLI** (migrate, generate): `prisma.config.ts` reads `DATABASE_URL` via `dotenv/config` and passes it to `defineConfig({ datasource: { url } })`
+- **Runtime** (queries): `src/backend/prisma/client.ts` creates a `pg.Pool` from `DATABASE_URL` env var, wraps it in `PrismaPg` driver adapter, and passes to `new PrismaClient({ adapter })`
+- **Schema** (`prisma/schema.prisma`): Only declares `provider = "postgresql"` — no URL in the schema
 
-**Fix:** Make pages Server Components by default. Extract interactive parts into `_components/` client components.
+The seed script (`prisma/seed.ts`) uses the same adapter pattern and is idempotent (safe to re-run).
 
-### 3. Hardcoded Mock Data in Pages ❌
+### Production Deployment
 
-`/agent/clients/page.tsx` and `/backoffice/page.tsx` use hardcoded arrays instead of fetching from DB.
+**Database:** Neon PostgreSQL (auto-provisioned by Vercel)
 
-**Fix:** Fetch real data in Server Components using Prisma directly.
+```bash
+pnpm db:migrate --name <description>  # Local: creates + applies migration
+DATABASE_URL="<neon-url>" pnpm db:migrate:deploy  # Production: applies pending migrations
+```
 
-### 4. No Server Actions Directory ❌
+### Environment Variables
 
-No `src/app/actions/` directory for mutations.
-
-**Fix:** Create `src/app/actions/` with domain-grouped server action files (e.g., `clients.ts`, `platforms.ts`).
-
-### 5. Backoffice Layout is Client Component ❌
-
-`/backoffice/layout.tsx` is `'use client'` — makes all children client components by default.
-
-**Fix:** Make layout a Server Component. Only wrap interactive sidebar in client boundary.
+| Variable | Required | Notes |
+|----------|----------|-------|
+| `DATABASE_URL` | Yes | Local: set in `.env`. Vercel: auto-set by Neon integration |
+| `AUTH_SECRET` | Yes | Must be 32+ characters |
 
 ---
 
 ## Test Accounts (Seed Data)
 
-| Role       | Email          | Password    |
-| ---------- | -------------- | ----------- |
-| Agent      | agent@test.com | password123 |
-| Backoffice | admin@test.com | password123 |
-| GM         | gm@test.com    | password123 |
+### Users
+
+| Role | Email | Password | Name |
+|------|-------|----------|------|
+| Admin | admin@test.com | password123 | Sarah Chen |
+| Admin (GM) | gm@test.com | password123 | Tom Adams |
+| Agent | agent@test.com | password123 | Marcus Rivera |
+| Agent | jamie.torres@example.com | approved123 | Jamie Torres (approved from application) |
+
+### Applications
+
+| Status | Email | Name | Notes |
+|--------|-------|------|-------|
+| PENDING | alex.johnson@example.com | Alex Johnson | For testing review flow |
+| APPROVED | jamie.torres@example.com | Jamie Torres | Links to User, reviewed by admin |
 
 ---
 

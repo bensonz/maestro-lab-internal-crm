@@ -5,8 +5,8 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard,
   Users,
-  UserCheck,
   UserCog,
+  KeyRound,
   Phone,
   Wallet,
   ClipboardList,
@@ -48,11 +48,6 @@ const navItems: NavItem[] = [
     icon: ClipboardList,
   },
   {
-    title: 'Client Life Cycle',
-    href: '/backoffice/client-lifecycle',
-    icon: UserCheck,
-  },
-  {
     title: 'Client Management',
     href: '/backoffice/client-management',
     icon: Users,
@@ -61,6 +56,11 @@ const navItems: NavItem[] = [
     title: 'Agent Management',
     href: '/backoffice/agent-management',
     icon: UserCog,
+  },
+  {
+    title: 'Login Management',
+    href: '/backoffice/login-management',
+    icon: KeyRound,
   },
   { title: 'Action Hub', href: '/backoffice/todo-list', icon: Zap },
   {
