@@ -2,26 +2,33 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Current State: Phase 1 — Agent Application Flow
+## Current State: Phase 2 — Bonus & Commission System
 
-The backend has been wiped and rebuilt with a minimal schema. Most pages still render using mock data (`src/lib/mock-data.ts`). The first real backend flow is the **Agent Application** system, which is fully functional end-to-end.
+The backend now has a fully functional **commission system** in addition to the Phase 1 Agent Application flow. Most pages still render using mock data for UI, but the commission/bonus backend is real and tested.
 
 ### What's Live (backed by database)
 
-- **Prisma schema** with 3 models: `User`, `AgentApplication`, `EventLog`
+- **Prisma schema** with 8 models: `User`, `AgentApplication`, `EventLog`, `Client`, `BonusPool`, `BonusAllocation`, `PromotionLog`, `QuarterlySettlement`
 - **Agent Application form** on login page ("Apply as Agent" tab) — uploads both ID + Address Proof documents
 - **Application review** in backoffice Agent Management ("Pending Applications" tab) — shows both documents
 - **Agent Directory** in backoffice Agent Management ("Agent Directory" tab) — queries real User table
 - **Login Management** page (`/backoffice/login-management`) — full CRUD for all users from DB
 - **User management** server actions (create, update, toggle, reset password)
+- **Commission system** — $400 fixed bonus pool per approved client, star-level-based distribution up hierarchy
+- **Client management** server actions (create, approve → triggers star level recalc + bonus pool)
+- **Commission payment** server actions (mark paid, bulk mark paid)
+- **Leadership promotion** system (ED/SED/MD/CMO tiers with eligibility checks)
+- **Quarterly settlement** calculation for leadership-tier agents
 - **Search API** (simplified — searches Users only)
 - **NextAuth v5** credentials-based authentication with JWT sessions
 
 ### What's Mock (UI shell only)
 
 All other pages use static mock data from `src/lib/mock-data.ts` and no-op stubs from `src/lib/mock-actions.ts`:
-- Agent dashboard, clients, earnings, team, todos
-- Backoffice overview, sales interaction, client management, settlements, commissions, fund allocation, partners, profit sharing, reports, phone tracking, action hub
+- Agent dashboard, clients UI, earnings UI, team, todos
+- Backoffice overview, sales interaction, client management UI, settlements UI, commissions UI, fund allocation, partners, profit sharing, reports, phone tracking, action hub
+
+**Note:** The commission backend is real but UI pages haven't been wired yet — they still show mock data.
 
 ## Commands
 
@@ -63,13 +70,18 @@ This is a CRM for managing client onboarding across multiple sports betting plat
 - **Agent Portal** (`/agent/*`) - Field agents manage their assigned clients through the onboarding process
 - **Back Office** (`/backoffice/*`) - Staff oversee all clients, agents, and financial operations
 
-### Database Schema (Phase 1)
+### Database Schema (Phase 2)
 
-3 models in `prisma/schema.prisma`:
+8 models in `prisma/schema.prisma`:
 
-- **User** — All staff accounts (agents, admins, backoffice, finance). Includes hierarchy (supervisorId self-relation), profile fields, star level/tier.
+- **User** — All staff accounts (agents, admins, backoffice, finance). Includes hierarchy (supervisorId self-relation), profile fields, star level/tier, leadershipTier (NONE/ED/SED/MD/CMO).
 - **AgentApplication** — Public application form submissions. Status: PENDING → APPROVED/REJECTED. Links to reviewer (User) and created user on approval. Stores `idDocument` and `addressDocument` upload paths.
-- **EventLog** — Append-only audit trail. EventType enum covers login, application, user management events.
+- **Client** — Minimal client record. Status: PENDING → APPROVED. Links to closer (User via closerId). One optional BonusPool.
+- **BonusPool** — One per approved client ($400 fixed). Tracks closer snapshot, distribution stats, has many BonusAllocation[].
+- **BonusAllocation** — Individual payout line. Type: DIRECT ($200 to closer), STAR_SLICE (star pool walk), BACKFILL (remaining to highest supervisor). Status: PENDING → PAID.
+- **PromotionLog** — Immutable audit of star level and leadership tier changes.
+- **QuarterlySettlement** — Leadership P&L commission. Status: DRAFT → APPROVED → PAID. Unique per [leaderId, year, quarter].
+- **EventLog** — Append-only audit trail. EventType enum covers login, application, user management, commission, and leadership events.
 
 ### User Roles
 
@@ -110,6 +122,41 @@ Four roles defined in `UserRole` enum: `AGENT`, `BACKOFFICE`, `ADMIN`, `FINANCE`
 - `src/app/backoffice/login-management/_components/login-management-view.tsx` — Users table + search
 - `src/app/backoffice/login-management/_components/create-user-dialog.tsx` — Create user (real actions)
 - `src/app/backoffice/login-management/_components/edit-user-dialog.tsx` — Edit/toggle/reset (real actions)
+
+### Bonus & Commission System
+
+**$400 fixed bonus pool per approved client:**
+- $200 direct bonus to the closer
+- $200 star pool split into 4 slices ($50 each), distributed up the hierarchy
+
+**Star Pool Distribution Algorithm:**
+1. Build chain: [closer, ...supervisors up the hierarchy]
+2. Walk the chain: each agent takes min(starLevel, remaining) slices → type `STAR_SLICE`
+3. If remaining > 0: find highest-star supervisor (not closer) for backfill
+4. Backfill = min(supervisor.starLevel - alreadyTaken, remaining) → type `BACKFILL`
+5. Any still remaining → recycled (no one receives them)
+
+The closer participates in both the $200 direct AND the star pool walk.
+
+**Star Level Thresholds** (defined in `src/lib/commission-constants.ts`):
+- 0★ Rookie: 1-2 clients | 1★: 3-6 | 2★: 7-12 | 3★: 13-20 | 4★: 21+
+
+**Leadership Tiers** (ED/SED/MD/CMO): Require minimum approved clients + qualified subordinates. Each tier has a promotion bonus and quarterly P&L commission percentage.
+
+**Key files:**
+- `src/lib/commission-constants.ts` — Star thresholds, bonus pool amounts, leadership tier config
+- `src/backend/services/star-pool-distribution.ts` — Pure distribution algorithm
+- `src/backend/services/star-level.ts` — Star level calculation + recalculation
+- `src/backend/services/bonus-pool.ts` — Bonus pool creation orchestrator
+- `src/backend/services/leadership.ts` — Leadership eligibility, promotion, team discovery
+- `src/backend/services/quarterly-settlement.ts` — Quarterly P&L settlement calculation
+- `src/backend/data/bonus-pools.ts` — Commission queries (overview, earnings, supervisor chain, leaderboard)
+- `src/backend/data/clients.ts` — Client queries (count, by closer, by ID)
+- `src/app/actions/clients.ts` — Create/approve client (approve triggers star recalc + bonus pool)
+- `src/app/actions/commission.ts` — Mark allocation paid, bulk mark paid
+- `src/app/actions/leadership.ts` — Check+promote leadership, quarterly settlement CRUD
+- `src/types/index.ts` — Commission enums (ClientStatus, BonusPoolStatus, AllocationType, etc.)
+- `src/types/backend-types.ts` — Commission data interfaces (CommissionOverviewData, AgentEarningsData, etc.)
 
 ### Key Patterns
 
@@ -186,12 +233,22 @@ vi.mock('@/backend/auth', () => ({ auth: mockAuth }))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 ```
 
-### Existing Tests (4 files, 41 tests)
+### Existing Tests (11 files, 114 tests)
 
+**Phase 1 — Agent Application (4 files, 41 tests):**
 - `src/test/backend/actions/agent-application.test.ts` — Validation, email uniqueness, happy path, addressDocument
 - `src/test/backend/actions/application-review.test.ts` — Auth guards, approve/reject, edge cases, addressDocument copy
 - `src/test/backend/actions/user-management.test.ts` — CRUD user actions, auth/role guards
 - `src/test/backend/data/applications.test.ts` — Query functions, stats
+
+**Phase 2 — Commission System (7 files, 73 tests):**
+- `src/test/backend/services/star-pool-distribution.test.ts` — All 4 spec scenarios + edge cases (pure, no mocks)
+- `src/test/backend/services/star-level.test.ts` — Threshold boundary tests, recalculation with mocks
+- `src/test/backend/services/bonus-pool.test.ts` — Orchestrator with mocked Prisma + supervisor chain
+- `src/test/backend/services/leadership.test.ts` — Eligibility checks, promotion, team independence (BFS)
+- `src/test/backend/actions/clients.test.ts` — Create/approve client, auth guards, integration chain
+- `src/test/backend/actions/commission.test.ts` — Mark paid, bulk mark paid, auth guards
+- `src/test/backend/actions/leadership.test.ts` — Promote, quarterly settlement, approve/pay settlement
 
 ---
 
@@ -317,12 +374,15 @@ DATABASE_URL="<neon-url>" pnpm db:migrate:deploy  # Production: applies pending 
 
 ### Users
 
-| Role | Email | Password | Name |
-|------|-------|----------|------|
-| Admin | admin@test.com | password123 | Sarah Chen |
-| Admin (GM) | gm@test.com | password123 | Tom Adams |
-| Agent | agent@test.com | password123 | Marcus Rivera |
-| Agent | jamie.torres@example.com | approved123 | Jamie Torres (approved from application) |
+| Role | Email | Password | Name | Star Level | Supervisor |
+|------|-------|----------|------|------------|------------|
+| Admin | admin@test.com | password123 | Sarah Chen | — | — |
+| Admin (GM) | gm@test.com | password123 | Tom Adams | — | — |
+| Agent | james.park@test.com | password123 | James Park | 4★ | — |
+| Agent | agent@test.com | password123 | Marcus Rivera | 2★ | James Park |
+| Agent | jamie.torres@example.com | approved123 | Jamie Torres | 0★ | Marcus Rivera |
+
+**Hierarchy:** James Park (4★) → Marcus Rivera (2★) → Jamie Torres (0★ rookie)
 
 ### Applications
 
@@ -330,6 +390,14 @@ DATABASE_URL="<neon-url>" pnpm db:migrate:deploy  # Production: applies pending 
 |--------|-------|------|-------|
 | PENDING | alex.johnson@example.com | Alex Johnson | For testing review flow |
 | APPROVED | jamie.torres@example.com | Jamie Torres | Links to User, reviewed by admin |
+
+### Sample Clients & Bonus Pools
+
+| Client | Status | Closer | Bonus Pool | Notes |
+|--------|--------|--------|------------|-------|
+| David Wilson | APPROVED | Marcus Rivera (2★) | $400 distributed, all PAID | Star pool: Marcus 2 slices + James 2 slices |
+| Emily Chen | APPROVED | Jamie Torres (0★) | $400 distributed, all PENDING | Star pool: Marcus 2 slices + James 2 slices |
+| Robert Kim | PENDING | Marcus Rivera | No pool yet | Pending approval |
 
 ---
 

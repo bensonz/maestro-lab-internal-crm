@@ -19,6 +19,44 @@ enum ApplicationStatus {
   REJECTED
 }
 
+enum ClientStatus {
+  PENDING
+  IN_PROGRESS
+  APPROVED
+  REJECTED
+  CLOSED
+}
+
+enum BonusPoolStatus {
+  PENDING
+  DISTRIBUTED
+}
+
+enum AllocationStatus {
+  PENDING
+  PAID
+}
+
+enum AllocationType {
+  DIRECT
+  STAR_SLICE
+  BACKFILL
+}
+
+enum LeadershipTier {
+  NONE
+  ED
+  SED
+  MD
+  CMO
+}
+
+enum QuarterlySettlementStatus {
+  DRAFT
+  APPROVED
+  PAID
+}
+
 enum EventType {
   LOGIN
   LOGOUT
@@ -28,6 +66,13 @@ enum EventType {
   USER_CREATED
   USER_UPDATED
   USER_DEACTIVATED
+  CLIENT_APPROVED
+  BONUS_POOL_CREATED
+  BONUS_POOL_DISTRIBUTED
+  STAR_LEVEL_CHANGED
+  LEADERSHIP_PROMOTED
+  ALLOCATION_PAID
+  QUARTERLY_SETTLEMENT_CREATED
 }
 
 // ─── User ────────────────────────────────────────────────
@@ -52,6 +97,7 @@ model User {
   // Agent profile
   tier          String @default("rookie")
   starLevel     Int    @default(0)
+  leadershipTier LeadershipTier @default(NONE)
   gender        String?
   dateOfBirth   DateTime?
   idNumber      String?
@@ -72,6 +118,12 @@ model User {
   eventLogs              EventLog[]
   reviewedApplications   AgentApplication[] @relation("ApplicationReviewer")
   resultOfApplications   AgentApplication[] @relation("ApplicationResult")
+  closedClients          Client[]           @relation("ClientCloser")
+  closedBonusPools       BonusPool[]        @relation("BonusPoolCloser")
+  allocations            BonusAllocation[]  @relation("AllocationAgent")
+  allocationsPaidBy      BonusAllocation[]  @relation("AllocationPayer")
+  promotionLogs          PromotionLog[]
+  quarterlySettlements   QuarterlySettlement[]
 }
 
 // ─── Agent Application ───────────────────────────────────
@@ -123,6 +175,119 @@ model AgentApplication {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ─── Client (minimal) ───────────────────────────────────
+
+model Client {
+  id        String       @id @default(cuid())
+  firstName String
+  lastName  String
+  email     String?
+  phone     String?
+  status    ClientStatus @default(PENDING)
+
+  closerId  String
+  closer    User     @relation("ClientCloser", fields: [closerId], references: [id])
+
+  approvedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  bonusPool BonusPool?
+}
+
+// ─── Bonus Pool ─────────────────────────────────────────
+
+model BonusPool {
+  id       String          @id @default(cuid())
+  clientId String          @unique
+  client   Client          @relation(fields: [clientId], references: [id])
+
+  closerId       String
+  closer         User   @relation("BonusPoolCloser", fields: [closerId], references: [id])
+  closerStarLevel Int
+
+  totalAmount    Int @default(400)
+  directAmount   Int @default(200)
+  starPoolAmount Int @default(200)
+
+  distributedSlices Int @default(0)
+  recycledSlices    Int @default(0)
+
+  status        BonusPoolStatus @default(PENDING)
+  distributedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  allocations BonusAllocation[]
+}
+
+// ─── Bonus Allocation ───────────────────────────────────
+
+model BonusAllocation {
+  id     String         @id @default(cuid())
+  poolId String
+  pool   BonusPool      @relation(fields: [poolId], references: [id])
+
+  agentId       String
+  agent         User           @relation("AllocationAgent", fields: [agentId], references: [id])
+  agentStarLevel Int
+
+  type    AllocationType
+  slices  Int
+  amount  Int
+
+  status  AllocationStatus @default(PENDING)
+  paidAt  DateTime?
+  paidById String?
+  paidBy   User?   @relation("AllocationPayer", fields: [paidById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Promotion Log ──────────────────────────────────────
+
+model PromotionLog {
+  id      String @id @default(cuid())
+  agentId String
+  agent   User   @relation(fields: [agentId], references: [id])
+
+  previousStarLevel    Int
+  newStarLevel         Int
+  previousLeadershipTier LeadershipTier @default(NONE)
+  newLeadershipTier      LeadershipTier @default(NONE)
+  promotionBonus       Int?
+  approvedClientCount  Int
+  metadata             Json?
+
+  createdAt DateTime @default(now())
+}
+
+// ─── Quarterly Settlement ───────────────────────────────
+
+model QuarterlySettlement {
+  id       String @id @default(cuid())
+  leaderId String
+  leader   User   @relation(fields: [leaderId], references: [id])
+
+  leaderTier        LeadershipTier
+  year              Int
+  quarter           Int
+  teamRevenue       Decimal @db.Decimal(12, 2)
+  commissionPercent Int
+  commissionAmount  Decimal @db.Decimal(12, 2)
+  teamAgentIds      String[]
+  metadata          Json?
+
+  status QuarterlySettlementStatus @default(DRAFT)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([leaderId, year, quarter])
 }
 
 // ─── Event Log ───────────────────────────────────────────

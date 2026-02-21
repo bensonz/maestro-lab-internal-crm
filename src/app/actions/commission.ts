@@ -1,70 +1,95 @@
 'use server'
 
-import { auth } from '@/backend/auth'
 import prisma from '@/backend/prisma/client'
-import { UserRole } from '@/types'
+import { auth } from '@/backend/auth'
 import { revalidatePath } from 'next/cache'
 
-const ALLOWED_ROLES: string[] = [UserRole.ADMIN, UserRole.BACKOFFICE]
-
-export async function markAllocationPaid(
-  allocationId: string,
-): Promise<{ success: boolean; error?: string }> {
+export async function markAllocationPaid(allocationId: string) {
   const session = await auth()
-  if (!session?.user?.id) {
-    return { success: false, error: 'Not authenticated' }
-  }
+  if (!session?.user) return { success: false, error: 'Not authenticated' }
 
-  if (!ALLOWED_ROLES.includes(session.user.role)) {
-    return { success: false, error: 'Insufficient permissions' }
-  }
-
-  if (!allocationId) {
-    return { success: false, error: 'Allocation ID is required' }
+  const role = (session.user as { role: string }).role
+  if (!['ADMIN', 'FINANCE'].includes(role)) {
+    return { success: false, error: 'Not authorized' }
   }
 
   const allocation = await prisma.bonusAllocation.findUnique({
     where: { id: allocationId },
+    select: { id: true, status: true, agentId: true, amount: true },
   })
 
-  if (!allocation) {
-    return { success: false, error: 'Allocation not found' }
-  }
-
-  if (allocation.status === 'paid') {
-    return { success: false, error: 'Allocation is already paid' }
+  if (!allocation) return { success: false, error: 'Allocation not found' }
+  if (allocation.status === 'PAID') {
+    return { success: false, error: 'Already paid' }
   }
 
   await prisma.bonusAllocation.update({
     where: { id: allocationId },
-    data: { status: 'paid', paidAt: new Date() },
+    data: {
+      status: 'PAID',
+      paidAt: new Date(),
+      paidById: session.user.id,
+    },
+  })
+
+  await prisma.eventLog.create({
+    data: {
+      eventType: 'ALLOCATION_PAID',
+      description: `Allocation $${allocation.amount} paid to agent`,
+      userId: session.user.id,
+      metadata: {
+        allocationId,
+        agentId: allocation.agentId,
+        amount: allocation.amount,
+      },
+    },
   })
 
   revalidatePath('/backoffice/commissions')
+  revalidatePath('/agent/earnings')
+
   return { success: true }
 }
 
-export async function bulkMarkPaid(
-  allocationIds: string[],
-): Promise<{ success: boolean; updated: number; error?: string }> {
+export async function bulkMarkPaid(allocationIds: string[]) {
   const session = await auth()
-  if (!session?.user?.id) {
-    return { success: false, updated: 0, error: 'Not authenticated' }
-  }
+  if (!session?.user) return { success: false, error: 'Not authenticated' }
 
-  if (!ALLOWED_ROLES.includes(session.user.role)) {
-    return { success: false, updated: 0, error: 'Insufficient permissions' }
+  const role = (session.user as { role: string }).role
+  if (!['ADMIN', 'FINANCE'].includes(role)) {
+    return { success: false, error: 'Not authorized' }
   }
 
   if (!allocationIds.length) {
-    return { success: false, updated: 0, error: 'No allocations selected' }
+    return { success: false, error: 'No allocations specified' }
   }
 
   const result = await prisma.bonusAllocation.updateMany({
-    where: { id: { in: allocationIds }, status: 'pending' },
-    data: { status: 'paid', paidAt: new Date() },
+    where: {
+      id: { in: allocationIds },
+      status: 'PENDING',
+    },
+    data: {
+      status: 'PAID',
+      paidAt: new Date(),
+      paidById: session.user.id,
+    },
+  })
+
+  await prisma.eventLog.create({
+    data: {
+      eventType: 'ALLOCATION_PAID',
+      description: `Bulk payment: ${result.count} allocations marked paid`,
+      userId: session.user.id,
+      metadata: {
+        allocationIds,
+        paidCount: result.count,
+      },
+    },
   })
 
   revalidatePath('/backoffice/commissions')
-  return { success: true, updated: result.count }
+  revalidatePath('/agent/earnings')
+
+  return { success: true, paidCount: result.count }
 }

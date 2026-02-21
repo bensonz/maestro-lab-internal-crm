@@ -45,9 +45,36 @@ async function main() {
   })
   console.log(`  Created GM: ${gm.email}`)
 
+  // James Park — 4★ senior agent (top of hierarchy)
+  const jamesPark = await prisma.user.upsert({
+    where: { email: 'james.park@test.com' },
+    update: {},
+    create: {
+      email: 'james.park@test.com',
+      passwordHash,
+      name: 'James Park',
+      role: 'AGENT',
+      phone: '(555) 100-0003',
+      tier: 'senior',
+      starLevel: 4,
+      gender: 'Male',
+      dateOfBirth: new Date('1990-06-20'),
+      citizenship: 'US',
+      address: '100 Broadway, New York, NY 10001',
+      personalEmail: 'james.park@personal.com',
+      personalPhone: '(555) 300-0003',
+      zelle: 'james.park@zelle.com',
+      idNumber: 'DL-99887766',
+      idExpiry: new Date('2029-12-31'),
+      loginAccount: 'jpark',
+    },
+  })
+  console.log(`  Created senior agent: ${jamesPark.email}`)
+
+  // Marcus Rivera — 2★ rising agent (supervised by James Park)
   const agent = await prisma.user.upsert({
     where: { email: 'agent@test.com' },
-    update: {},
+    update: { supervisorId: jamesPark.id, starLevel: 2, tier: 'rising' },
     create: {
       email: 'agent@test.com',
       passwordHash,
@@ -66,7 +93,7 @@ async function main() {
       idNumber: 'DL-12345678',
       idExpiry: new Date('2028-05-15'),
       loginAccount: 'mrivera',
-      supervisorId: null, // no supervisor for seed
+      supervisorId: jamesPark.id,
     },
   })
   console.log(`  Created agent: ${agent.email}`)
@@ -107,10 +134,10 @@ async function main() {
 
   const approvedAppHash = await hash('approved123', 12)
 
-  // Create the user first
+  // Jamie Torres — rookie agent (supervised by Marcus Rivera)
   const approvedUser = await prisma.user.upsert({
     where: { email: 'jamie.torres@example.com' },
-    update: {},
+    update: { supervisorId: agent.id },
     create: {
       email: 'jamie.torres@example.com',
       passwordHash: approvedAppHash,
@@ -150,6 +177,157 @@ async function main() {
   })
   console.log(`  Created approved application: jamie.torres@example.com`)
 
+  // ── Sample Clients + Bonus Pools ───────────────────────
+  // Hierarchy: James Park (4★) → Marcus Rivera (2★) → Jamie Torres (0★)
+
+  // Clean up existing sample clients to allow re-seeding
+  await prisma.bonusAllocation.deleteMany({
+    where: { pool: { client: { email: { startsWith: 'sample-client' } } } },
+  })
+  await prisma.bonusPool.deleteMany({
+    where: { client: { email: { startsWith: 'sample-client' } } },
+  })
+  await prisma.client.deleteMany({
+    where: { email: { startsWith: 'sample-client' } },
+  })
+
+  // Client 1 — Approved, closed by Marcus Rivera (2★)
+  // Chain: Marcus (2★) → James Park (4★)
+  // Distribution: Direct $200 to Marcus, Star pool: Marcus 2 slices ($100) + James 2 slices ($100)
+  const client1 = await prisma.client.create({
+    data: {
+      firstName: 'David',
+      lastName: 'Wilson',
+      email: 'sample-client-1@example.com',
+      phone: '(555) 500-0001',
+      status: 'APPROVED',
+      closerId: agent.id,
+      approvedAt: new Date('2026-02-10'),
+    },
+  })
+
+  await prisma.bonusPool.create({
+    data: {
+      clientId: client1.id,
+      closerId: agent.id,
+      closerStarLevel: 2,
+      totalAmount: 400,
+      directAmount: 200,
+      starPoolAmount: 200,
+      distributedSlices: 4,
+      recycledSlices: 0,
+      status: 'DISTRIBUTED',
+      distributedAt: new Date('2026-02-10'),
+      allocations: {
+        create: [
+          {
+            agentId: agent.id,
+            agentStarLevel: 2,
+            type: 'DIRECT',
+            slices: 0,
+            amount: 200,
+            status: 'PAID',
+            paidAt: new Date('2026-02-15'),
+            paidById: admin.id,
+          },
+          {
+            agentId: agent.id,
+            agentStarLevel: 2,
+            type: 'STAR_SLICE',
+            slices: 2,
+            amount: 100,
+            status: 'PAID',
+            paidAt: new Date('2026-02-15'),
+            paidById: admin.id,
+          },
+          {
+            agentId: jamesPark.id,
+            agentStarLevel: 4,
+            type: 'STAR_SLICE',
+            slices: 2,
+            amount: 100,
+            status: 'PAID',
+            paidAt: new Date('2026-02-15'),
+            paidById: admin.id,
+          },
+        ],
+      },
+    },
+  })
+  console.log(`  Created client 1 (David Wilson) + bonus pool — closed by Marcus`)
+
+  // Client 2 — Approved, closed by Jamie Torres (0★ rookie)
+  // Chain: Jamie (0★) → Marcus (2★) → James Park (4★)
+  // Distribution: Direct $200 to Jamie, Star pool: Jamie 0, Marcus 2 ($100), James 2 ($100)
+  const client2 = await prisma.client.create({
+    data: {
+      firstName: 'Emily',
+      lastName: 'Chen',
+      email: 'sample-client-2@example.com',
+      phone: '(555) 500-0002',
+      status: 'APPROVED',
+      closerId: approvedUser.id,
+      approvedAt: new Date('2026-02-12'),
+    },
+  })
+
+  await prisma.bonusPool.create({
+    data: {
+      clientId: client2.id,
+      closerId: approvedUser.id,
+      closerStarLevel: 0,
+      totalAmount: 400,
+      directAmount: 200,
+      starPoolAmount: 200,
+      distributedSlices: 4,
+      recycledSlices: 0,
+      status: 'DISTRIBUTED',
+      distributedAt: new Date('2026-02-12'),
+      allocations: {
+        create: [
+          {
+            agentId: approvedUser.id,
+            agentStarLevel: 0,
+            type: 'DIRECT',
+            slices: 0,
+            amount: 200,
+            status: 'PENDING',
+          },
+          {
+            agentId: agent.id,
+            agentStarLevel: 2,
+            type: 'STAR_SLICE',
+            slices: 2,
+            amount: 100,
+            status: 'PENDING',
+          },
+          {
+            agentId: jamesPark.id,
+            agentStarLevel: 4,
+            type: 'STAR_SLICE',
+            slices: 2,
+            amount: 100,
+            status: 'PENDING',
+          },
+        ],
+      },
+    },
+  })
+  console.log(`  Created client 2 (Emily Chen) + bonus pool — closed by Jamie`)
+
+  // Client 3 — Pending (no bonus pool yet)
+  await prisma.client.create({
+    data: {
+      firstName: 'Robert',
+      lastName: 'Kim',
+      email: 'sample-client-3@example.com',
+      phone: '(555) 500-0003',
+      status: 'PENDING',
+      closerId: agent.id,
+    },
+  })
+  console.log(`  Created client 3 (Robert Kim) — pending, no bonus pool`)
+
   // ── Event Logs ─────────────────────────────────────────
 
   await prisma.eventLog.createMany({
@@ -170,11 +348,26 @@ async function main() {
         userId: admin.id,
         metadata: { createdUserId: approvedUser.id },
       },
+      {
+        eventType: 'BONUS_POOL_DISTRIBUTED',
+        description: 'Bonus pool distributed for David Wilson',
+        userId: agent.id,
+        metadata: { clientName: 'David Wilson', distributedSlices: 4 },
+      },
+      {
+        eventType: 'BONUS_POOL_DISTRIBUTED',
+        description: 'Bonus pool distributed for Emily Chen',
+        userId: approvedUser.id,
+        metadata: { clientName: 'Emily Chen', distributedSlices: 4 },
+      },
     ],
   })
   console.log('  Created event logs')
 
-  console.log('Seeding complete!')
+  console.log('\nSeeding complete!')
+  console.log('\n  Hierarchy: James Park (4★) → Marcus Rivera (2★) → Jamie Torres (0★)')
+  console.log('  Clients: 2 approved (with bonus pools), 1 pending')
+  console.log('  Bonus pools: $800 total distributed')
 }
 
 main()
