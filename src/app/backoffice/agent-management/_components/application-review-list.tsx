@@ -221,7 +221,7 @@ export function ApplicationReviewList({ applications, agents, timeline = [] }: P
   }
 
   return (
-    <>
+    <div className="flex flex-col min-h-full">
       {/* Pending Applications — table matching agent directory style */}
       <Card className="card-terminal" data-testid="pending-applications-card">
         <CardHeader className="border-b border-border px-4 py-3">
@@ -388,58 +388,6 @@ export function ApplicationReviewList({ applications, agents, timeline = [] }: P
                       )}
                       Revert
                     </Button>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Activity Timeline — collapsed by default */}
-      {timeline.length > 0 && (
-        <div className="mt-4" data-testid="application-activity-timeline">
-          <button
-            type="button"
-            onClick={() => setTimelineOpen(!timelineOpen)}
-            className="flex w-full items-center gap-2 rounded-lg border border-border bg-muted/30 px-4 py-2.5 text-left transition-colors hover:bg-muted/50 cursor-pointer"
-            data-testid="toggle-timeline"
-          >
-            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground flex-1">
-              Activity Timeline ({timeline.length})
-            </span>
-            {timelineOpen ? (
-              <ChevronUp className="h-4 w-4 text-muted-foreground" />
-            ) : (
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-            )}
-          </button>
-          {timelineOpen && (
-            <div className="mt-1 rounded-lg border border-border divide-y divide-border overflow-hidden">
-              {timeline.map((entry) => {
-                const actionConfig = getTimelineActionConfig(entry.action)
-                return (
-                  <div
-                    key={entry.id}
-                    className="flex items-center gap-3 px-4 py-2"
-                    data-testid={`timeline-entry-${entry.id}`}
-                  >
-                    <Badge
-                      className={`text-[10px] px-1.5 py-0 shrink-0 ${actionConfig.badgeClass}`}
-                    >
-                      {actionConfig.label}
-                    </Badge>
-                    <span className="text-xs text-foreground truncate">
-                      {entry.event}
-                    </span>
-                    <span className="ml-auto text-[10px] text-muted-foreground whitespace-nowrap shrink-0">
-                      {entry.date} {entry.time}
-                    </span>
-                    {entry.actor && (
-                      <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0">
-                        by {entry.actor}
-                      </span>
-                    )}
                   </div>
                 )
               })}
@@ -728,6 +676,63 @@ export function ApplicationReviewList({ applications, agents, timeline = [] }: P
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+
+      {/* Activity Timeline — pinned to bottom, expands upward */}
+      {timeline.length > 0 && (
+        <div className="mt-auto pt-6" data-testid="application-activity-timeline">
+          <div className="border-t border-border" />
+          <div className="pt-3">
+            {/* Content appears above the toggle */}
+            {timelineOpen && (
+              <div className="mb-1 rounded-lg border border-border divide-y divide-border overflow-hidden max-h-64 overflow-y-auto">
+                {timeline.map((entry) => {
+                  const actionConfig = getTimelineActionConfig(entry.action)
+                  return (
+                    <div
+                      key={entry.id}
+                      className="flex items-center gap-2 px-3 py-1"
+                      data-testid={`timeline-entry-${entry.id}`}
+                    >
+                      <Badge
+                        className={`text-[9px] px-1.5 py-0 shrink-0 ${actionConfig.badgeClass}`}
+                      >
+                        {actionConfig.label}
+                      </Badge>
+                      <span className="text-[11px] text-foreground truncate">
+                        {entry.event}
+                      </span>
+                      <span className="ml-auto text-[9px] text-muted-foreground whitespace-nowrap shrink-0">
+                        {entry.date} {entry.time}
+                      </span>
+                      {entry.actor && (
+                        <span className="text-[9px] text-muted-foreground whitespace-nowrap shrink-0">
+                          by {entry.actor}
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+            {/* Toggle button at the bottom */}
+            <button
+              type="button"
+              onClick={() => setTimelineOpen(!timelineOpen)}
+              className="flex w-full items-center gap-2 rounded-lg border border-border bg-muted/30 px-4 py-2 text-left transition-colors hover:bg-muted/50 cursor-pointer"
+              data-testid="toggle-timeline"
+            >
+              <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground flex-1">
+                Activity Timeline ({timeline.length})
+              </span>
+              {timelineOpen ? (
+                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+              ) : (
+                <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
