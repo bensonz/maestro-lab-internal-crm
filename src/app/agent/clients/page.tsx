@@ -22,14 +22,12 @@ function mapClientStatus(status: string): IntakeStatus {
 function computeInnerStepProgress(draft: Awaited<ReturnType<typeof getDraftsByCloser>>[number]): { completed: number; total: number } {
   switch (draft.step) {
     case 1: {
-      // 5 inner-steps: ID doc, Gmail, Gmail screenshot, BetMGM reg screenshot, BetMGM login screenshot
-      const total = 5
+      // 3 inner-steps: ID document, Gmail (address + screenshot), BetMGM (reg + login screenshots)
+      const total = 3
       let completed = 0
       if (draft.idDocument) completed++
-      if (draft.assignedGmail) completed++
-      if (draft.gmailScreenshot) completed++
-      if (draft.betmgmRegScreenshot) completed++
-      if (draft.betmgmLoginScreenshot) completed++
+      if (draft.assignedGmail && draft.gmailScreenshot) completed++
+      if (draft.betmgmRegScreenshot && draft.betmgmLoginScreenshot) completed++
       return { completed, total }
     }
     case 2: {

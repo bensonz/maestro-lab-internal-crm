@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -76,28 +75,6 @@ const STATUS_PRIORITY: Record<string, number> = {
   [IntakeStatus.REJECTED]: 11,
 }
 
-const TERMINAL_STATUSES: IntakeStatus[] = [
-  IntakeStatus.APPROVED,
-  IntakeStatus.REJECTED,
-  IntakeStatus.INACTIVE,
-]
-
-const STATUS_FILTER_LABELS: Record<StatusFilter, string> = {
-  inProgress: 'In Progress',
-  needsInfo: 'Verification Needed',
-  approved: 'Active',
-  rejected: 'Rejected',
-  aborted: 'Aborted',
-}
-
-const STATUS_FILTER_OPTIONS: StatusFilter[] = [
-  'inProgress',
-  'needsInfo',
-  'approved',
-  'rejected',
-  'aborted',
-]
-
 export function ClientsView({ clients, drafts, stats }: ClientsViewProps) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter | null>(null)
@@ -124,10 +101,10 @@ export function ClientsView({ clients, drafts, stats }: ClientsViewProps) {
   const filteredClients = useMemo(() => {
     let result = clients
 
-    // Hide completed toggle
+    // Active Only toggle — show only approved (active) clients
     if (hideCompleted) {
       result = result.filter(
-        (c) => !TERMINAL_STATUSES.includes(c.intakeStatus),
+        (c) => c.intakeStatus === IntakeStatus.APPROVED,
       )
     }
 
@@ -161,6 +138,8 @@ export function ClientsView({ clients, drafts, stats }: ClientsViewProps) {
     return result
   }, [clients, statusFilter, search, sort, hideCompleted])
 
+  const visibleDrafts = hideCompleted ? [] : drafts
+
   return (
     <div className="flex flex-1 overflow-hidden">
       {/* Sidebar */}
@@ -185,38 +164,6 @@ export function ClientsView({ clients, drafts, stats }: ClientsViewProps) {
               data-testid="clients-search"
             />
           </div>
-
-          {/* Status Filter Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                className="gap-2"
-                data-testid="status-filter-dropdown"
-              >
-                Status:{' '}
-                {statusFilter
-                  ? STATUS_FILTER_LABELS[statusFilter]
-                  : 'All'}
-                <ChevronDown className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setStatusFilter(null)}>
-                All Statuses
-              </DropdownMenuItem>
-              {STATUS_FILTER_OPTIONS.map((key) => (
-                <DropdownMenuItem
-                  key={key}
-                  onClick={() => setStatusFilter(key)}
-                >
-                  {STATUS_FILTER_LABELS[key]}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
 
           {/* Sort Dropdown */}
           <DropdownMenu>
@@ -320,7 +267,7 @@ export function ClientsView({ clients, drafts, stats }: ClientsViewProps) {
         {/* Client List/Grid */}
         <ScrollArea className="flex-1">
           <div className="p-4">
-            {filteredClients.length === 0 && drafts.length === 0 ? (
+            {filteredClients.length === 0 && visibleDrafts.length === 0 ? (
               <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
                 <CardContent className="flex flex-col items-center justify-center py-16">
                   <div className="mb-4 rounded-2xl bg-muted/50 p-4 ring-1 ring-border/30">
@@ -339,9 +286,9 @@ export function ClientsView({ clients, drafts, stats }: ClientsViewProps) {
                 </CardContent>
               </Card>
             ) : viewMode === 'list' ? (
-              <ClientsGroupedList clients={filteredClients} drafts={drafts} />
+              <ClientsGroupedList clients={filteredClients} drafts={visibleDrafts} />
             ) : (
-              <ClientsCardView clients={filteredClients} drafts={drafts} />
+              <ClientsCardView clients={filteredClients} drafts={visibleDrafts} />
             )}
           </div>
         </ScrollArea>
