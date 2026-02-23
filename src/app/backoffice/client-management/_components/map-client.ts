@@ -16,7 +16,6 @@ export function mapIntakeStatusToClientStatus(
 ): Client['status'] {
   switch (intakeStatus) {
     case 'APPROVED':
-    case 'PREQUAL_APPROVED':
     case 'PHONE_ISSUED':
     case 'IN_EXECUTION':
       return 'active'
@@ -24,7 +23,6 @@ export function mapIntakeStatusToClientStatus(
     case 'INACTIVE':
     case 'PARTNERSHIP_ENDED':
       return 'closed'
-    case 'PREQUAL_REVIEW':
     case 'NEEDS_MORE_INFO':
     case 'PENDING_EXTERNAL':
     case 'READY_FOR_APPROVAL':
@@ -205,8 +203,6 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
     agent: serverClient.agent || undefined,
     betmgmScreenshots: betmgmDetail?.screenshots ?? [],
     betmgmStatus: betmgmDetail?.status ?? 'NOT_STARTED',
-    betmgmAgentResult: betmgmDetail?.agentResult ?? undefined,
-    betmgmRetryCount: betmgmDetail?.retryCount ?? 0,
     platformDetails: serverClient.platformDetails,
     quickInfo: {
       zellePhone: (questionnaire.zellePhone as string) || '\u2014',

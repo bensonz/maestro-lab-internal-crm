@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { DraftsPanel } from './drafts-panel'
 import { StepIndicator } from './step-indicator'
@@ -100,6 +100,18 @@ export function NewClientView({ drafts, selectedDraft }: NewClientViewProps) {
     setCurrentStep(step)
   }, [])
 
+  // Ref to ClientForm's flush-aware step change handler
+  const formStepHandlerRef = useRef<((step: number) => void) | null>(null)
+
+  const handleStepIndicatorClick = useCallback((step: number) => {
+    if (formStepHandlerRef.current) {
+      // Use the form's handler which flushes auto-save before navigating
+      formStepHandlerRef.current(step)
+    } else {
+      setCurrentStep(step)
+    }
+  }, [])
+
   return (
     <div className="flex flex-1 overflow-hidden">
       {/* Left: Drafts Panel */}
@@ -113,7 +125,7 @@ export function NewClientView({ drafts, selectedDraft }: NewClientViewProps) {
       {/* Center: Form */}
       <div className="flex flex-1 flex-col overflow-y-auto">
         <div className="mx-auto w-full max-w-2xl p-6">
-          <StepIndicator currentStep={currentStep} totalSteps={4} />
+          <StepIndicator currentStep={currentStep} totalSteps={4} onStepChange={handleStepIndicatorClick} />
 
           {selectedDraft ? (
             <ClientForm
@@ -121,6 +133,7 @@ export function NewClientView({ drafts, selectedDraft }: NewClientViewProps) {
               currentStep={currentStep}
               onStepChange={handleStepChange}
               onRiskFlagsChange={handleRiskFlagsChange}
+              onRegisterStepHandler={(handler) => { formStepHandlerRef.current = handler }}
             />
           ) : (
             <div className="mt-12 text-center text-muted-foreground" data-testid="no-draft-selected">

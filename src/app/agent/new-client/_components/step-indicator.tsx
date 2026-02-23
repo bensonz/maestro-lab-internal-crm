@@ -8,9 +8,10 @@ const STEP_LABELS = ['Pre-Qual', 'Background', 'Platforms', 'Contract']
 interface StepIndicatorProps {
   currentStep: number
   totalSteps: number
+  onStepChange?: (step: number) => void
 }
 
-export function StepIndicator({ currentStep, totalSteps }: StepIndicatorProps) {
+export function StepIndicator({ currentStep, totalSteps, onStepChange }: StepIndicatorProps) {
   return (
     <div className="mb-8 flex items-center justify-center" data-testid="step-indicator">
       {Array.from({ length: totalSteps }).map((_, i) => {
@@ -21,7 +22,12 @@ export function StepIndicator({ currentStep, totalSteps }: StepIndicatorProps) {
         return (
           <div key={step} className="flex items-center">
             {/* Step circle */}
-            <div className="flex flex-col items-center">
+            <button
+              type="button"
+              className="flex flex-col items-center cursor-pointer"
+              onClick={() => onStepChange?.(step)}
+              data-testid={`step-circle-${step}`}
+            >
               <div
                 className={cn(
                   'flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-semibold transition-colors',
@@ -32,8 +38,8 @@ export function StepIndicator({ currentStep, totalSteps }: StepIndicatorProps) {
                   !isCompleted &&
                     !isCurrent &&
                     'border-muted-foreground/30 bg-background text-muted-foreground',
+                  onStepChange && 'hover:border-primary hover:text-primary',
                 )}
-                data-testid={`step-circle-${step}`}
               >
                 {isCompleted ? <Check className="h-4 w-4" /> : step}
               </div>
@@ -47,7 +53,7 @@ export function StepIndicator({ currentStep, totalSteps }: StepIndicatorProps) {
               >
                 {STEP_LABELS[i]}
               </span>
-            </div>
+            </button>
 
             {/* Connector line */}
             {step < totalSteps && (

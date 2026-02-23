@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { requestDeadlineExtension } from '@/app/actions/extensions'
+import { requestDeadlineExtension } from '@/lib/mock-actions'
 
 interface ExtensionRequestDialogProps {
   clientId: string

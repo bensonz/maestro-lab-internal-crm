@@ -16,7 +16,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Building2, Landmark, DollarSign } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
-import { recordFundMovement } from '@/app/actions/fund-movements'
+import { recordFundMovement } from '@/lib/mock-actions'
 
 interface Client {
   id: string

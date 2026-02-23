@@ -12,9 +12,6 @@ import {
   AlertCircle,
   Hourglass,
   FileText,
-  Phone,
-  MonitorSmartphone,
-  PhoneOff,
   Shield,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
@@ -112,14 +109,11 @@ const summaryItems: {
 ]
 
 // ── In Progress sub-stage definitions ───────────────
-// Matches the actual agent onboarding workflow:
+// Maps to 4-step client draft intake form:
 // Step 1: Pre-Qual (ID, Gmail, BetMGM)
-// Step 2: Ten Questions (screening + schedule bank)
-// Step 2a: Awaiting Phone (backoffice decides, agent waits)
-// Step 2b: Phone Issued (device distributed, execution window starts)
-// Step 3: Platform Registration (3 financial + 9 sportsbook)
-// Step 3a: Phone Return (device returned, materials uploaded)
-// Step 4: Pending Approval (backoffice final review → Client Management)
+// Step 2: Background (SSN, criminal, banking)
+// Step 3: Platforms (11 platform registrations)
+// Step 4: Contract (upload + checklist)
 interface SubStageGroup {
   key: InProgressSubStage
   label: string
@@ -130,50 +124,29 @@ interface SubStageGroup {
 
 const inProgressSubStages: SubStageGroup[] = [
   {
-    key: 'pre-qualification',
-    label: 'ID Verification',
+    key: 'step-1',
+    label: 'Pre-Qual',
     stepLabel: '1',
     icon: FileText,
     headerColor: 'text-muted-foreground',
   },
   {
-    key: 'ten-questions',
-    label: 'Ten Questions',
+    key: 'step-2',
+    label: 'Background',
     stepLabel: '2',
     icon: FileCheck,
     headerColor: 'text-primary',
   },
   {
-    key: 'waiting-for-phone',
-    label: 'Awaiting Phone',
-    stepLabel: '2a',
-    icon: Phone,
-    headerColor: 'text-warning',
-  },
-  {
-    key: 'phone-issued',
-    label: 'Phone Issued',
-    stepLabel: '2b',
-    icon: MonitorSmartphone,
-    headerColor: 'text-primary',
-  },
-  {
-    key: 'platform-registrations',
-    label: 'Platform Registration',
+    key: 'step-3',
+    label: 'Platforms',
     stepLabel: '3',
     icon: Shield,
     headerColor: 'text-primary',
   },
   {
-    key: 'phone-returned',
-    label: 'Phone Return',
-    stepLabel: '3a',
-    icon: PhoneOff,
-    headerColor: 'text-muted-foreground',
-  },
-  {
-    key: 'pending-approval',
-    label: 'Pending Approval',
+    key: 'step-4',
+    label: 'Contract',
     stepLabel: '4',
     icon: Hourglass,
     headerColor: 'text-warning',
@@ -300,7 +273,7 @@ export function SalesInteractionView({
     return {
       totalClients: filteredIntake.length + filteredTasks.length + filteredPostApproval.length,
       inProgress: inProgressClients.length,
-      pendingApproval: filteredIntake.filter((c) => c.subStage === 'pending-approval').length,
+      pendingApproval: filteredIntake.filter((c) => c.subStage === 'step-4').length,
       verificationNeeded: verificationClients.length + filteredTasks.length + filteredPostApproval.length,
     }
   }, [filteredIntake, filteredTasks, filteredPostApproval, inProgressClients, verificationClients])
@@ -666,10 +639,10 @@ export function SalesInteractionView({
                       <div>
                         {inProgressSubStages.map((stage) => {
                           const stageClients = summaryFilter === 'pending-approval'
-                            ? inProgressClients.filter((c) => c.subStage === 'pending-approval')
+                            ? inProgressClients.filter((c) => c.subStage === 'step-4')
                             : inProgressClients.filter((c) => c.subStage === stage.key)
                           if (stageClients.length === 0 && summaryFilter !== 'pending-approval') return null
-                          if (summaryFilter === 'pending-approval' && stage.key !== 'pending-approval') return null
+                          if (summaryFilter === 'pending-approval' && stage.key !== 'step-4') return null
 
                           return (
                             <SubStageSection

@@ -1,46 +1,58 @@
-import { auth } from '@/backend/auth'
-import { redirect } from 'next/navigation'
 import {
-  getAgentDashboardStats,
-  getAgentClientStats,
-  getAgentPriorityActions,
-  getAgentTeamRanking,
-} from '@/backend/data/agent'
-import { getCommissionTierInfo } from '@/backend/services/commission'
-import { getAgentKPIs } from '@/backend/services/agent-kpis'
+  MOCK_CLIENT_STATS,
+  MOCK_PRIORITY_ACTIONS,
+  MOCK_KPIS,
+  MOCK_RANKING,
+} from '@/lib/mock-data'
 import { HeroBanner } from './_components/dashboard/hero-banner'
 import { DoNow } from './_components/dashboard/do-now'
 import { Pipeline, Scorecard } from './_components/dashboard/pipeline-scorecard'
+import { requireAgent } from './_require-agent'
+import { getAgentEarnings } from '@/backend/data/bonus-pools'
+import { countApprovedClients } from '@/backend/data/clients'
+import prisma from '@/backend/prisma/client'
+import { STAR_THRESHOLDS } from '@/lib/commission-constants'
 
 // ── Page ─────────────────────────────────────────────────────────────────
 
 export default async function AgentDashboard() {
-  const session = await auth()
-  if (!session?.user) redirect('/login')
+  const agent = await requireAgent()
 
-  const userId = session.user.id
+  // Fetch real earnings + star level from DB
+  let earningsData = await getAgentEarnings(agent.id).catch(() => null)
+  let approvedCount = await countApprovedClients(agent.id).catch(() => 0)
+  let starLevel = 0
 
-  const [stats, tierInfo, clientStats, priorityActions, kpis, ranking] =
-    await Promise.all([
-      getAgentDashboardStats(userId),
-      getCommissionTierInfo(userId),
-      getAgentClientStats(userId),
-      getAgentPriorityActions(userId),
-      getAgentKPIs(userId),
-      getAgentTeamRanking(userId),
-    ])
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: agent.id },
+      select: { starLevel: true },
+    })
+    starLevel = user?.starLevel ?? 0
+  } catch {
+    // DB not available
+  }
+
+  const nextThreshold = STAR_THRESHOLDS[Math.min(starLevel + 1, 4)]
+  const clientsToNextTier = starLevel >= 4 ? null : Math.max(0, nextThreshold.min - approvedCount)
+
+  // Use real data for earnings, mock for everything else
+  const clientStats = MOCK_CLIENT_STATS
+  const priorityActions = MOCK_PRIORITY_ACTIONS
+  const kpis = MOCK_KPIS
+  const ranking = MOCK_RANKING
 
   return (
     <div className="space-y-5 p-6 animate-fade-in" data-testid="agent-dashboard">
       {/* ── Hero Banner: Money + Level ── */}
       <HeroBanner
-        totalEarnings={stats.earnings}
-        pendingPayout={stats.pendingPayout}
-        thisMonthEarnings={stats.thisMonthEarnings}
-        earningsChange={stats.earningsChange}
-        starLevel={tierInfo.starLevel}
-        approvedClients={tierInfo.approvedCount}
-        clientsToNextTier={tierInfo.clientsToNextTier}
+        totalEarnings={earningsData?.totalEarned ?? 0}
+        pendingPayout={earningsData?.pendingAmount ?? 0}
+        thisMonthEarnings={0}
+        earningsChange={0}
+        starLevel={starLevel}
+        approvedClients={approvedCount}
+        clientsToNextTier={clientsToNextTier}
         successRate={kpis.successRate}
         percentile={ranking.percentile}
       />
@@ -51,7 +63,7 @@ export default async function AgentDashboard() {
       {/* ── Pipeline + Scorecard ── */}
       <div className="grid gap-4 lg:grid-cols-2">
         <Pipeline
-          prequal={clientStats.prequal}
+          pending={clientStats.pending}
           phoneIssued={clientStats.phoneIssued}
           inExecution={clientStats.inExecution}
           readyForApproval={clientStats.readyForApproval}
@@ -70,11 +82,11 @@ export default async function AgentDashboard() {
       {/* ── Footer ── */}
       <footer className="border-t border-border pt-4" data-testid="agent-footer">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span className="font-mono">Agent #{session.user.id.slice(-4)}</span>
+          <span className="font-mono">Agent #{agent.id.slice(-4)}</span>
           <span>&bull;</span>
           <span>{clientStats.total} clients</span>
           <span>&bull;</span>
-          <span>{stats.pendingTasks} pending tasks</span>
+          <span>{kpis.pendingTodos} pending tasks</span>
         </div>
       </footer>
     </div>

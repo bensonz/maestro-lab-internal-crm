@@ -17,7 +17,7 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
 import { useToast } from '@/hooks/use-toast'
-import type { AgentKPIs } from '@/backend/services/agent-kpis'
+import type { AgentKPIs } from '@/types/backend-types'
 
 interface PerformancePanelProps {
   kpis: AgentKPIs

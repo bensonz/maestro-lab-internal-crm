@@ -1,22 +1,16 @@
 import {
-  getFundMovements,
-  getClientsForFundAllocation,
-  getFundMovementStats,
-} from '@/backend/data/operations'
+  MOCK_FUND_MOVEMENTS,
+  MOCK_FUND_CLIENTS,
+  MOCK_FUND_STATS,
+} from '@/lib/mock-data'
 import { FundAllocationView } from './_components/fund-allocation-view'
 
-export default async function FundAllocationPage() {
-  const [movements, clients, stats] = await Promise.all([
-    getFundMovements(),
-    getClientsForFundAllocation(),
-    getFundMovementStats(),
-  ])
-
+export default function FundAllocationPage() {
   return (
     <FundAllocationView
-      clients={clients}
-      movements={movements}
-      stats={stats}
+      clients={MOCK_FUND_CLIENTS}
+      movements={MOCK_FUND_MOVEMENTS}
+      stats={MOCK_FUND_STATS}
     />
   )
 }

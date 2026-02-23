@@ -1,34 +1,32 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Check, Clock, Phone, Shield } from 'lucide-react'
-import { approveClientIntake } from '@/app/actions/backoffice'
-import { verifyBetmgmManual } from '@/app/actions/betmgm-verification'
+import { Check, Clock, Phone } from 'lucide-react'
+import { approveClientIntake } from '@/lib/mock-actions'
 import { toast } from 'sonner'
-import type { IntakeClient } from '@/backend/data/operations'
+import type { IntakeClient } from '@/types/backend-types'
 import { cn } from '@/lib/utils'
 import { ExceptionBadgeGroup } from './exception-badges'
 import { PlatformProgressBar } from './platform-progress'
 import { DeadlineCountdown } from '@/components/deadline-countdown'
-import { IdReviewModal } from './id-review-modal'
 
 interface ClientIntakeListProps {
   clients: IntakeClient[]
   selectedAgentId: string | null
+  onSelectClient?: (clientId: string) => void
 }
 
 export function ClientIntakeList({
   clients,
   selectedAgentId,
+  onSelectClient,
 }: ClientIntakeListProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const [reviewClient, setReviewClient] = useState<IntakeClient | null>(null)
-
   const handleApprove = (clientId: string, clientName: string) => {
     startTransition(async () => {
       const result = await approveClientIntake(clientId)
@@ -37,18 +35,6 @@ export function ClientIntakeList({
         router.refresh()
       } else {
         toast.error(result.error || 'Failed to approve')
-      }
-    })
-  }
-
-  const handleVerifyBetmgm = (clientId: string, clientName: string) => {
-    startTransition(async () => {
-      const result = await verifyBetmgmManual(clientId)
-      if (result.success) {
-        toast.success(`BetMGM verified for ${clientName}`)
-        router.refresh()
-      } else {
-        toast.error(result.message || 'Failed to verify BetMGM')
       }
     })
   }
@@ -68,7 +54,7 @@ export function ClientIntakeList({
       <div className="divide-y divide-border/20">
         {clients.map((client) => {
           const hasExceptions = client.exceptionStates.length > 0
-          const showProgress = client.subStage === 'platform-registrations' && client.platformProgress.total > 0
+          const showProgress = client.subStage === 'step-3' && client.platformProgress.total > 0
 
           return (
             <div
@@ -79,12 +65,14 @@ export function ClientIntakeList({
               {/* Name + agent + badges + progress */}
               <div className="min-w-0 space-y-1">
                 <div className="flex items-center gap-2">
-                  <Link
-                    href={`/backoffice/client-lifecycle?client=${client.id}`}
+                  <button
+                    type="button"
+                    onClick={() => onSelectClient?.(client.id)}
                     className="truncate text-sm font-medium text-foreground hover:text-primary hover:underline"
+                    data-testid={`client-name-${client.id}`}
                   >
                     {client.name}
-                  </Link>
+                  </button>
                   <span className="text-[10px] text-muted-foreground/60">&bull;</span>
                   <Link
                     href={`/backoffice/agent-management/${client.agentId}`}
@@ -159,29 +147,6 @@ export function ClientIntakeList({
                     <Check className="mr-1 h-3 w-3" />
                     Approve
                   </Button>
-                ) : client.canReviewPrequal ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 px-2.5 text-xs"
-                    onClick={() => setReviewClient(client)}
-                    data-testid={`review-prequal-${client.id}`}
-                  >
-                    <Shield className="mr-1 h-3 w-3" />
-                    Review
-                  </Button>
-                ) : client.statusType === 'pending_platform' ? (
-                  <Button
-                    size="sm"
-                    onClick={() => handleVerifyBetmgm(client.id, client.name)}
-                    disabled={isPending}
-                    variant="outline"
-                    className="h-7 px-2.5 text-xs"
-                    data-testid={`verify-betmgm-${client.id}`}
-                  >
-                    <Shield className="mr-1 h-3 w-3" />
-                    Verify
-                  </Button>
                 ) : client.canAssignPhone ? (
                   <Button
                     size="sm"
@@ -207,12 +172,6 @@ export function ClientIntakeList({
         })}
       </div>
 
-      <IdReviewModal
-        open={!!reviewClient}
-        onOpenChange={(open) => { if (!open) setReviewClient(null) }}
-        client={reviewClient}
-        onActionComplete={() => { setReviewClient(null); router.refresh() }}
-      />
     </>
   )
 }

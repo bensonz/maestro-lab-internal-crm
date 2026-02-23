@@ -22,7 +22,7 @@ import {
   updateUser,
   resetUserPassword,
   toggleUserActive,
-} from '@/app/actions/user-management'
+} from '@/lib/mock-actions'
 import { toast } from 'sonner'
 
 interface UserData {

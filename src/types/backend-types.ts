@@ -25,13 +25,10 @@ export type IntakeStatusType =
   | 'followup'
 
 export type InProgressSubStage =
-  | 'pre-qualification'
-  | 'ten-questions'
-  | 'waiting-for-phone'
-  | 'phone-issued'
-  | 'platform-registrations'
-  | 'phone-returned'
-  | 'pending-approval'
+  | 'step-1'
+  | 'step-2'
+  | 'step-3'
+  | 'step-4'
 
 export type ExceptionType =
   | 'deadline-approaching'

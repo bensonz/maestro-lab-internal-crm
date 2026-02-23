@@ -37,8 +37,8 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
-import { confirmSettlement, rejectSettlement } from '@/app/actions/settlements'
-import type { SettlementClient } from '@/backend/data/operations'
+import { confirmSettlement, rejectSettlement } from '@/lib/mock-actions'
+import type { SettlementClient } from '@/types/backend-types'
 
 interface SettlementViewProps {
   clients: SettlementClient[]

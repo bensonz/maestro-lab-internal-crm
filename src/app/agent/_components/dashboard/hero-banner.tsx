@@ -1,6 +1,6 @@
 import { Star, TrendingUp, TrendingDown } from 'lucide-react'
 import { Progress } from '@/components/ui/progress'
-import { STAR_THRESHOLDS } from '@/lib/commission-constants'
+import { STAR_THRESHOLDS, DIRECT_BONUS, SLICE_VALUE } from '@/lib/commission-constants'
 import { cn } from '@/lib/utils'
 
 interface HeroBannerProps {
@@ -33,8 +33,8 @@ export function HeroBanner({
     ? 100
     : Math.min(100, (approvedClients / next.min) * 100)
 
-  // Income per close: $200 base + min(starLevel, 4) * $50 from star pool
-  const incomePerClose = 200 + Math.min(starLevel, 4) * 50
+  // Income per close: direct bonus + star pool slices
+  const incomePerClose = DIRECT_BONUS + Math.min(starLevel, 4) * SLICE_VALUE
 
   return (
     <div

@@ -53,7 +53,7 @@ import {
   deactivateRule,
   markProfitSharePaid,
   bulkMarkProfitSharePaid,
-} from '@/app/actions/profit-sharing'
+} from '@/lib/mock-actions'
 
 interface RuleDetail {
   partnerAmount: unknown

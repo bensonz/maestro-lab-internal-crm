@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { IntakeStatus } from '@/types'
 import { cn } from '@/lib/utils'
 import { DeadlineCountdown } from '@/components/deadline-countdown'
-import type { AgentClient } from './types'
+import type { AgentClient, AgentDraft } from './types'
 
 const statusBadgeConfig: Record<
   string,
@@ -51,14 +51,6 @@ const statusBadgeConfig: Record<
     icon: XCircle,
     className: 'bg-destructive/20 text-destructive border-destructive/30',
   },
-  [IntakeStatus.PREQUAL_REVIEW]: {
-    icon: Hourglass,
-    className: 'bg-warning/20 text-warning border-warning/30',
-  },
-  [IntakeStatus.PREQUAL_APPROVED]: {
-    icon: CheckCircle2,
-    className: 'bg-success/20 text-success border-success/30',
-  },
   [IntakeStatus.PENDING]: {
     icon: Clock,
     className: 'bg-muted text-muted-foreground border-muted',
@@ -80,8 +72,6 @@ const STATUS_BORDER_COLOR: Record<string, string> = {
   [IntakeStatus.PENDING_EXTERNAL]: 'border-l-destructive',
   [IntakeStatus.EXECUTION_DELAYED]: 'border-l-warning',
   [IntakeStatus.READY_FOR_APPROVAL]: 'border-l-warning',
-  [IntakeStatus.PREQUAL_REVIEW]: 'border-l-warning',
-  [IntakeStatus.PREQUAL_APPROVED]: 'border-l-success',
   [IntakeStatus.PENDING]: 'border-l-muted-foreground',
   [IntakeStatus.INACTIVE]: 'border-l-muted-foreground',
   [IntakeStatus.APPROVED]: 'border-l-success',
@@ -89,12 +79,20 @@ const STATUS_BORDER_COLOR: Record<string, string> = {
   [IntakeStatus.PARTNERSHIP_ENDED]: 'border-l-muted-foreground',
 }
 
-interface ClientsCardViewProps {
-  clients: AgentClient[]
+const STEP_LABELS: Record<number, string> = {
+  1: 'Pre-Qual',
+  2: 'Background',
+  3: 'Platforms',
+  4: 'Contract',
 }
 
-export function ClientsCardView({ clients }: ClientsCardViewProps) {
-  if (clients.length === 0) {
+interface ClientsCardViewProps {
+  clients: AgentClient[]
+  drafts: AgentDraft[]
+}
+
+export function ClientsCardView({ clients, drafts }: ClientsCardViewProps) {
+  if (clients.length === 0 && drafts.length === 0) {
     return (
       <div className="py-12 text-center text-muted-foreground">
         No clients found matching your criteria.
@@ -104,6 +102,64 @@ export function ClientsCardView({ clients }: ClientsCardViewProps) {
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+      {/* Draft cards */}
+      {drafts.map((draft) => {
+        const progressPct = draft.innerStepTotal > 0
+          ? Math.round((draft.innerStepCompleted / draft.innerStepTotal) * 100)
+          : 0
+
+        return (
+          <Link key={draft.id} href={`/agent/new-client?draft=${draft.id}`}>
+            <Card
+              className="group h-full cursor-pointer border-l-2 border-dashed border-border/50 border-l-muted-foreground bg-muted/20 backdrop-blur-sm transition-all duration-300 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10"
+              data-testid={`draft-card-${draft.id}`}
+            >
+              <CardContent className="p-4">
+                <div className="mb-3 flex items-start justify-between">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium text-foreground transition-colors group-hover:text-primary">
+                      {draft.name}
+                    </p>
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                      Draft — click to continue
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="ml-2 shrink-0 gap-1 border-dashed text-[10px] font-medium text-muted-foreground">
+                    Step {draft.step}: {STEP_LABELS[draft.step] || ''}
+                  </Badge>
+                </div>
+                <div className="mb-3">
+                  <div className="mb-1.5 flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">
+                      {draft.innerStepCompleted}/{draft.innerStepTotal} completed
+                    </span>
+                    <span className="font-mono text-primary/60">
+                      {progressPct}%
+                    </span>
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-primary/60 transition-all"
+                      style={{ width: `${progressPct}%` }}
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between border-t border-border/40 pt-3">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Clock className="h-3.5 w-3.5" />
+                    <span>Updated {draft.lastUpdated}</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground transition-colors group-hover:text-primary">
+                    Continue →
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        )
+      })}
+
+      {/* Client cards */}
       {clients.map((client) => {
         const badge = statusBadgeConfig[client.intakeStatus] ?? {
           icon: null,

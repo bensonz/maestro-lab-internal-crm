@@ -24,7 +24,7 @@ import {
   approvePlatformScreenshot,
   rejectPlatformScreenshot,
   requestMoreInfo,
-} from '@/app/actions/platforms'
+} from '@/lib/mock-actions'
 
 interface DocumentReviewModalProps {
   open: boolean

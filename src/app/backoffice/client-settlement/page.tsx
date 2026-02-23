@@ -1,10 +1,8 @@
-import { getClientsForSettlement } from '@/backend/data/operations'
+import { MOCK_SETTLEMENT_CLIENTS } from '@/lib/mock-data'
 import { SettlementView } from './_components/settlement-view'
 import { ExportDropdown } from './_components/export-dropdown'
 
-export default async function ClientSettlementPage() {
-  const clients = await getClientsForSettlement()
-
+export default function ClientSettlementPage() {
   return (
     <div className="space-y-6 p-6 animate-fade-in" data-testid="settlement-page">
       {/* Header */}
@@ -21,7 +19,7 @@ export default async function ClientSettlementPage() {
       </div>
 
       {/* Interactive Settlement View */}
-      <SettlementView clients={clients} />
+      <SettlementView clients={MOCK_SETTLEMENT_CLIENTS} />
     </div>
   )
 }

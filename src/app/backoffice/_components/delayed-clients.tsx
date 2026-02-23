@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { AlertTriangle, User, Play, XCircle } from 'lucide-react'
-import { resumeExecution, changeClientStatus } from '@/app/actions/status'
+import { resumeExecution, changeClientStatus } from '@/lib/mock-actions'
 import { IntakeStatus } from '@/types'
 
 interface DelayedClient {

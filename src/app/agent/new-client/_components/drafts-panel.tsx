@@ -69,7 +69,7 @@ export function DraftsPanel({
 
   return (
     <div
-      className="hidden w-56 flex-col border-r bg-sidebar lg:flex"
+      className="hidden w-56 min-w-56 shrink-0 flex-col border-r border-sidebar-border bg-sidebar lg:flex"
       data-testid="drafts-panel"
     >
       <div className="border-b p-3">

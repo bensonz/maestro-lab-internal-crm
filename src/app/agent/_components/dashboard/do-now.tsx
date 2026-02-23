@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { ArrowUpRight, CheckCircle, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { PriorityAction } from '@/backend/data/agent'
+import type { PriorityAction } from '@/types/backend-types'
 
 const typeConfig: Record<
   PriorityAction['type'],
@@ -15,7 +15,6 @@ const typeConfig: Record<
   'due-today': { dot: 'bg-warning', label: 'Due Today' },
   'deadline-approaching': { dot: 'bg-warning', label: 'Deadline' },
   'needs-info': { dot: 'bg-primary', label: 'Needs Info' },
-  'retry-ready': { dot: 'bg-primary', label: 'Retry' },
 }
 
 function formatRelativeTime(date: Date): string {

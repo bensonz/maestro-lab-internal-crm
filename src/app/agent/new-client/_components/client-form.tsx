@@ -17,6 +17,7 @@ interface ClientFormProps {
   currentStep: number
   onStepChange: (step: number) => void
   onRiskFlagsChange: (flags: Record<string, boolean>) => void
+  onRegisterStepHandler?: (handler: (step: number) => void) => void
 }
 
 export function ClientForm({
@@ -24,6 +25,7 @@ export function ClientForm({
   currentStep,
   onStepChange,
   onRiskFlagsChange,
+  onRegisterStepHandler,
 }: ClientFormProps) {
   const router = useRouter()
   const [formData, setFormData] = useState<Record<string, unknown>>(() =>
@@ -92,6 +94,7 @@ export function ClientForm({
 
   // Flush save before step change
   async function handleStepChange(newStep: number) {
+    if (newStep < 1 || newStep > 4) return
     if (saveTimerRef.current) {
       clearTimeout(saveTimerRef.current)
       saveTimerRef.current = null
@@ -99,6 +102,11 @@ export function ClientForm({
     await doSave({ ...formData, step: newStep })
     onStepChange(newStep)
   }
+
+  // Expose handleStepChange to parent (for step indicator clicks)
+  useEffect(() => {
+    onRegisterStepHandler?.(handleStepChange)
+  }) // re-register on every render so it captures latest formData
 
   async function handleSubmit() {
     // Flush save first

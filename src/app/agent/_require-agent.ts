@@ -1,21 +1,17 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/backend/auth'
 
-/**
- * Requires the user to be authenticated with AGENT role.
- * Redirects to /login if not authenticated, or /backoffice if wrong role.
- * Returns the session user if authorized.
- */
 export async function requireAgent() {
   const session = await auth()
 
-  if (!session?.user) {
+  if (!session?.user?.id) {
     redirect('/login')
   }
 
-  if (session.user.role !== 'AGENT') {
-    redirect('/backoffice')
+  return {
+    id: session.user.id,
+    name: session.user.name ?? '',
+    email: session.user.email ?? '',
+    role: (session.user as { role?: string }).role ?? 'AGENT',
   }
-
-  return session.user
 }

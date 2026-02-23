@@ -1,19 +1,17 @@
 import {
-  getPhoneAssignments,
-  getPhoneStats,
-  getEligibleClientsForPhone,
-} from '@/backend/data/operations'
+  MOCK_PHONE_NUMBERS,
+  MOCK_PHONE_STATS,
+  MOCK_ELIGIBLE_CLIENTS,
+} from '@/lib/mock-data'
 import { Card, CardContent } from '@/components/ui/card'
 import { Phone, CheckCircle2, Clock, XCircle } from 'lucide-react'
 import { PhoneTable } from './_components/phone-table'
 import { PhoneTrackingHeader } from './_components/phone-tracking-header'
 
-export default async function PhoneTrackingPage() {
-  const [phoneNumbers, stats, eligibleClients] = await Promise.all([
-    getPhoneAssignments(),
-    getPhoneStats(),
-    getEligibleClientsForPhone(),
-  ])
+export default function PhoneTrackingPage() {
+  const phoneNumbers = MOCK_PHONE_NUMBERS
+  const stats = MOCK_PHONE_STATS
+  const eligibleClients = MOCK_ELIGIBLE_CLIENTS
 
   const statItems = [
     {

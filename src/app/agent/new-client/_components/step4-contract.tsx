@@ -36,13 +36,13 @@ export function Step4Contract({ formData, onChange }: Step4Props) {
         <h3 className="text-sm font-medium">Submission Checklist</h3>
         <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
           <li className="flex items-center gap-2">
-            <span className={formData.firstName ? 'text-green-600' : 'text-destructive'}>
+            <span className={formData.firstName ? 'text-success' : 'text-destructive'}>
               {formData.firstName ? '\u2713' : '\u2717'}
             </span>
             First name provided
           </li>
           <li className="flex items-center gap-2">
-            <span className={formData.lastName ? 'text-green-600' : 'text-destructive'}>
+            <span className={formData.lastName ? 'text-success' : 'text-destructive'}>
               {formData.lastName ? '\u2713' : '\u2717'}
             </span>
             Last name provided
@@ -50,7 +50,7 @@ export function Step4Contract({ formData, onChange }: Step4Props) {
           <li className="flex items-center gap-2">
             <span
               className={
-                formData.contractDocument ? 'text-green-600' : 'text-destructive'
+                formData.contractDocument ? 'text-success' : 'text-destructive'
               }
             >
               {formData.contractDocument ? '\u2713' : '\u2717'}

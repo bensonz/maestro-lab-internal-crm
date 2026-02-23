@@ -454,15 +454,17 @@ export function ClientProfile({
               )}
 
               {/* Agent info */}
-              <div className="mt-2 border-t border-border/50 pt-1.5">
-                <div className="text-[11px] text-muted-foreground">
-                  <Building2 className="mr-0.5 inline h-3 w-3" />
-                  Company-Issued Email:{' '}
-                  <span className="font-mono text-primary">
-                    sarah.j.0101@company-ops.com
-                  </span>
+              {client.email && (
+                <div className="mt-2 border-t border-border/50 pt-1.5">
+                  <div className="text-[11px] text-muted-foreground">
+                    <Building2 className="mr-0.5 inline h-3 w-3" />
+                    Company-Issued Email:{' '}
+                    <span className="font-mono text-primary">
+                      {client.email}
+                    </span>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </CardContent>

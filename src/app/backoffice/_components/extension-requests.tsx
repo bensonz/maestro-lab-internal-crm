@@ -10,7 +10,7 @@ import { Clock, Check, X, AlertTriangle, User } from 'lucide-react'
 import {
   approveExtensionRequest,
   rejectExtensionRequest,
-} from '@/app/actions/extensions'
+} from '@/lib/mock-actions'
 
 interface ExtensionRequest {
   id: string

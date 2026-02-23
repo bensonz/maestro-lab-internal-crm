@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react'
-import { closeClientAction, checkBalancesAction } from '@/app/actions/closure'
+import { closeClientAction, checkBalancesAction } from '@/lib/mock-actions'
 import { Field, FieldLabel } from '@/components/ui/field'
 
 interface CloseClientDialogProps {

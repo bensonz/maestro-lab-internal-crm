@@ -1,11 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Eye, Clock } from 'lucide-react'
-import type { VerificationTask } from '@/backend/data/operations'
+import type { VerificationTask } from '@/types/backend-types'
 import { PlatformType } from '@/types'
 import { cn } from '@/lib/utils'
 import { DocumentReviewModal } from './document-review-modal'
@@ -14,11 +13,13 @@ import { DeadlineCountdown } from '@/components/deadline-countdown'
 interface VerificationTasksTableProps {
   tasks: VerificationTask[]
   selectedAgentId: string | null
+  onSelectClient?: (clientId: string) => void
 }
 
 export function VerificationTasksTable({
   tasks,
   selectedAgentId,
+  onSelectClient,
 }: VerificationTasksTableProps) {
   const [selectedTask, setSelectedTask] = useState<VerificationTask | null>(
     null,
@@ -58,12 +59,14 @@ export function VerificationTasksTable({
               >
                 <td className="px-4 py-3">
                   {task.clientId ? (
-                    <Link
-                      href={`/backoffice/client-lifecycle?client=${task.clientId}`}
+                    <button
+                      type="button"
+                      onClick={() => onSelectClient?.(task.clientId!)}
                       className="font-medium text-foreground hover:text-primary hover:underline"
+                      data-testid={`client-name-${task.clientId}`}
                     >
                       {task.clientName}
-                    </Link>
+                    </button>
                   ) : (
                     <span className="text-muted-foreground">
                       {task.clientName}

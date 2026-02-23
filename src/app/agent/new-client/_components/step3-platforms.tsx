@@ -38,7 +38,7 @@ export function Step3Platforms({ formData, onChange }: Step3Props) {
   )
 
   return (
-    <div className="space-y-6" data-testid="step3-platforms">
+    <div className="space-y-5" data-testid="step3-platforms">
       <h2 className="text-lg font-semibold">Step 3: Platform Registration</h2>
 
       {/* Financial Platforms */}

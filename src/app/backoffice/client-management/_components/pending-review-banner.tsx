@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   XCircle,
   AlertTriangle,
-  Image as ImageIcon,
   User,
   Calendar,
   MapPin,
@@ -37,10 +36,7 @@ import { toast } from 'sonner'
 import {
   approveClientIntake,
   rejectClientIntake,
-  approvePrequal,
-  rejectPrequal,
-  rejectPrequalWithRetry,
-} from '@/app/actions/backoffice'
+} from '@/lib/mock-actions'
 
 interface PendingReviewBannerProps {
   clientId: string
@@ -54,9 +50,6 @@ interface PendingReviewBannerProps {
   dob?: string
   address?: string
   idImageUrl?: string
-  reviewPhase?: 1 | 2
-  betmgmAgentResult?: string
-  betmgmRetryCount?: number
 }
 
 function formatBetmgmStatus(status: string): string {
@@ -64,7 +57,6 @@ function formatBetmgmStatus(status: string): string {
     case 'PENDING_REVIEW': return 'Pending Review'
     case 'VERIFIED': return 'Verified'
     case 'REJECTED': return 'Rejected'
-    case 'RETRY_PENDING': return 'Retry Pending'
     default: return status.replace(/_/g, ' ')
   }
 }
@@ -108,17 +100,12 @@ export function PendingReviewBanner({
   dob,
   address,
   idImageUrl,
-  reviewPhase = 2,
-  betmgmAgentResult,
-  betmgmRetryCount,
 }: PendingReviewBannerProps) {
   const [isPending, startTransition] = useTransition()
   const [actionTaken, setActionTaken] = useState(false)
   const [approveDialogOpen, setApproveDialogOpen] = useState(false)
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
-  const [retryRejectDialogOpen, setRetryRejectDialogOpen] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
-  const [retryRejectReason, setRetryRejectReason] = useState('')
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
   const router = useRouter()
 
@@ -135,16 +122,10 @@ export function PendingReviewBanner({
 
   function handleApprove() {
     startTransition(async () => {
-      const result = reviewPhase === 1
-        ? await approvePrequal(clientId)
-        : await approveClientIntake(clientId)
+      const result = await approveClientIntake(clientId)
       if (result.success) {
         setActionTaken(true)
-        toast.success(
-          reviewPhase === 1
-            ? 'Pre-qualification approved'
-            : 'Client application approved',
-        )
+        toast.success('Client application approved')
         setApproveDialogOpen(false)
         router.refresh()
       } else {
@@ -155,36 +136,15 @@ export function PendingReviewBanner({
 
   function handleReject() {
     startTransition(async () => {
-      const result = reviewPhase === 1
-        ? await rejectPrequal(clientId, rejectReason || undefined)
-        : await rejectClientIntake(clientId, rejectReason || undefined)
+      const result = await rejectClientIntake(clientId, rejectReason || undefined)
       if (result.success) {
         setActionTaken(true)
-        toast.success(
-          reviewPhase === 1
-            ? 'Pre-qualification rejected'
-            : 'Client application rejected',
-        )
+        toast.success('Client application rejected')
         setRejectDialogOpen(false)
         setRejectReason('')
         router.refresh()
       } else {
         toast.error(result.error || 'Failed to reject')
-      }
-    })
-  }
-
-  function handleRejectWithRetry() {
-    startTransition(async () => {
-      const result = await rejectPrequalWithRetry(clientId, retryRejectReason || undefined)
-      if (result.success) {
-        setActionTaken(true)
-        toast.success('BetMGM rejected — agent can retry in 24 hours')
-        setRetryRejectDialogOpen(false)
-        setRetryRejectReason('')
-        router.refresh()
-      } else {
-        toast.error(result.error || 'Failed to reject with retry')
       }
     })
   }
@@ -201,9 +161,7 @@ export function PendingReviewBanner({
             <Clock className="h-5 w-5 text-warning" />
             <div>
               <h2 className="text-sm font-semibold text-foreground">
-                {reviewPhase === 1
-                  ? 'Pre-Qualification Pending Review'
-                  : 'Application Pending Review'}
+                Application Pending Review
               </h2>
               <p className="text-xs text-muted-foreground">
                 Submitted on {submittedDate}
@@ -212,31 +170,6 @@ export function PendingReviewBanner({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {/* Agent result + retry badges */}
-            {reviewPhase === 1 && betmgmAgentResult && (
-              <Badge
-                variant="outline"
-                className={cn(
-                  'text-[9px]',
-                  betmgmAgentResult === 'success'
-                    ? 'border-success/30 text-success'
-                    : 'border-destructive/30 text-destructive',
-                )}
-                data-testid="betmgm-agent-result-badge"
-              >
-                Agent: {betmgmAgentResult === 'success' ? 'Passed' : 'Failed'}
-              </Badge>
-            )}
-            {reviewPhase === 1 && (betmgmRetryCount ?? 0) > 0 && (
-              <Badge
-                variant="outline"
-                className="text-[9px] border-warning/30 text-warning"
-                data-testid="betmgm-retry-count-badge"
-              >
-                Retry #{betmgmRetryCount}
-              </Badge>
-            )}
-
             <Button
               size="sm"
               variant="outline"
@@ -248,19 +181,6 @@ export function PendingReviewBanner({
               <XCircle className="h-3.5 w-3.5" />
               Reject
             </Button>
-            {reviewPhase === 1 && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8 gap-1.5 text-xs border-warning/30 text-warning hover:bg-warning/10"
-                onClick={() => setRetryRejectDialogOpen(true)}
-                disabled={isDisabled}
-                data-testid="banner-reject-retry-btn"
-              >
-                <Clock className="h-3.5 w-3.5" />
-                Reject (Retry 24h)
-              </Button>
-            )}
             <Button
               size="sm"
               className="h-8 gap-1.5 text-xs bg-emerald-600 text-white hover:bg-emerald-700"
@@ -277,87 +197,8 @@ export function PendingReviewBanner({
 
         {/* Two-column: Screenshots/Compliance + Summary */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {/* Left column: Phase 1 = ID + BetMGM screenshots, Phase 2 = Compliance summary */}
+          {/* Left column: Compliance summary */}
           <div className="rounded-md border border-border/50 bg-card p-4">
-            {reviewPhase === 1 ? (
-              <>
-                {/* ID Document preview */}
-                {idImageUrl && (
-                  <div className="mb-4">
-                    <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      <User className="h-3.5 w-3.5" />
-                      Client ID Document
-                    </h3>
-                    <button
-                      onClick={() => setLightboxUrl(idImageUrl.startsWith('uploads/') ? `/api/upload?path=${idImageUrl}` : idImageUrl)}
-                      className="group relative aspect-video w-full max-w-xs overflow-hidden rounded-md border border-border/50 bg-muted/30 transition-all hover:border-primary/50 hover:ring-2 hover:ring-primary/20"
-                      data-testid="id-document-preview"
-                    >
-                      <img
-                        src={idImageUrl.startsWith('uploads/') ? `/api/upload?path=${idImageUrl}` : idImageUrl}
-                        alt="Client ID"
-                        className="h-full w-full object-cover"
-                      />
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/20">
-                        <span className="text-xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
-                          Click to enlarge
-                        </span>
-                      </div>
-                    </button>
-                  </div>
-                )}
-                <div className="mb-3 flex items-center justify-between">
-                  <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    <ImageIcon className="h-3.5 w-3.5" />
-                    BetMGM Verification Screenshots
-                  </h3>
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      'text-[9px]',
-                      betmgmStatus === 'VERIFIED'
-                        ? 'border-success/30 text-success'
-                        : betmgmStatus === 'REJECTED'
-                          ? 'border-destructive/30 text-destructive'
-                          : 'border-warning/30 text-warning',
-                    )}
-                  >
-                    {formatBetmgmStatus(betmgmStatus)}
-                  </Badge>
-                </div>
-
-                {betmgmScreenshots.length > 0 ? (
-                  <div className="grid grid-cols-2 gap-3">
-                    {betmgmScreenshots.map((url, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setLightboxUrl(url)}
-                        className="group relative aspect-video overflow-hidden rounded-md border border-border/50 bg-muted/30 transition-all hover:border-primary/50 hover:ring-2 hover:ring-primary/20"
-                        data-testid={`betmgm-screenshot-${idx}`}
-                      >
-                        <img
-                          src={url.startsWith('uploads/') ? `/api/upload?path=${url}` : url}
-                          alt={`BetMGM screenshot ${idx + 1}`}
-                          className="h-full w-full object-cover"
-                        />
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/20">
-                          <span className="text-xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
-                            Click to enlarge
-                          </span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex h-24 items-center justify-center rounded-md border border-dashed border-border/50 text-sm text-muted-foreground">
-                    No screenshots uploaded
-                  </div>
-                )}
-                <p className="mt-2 text-[10px] text-muted-foreground">
-                  Uploaded by agent during pre-qualification
-                </p>
-              </>
-            ) : (
               <>
                 <h3 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   <Shield className="h-3.5 w-3.5" />
@@ -384,10 +225,10 @@ export function PendingReviewBanner({
                     </div>
                   )}
 
-                  {/* BetMGM one-liner summary */}
+                  {/* BetMGM summary */}
                   <div className="mt-3 border-t border-border/50 pt-2">
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span>BetMGM (reviewed in Phase 1)</span>
+                      <span>BetMGM</span>
                       <Badge
                         variant="outline"
                         className={cn(
@@ -405,7 +246,6 @@ export function PendingReviewBanner({
                   </div>
                 </div>
               </>
-            )}
           </div>
 
           {/* Application Summary */}
@@ -449,7 +289,7 @@ export function PendingReviewBanner({
                   <span className="font-medium">{agentName}</span>
                 </div>
               )}
-              {reviewPhase === 2 && compliance.riskLevel ? (
+              {compliance.riskLevel && (
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Risk Level</span>
                   <Badge
@@ -466,29 +306,14 @@ export function PendingReviewBanner({
                     {compliance.riskLevel}
                   </Badge>
                 </div>
-              ) : (
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">BetMGM Agent Result</span>
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      'text-[10px]',
-                      betmgmAgentResult === 'failed'
-                        ? 'border-destructive/30 text-destructive'
-                        : 'border-success/30 text-success',
-                    )}
-                  >
-                    {betmgmAgentResult === 'failed' ? 'Failed' : 'Passed'}
-                  </Badge>
-                </div>
               )}
-              {reviewPhase === 2 && compliance.profession && (
+              {compliance.profession && (
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Profession</span>
                   <span className="text-xs">{compliance.profession}</span>
                 </div>
               )}
-              {reviewPhase === 2 && compliance.introducedBy && (
+              {compliance.introducedBy && (
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Introduced By</span>
                   <span className="text-xs">{compliance.introducedBy}</span>
@@ -543,13 +368,9 @@ export function PendingReviewBanner({
       <AlertDialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {reviewPhase === 1 ? 'Approve Pre-Qualification' : 'Approve Application'}
-            </AlertDialogTitle>
+            <AlertDialogTitle>Approve Application</AlertDialogTitle>
             <AlertDialogDescription>
-              {reviewPhase === 1
-                ? 'This will approve the pre-qualification, allowing the agent to proceed with the full application (Phase 2).'
-                : 'This will transition the client to APPROVED status, trigger commission distribution, and notify the agent. This action cannot be undone.'}
+              This will transition the client to APPROVED status, trigger commission distribution, and notify the agent. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -570,13 +391,9 @@ export function PendingReviewBanner({
       <AlertDialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {reviewPhase === 1 ? 'Reject Pre-Qualification' : 'Reject Application'}
-            </AlertDialogTitle>
+            <AlertDialogTitle>Reject Application</AlertDialogTitle>
             <AlertDialogDescription>
-              {reviewPhase === 1
-                ? 'This will reject the pre-qualification and notify the agent. Optionally provide a reason.'
-                : 'This will reject the client application and notify the agent. Optionally provide a reason for rejection.'}
+              This will reject the client application and notify the agent. Optionally provide a reason for rejection.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <Textarea
@@ -601,37 +418,6 @@ export function PendingReviewBanner({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Reject with Retry Confirmation Dialog */}
-      <AlertDialog open={retryRejectDialogOpen} onOpenChange={setRetryRejectDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Reject BetMGM (Allow Retry)</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will reject the BetMGM verification but allow the agent to retry after a 24-hour cooldown.
-              The client will remain in Pre-Qualification Review status.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <Textarea
-            placeholder="Reason for rejection (optional, shown to agent)..."
-            value={retryRejectReason}
-            onChange={(e) => setRetryRejectReason(e.target.value)}
-            rows={3}
-            className="mt-2"
-            data-testid="banner-retry-reject-reason-input"
-          />
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDisabled}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleRejectWithRetry}
-              disabled={isDisabled}
-              className="bg-warning text-warning-foreground hover:bg-warning/90"
-              data-testid="banner-confirm-retry-reject-btn"
-            >
-              {isPending ? 'Rejecting...' : 'Reject (Retry 24h)'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   )
 }

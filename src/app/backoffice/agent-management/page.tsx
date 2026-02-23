@@ -3,8 +3,14 @@ import { AgentList } from './_components/agent-list'
 import { getAllApplications, getApplicationStats } from '@/backend/data/applications'
 import { getAllAgents, getAgentStats, getActiveAgents } from '@/backend/data/users'
 
-export default async function AgentManagementPage() {
+export default async function AgentManagementPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string }>
+}) {
   const session = await requireAdmin()
+  const { view } = await searchParams
+  const initialViewMode = view === 'tree' ? 'tree' : 'table'
 
   // Fetch real data in parallel
   let applications: Awaited<ReturnType<typeof getAllApplications>> = []
@@ -47,7 +53,7 @@ export default async function AgentManagementPage() {
       agents={mappedAgents}
       stats={{
         totalAgents: agentStats.totalAgents,
-        initiatedApps: applicationStats.total,
+        totalTeams: agents.filter((a) => !a.supervisorId).length,
         newClientsMonth: agentStats.newThisMonth,
         avgDaysToOpen: null,
       }}
@@ -56,6 +62,7 @@ export default async function AgentManagementPage() {
       applications={JSON.parse(JSON.stringify(applications))}
       applicationStats={applicationStats}
       activeAgents={activeAgents}
+      initialViewMode={initialViewMode}
     />
   )
 }

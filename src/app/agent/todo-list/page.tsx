@@ -1,31 +1,15 @@
-import { auth } from '@/backend/auth'
-import { redirect } from 'next/navigation'
 import {
-  getAgentTodos,
-  getAgentClients,
-  getAgentEarnings,
-  getAgentTeamMembers,
-} from '@/backend/data/agent'
-import prisma from '@/backend/prisma/client'
+  MOCK_TODO_DATA,
+  MOCK_AGENT_CLIENTS,
+  MOCK_EARNINGS,
+  MOCK_TEAM_MEMBERS,
+  MOCK_SESSION,
+} from '@/lib/mock-data'
 import { TodoPageClient } from './_components/todo-page-client'
 
-export default async function TodoListPage() {
-  const session = await auth()
-  if (!session?.user) redirect('/login')
-
-  const [todoData, clients, earnings, user, teamMembers] = await Promise.all([
-    getAgentTodos(session.user.id),
-    getAgentClients(session.user.id),
-    getAgentEarnings(session.user.id),
-    prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { starLevel: true },
-    }),
-    getAgentTeamMembers(session.user.id),
-  ])
-
+export default function TodoListPage() {
   // Map client data to the shape expected by TodoPageClient
-  const clientData = clients.map((c) => ({
+  const clientData = MOCK_AGENT_CLIENTS.map((c) => ({
     id: c.id,
     name: c.name,
     intakeStatus: c.intakeStatus,
@@ -37,12 +21,12 @@ export default async function TodoListPage() {
 
   return (
     <TodoPageClient
-      todoData={todoData}
+      todoData={MOCK_TODO_DATA}
       clients={clientData}
-      agentName={session.user.name || 'Agent'}
-      agentStarLevel={user?.starLevel ?? 0}
-      earningsData={earnings}
-      teamMembers={teamMembers}
+      agentName={MOCK_SESSION.user.name || 'Agent'}
+      agentStarLevel={2}
+      earningsData={MOCK_EARNINGS}
+      teamMembers={MOCK_TEAM_MEMBERS}
     />
   )
 }

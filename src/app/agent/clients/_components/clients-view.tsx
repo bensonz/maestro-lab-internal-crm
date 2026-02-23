@@ -32,32 +32,32 @@ import { IntakeStatus } from '@/types'
 import { ClientsSummaryPanel, type StatusFilter } from './clients-summary-panel'
 import { ClientsGroupedList } from './clients-grouped-list'
 import { ClientsCardView } from './clients-card-view'
-import type { AgentClient } from './types'
+import type { AgentClient, AgentDraft } from './types'
 
 type SortOption = 'priority' | 'newest' | 'oldest'
 type ViewMode = 'list' | 'card'
 
 interface ClientsViewProps {
   clients: AgentClient[]
+  drafts: AgentDraft[]
   stats: {
     total: number
     inProgress: number
-    pendingApproval: number
     verificationNeeded: number
     approved: number
     rejected: number
     aborted: number
+    draftsCount: number
   }
 }
 
 const STATUS_FILTER_MAP: Record<StatusFilter, IntakeStatus[]> = {
-  inProgress: [IntakeStatus.PENDING, IntakeStatus.PREQUAL_REVIEW, IntakeStatus.PREQUAL_APPROVED, IntakeStatus.PHONE_ISSUED, IntakeStatus.IN_EXECUTION],
+  inProgress: [IntakeStatus.PENDING, IntakeStatus.PHONE_ISSUED, IntakeStatus.IN_EXECUTION, IntakeStatus.READY_FOR_APPROVAL],
   needsInfo: [
     IntakeStatus.NEEDS_MORE_INFO,
     IntakeStatus.PENDING_EXTERNAL,
     IntakeStatus.EXECUTION_DELAYED,
   ],
-  pendingApproval: [IntakeStatus.READY_FOR_APPROVAL],
   approved: [IntakeStatus.APPROVED],
   rejected: [IntakeStatus.REJECTED],
   aborted: [IntakeStatus.INACTIVE],
@@ -65,10 +65,8 @@ const STATUS_FILTER_MAP: Record<StatusFilter, IntakeStatus[]> = {
 
 const STATUS_PRIORITY: Record<string, number> = {
   [IntakeStatus.PENDING]: 0,
-  [IntakeStatus.PREQUAL_REVIEW]: 1,
-  [IntakeStatus.PREQUAL_APPROVED]: 2,
-  [IntakeStatus.IN_EXECUTION]: 3,
-  [IntakeStatus.PHONE_ISSUED]: 4,
+  [IntakeStatus.IN_EXECUTION]: 1,
+  [IntakeStatus.PHONE_ISSUED]: 2,
   [IntakeStatus.NEEDS_MORE_INFO]: 5,
   [IntakeStatus.PENDING_EXTERNAL]: 6,
   [IntakeStatus.EXECUTION_DELAYED]: 7,
@@ -87,7 +85,6 @@ const TERMINAL_STATUSES: IntakeStatus[] = [
 const STATUS_FILTER_LABELS: Record<StatusFilter, string> = {
   inProgress: 'In Progress',
   needsInfo: 'Verification Needed',
-  pendingApproval: 'Pending Approval',
   approved: 'Active',
   rejected: 'Rejected',
   aborted: 'Aborted',
@@ -96,13 +93,12 @@ const STATUS_FILTER_LABELS: Record<StatusFilter, string> = {
 const STATUS_FILTER_OPTIONS: StatusFilter[] = [
   'inProgress',
   'needsInfo',
-  'pendingApproval',
   'approved',
   'rejected',
   'aborted',
 ]
 
-export function ClientsView({ clients, stats }: ClientsViewProps) {
+export function ClientsView({ clients, drafts, stats }: ClientsViewProps) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter | null>(null)
   const [sort, setSort] = useState<SortOption>('priority')
@@ -324,35 +320,28 @@ export function ClientsView({ clients, stats }: ClientsViewProps) {
         {/* Client List/Grid */}
         <ScrollArea className="flex-1">
           <div className="p-4">
-            {filteredClients.length === 0 ? (
+            {filteredClients.length === 0 && drafts.length === 0 ? (
               <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
                 <CardContent className="flex flex-col items-center justify-center py-16">
                   <div className="mb-4 rounded-2xl bg-muted/50 p-4 ring-1 ring-border/30">
                     <Users className="h-8 w-8 text-muted-foreground" />
                   </div>
                   <h3 className="mb-2 text-lg font-semibold text-foreground">
-                    {clients.length === 0
+                    {clients.length === 0 && drafts.length === 0
                       ? 'No clients yet'
                       : 'No matching clients'}
                   </h3>
                   <p className="mb-6 text-sm text-muted-foreground">
-                    {clients.length === 0
+                    {clients.length === 0 && drafts.length === 0
                       ? 'Start by adding your first client'
                       : 'Try adjusting your search or filters'}
                   </p>
-                  {clients.length === 0 && (
-                    <Link href="/agent/new-client">
-                      <Button data-testid="add-first-client-btn">
-                        Add Your First Client
-                      </Button>
-                    </Link>
-                  )}
                 </CardContent>
               </Card>
             ) : viewMode === 'list' ? (
-              <ClientsGroupedList clients={filteredClients} activeFilter={statusFilter} />
+              <ClientsGroupedList clients={filteredClients} drafts={drafts} />
             ) : (
-              <ClientsCardView clients={filteredClients} />
+              <ClientsCardView clients={filteredClients} drafts={drafts} />
             )}
           </div>
         </ScrollArea>

@@ -12,6 +12,8 @@ import {
   ChevronRight,
   ArrowRight,
   FileText,
+  FileCheck,
+  Shield,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -21,7 +23,7 @@ import {
 } from '@/components/ui/collapsible'
 import { IntakeStatus } from '@/types'
 import { cn } from '@/lib/utils'
-import type { AgentClient } from './types'
+import type { AgentClient, AgentDraft } from './types'
 
 /* ─── Status badge config ─── */
 const statusBadgeConfig: Record<
@@ -60,14 +62,6 @@ const statusBadgeConfig: Record<
     icon: XCircle,
     className: 'bg-destructive/20 text-destructive border-destructive/30',
   },
-  [IntakeStatus.PREQUAL_REVIEW]: {
-    icon: Hourglass,
-    className: 'bg-warning/20 text-warning border-warning/30',
-  },
-  [IntakeStatus.PREQUAL_APPROVED]: {
-    icon: CheckCircle2,
-    className: 'bg-success/20 text-success border-success/30',
-  },
   [IntakeStatus.PENDING]: {
     icon: Clock,
     className: 'bg-muted text-muted-foreground border-muted',
@@ -82,7 +76,24 @@ const statusBadgeConfig: Record<
   },
 }
 
-/* ─── Status groups ─── */
+/* ─── In Progress sub-step definitions ─── */
+interface InProgressStep {
+  key: string
+  label: string
+  stepNumber: number
+  stepLabel: string
+  icon: React.ElementType
+  headerColor: string
+}
+
+const inProgressSteps: InProgressStep[] = [
+  { key: 'step-1', label: 'Pre-Qual', stepNumber: 1, stepLabel: '1', icon: FileText, headerColor: 'text-muted-foreground' },
+  { key: 'step-2', label: 'Background', stepNumber: 2, stepLabel: '2', icon: FileCheck, headerColor: 'text-primary' },
+  { key: 'step-3', label: 'Platforms', stepNumber: 3, stepLabel: '3', icon: Shield, headerColor: 'text-primary' },
+  { key: 'step-4', label: 'Pending Approval', stepNumber: 4, stepLabel: '4', icon: Hourglass, headerColor: 'text-warning' },
+]
+
+/* ─── Non-in-progress status groups ─── */
 interface StatusGroup {
   key: string
   label: string
@@ -94,22 +105,6 @@ interface StatusGroup {
 
 const statusGroups: StatusGroup[] = [
   {
-    key: 'pre-qualification',
-    label: 'Pre-Qualification',
-    icon: FileText,
-    headerColor: 'text-muted-foreground',
-    statuses: [IntakeStatus.PENDING, IntakeStatus.PREQUAL_REVIEW, IntakeStatus.PREQUAL_APPROVED],
-    collapsedByDefault: false,
-  },
-  {
-    key: 'in-progress',
-    label: 'In Progress',
-    icon: Clock,
-    headerColor: 'text-primary',
-    statuses: [IntakeStatus.PHONE_ISSUED, IntakeStatus.IN_EXECUTION],
-    collapsedByDefault: false,
-  },
-  {
     key: 'verification-needed',
     label: 'Verification Needed',
     icon: AlertCircle,
@@ -119,14 +114,6 @@ const statusGroups: StatusGroup[] = [
       IntakeStatus.PENDING_EXTERNAL,
       IntakeStatus.EXECUTION_DELAYED,
     ],
-    collapsedByDefault: false,
-  },
-  {
-    key: 'pending-approval',
-    label: 'Pending Approval',
-    icon: Hourglass,
-    headerColor: 'text-warning',
-    statuses: [IntakeStatus.READY_FOR_APPROVAL],
     collapsedByDefault: false,
   },
   {
@@ -202,21 +189,13 @@ function ClientRow({ client }: { client: AgentClient }) {
         {/* Step progress */}
         <div className="flex items-center gap-2">
           <span className="font-mono text-xs text-muted-foreground">
-            {client.phase != null ? `${client.phase}/4` : `${client.step}/${client.totalSteps}`}
+            {client.step}/{client.totalSteps}
           </span>
-          {!isTerminal && client.phase == null && (
+          {!isTerminal && (
             <div className="h-1.5 w-12 overflow-hidden rounded-full bg-muted">
               <div
                 className="h-full rounded-full bg-primary transition-all"
                 style={{ width: `${client.progress}%` }}
-              />
-            </div>
-          )}
-          {!isTerminal && client.phase != null && (
-            <div className="h-1.5 w-12 overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full bg-primary transition-all"
-                style={{ width: `${(client.phase / 4) * 100}%` }}
               />
             </div>
           )}
@@ -234,6 +213,187 @@ function ClientRow({ client }: { client: AgentClient }) {
         </div>
       </div>
     </Link>
+  )
+}
+
+/* ─── Draft row ─── */
+function DraftRow({ draft }: { draft: AgentDraft }) {
+  const progressPct = draft.innerStepTotal > 0
+    ? Math.round((draft.innerStepCompleted / draft.innerStepTotal) * 100)
+    : 0
+
+  return (
+    <Link href={`/agent/new-client?draft=${draft.id}`}>
+      <div
+        className="group grid cursor-pointer grid-cols-[1fr_100px_140px_40px] items-center gap-4 border-b border-dashed border-border/50 bg-muted/20 px-4 py-3 transition-colors hover:bg-muted/40"
+        data-testid={`draft-row-${draft.id}`}
+      >
+        <div className="min-w-0">
+          <p className="truncate font-medium text-foreground transition-colors group-hover:text-primary">
+            {draft.name}
+          </p>
+          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+            Draft — click to continue
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-xs text-muted-foreground">
+            {draft.innerStepCompleted}/{draft.innerStepTotal}
+          </span>
+          <div className="h-1.5 w-12 overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-primary/60 transition-all"
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Clock className="h-3.5 w-3.5" />
+          <span className="font-mono">{draft.lastUpdated}</span>
+        </div>
+        <div className="flex justify-end">
+          <ArrowRight className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary" />
+        </div>
+      </div>
+    </Link>
+  )
+}
+
+/* ─── Sub-step section within In Progress ─── */
+function SubStepSection({
+  step,
+  drafts,
+}: {
+  step: InProgressStep
+  drafts: AgentDraft[]
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const Icon = step.icon
+
+  if (drafts.length === 0) return null
+
+  return (
+    <Collapsible
+      open={isOpen}
+      onOpenChange={setIsOpen}
+      data-testid={`substep-${step.key}`}
+    >
+      <CollapsibleTrigger asChild>
+        <button className="flex w-full items-center justify-between border-b border-border/30 px-5 py-2.5 transition-colors hover:bg-muted/30">
+          <div className="flex items-center gap-2.5">
+            {isOpen ? (
+              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+            )}
+            <span className="flex h-5 min-w-5 items-center justify-center rounded bg-muted px-1 text-[10px] font-bold text-muted-foreground">
+              {step.stepLabel}
+            </span>
+            <Icon className={cn('h-3.5 w-3.5', step.headerColor)} />
+            <span className={cn('text-xs font-medium', step.headerColor)}>
+              {step.label}
+            </span>
+          </div>
+          <Badge
+            variant="outline"
+            className={cn(
+              'h-5 px-1.5 font-mono text-[10px]',
+              drafts.length > 0 ? 'border-primary/30 bg-primary/5 text-primary' : '',
+            )}
+          >
+            {drafts.length}
+          </Badge>
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="border-b border-border/20 bg-muted/10">
+          {drafts.map((draft) => (
+            <DraftRow key={draft.id} draft={draft} />
+          ))}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  )
+}
+
+/* ─── In Progress collapsible (parent with sub-steps) ─── */
+function InProgressSection({
+  drafts,
+}: {
+  drafts: AgentDraft[]
+}) {
+  const [isOpen, setIsOpen] = useState(true)
+
+  if (drafts.length === 0) return null
+
+  // Count per sub-step for the collapsed summary
+  const stepCounts = inProgressSteps.map((step) => ({
+    ...step,
+    count: drafts.filter((d) => d.step === step.stepNumber).length,
+  }))
+
+  return (
+    <Collapsible
+      open={isOpen}
+      onOpenChange={setIsOpen}
+      className="mb-2"
+      data-testid="group-in-progress"
+    >
+      <CollapsibleTrigger asChild>
+        <button
+          className={cn(
+            'flex w-full items-center justify-between rounded-t-md bg-muted/50 px-4 py-2.5 transition-colors hover:bg-muted',
+            !isOpen && 'rounded-b-md',
+          )}
+        >
+          <div className="flex items-center gap-2">
+            {isOpen ? (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            )}
+            <Clock className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium text-primary">
+              In Progress
+            </span>
+            {/* Sub-step summary chips when collapsed */}
+            {!isOpen && (
+              <div className="ml-1 flex items-center gap-1.5">
+                {stepCounts.map((s) => {
+                  if (s.count === 0) return null
+                  return (
+                    <span
+                      key={s.key}
+                      className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                      title={s.label}
+                    >
+                      {s.stepLabel} {s.count}
+                    </span>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+          <span className="rounded bg-background px-2 py-0.5 font-mono text-xs text-muted-foreground">
+            {drafts.length}
+          </span>
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="overflow-hidden rounded-b-md border border-t-0 border-border/50">
+          {inProgressSteps.map((step) => {
+            const stepDrafts = drafts.filter((d) => d.step === step.stepNumber)
+            return (
+              <SubStepSection
+                key={step.key}
+                step={step}
+                drafts={stepDrafts}
+              />
+            )
+          })}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   )
 }
 
@@ -291,114 +451,16 @@ function GroupSection({
   )
 }
 
-/* ─── Phase groups for "In Progress" view ─── */
-interface PhaseGroup {
-  key: string
-  label: string
-  phase: number
-  icon: React.ElementType
-  headerColor: string
-  collapsedByDefault: boolean
-}
-
-const phaseGroups: PhaseGroup[] = [
-  {
-    key: 'phase-1',
-    label: 'Pre-Qualification (1/4)',
-    phase: 1,
-    icon: Clock,
-    headerColor: 'text-muted-foreground',
-    collapsedByDefault: false,
-  },
-  {
-    key: 'phase-2',
-    label: 'Full Application (2/4)',
-    phase: 2,
-    icon: Clock,
-    headerColor: 'text-primary',
-    collapsedByDefault: false,
-  },
-  {
-    key: 'phase-3',
-    label: 'In Processing (3/4)',
-    phase: 3,
-    icon: Clock,
-    headerColor: 'text-primary',
-    collapsedByDefault: false,
-  },
-  {
-    key: 'phase-4',
-    label: 'Pending Approval (4/4)',
-    phase: 4,
-    icon: Hourglass,
-    headerColor: 'text-warning',
-    collapsedByDefault: false,
-  },
-]
-
-function PhaseGroupSection({
-  group,
-  clients,
-}: {
-  group: PhaseGroup
-  clients: AgentClient[]
-}) {
-  const [isOpen, setIsOpen] = useState(!group.collapsedByDefault)
-  const Icon = group.icon
-
-  if (clients.length === 0) return null
-
-  return (
-    <Collapsible
-      open={isOpen}
-      onOpenChange={setIsOpen}
-      className="mb-2"
-      data-testid={`group-${group.key}`}
-    >
-      <CollapsibleTrigger asChild>
-        <button
-          className={cn(
-            'flex w-full items-center justify-between rounded-t-md bg-muted/50 px-4 py-2.5 transition-colors hover:bg-muted',
-            !isOpen && 'rounded-b-md',
-          )}
-        >
-          <div className="flex items-center gap-2">
-            {isOpen ? (
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-            ) : (
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            )}
-            <Icon className={cn('h-4 w-4', group.headerColor)} />
-            <span className={cn('text-sm font-medium', group.headerColor)}>
-              {group.label}
-            </span>
-          </div>
-          <span className="rounded bg-background px-2 py-0.5 font-mono text-xs text-muted-foreground">
-            {clients.length}
-          </span>
-        </button>
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <div className="overflow-hidden rounded-b-md border border-t-0 border-border/50">
-          {clients.map((client) => (
-            <ClientRow key={client.id} client={client} />
-          ))}
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
-  )
-}
-
 /* ─── Main export ─── */
 interface ClientsGroupedListProps {
   clients: AgentClient[]
-  activeFilter?: string | null
+  drafts: AgentDraft[]
 }
 
-export function ClientsGroupedList({ clients, activeFilter }: ClientsGroupedListProps) {
-  const hasClients = clients.length > 0
+export function ClientsGroupedList({ clients, drafts }: ClientsGroupedListProps) {
+  const hasContent = clients.length > 0 || drafts.length > 0
 
-  if (!hasClients) {
+  if (!hasContent) {
     return (
       <div className="py-12 text-center text-muted-foreground">
         No clients found matching your criteria.
@@ -406,46 +468,33 @@ export function ClientsGroupedList({ clients, activeFilter }: ClientsGroupedList
     )
   }
 
-  const usePhaseGroups = activeFilter === 'inProgress'
-
   return (
     <div className="space-y-1">
       {/* Table header */}
       <div className="mb-2 grid grid-cols-[1fr_120px_100px_140px_40px] gap-4 border-b border-border px-4 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
         <span>Client</span>
         <span>Status</span>
-        <span>{usePhaseGroups ? 'Phase' : 'Step'}</span>
+        <span>Progress</span>
         <span>Last Updated</span>
         <span />
       </div>
 
-      {usePhaseGroups ? (
-        /* Phase-based groups when viewing In Progress */
-        phaseGroups.map((group) => {
-          const groupClients = clients.filter((c) => c.phase === group.phase)
-          return (
-            <PhaseGroupSection
-              key={group.key}
-              group={group}
-              clients={groupClients}
-            />
-          )
-        })
-      ) : (
-        /* Status groups (default) */
-        statusGroups.map((group) => {
-          const groupClients = clients.filter((c) =>
-            group.statuses.includes(c.intakeStatus),
-          )
-          return (
-            <GroupSection
-              key={group.key}
-              group={group}
-              clients={groupClients}
-            />
-          )
-        })
-      )}
+      {/* In Progress section (drafts only, with sub-steps) */}
+      <InProgressSection drafts={drafts} />
+
+      {/* Other status groups (Verification, Approved, Rejected, etc.) */}
+      {statusGroups.map((group) => {
+        const groupClients = clients.filter((c) =>
+          group.statuses.includes(c.intakeStatus),
+        )
+        return (
+          <GroupSection
+            key={group.key}
+            group={group}
+            clients={groupClients}
+          />
+        )
+      })}
     </div>
   )
 }

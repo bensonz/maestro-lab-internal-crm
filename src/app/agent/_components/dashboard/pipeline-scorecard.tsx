@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 // ── Pipeline ────────────────────────────────────────────────────────────────
 
 interface PipelineProps {
-  prequal: number
+  pending: number
   phoneIssued: number
   inExecution: number
   readyForApproval: number
@@ -14,7 +14,7 @@ interface PipelineProps {
 }
 
 const stages = [
-  { key: 'prequal', label: 'Pre-qualification', dot: 'bg-muted-foreground' },
+  { key: 'pending', label: 'Pending', dot: 'bg-muted-foreground' },
   { key: 'phoneIssued', label: 'Phone Issued', dot: 'bg-blue-500' },
   { key: 'inExecution', label: 'In Execution', dot: 'bg-primary' },
   { key: 'readyForApproval', label: 'Ready for Approval', dot: 'bg-warning' },

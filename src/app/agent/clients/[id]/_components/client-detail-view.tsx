@@ -144,7 +144,7 @@ function buildPlatformUploads(
         name: 'PIN Confirmation',
         status: screenshotCount >= 3 ? 'uploaded' : 'not_uploaded',
         instructions: {
-          mustDo: ['Confirm PIN is set to suggested value (2580)'],
+          mustDo: ['Confirm PIN is set to suggested value'],
           mustNotDo: ['Allow client to set custom PIN without approval'],
         },
       },
@@ -385,10 +385,10 @@ export function ClientDetailView({ client }: ClientDetailViewProps) {
   const [editCredentialModalOpen, setEditCredentialModalOpen] = useState(false)
   const [pinEditCount, setPinEditCount] = useState(0)
   const [credentialEditCount, setCredentialEditCount] = useState(0)
-  const [currentBankPin, setCurrentBankPin] = useState('2580')
+  const [currentBankPin, setCurrentBankPin] = useState('')
   const [currentBankLogin, setCurrentBankLogin] = useState({
-    username: 'sjohnson_ops',
-    password: 'securepass123',
+    username: '',
+    password: '',
   })
 
   // Determine which uploads to show in right panel
@@ -869,11 +869,11 @@ export function ClientDetailView({ client }: ClientDetailViewProps) {
         onOpenChange={setAiModalOpen}
         imageUrl=""
         detectedData={{
-          platform: 'Chase Bank',
-          username: 'sjohnson_ops',
-          password: 'securepass123',
-          contentType: 'Online Banking Login',
-          confidence: 94,
+          platform: '',
+          username: '',
+          password: '',
+          contentType: '',
+          confidence: 0,
         }}
         onConfirm={() => {}}
         onOverride={() => {}}

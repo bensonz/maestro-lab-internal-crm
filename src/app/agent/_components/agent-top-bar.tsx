@@ -1,8 +1,5 @@
 'use client'
 
-import Link from 'next/link'
-import { Plus } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Separator } from '@/components/ui/separator'
 import { NotificationDropdown } from '@/components/notification-dropdown'
@@ -32,12 +29,6 @@ export function AgentTopBar() {
         <SearchTrigger variant="icon" />
         <GlobalSearch />
         <NotificationDropdown />
-        <Button asChild data-testid="new-client-btn">
-          <Link href="/agent/new-client">
-            <Plus className="h-4 w-4" />
-            New Client
-          </Link>
-        </Button>
       </div>
     </header>
   )

@@ -2,7 +2,6 @@
 
 import { cn } from '@/lib/utils'
 import { Shield, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
 import type { RiskAssessment } from '@/types/backend-types'
 
 interface RiskPanelProps {
@@ -11,20 +10,20 @@ interface RiskPanelProps {
   draftSelected: boolean
 }
 
-const FLAG_LABELS: { key: keyof RiskAssessment['flags']; label: string; weight: string }[] = [
-  { key: 'idExpiringSoon', label: 'ID Expiring Soon', weight: '+10' },
-  { key: 'paypalPreviouslyUsed', label: 'PayPal Previously Used', weight: '+10' },
-  { key: 'addressMismatch', label: 'Address Mismatch', weight: 'info' },
-  { key: 'debankedHistory', label: 'De-banked History', weight: '+30' },
-  { key: 'criminalRecord', label: 'Criminal Record', weight: '+30' },
-  { key: 'undisclosedInfo', label: 'Undisclosed Info', weight: '+20' },
+const FLAG_LABELS: { key: keyof RiskAssessment['flags']; label: string }[] = [
+  { key: 'idExpiringSoon', label: 'ID Expiring Soon' },
+  { key: 'paypalPreviouslyUsed', label: 'PayPal Previously Used' },
+  { key: 'addressMismatch', label: 'Address Mismatch' },
+  { key: 'debankedHistory', label: 'De-banked History' },
+  { key: 'criminalRecord', label: 'Criminal Record' },
+  { key: 'undisclosedInfo', label: 'Undisclosed Info' },
 ]
 
 export function RiskPanel({ assessment, draftSelected }: RiskPanelProps) {
   const levelColors = {
-    low: 'text-green-600 bg-green-50 border-green-200',
-    medium: 'text-amber-600 bg-amber-50 border-amber-200',
-    high: 'text-red-600 bg-red-50 border-red-200',
+    low: 'text-success bg-success/10 border-success/30',
+    medium: 'text-warning bg-warning/10 border-warning/30',
+    high: 'text-destructive bg-destructive/10 border-destructive/30',
   }
 
   const LevelIcon = {
@@ -35,7 +34,7 @@ export function RiskPanel({ assessment, draftSelected }: RiskPanelProps) {
 
   return (
     <div
-      className="hidden w-56 flex-col border-l bg-sidebar lg:flex"
+      className="hidden w-56 min-w-56 shrink-0 flex-col border-l border-sidebar-border bg-sidebar lg:flex"
       data-testid="risk-panel"
     >
       <div className="border-b p-3">
@@ -75,12 +74,12 @@ export function RiskPanel({ assessment, draftSelected }: RiskPanelProps) {
                 Risk Factors
               </p>
 
-              {FLAG_LABELS.map(({ key, label, weight }) => {
+              {FLAG_LABELS.map(({ key, label }) => {
                 const active = assessment.flags[key]
                 return (
                   <div
                     key={key}
-                    className="flex items-center justify-between text-xs"
+                    className="flex items-center text-xs"
                     data-testid={`risk-flag-${key}`}
                   >
                     <span
@@ -92,17 +91,11 @@ export function RiskPanel({ assessment, draftSelected }: RiskPanelProps) {
                       <span
                         className={cn(
                           'inline-block h-1.5 w-1.5 rounded-full',
-                          active ? 'bg-red-500' : 'bg-muted-foreground/30',
+                          active ? 'bg-destructive' : 'bg-muted-foreground/30',
                         )}
                       />
                       {label}
                     </span>
-                    <Badge
-                      variant={active ? 'destructive' : 'secondary'}
-                      className="h-4 px-1 text-[9px]"
-                    >
-                      {weight}
-                    </Badge>
                   </div>
                 )
               })}

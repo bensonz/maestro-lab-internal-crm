@@ -14,8 +14,9 @@ import {
   confirmToDoUpload,
   requestToDoExtension,
   nudgeTeamMember,
-} from '@/app/actions/todos'
-import type { AIDetection } from '@/app/actions/todos'
+} from '@/lib/mock-actions'
+import type { AIDetection } from '@/types/backend-types'
+import { DIRECT_BONUS, SLICE_VALUE } from '@/lib/commission-constants'
 import type {
   GrowthClient,
   MaintenanceClient,
@@ -103,9 +104,9 @@ interface TodoPageClientProps {
   teamMembers: ServerTeamMember[]
 }
 
-// Expected income per client based on star level: 1★=$250, 2★=$300, 3★=$350, 4★=$400
+// Expected income per client based on star level
 function getExpectedIncome(starLevel: number): number {
-  return 200 + Math.min(starLevel, 4) * 50
+  return DIRECT_BONUS + Math.min(starLevel, 4) * SLICE_VALUE
 }
 
 // Map intake statuses to growth stages

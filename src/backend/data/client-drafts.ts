@@ -11,6 +11,19 @@ export async function getDraftsByCloser(closerId: string) {
       step: true,
       updatedAt: true,
       status: true,
+      // Step 1 fields (for inner-step progress)
+      idDocument: true,
+      assignedGmail: true,
+      betmgmCheckPassed: true,
+      // Step 2 fields
+      ssnDocument: true,
+      secondAddress: true,
+      hasCriminalRecord: true,
+      bankingHistory: true,
+      // Step 3 fields
+      platformData: true,
+      // Step 4 fields
+      contractDocument: true,
     },
   })
 }
@@ -18,6 +31,16 @@ export async function getDraftsByCloser(closerId: string) {
 export async function getDraftById(draftId: string) {
   return prisma.clientDraft.findUnique({
     where: { id: draftId },
+  })
+}
+
+export async function getAllDrafts() {
+  return prisma.clientDraft.findMany({
+    where: { status: 'DRAFT' },
+    orderBy: { updatedAt: 'desc' },
+    include: {
+      closer: { select: { id: true, name: true } },
+    },
   })
 }
 

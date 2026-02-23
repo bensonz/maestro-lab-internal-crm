@@ -34,9 +34,10 @@ interface AgentDetailViewProps {
   agent: AgentDetailData
   prevAgentId?: string | null
   nextAgentId?: string | null
+  viewMode?: 'table' | 'tree'
 }
 
-export function AgentDetailView({ agent, prevAgentId, nextAgentId }: AgentDetailViewProps) {
+export function AgentDetailView({ agent, prevAgentId, nextAgentId, viewMode = 'table' }: AgentDetailViewProps) {
   const router = useRouter()
   const [showIdModal, setShowIdModal] = useState(false)
   const [agentData, setAgentData] = useState(agent)
@@ -53,8 +54,10 @@ export function AgentDetailView({ agent, prevAgentId, nextAgentId }: AgentDetail
       ))
   }
 
+  const viewParam = viewMode !== 'table' ? `?view=${viewMode}` : ''
+
   const handleNavigateToAgent = (agentId: string) => {
-    router.push(`/backoffice/agent-management/${agentId}`)
+    router.push(`/backoffice/agent-management/${agentId}${viewParam}`)
   }
 
   return (
@@ -64,7 +67,7 @@ export function AgentDetailView({ agent, prevAgentId, nextAgentId }: AgentDetail
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
-            onClick={() => router.push('/backoffice/agent-management')}
+            onClick={() => router.push(`/backoffice/agent-management${viewParam ? `${viewParam}` : ''}`)}
             className="gap-2"
             data-testid="agent-detail-back"
           >
