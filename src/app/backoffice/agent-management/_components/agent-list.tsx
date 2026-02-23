@@ -40,7 +40,7 @@ interface Agent {
 
 interface AgentStats {
   totalAgents: number
-  initiatedApps: number
+  totalTeams: number
   newClientsMonth: number
   avgDaysToOpen: number | null
 }
@@ -60,6 +60,7 @@ interface AgentListProps {
   applications?: ApplicationRow[]
   applicationStats?: ApplicationStats
   activeAgents?: { id: string; name: string }[]
+  initialViewMode?: 'table' | 'tree'
 }
 
 type TabKey = 'agents' | 'applications'
@@ -113,12 +114,13 @@ export function AgentList({
   applications = [],
   applicationStats,
   activeAgents = [],
+  initialViewMode = 'table',
 }: AgentListProps) {
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedTier, setSelectedTier] = useState('All')
   const [activeTab, setActiveTab] = useState<TabKey>('agents')
-  const [viewMode, setViewMode] = useState<ViewMode>('table')
+  const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode)
   const [sortField, setSortField] = useState<SortField>(null)
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
 
@@ -135,8 +137,8 @@ export function AgentList({
 
   const sortedAgents = useMemo(() => {
     if (!sortField) {
-      // Default: highest rank first
-      return [...filteredAgents].sort((a, b) => getAgentRank(b) - getAgentRank(a))
+      // Default: highest rank first, alphabetical tiebreaker
+      return [...filteredAgents].sort((a, b) => getAgentRank(b) - getAgentRank(a) || a.name.localeCompare(b.name))
     }
     return [...filteredAgents].sort((a, b) => {
       let cmp = 0
@@ -191,6 +193,8 @@ export function AgentList({
     return counts
   }, [agents])
 
+  const viewQueryParam = viewMode === 'tree' ? '?view=tree' : ''
+
   return (
     <div className="flex h-full animate-fade-in">
       {/* Left sidebar */}
@@ -224,10 +228,10 @@ export function AgentList({
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                    Initiated Applications
+                    Total Teams
                   </p>
                   <p className="mt-0.5 text-xl font-mono font-semibold">
-                    {stats.initiatedApps}
+                    {stats.totalTeams}
                   </p>
                 </div>
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-success/20">
@@ -242,7 +246,7 @@ export function AgentList({
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                    New Clients (Month)
+                    New Agents (Month)
                   </p>
                   <p className="mt-0.5 text-xl font-mono font-semibold">
                     {stats.newClientsMonth}
@@ -494,7 +498,7 @@ export function AgentList({
                           key={agent.id}
                           onClick={() =>
                             router.push(
-                              `/backoffice/agent-management/${agent.id}`,
+                              `/backoffice/agent-management/${agent.id}${viewQueryParam}`,
                             )
                           }
                           className="cursor-pointer border-b border-border transition-colors hover:bg-muted/30"

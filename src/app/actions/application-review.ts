@@ -1,6 +1,5 @@
 'use server'
 
-import { hash } from 'bcryptjs'
 import { revalidatePath } from 'next/cache'
 import prisma from '@/backend/prisma/client'
 import { auth } from '@/backend/auth'
@@ -54,32 +53,38 @@ export async function approveApplication(
   const dbTier = isLeadership ? '4-star' : selectedTier
 
   // Create user from application data
-  const user = await prisma.user.create({
-    data: {
-      email: application.email,
-      passwordHash: application.password, // already hashed during application
-      name: `${application.firstName} ${application.lastName}`,
-      role: 'AGENT',
-      phone: application.phone,
-      gender: application.gender,
-      dateOfBirth: application.dateOfBirth,
-      citizenship: application.citizenship,
-      address: application.address
-        ? [application.address, application.city, application.state, application.zipCode, application.country]
-            .filter(Boolean)
-            .join(', ')
-        : null,
-      idDocument: application.idDocument,
-      addressDocument: application.addressDocument,
-      idNumber: application.idNumber,
-      idExpiry: application.idExpiry,
-      zelle: application.zelle,
-      supervisorId: data.supervisorId || null,
-      tier: dbTier,
-      starLevel,
-      leadershipTier: leadershipTier as 'NONE' | 'ED' | 'SED' | 'MD' | 'CMO',
-    },
-  })
+  let user
+  try {
+    user = await prisma.user.create({
+      data: {
+        email: application.email,
+        passwordHash: application.password, // already hashed during application
+        name: `${application.firstName} ${application.lastName}`,
+        role: 'AGENT',
+        phone: application.phone || null,
+        gender: application.gender || null,
+        dateOfBirth: application.dateOfBirth,
+        citizenship: application.citizenship || null,
+        address: application.address
+          ? [application.address, application.city, application.state, application.zipCode, application.country]
+              .filter(Boolean)
+              .join(', ')
+          : null,
+        idDocument: application.idDocument || null,
+        addressDocument: application.addressDocument || null,
+        idNumber: application.idNumber || null,
+        idExpiry: application.idExpiry,
+        zelle: application.zelle || null,
+        supervisorId: data.supervisorId || null,
+        tier: dbTier,
+        starLevel,
+        leadershipTier: leadershipTier as 'NONE' | 'ED' | 'SED' | 'MD' | 'CMO',
+      },
+    })
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'Unknown error'
+    return { success: false, error: `Failed to create agent account: ${message}` }
+  }
 
   // Update application
   await prisma.agentApplication.update({

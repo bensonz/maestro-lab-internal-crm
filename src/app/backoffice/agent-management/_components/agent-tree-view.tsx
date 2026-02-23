@@ -29,7 +29,7 @@ function getAgentRank(agent: Agent): number {
 }
 
 function sortNodesByRank(nodes: TreeNode[]): void {
-  nodes.sort((a, b) => getAgentRank(b.agent) - getAgentRank(a.agent))
+  nodes.sort((a, b) => getAgentRank(b.agent) - getAgentRank(a.agent) || a.agent.name.localeCompare(b.agent.name))
   for (const node of nodes) {
     if (node.children.length > 0) sortNodesByRank(node.children)
   }
@@ -279,7 +279,7 @@ function TreeNodeRow({
 
         {/* Agent info row — clickable */}
         <div
-          onClick={() => router.push(`/backoffice/agent-management/${agent.id}`)}
+          onClick={() => router.push(`/backoffice/agent-management/${agent.id}?view=tree`)}
           className="flex flex-1 items-center gap-2 py-1.5 px-2 cursor-pointer min-w-0"
         >
           {/* Avatar */}
