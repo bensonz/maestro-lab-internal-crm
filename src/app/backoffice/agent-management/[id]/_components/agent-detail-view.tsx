@@ -7,7 +7,6 @@ import {
   ChevronUp,
   ChevronDown,
   Star,
-  MapPin,
   TrendingUp,
   Users,
   Clock,
@@ -25,6 +24,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
+import { updateAgentField } from '@/app/actions/user-management'
+import { EditableField } from './editable-field'
 import type { AgentDetailData } from '@/types/backend-types'
 
 interface AgentDetailViewProps {
@@ -50,6 +52,17 @@ export function AgentDetailView({ agent, prevAgentId, nextAgentId, viewMode = 't
 
   const handleNavigateToAgent = (agentId: string) => {
     router.push(`/backoffice/agent-management/${agentId}${viewParam}`)
+  }
+
+  const handleFieldSave = async (fieldKey: string, oldValue: string, newValue: string) => {
+    const result = await updateAgentField(agent.id, fieldKey, oldValue, newValue)
+    if (result.success) {
+      toast.success('Field updated')
+      router.refresh()
+    } else {
+      toast.error(result.error ?? 'Update failed')
+      throw new Error(result.error ?? 'Update failed')
+    }
   }
 
   return (
@@ -145,10 +158,7 @@ export function AgentDetailView({ agent, prevAgentId, nextAgentId, viewMode = 't
                   <div className="text-sm text-muted-foreground">
                     {agent.gender} &middot; {agent.age} yrs
                   </div>
-                  <div className="text-sm">
-                    <span className="text-muted-foreground">ID:</span>{' '}
-                    <span className="font-mono">{agent.idNumber || '\u2014'}</span>
-                  </div>
+                  <EditableField label="ID" value={agent.idNumber} fieldKey="idNumber" onSave={handleFieldSave} mono />
                   <div className="text-sm">
                     <span className="text-muted-foreground">ID Exp:</span>{' '}
                     <span className="font-mono">{agent.idExpiry || '\u2014'}</span>
@@ -157,10 +167,7 @@ export function AgentDetailView({ agent, prevAgentId, nextAgentId, viewMode = 't
                     <span className="text-muted-foreground">SSN:</span>{' '}
                     <span className="font-mono">{agent.ssn || '\u2014'}</span>
                   </div>
-                  <div className="text-sm">
-                    <span className="text-muted-foreground">Citizenship:</span>{' '}
-                    {agent.citizenship || '\u2014'}
-                  </div>
+                  <EditableField label="Citizenship" value={agent.citizenship} fieldKey="citizenship" onSave={handleFieldSave} />
                   <div className="text-sm">
                     <span className="text-muted-foreground">Start Date:</span>{' '}
                     <span className="font-mono">{agent.startDate}</span>
@@ -172,30 +179,15 @@ export function AgentDetailView({ agent, prevAgentId, nextAgentId, viewMode = 't
                   <h4 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                     Contact Information
                   </h4>
-                  <div className="text-sm">
-                    <span className="text-muted-foreground">Company Phone:</span>{' '}
-                    <span className="font-mono">{agent.companyPhone || '\u2014'}</span>
-                  </div>
-                  <div className="text-sm">
-                    <span className="text-muted-foreground">Carrier:</span>{' '}
-                    {agent.carrier || '\u2014'}
-                  </div>
+                  <EditableField label="Company Phone" value={agent.companyPhone} fieldKey="companyPhone" onSave={handleFieldSave} mono />
+                  <EditableField label="Carrier" value={agent.carrier} fieldKey="carrier" onSave={handleFieldSave} />
                   <div className="text-sm">
                     <span className="text-muted-foreground">Company Email:</span>{' '}
                     <span className="font-mono">{agent.companyEmail || '\u2014'}</span>
                   </div>
-                  <div className="text-sm">
-                    <span className="text-muted-foreground">Personal Email:</span>{' '}
-                    <span className="font-mono">{agent.personalEmail || '\u2014'}</span>
-                  </div>
-                  <div className="text-sm">
-                    <span className="text-muted-foreground">Personal Phone:</span>{' '}
-                    <span className="font-mono">{agent.personalPhone || '\u2014'}</span>
-                  </div>
-                  <div className="text-sm">
-                    <span className="text-muted-foreground">Zelle:</span>{' '}
-                    <span className="font-mono">{agent.zelle || '\u2014'}</span>
-                  </div>
+                  <EditableField label="Personal Email" value={agent.personalEmail} fieldKey="personalEmail" onSave={handleFieldSave} mono />
+                  <EditableField label="Personal Phone" value={agent.personalPhone} fieldKey="personalPhone" onSave={handleFieldSave} mono />
+                  <EditableField label="Zelle" value={agent.zelle} fieldKey="zelle" onSave={handleFieldSave} mono />
                 </div>
 
                 {/* Address & Login */}
@@ -203,17 +195,9 @@ export function AgentDetailView({ agent, prevAgentId, nextAgentId, viewMode = 't
                   <h4 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                     Address & Login
                   </h4>
-                  <div className="text-sm">
-                    <span className="text-muted-foreground">
-                      <MapPin className="inline h-3 w-3" /> Address:
-                    </span>{' '}
-                    {agent.address || '\u2014'}
-                  </div>
+                  <EditableField label="Address" value={agent.address} fieldKey="address" onSave={handleFieldSave} />
                   <div className="mt-1.5 space-y-1 border-t border-border/50 pt-1">
-                    <div className="text-sm">
-                      <span className="text-muted-foreground">Account:</span>{' '}
-                      <span className="font-mono">{agent.loginAccount || '\u2014'}</span>
-                    </div>
+                    <EditableField label="Account" value={agent.loginAccount} fieldKey="loginAccount" onSave={handleFieldSave} mono />
                     <div className="text-sm">
                       <span className="text-muted-foreground">Login Email:</span>{' '}
                       <span className="font-mono">{agent.loginEmail || '\u2014'}</span>
@@ -504,7 +488,7 @@ export function AgentDetailView({ agent, prevAgentId, nextAgentId, viewMode = 't
                       <div className="min-w-0 flex-1">
                         <p className="text-foreground">{event.event}</p>
                         <p className="text-[10px] text-muted-foreground">
-                          {event.date}
+                          {event.date}{event.actor ? ` \u00b7 by ${event.actor}` : ''}
                         </p>
                       </div>
                     </div>

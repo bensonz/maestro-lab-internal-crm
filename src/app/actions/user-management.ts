@@ -145,6 +145,79 @@ export async function toggleUserActive(userId: string) {
   return { success: true, isActive: newStatus }
 }
 
+// Whitelist of fields editable via inline editing on agent detail page.
+// Maps UI field key → Prisma User column name.
+const EDITABLE_AGENT_FIELDS: Record<string, string> = {
+  companyPhone: 'companyPhone',
+  carrier: 'carrier',
+  personalEmail: 'personalEmail',
+  personalPhone: 'personalPhone',
+  zelle: 'zelle',
+  address: 'address',
+  loginAccount: 'loginAccount',
+  idNumber: 'idNumber',
+  citizenship: 'citizenship',
+}
+
+// Human-readable labels for event log descriptions
+const FIELD_LABELS: Record<string, string> = {
+  companyPhone: 'Company Phone',
+  carrier: 'Carrier',
+  personalEmail: 'Personal Email',
+  personalPhone: 'Personal Phone',
+  zelle: 'Zelle',
+  address: 'Address',
+  loginAccount: 'Login Account',
+  idNumber: 'ID Number',
+  citizenship: 'Citizenship',
+}
+
+export async function updateAgentField(
+  agentId: string,
+  field: string,
+  oldValue: string,
+  newValue: string,
+) {
+  const session = await auth()
+  if (!session?.user) {
+    return { success: false, error: 'Not authenticated' }
+  }
+  if (session.user.role !== 'ADMIN' && session.user.role !== 'BACKOFFICE') {
+    return { success: false, error: 'Not authorized' }
+  }
+
+  const dbColumn = EDITABLE_AGENT_FIELDS[field]
+  if (!dbColumn) {
+    return { success: false, error: `Field "${field}" is not editable` }
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: agentId } })
+  if (!user) {
+    return { success: false, error: 'Agent not found' }
+  }
+
+  const trimmed = newValue.trim()
+
+  await prisma.user.update({
+    where: { id: agentId },
+    data: { [dbColumn]: trimmed || null },
+  })
+
+  const label = FIELD_LABELS[field] ?? field
+  await prisma.eventLog.create({
+    data: {
+      eventType: 'USER_UPDATED',
+      description: `Updated ${label}: ${oldValue || '\u2014'} \u2192 ${trimmed || '\u2014'}`,
+      userId: session.user.id,
+      metadata: { updatedUserId: agentId, field, oldValue, newValue: trimmed },
+    },
+  })
+
+  revalidatePath(`/backoffice/agent-management/${agentId}`)
+  revalidatePath('/backoffice/agent-management')
+  return { success: true }
+}
+
 export async function resetUserPassword(userId: string, newPassword: string) {
   const session = await auth()
   if (!session?.user) {

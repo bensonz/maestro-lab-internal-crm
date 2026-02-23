@@ -1,99 +1,103 @@
 'use client'
 
-import { useState } from 'react'
-import { Check, X } from 'lucide-react'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { Button } from '@/components/ui/button'
+import { useState, useRef, useEffect } from 'react'
+import { Check, X, Pencil } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface EditableFieldProps {
   label: string
   value: string
-  onSave: (value: string) => void
-  isLongText?: boolean
-  className?: string
+  fieldKey: string
+  onSave: (fieldKey: string, oldValue: string, newValue: string) => Promise<void>
+  mono?: boolean
 }
 
-export function EditableField({
-  label,
-  value,
-  onSave,
-  isLongText = false,
-  className,
-}: EditableFieldProps) {
-  const [isEditing, setIsEditing] = useState(false)
-  const [editValue, setEditValue] = useState(value)
+export function EditableField({ label, value, fieldKey, onSave, mono }: EditableFieldProps) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(value)
+  const [saving, setSaving] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
 
-  const handleDoubleClick = () => {
-    setEditValue(value)
-    setIsEditing(true)
-  }
+  useEffect(() => {
+    if (editing) {
+      inputRef.current?.focus()
+      inputRef.current?.select()
+    }
+  }, [editing])
 
-  const handleSave = () => {
-    onSave(editValue)
-    setIsEditing(false)
+  const handleSave = async () => {
+    const trimmed = draft.trim()
+    if (trimmed === value) {
+      setEditing(false)
+      return
+    }
+    setSaving(true)
+    try {
+      await onSave(fieldKey, value, trimmed)
+      setEditing(false)
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleCancel = () => {
-    setEditValue(value)
-    setIsEditing(false)
+    setDraft(value)
+    setEditing(false)
   }
 
-  if (isEditing) {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') handleSave()
+    if (e.key === 'Escape') handleCancel()
+  }
+
+  if (editing) {
     return (
-      <div className={cn('flex items-start gap-2', className)}>
-        <span className="shrink-0 text-muted-foreground">{label}:</span>
-        <div className="flex flex-1 items-center gap-1">
-          {isLongText ? (
-            <Textarea
-              value={editValue}
-              onChange={(e) => setEditValue(e.target.value)}
-              className="h-16 text-xs"
-              autoFocus
-            />
-          ) : (
-            <Input
-              value={editValue}
-              onChange={(e) => setEditValue(e.target.value)}
-              className="h-6 py-0 text-xs"
-              autoFocus
-            />
+      <div className="flex items-center gap-1 text-sm" data-testid={`editable-field-${fieldKey}`}>
+        <span className="text-muted-foreground">{label}:</span>{' '}
+        <input
+          ref={inputRef}
+          className={cn(
+            'h-6 rounded border border-border bg-background px-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary',
+            mono && 'font-mono',
           )}
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-5 w-5"
-            onClick={handleSave}
-            data-testid="editable-field-save"
-          >
-            <Check className="h-3 w-3 text-success" />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-5 w-5"
-            onClick={handleCancel}
-            data-testid="editable-field-cancel"
-          >
-            <X className="h-3 w-3 text-destructive" />
-          </Button>
-        </div>
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={handleKeyDown}
+          disabled={saving}
+          data-testid={`editable-input-${fieldKey}`}
+        />
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="inline-flex h-5 w-5 items-center justify-center rounded text-success hover:bg-success/10"
+          data-testid={`editable-save-${fieldKey}`}
+        >
+          <Check className="h-3 w-3" />
+        </button>
+        <button
+          onClick={handleCancel}
+          disabled={saving}
+          className="inline-flex h-5 w-5 items-center justify-center rounded text-destructive hover:bg-destructive/10"
+          data-testid={`editable-cancel-${fieldKey}`}
+        >
+          <X className="h-3 w-3" />
+        </button>
       </div>
     )
   }
 
   return (
     <div
-      className={cn(
-        '-mx-1 flex cursor-pointer justify-between rounded px-1 transition-colors hover:bg-muted/30',
-        className,
-      )}
-      onDoubleClick={handleDoubleClick}
+      className="-mx-1 cursor-pointer rounded px-1 text-sm transition-colors hover:bg-muted/30"
+      onDoubleClick={() => {
+        setDraft(value)
+        setEditing(true)
+      }}
       title="Double-click to edit"
+      data-testid={`editable-field-${fieldKey}`}
     >
-      <span className="text-muted-foreground">{label}:</span>
-      <span className={isLongText ? 'text-xs' : ''}>{value}</span>
+      <span className="text-muted-foreground">{label}:</span>{' '}
+      <span className={mono ? 'font-mono' : undefined}>{value || '\u2014'}</span>
     </div>
   )
 }

@@ -32,6 +32,7 @@ vi.mock('@/backend/prisma/client', () => ({ default: mockPrisma }))
 import {
   createUser,
   updateUser,
+  updateAgentField,
   toggleUserActive,
   resetUserPassword,
 } from '@/app/actions/user-management'
@@ -213,5 +214,119 @@ describe('resetUserPassword', () => {
     const result = await resetUserPassword('user-1', 'newpassword123')
     expect(result.success).toBe(true)
     expect(mockPrisma.user.update).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('updateAgentField', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockPrisma.user.findUnique.mockResolvedValue({ id: 'agent-1', name: 'Marcus Rivera' })
+    mockPrisma.user.update.mockResolvedValue({})
+    mockPrisma.eventLog.create.mockResolvedValue({})
+  })
+
+  it('rejects unauthenticated users', async () => {
+    mockAuth.mockResolvedValue(null)
+    const result = await updateAgentField('agent-1', 'companyPhone', '111', '222')
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('Not authenticated')
+  })
+
+  it('rejects non-admin/backoffice users', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'AGENT', name: 'Agent' } })
+    const result = await updateAgentField('agent-1', 'companyPhone', '111', '222')
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('Not authorized')
+  })
+
+  it('allows ADMIN users', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN', name: 'Admin' } })
+    const result = await updateAgentField('agent-1', 'companyPhone', '111', '222')
+    expect(result.success).toBe(true)
+  })
+
+  it('allows BACKOFFICE users', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'BACKOFFICE', name: 'BO' } })
+    const result = await updateAgentField('agent-1', 'companyPhone', '111', '222')
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects non-whitelisted fields', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN', name: 'Admin' } })
+    const result = await updateAgentField('agent-1', 'email', 'old@test.com', 'new@test.com')
+    expect(result.success).toBe(false)
+    expect(result.error).toContain('not editable')
+  })
+
+  it('returns error for non-existent agent', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN', name: 'Admin' } })
+    mockPrisma.user.findUnique.mockResolvedValue(null)
+    const result = await updateAgentField('nonexistent', 'companyPhone', '111', '222')
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('Agent not found')
+  })
+
+  it('updates the correct DB column and creates event log', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN', name: 'Sarah Chen' } })
+
+    const result = await updateAgentField('agent-1', 'companyPhone', '917-979-2293', '917-898-2222')
+    expect(result.success).toBe(true)
+
+    // Check user update with correct column
+    expect(mockPrisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'agent-1' },
+      data: { companyPhone: '917-898-2222' },
+    })
+
+    // Check event log has field details
+    const logCall = mockPrisma.eventLog.create.mock.calls[0][0]
+    expect(logCall.data.eventType).toBe('USER_UPDATED')
+    expect(logCall.data.description).toContain('Company Phone')
+    expect(logCall.data.description).toContain('917-979-2293')
+    expect(logCall.data.description).toContain('917-898-2222')
+    expect(logCall.data.userId).toBe('u1')
+    expect(logCall.data.metadata).toEqual({
+      updatedUserId: 'agent-1',
+      field: 'companyPhone',
+      oldValue: '917-979-2293',
+      newValue: '917-898-2222',
+    })
+  })
+
+  it('trims whitespace from new value', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN', name: 'Admin' } })
+
+    await updateAgentField('agent-1', 'zelle', 'old@zelle.com', '  new@zelle.com  ')
+
+    const updateCall = mockPrisma.user.update.mock.calls[0][0]
+    expect(updateCall.data.zelle).toBe('new@zelle.com')
+  })
+
+  it('sets field to null when new value is empty', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN', name: 'Admin' } })
+
+    await updateAgentField('agent-1', 'carrier', 'T-Mobile', '  ')
+
+    const updateCall = mockPrisma.user.update.mock.calls[0][0]
+    expect(updateCall.data.carrier).toBeNull()
+  })
+
+  it('works for all whitelisted fields', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN', name: 'Admin' } })
+
+    const fields = [
+      'companyPhone', 'carrier', 'personalEmail', 'personalPhone',
+      'zelle', 'address', 'loginAccount', 'idNumber', 'citizenship',
+    ]
+
+    for (const field of fields) {
+      vi.clearAllMocks()
+      mockPrisma.user.findUnique.mockResolvedValue({ id: 'agent-1', name: 'Test' })
+      mockPrisma.user.update.mockResolvedValue({})
+      mockPrisma.eventLog.create.mockResolvedValue({})
+
+      const result = await updateAgentField('agent-1', field, 'old', 'new')
+      expect(result.success).toBe(true)
+    }
   })
 })

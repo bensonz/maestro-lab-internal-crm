@@ -289,6 +289,7 @@ export interface AgentDetailData {
     date: string
     event: string
     type: 'info' | 'success' | 'warning'
+    actor: string | null
   }[]
   idDocumentUrl: string | undefined
 }
@@ -326,7 +327,7 @@ export interface RiskAssessment {
   level: RiskLevel
   score: number
   flags: {
-    idExpiringSoon: boolean
+    idExpiryRisk: 'high' | 'moderate' | 'none'
     paypalPreviouslyUsed: boolean
     addressMismatch: boolean
     debankedHistory: boolean

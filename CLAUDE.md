@@ -13,7 +13,7 @@ The backend has a fully functional **commission system** with real DB queries wi
 - **Application review** in backoffice Agent Management ("Pending Applications" tab) — shows both documents
 - **Agent Directory** in backoffice Agent Management ("Agent Directory" tab) — queries real User table, star-level-based filter, toggleable table/tree view (tree shows upline→subordinate hierarchy with expand/collapse, ancestor-preserving search)
 - **Login Management** page (`/backoffice/login-management`) — full CRUD for all users from DB
-- **User management** server actions (create, update, toggle, reset password)
+- **User management** server actions (create, update, toggle, reset password, inline field edit with audit trail)
 - **Commission system** — $400 fixed bonus pool per approved client, star-level-based distribution up hierarchy
 - **Client management** server actions (create, approve → triggers star level recalc + bonus pool)
 - **Commission payment** server actions (mark paid, bulk mark paid)
@@ -23,7 +23,7 @@ The backend has a fully functional **commission system** with real DB queries wi
 - **Agent Dashboard** — real earnings + star level from DB (pipeline/KPIs still mock)
 - **Agent Earnings page** — real allocation history from DB (hierarchy/KPIs still mock)
 - **Agent Clients page** — real clients from DB if available, falls back to mock
-- **Agent Detail page** (backoffice) — real agent profile, earnings, hierarchy from DB
+- **Agent Detail page** (backoffice) — real agent profile, earnings, hierarchy from DB; inline-editable fields with audit trail (activity timeline from EventLog)
 - **Agent New Client page** — 4-step intake form with drafts panel, risk assessment, auto-save, and submission to real Client record
 - **Client draft** server actions (create, save, submit, delete) — auth-guarded, ownership-checked
 - **Search API** (simplified — searches Users only)
@@ -96,7 +96,7 @@ This is a CRM for managing client onboarding across multiple sports betting plat
 - **User** — All staff accounts (agents, admins, backoffice, finance). Includes hierarchy (supervisorId self-relation), profile fields, star level/tier, leadershipTier (NONE/ED/SED/MD/CMO).
 - **AgentApplication** — Public application form submissions. Status: PENDING → APPROVED/REJECTED. Links to reviewer (User) and created user on approval. Stores `idDocument` and `addressDocument` upload paths.
 - **Client** — Minimal client record. Status: PENDING → APPROVED. Links to closer (User via closerId). One optional BonusPool. Optional `fromDraft` back-link.
-- **ClientDraft** — Agent-owned draft for new client intake. Status: DRAFT → SUBMITTED. 4-step form data (pre-qual, background, platforms, contract). Links to closer (User via closerId) and optional resultClient (Client). Stores risk flags, platform data (Json), and document paths.
+- **ClientDraft** — Agent-owned draft for new client intake. Status: DRAFT → SUBMITTED. 4-step form data (pre-qual, background, platforms, contract). Links to closer (User via closerId) and optional resultClient (Client). Stores risk flags, platform data (Json), document paths, and Step 1 extras (dateOfBirth, address, gmailPassword, gmailScreenshot, betmgmRegScreenshot, betmgmLoginScreenshot).
 - **BonusPool** — One per approved client ($400 fixed). Tracks closer snapshot, distribution stats, has many BonusAllocation[].
 - **BonusAllocation** — Individual payout line. Type: DIRECT ($200 to closer), STAR_SLICE (star pool walk), BACKFILL (remaining to highest supervisor). Status: PENDING → PAID.
 - **PromotionLog** — Immutable audit of star level and leadership tier changes.
@@ -142,13 +142,42 @@ Four roles defined in `UserRole` enum: `AGENT`, `BACKOFFICE`, `ADMIN`, `FINANCE`
 - `src/app/backoffice/login-management/_components/login-management-view.tsx` — Users table + search
 - `src/app/backoffice/login-management/_components/create-user-dialog.tsx` — Create user (real actions)
 - `src/app/backoffice/login-management/_components/edit-user-dialog.tsx` — Edit/toggle/reset (real actions)
+- `src/app/backoffice/agent-management/[id]/page.tsx` — Agent detail server component (fetches user, earnings, timeline)
+- `src/app/backoffice/agent-management/[id]/_components/agent-detail-view.tsx` — Agent detail client view with inline-editable fields
+- `src/app/backoffice/agent-management/[id]/_components/editable-field.tsx` — Inline edit component (pencil icon, save/cancel, async onSave)
+- `src/backend/data/event-logs.ts` — `getAgentTimeline()` query (merges own + about events, deduped, sorted, limit 50)
+
+### Agent Detail Page — Editable Fields
+
+Admin and Backoffice users can inline-edit agent profile fields. Each edit creates an `EventLog` entry with `USER_UPDATED` type, old/new values in metadata, and a descriptive message.
+
+**Editable fields:** `companyPhone`, `carrier`, `personalEmail`, `personalPhone`, `zelle`, `address`, `loginAccount`, `idNumber`, `citizenship`
+
+**Read-only fields:** Name, Gender/Age, ID Expiry, SSN, Start Date, Company Email, Login Email
+
+**Server action:** `updateAgentField(agentId, field, oldValue, newValue)` in `src/app/actions/user-management.ts`
+- Auth: ADMIN + BACKOFFICE only
+- Whitelisted fields mapped to Prisma User columns
+- Creates EventLog with description like `"Updated Company Phone: 917-979-2293 → 917-898-2222"`
+- Metadata: `{ updatedUserId, field, oldValue, newValue }`
+
+**Activity Timeline:** `getAgentTimeline(agentId)` in `src/backend/data/event-logs.ts`
+- Merges: events by agent (userId = agentId) + events about agent (metadata.updatedUserId = agentId)
+- Deduplicates by event ID, sorts newest first, limit 50
+- Returns `{ date, event, type, actor }[]` — actor shown as "Feb 20, 2026 · by Sarah Chen"
 
 ### Client Draft / New Client Flow
 
 Agents create new clients through a 4-step intake form at `/agent/new-client`.
 
 **Steps:**
-1. **Pre-Qual** — First/last name, email, phone, ID document, ID number/expiry, assigned Gmail, BetMGM check
+1. **Pre-Qual** — 5 sections with `border-t` separators:
+   - **ID Document**: Upload dropzone with OCR auto-detection modal (mock), auto-fills first/last name, DOB, address, ID expiry. Fields: first/last name*, DOB (with computed age), ID expiry, address, ID number
+   - **Personal Phone**: Phone number
+   - **Company Gmail**: Gmail address, Gmail password (type=password), Gmail registration screenshot upload
+   - **BetMGM Verification**: Registration screenshot + Login credentials screenshot (2-col), BetMGM pre-check checkbox
+   - All upload areas have hover tooltips (what to upload / what NOT to upload)
+   - `email` field still in schema but not displayed in Step 1 UI
 2. **Background** — SSN document, secondary address, criminal record, banking/PayPal/sportsbook history, risk flags
 3. **Platforms** — Platform-by-platform registration (username, account ID, screenshot) for all 11 platforms
 4. **Contract** — Contract document upload, submission checklist
@@ -158,9 +187,13 @@ Agents create new clients through a 4-step intake form at `/agent/new-client`.
 **Auto-save:** 500ms debounced save on field changes. Flushes before step navigation or submission.
 
 **Risk Assessment:** Pure function `calculateRiskScore()` computes a score from flags:
-- ID expires <75 days: +10, PayPal previously used: +10, De-banked: +30, Criminal record: +30, Undisclosed info: +20
+- ID expiry 2-tier: <75 days → 20 points (high), 75-99 days → 10 points (moderate), >=100 or null → 0 points (none)
+- PayPal previously used: +10, De-banked: +30, Criminal record: +30, Undisclosed info: +20
 - Address mismatch: informational only (0 points)
 - Thresholds: 0-29 low, 30-49 medium, 50+ high
+- Max possible score: 110 (all flags active with high ID expiry)
+
+**Inner-Step Progress (Step 1):** 5 items — ID document uploaded, Gmail filled, Gmail screenshot uploaded, at least one BetMGM screenshot uploaded, BetMGM check passed
 
 **Submission:** Validates required fields (firstName, lastName, contractDocument), creates a real `Client` record (PENDING status), marks draft as SUBMITTED.
 
@@ -170,7 +203,9 @@ Agents create new clients through a 4-step intake form at `/agent/new-client`.
 - `src/app/agent/new-client/_components/drafts-panel.tsx` — Left panel: draft list + create/delete
 - `src/app/agent/new-client/_components/step-indicator.tsx` — 4-step progress indicator
 - `src/app/agent/new-client/_components/client-form.tsx` — Form state, auto-save, step navigation
-- `src/app/agent/new-client/_components/step1-prequal.tsx` — Step 1 fields
+- `src/app/agent/new-client/_components/step1-prequal.tsx` — Step 1 fields (5 sections: ID, phone, Gmail, BetMGM, with uploads + tooltips)
+- `src/app/agent/new-client/_components/mock-extract-id.ts` — Mock OCR extraction (1.5s delay, returns fake data)
+- `src/app/agent/new-client/_components/id-detection-modal.tsx` — Extracted field confirmation dialog with checkboxes
 - `src/app/agent/new-client/_components/step2-background.tsx` — Step 2 fields + risk flag toggles
 - `src/app/agent/new-client/_components/step3-platforms.tsx` — Platform grid using PLATFORM_INFO
 - `src/app/agent/new-client/_components/step3-platform-card.tsx` — Individual platform card
@@ -179,7 +214,7 @@ Agents create new clients through a 4-step intake form at `/agent/new-client`.
 - `src/app/actions/client-drafts.ts` — CRUD server actions (create, save, submit, delete)
 - `src/backend/data/client-drafts.ts` — Draft queries (by closer, by ID, ownership check, getAllDrafts for backoffice)
 - `src/lib/validations/client-draft.ts` — Zod per-step + submit schemas
-- `src/lib/risk-score.ts` — Pure risk score calculation
+- `src/lib/risk-score.ts` — Pure risk score calculation (2-tier ID expiry)
 
 ### Bonus & Commission System
 
@@ -306,13 +341,14 @@ vi.mock('@/backend/auth', () => ({ auth: mockAuth }))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 ```
 
-### Existing Tests (13 files, 145 tests)
+### Existing Tests (15 files, 181 tests)
 
-**Phase 1 — Agent Application (4 files, 41 tests):**
+**Phase 1 — Agent Application (5 files, 57 tests):**
 - `src/test/backend/actions/agent-application.test.ts` — Validation, email uniqueness, happy path, addressDocument
 - `src/test/backend/actions/application-review.test.ts` — Auth guards, approve/reject, edge cases, addressDocument copy
-- `src/test/backend/actions/user-management.test.ts` — CRUD user actions, auth/role guards
+- `src/test/backend/actions/user-management.test.ts` — CRUD user actions, auth/role guards, updateAgentField (whitelist, audit trail, trim/null)
 - `src/test/backend/data/applications.test.ts` — Query functions, stats
+- `src/test/backend/data/event-logs.test.ts` — Timeline query: merge/dedup, sort, actor, type mapping, limit 50
 
 **Phase 2 — Commission System (7 files, 73 tests):**
 - `src/test/backend/services/star-pool-distribution.test.ts` — All 4 spec scenarios + edge cases (pure, no mocks)
@@ -323,9 +359,9 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 - `src/test/backend/actions/commission.test.ts` — Mark paid, bulk mark paid, auth guards
 - `src/test/backend/actions/leadership.test.ts` — Promote, quarterly settlement, approve/pay settlement
 
-**Client Draft (2 files, 31 tests):**
-- `src/test/backend/actions/client-drafts.test.ts` — CRUD actions, auth guards, ownership checks, submit validation
-- `src/test/lib/risk-score.test.ts` — Score boundaries, flag weights, addressMismatch exclusion
+**Client Draft (2 files, 41 tests):**
+- `src/test/backend/actions/client-drafts.test.ts` — CRUD actions, auth guards, ownership checks, submit validation, new Step 1 field allowlist
+- `src/test/lib/risk-score.test.ts` — 2-tier ID expiry boundaries (74/75/99/100 days), flag weights, addressMismatch exclusion, max score 110
 
 ---
 

@@ -5,6 +5,7 @@ import prisma from '@/backend/prisma/client'
 import { getAgentEarnings } from '@/backend/data/bonus-pools'
 import { countApprovedClients } from '@/backend/data/clients'
 import { STAR_THRESHOLDS } from '@/lib/commission-constants'
+import { getAgentTimeline } from '@/backend/data/event-logs'
 import type { AgentDetailData } from '@/types/backend-types'
 
 export default async function AgentDetailPage({
@@ -40,10 +41,11 @@ export default async function AgentDetailPage({
     )
   }
 
-  // Fetch earnings and client counts in parallel
-  const [earningsData, approvedClients] = await Promise.all([
+  // Fetch earnings, client counts, and timeline in parallel
+  const [earningsData, approvedClients, timeline] = await Promise.all([
     getAgentEarnings(id).catch(() => null),
     countApprovedClients(id).catch(() => 0),
+    getAgentTimeline(id).catch(() => []),
   ])
 
   const starLabel = STAR_THRESHOLDS[user.starLevel]?.label ?? 'Unknown'
@@ -65,8 +67,8 @@ export default async function AgentDetailPage({
     startDate: new Date(user.createdAt).toLocaleDateString(),
     tier: starLabel,
     stars: user.starLevel,
-    companyPhone: user.phone || '',
-    carrier: '',
+    companyPhone: user.companyPhone || '',
+    carrier: user.carrier || '',
     companyEmail: user.email,
     personalEmail: user.personalEmail || '',
     personalPhone: user.personalPhone || '',
@@ -92,7 +94,7 @@ export default async function AgentDetailPage({
     monthlyClients: [],
     supervisor: user.supervisor ? { id: user.supervisor.id, name: user.supervisor.name } : null,
     directReports: user.subordinates.map((s) => ({ id: s.id, name: s.name })),
-    timeline: [],
+    timeline,
     idDocumentUrl: undefined,
   }
 
