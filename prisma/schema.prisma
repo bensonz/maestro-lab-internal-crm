@@ -214,15 +214,23 @@ model ClientDraft {
   step   Int               @default(1)
 
   // Step 1: Pre-Qual
-  firstName        String?
-  lastName         String?
-  email            String?
-  phone            String?
-  idDocument       String?
-  idNumber         String?
-  idExpiry         DateTime?
-  assignedGmail    String?
-  betmgmCheckPassed Boolean?
+  firstName             String?
+  lastName              String?
+  email                 String?
+  phone                 String?
+  idDocument            String?
+  idNumber              String?
+  idExpiry              DateTime?
+  dateOfBirth           DateTime?
+  address               String?
+  assignedGmail         String?
+  gmailPassword         String?
+  gmailScreenshot       String?
+  betmgmCheckPassed     Boolean?
+  betmgmLogin           String?
+  betmgmPassword        String?
+  betmgmRegScreenshot   String?
+  betmgmLoginScreenshot String?
 
   // Step 2: Background
   ssnDocument        String?

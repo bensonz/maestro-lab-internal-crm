@@ -6,12 +6,12 @@ import type { RiskAssessment } from '@/types/backend-types'
 
 interface RiskPanelProps {
   assessment: RiskAssessment
-  onFlagsChange: (flags: Record<string, boolean>) => void
+  onFlagsChange: (flags: Record<string, unknown>) => void
   draftSelected: boolean
 }
 
 const FLAG_LABELS: { key: keyof RiskAssessment['flags']; label: string }[] = [
-  { key: 'idExpiringSoon', label: 'ID Expiring Soon' },
+  { key: 'idExpiryRisk', label: 'ID Expiring Soon' },
   { key: 'paypalPreviouslyUsed', label: 'PayPal Previously Used' },
   { key: 'addressMismatch', label: 'Address Mismatch' },
   { key: 'debankedHistory', label: 'De-banked History' },
@@ -75,7 +75,12 @@ export function RiskPanel({ assessment, draftSelected }: RiskPanelProps) {
               </p>
 
               {FLAG_LABELS.map(({ key, label }) => {
-                const active = assessment.flags[key]
+                const value = assessment.flags[key]
+                // idExpiryRisk is 'high' | 'moderate' | 'none'; others are boolean
+                const active =
+                  key === 'idExpiryRisk'
+                    ? value === 'high' || value === 'moderate'
+                    : value === true
                 return (
                   <div
                     key={key}

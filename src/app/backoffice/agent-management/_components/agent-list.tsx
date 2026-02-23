@@ -13,7 +13,10 @@ import {
   Target,
   LayoutList,
   Network,
+  X,
 } from 'lucide-react'
+import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/ui/hover-card'
+import { Separator } from '@/components/ui/separator'
 import {
   ApplicationReviewList,
   type ApplicationRow,
@@ -30,12 +33,18 @@ interface Agent {
   leadershipTier: string
   phone: string
   start: string
+  createdAt?: string
   clients: number
   working: number
   successRate: number
   delayRate: number
   avgDaysToConvert: number | null
   supervisorId: string | null
+  zelle: string
+  address: string
+  totalEarned: number
+  thisMonthEarned: number
+  newClientsThisMonth: number
 }
 
 interface AgentStats {
@@ -106,6 +115,12 @@ function getDelayRateColor(rate: number) {
   return 'text-destructive'
 }
 
+/** Extract 2-letter US state abbreviation from an address string */
+function extractState(address: string): string | null {
+  const match = address.match(/\b([A-Z]{2})\b(?:\s*\d{5})?/)
+  return match?.[1] ?? null
+}
+
 export function AgentList({
   agents,
   stats,
@@ -123,17 +138,61 @@ export function AgentList({
   const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode)
   const [sortField, setSortField] = useState<SortField>(null)
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+  const [newAgentFilter, setNewAgentFilter] = useState(false)
+  const [teamFilterId, setTeamFilterId] = useState<string | null>(null)
+
+  // Collect an agent + all descendants from the flat list
+  const getTeamIds = useMemo(() => {
+    // Build children map once
+    const childrenMap = new Map<string, string[]>()
+    for (const agent of agents) {
+      if (agent.supervisorId) {
+        const siblings = childrenMap.get(agent.supervisorId) || []
+        siblings.push(agent.id)
+        childrenMap.set(agent.supervisorId, siblings)
+      }
+    }
+    return (rootId: string): Set<string> => {
+      const ids = new Set<string>([rootId])
+      const queue = [rootId]
+      while (queue.length > 0) {
+        const current = queue.pop()!
+        const children = childrenMap.get(current) || []
+        for (const childId of children) {
+          ids.add(childId)
+          queue.push(childId)
+        }
+      }
+      return ids
+    }
+  }, [agents])
+
+  const teamFilterName = useMemo(() => {
+    if (!teamFilterId) return null
+    return agents.find((a) => a.id === teamFilterId)?.name ?? null
+  }, [agents, teamFilterId])
+
+  // Check if an agent was created this month
+  const isNewThisMonth = (agent: Agent): boolean => {
+    if (!agent.createdAt) return false
+    const now = new Date()
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    return new Date(agent.createdAt) >= startOfMonth
+  }
 
   const filteredAgents = useMemo(() => {
+    const teamIds = teamFilterId ? getTeamIds(teamFilterId) : null
     return agents.filter((agent) => {
       const matchesSearch =
         agent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         agent.phone.includes(searchQuery)
       const matchesTier =
         selectedTier === 'All' || getStarLabel(agent) === selectedTier
-      return matchesSearch && matchesTier
+      const matchesNewAgent = !newAgentFilter || isNewThisMonth(agent)
+      const matchesTeam = !teamIds || teamIds.has(agent.id)
+      return matchesSearch && matchesTier && matchesNewAgent && matchesTeam
     })
-  }, [agents, searchQuery, selectedTier])
+  }, [agents, searchQuery, selectedTier, newAgentFilter, teamFilterId, getTeamIds])
 
   const sortedAgents = useMemo(() => {
     if (!sortField) {
@@ -203,9 +262,22 @@ export function AgentList({
           Agent Management
         </h1>
 
-        {/* Summary Metrics */}
+        {/* Summary Metrics — clickable cards act as view switchers / filters */}
         <div className="space-y-2">
-          <Card className="card-terminal">
+          <Card
+            className={cn(
+              'card-terminal cursor-pointer transition-all',
+              viewMode === 'table' && !newAgentFilter
+                ? 'ring-1 ring-primary'
+                : 'hover:ring-1 hover:ring-muted-foreground/30',
+            )}
+            onClick={() => {
+              setViewMode('table')
+              setNewAgentFilter(false)
+              setActiveTab('agents')
+            }}
+            data-testid="stat-total-agents"
+          >
             <CardContent className="p-3">
               <div className="flex items-center justify-between">
                 <div>
@@ -223,7 +295,20 @@ export function AgentList({
             </CardContent>
           </Card>
 
-          <Card className="card-terminal">
+          <Card
+            className={cn(
+              'card-terminal cursor-pointer transition-all',
+              viewMode === 'tree' && !newAgentFilter
+                ? 'ring-1 ring-success'
+                : 'hover:ring-1 hover:ring-muted-foreground/30',
+            )}
+            onClick={() => {
+              setViewMode('tree')
+              setNewAgentFilter(false)
+              setActiveTab('agents')
+            }}
+            data-testid="stat-total-teams"
+          >
             <CardContent className="p-3">
               <div className="flex items-center justify-between">
                 <div>
@@ -241,7 +326,19 @@ export function AgentList({
             </CardContent>
           </Card>
 
-          <Card className="card-terminal">
+          <Card
+            className={cn(
+              'card-terminal cursor-pointer transition-all',
+              newAgentFilter
+                ? 'ring-1 ring-warning'
+                : 'hover:ring-1 hover:ring-muted-foreground/30',
+            )}
+            onClick={() => {
+              setNewAgentFilter((prev) => !prev)
+              setActiveTab('agents')
+            }}
+            data-testid="stat-new-agents"
+          >
             <CardContent className="p-3">
               <div className="flex items-center justify-between">
                 <div>
@@ -349,6 +446,23 @@ export function AgentList({
           </div>
         </div>
 
+        {/* Team filter active indicator */}
+        {teamFilterId && teamFilterName && (
+          <div className="flex items-center gap-2" data-testid="team-filter-active">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+              <Users className="h-3 w-3" />
+              {teamFilterName}&apos;s Team
+              <button
+                onClick={() => setTeamFilterId(null)}
+                className="ml-0.5 rounded-full p-0.5 hover:bg-primary/20 transition-colors"
+                data-testid="team-filter-clear"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          </div>
+        )}
+
         {/* Tab Toggle */}
         <div className="flex gap-1">
           <button
@@ -429,7 +543,9 @@ export function AgentList({
                 <AgentTreeView
                   agents={filteredAgents}
                   allAgents={agents}
-                  hasActiveFilter={searchQuery !== '' || selectedTier !== 'All'}
+                  hasActiveFilter={searchQuery !== '' || selectedTier !== 'All' || newAgentFilter || !!teamFilterId}
+                  onFilterTeam={(id) => setTeamFilterId((prev) => prev === id ? null : id)}
+                  teamFilterId={teamFilterId}
                 />
               ) : sortedAgents.length === 0 ? (
                 <p className="py-8 text-center text-muted-foreground">
@@ -513,9 +629,50 @@ export function AgentList({
                                   </span>
                                 </div>
                               </div>
-                              <span className="truncate font-medium">
-                                {agent.name}
-                              </span>
+                              <HoverCard openDelay={300}>
+                                <HoverCardTrigger asChild>
+                                  <span
+                                    className="truncate font-medium cursor-default"
+                                    onClick={(e) => e.stopPropagation()}
+                                    data-testid={`agent-name-hover-trigger-${agent.id}`}
+                                  >
+                                    {agent.name}
+                                  </span>
+                                </HoverCardTrigger>
+                                <HoverCardContent align="start" className="w-56 p-3" data-testid={`agent-name-hover-${agent.id}`}>
+                                  <div className="space-y-2 text-xs">
+                                    <div>
+                                      <span className="text-muted-foreground">Zelle:</span>{' '}
+                                      <span className="font-mono">{agent.zelle || '\u2014'}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">State:</span>{' '}
+                                      <span className="font-mono font-medium">{extractState(agent.address) || '\u2014'}</span>
+                                    </div>
+                                    <Separator />
+                                    <div className="grid grid-cols-3 gap-2 text-center">
+                                      <div>
+                                        <p className="font-mono font-semibold text-success">
+                                          ${(agent.totalEarned / 1000).toFixed(1)}K
+                                        </p>
+                                        <p className="text-[9px] text-muted-foreground">Total Earned</p>
+                                      </div>
+                                      <div>
+                                        <p className="font-mono font-semibold">
+                                          ${agent.thisMonthEarned.toLocaleString()}
+                                        </p>
+                                        <p className="text-[9px] text-muted-foreground">This Month</p>
+                                      </div>
+                                      <div>
+                                        <p className="font-mono font-semibold">
+                                          {agent.newClientsThisMonth}
+                                        </p>
+                                        <p className="text-[9px] text-muted-foreground">New Clients</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </HoverCardContent>
+                              </HoverCard>
                               <span className="shrink-0 text-xs text-warning">
                                 {getStarLabel(agent)}
                               </span>

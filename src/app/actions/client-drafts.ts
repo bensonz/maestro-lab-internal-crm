@@ -59,8 +59,16 @@ export async function saveClientDraft(
     'idDocument',
     'idNumber',
     'idExpiry',
+    'dateOfBirth',
+    'address',
     'assignedGmail',
+    'gmailPassword',
+    'gmailScreenshot',
     'betmgmCheckPassed',
+    'betmgmLogin',
+    'betmgmPassword',
+    'betmgmRegScreenshot',
+    'betmgmLoginScreenshot',
     'ssnDocument',
     'secondAddress',
     'hasCriminalRecord',
@@ -80,7 +88,7 @@ export async function saveClientDraft(
   const updateData: Record<string, unknown> = {}
   for (const key of allowedFields) {
     if (key in data) {
-      if (key === 'idExpiry') {
+      if (key === 'idExpiry' || key === 'dateOfBirth') {
         updateData[key] = data[key] ? new Date(data[key] as string) : null
       } else {
         updateData[key] = data[key]

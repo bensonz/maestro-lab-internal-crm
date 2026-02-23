@@ -130,6 +130,46 @@ describe('saveClientDraft', () => {
     const updateCall = mockPrisma.clientDraft.update.mock.calls[0][0]
     expect(updateCall.data.idExpiry).toBeInstanceOf(Date)
   })
+
+  it('converts dateOfBirth string to Date', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'agent-1' } })
+    mockPrisma.clientDraft.findFirst.mockResolvedValue({
+      id: 'draft-1',
+      status: 'DRAFT',
+    })
+
+    await saveClientDraft('draft-1', { dateOfBirth: '1990-05-15' })
+
+    const updateCall = mockPrisma.clientDraft.update.mock.calls[0][0]
+    expect(updateCall.data.dateOfBirth).toBeInstanceOf(Date)
+  })
+
+  it('saves new Step 1 fields (gmailPassword, gmailScreenshot, betmgm credentials + screenshots, address)', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'agent-1' } })
+    mockPrisma.clientDraft.findFirst.mockResolvedValue({
+      id: 'draft-1',
+      status: 'DRAFT',
+    })
+
+    await saveClientDraft('draft-1', {
+      gmailPassword: 'secret123',
+      gmailScreenshot: '/uploads/gmail.png',
+      betmgmLogin: 'john@gmail.com',
+      betmgmPassword: 'B3tMGM!',
+      betmgmRegScreenshot: '/uploads/betmgm-reg.png',
+      betmgmLoginScreenshot: '/uploads/betmgm-login.png',
+      address: '123 Main St',
+    })
+
+    const updateCall = mockPrisma.clientDraft.update.mock.calls[0][0]
+    expect(updateCall.data.gmailPassword).toBe('secret123')
+    expect(updateCall.data.gmailScreenshot).toBe('/uploads/gmail.png')
+    expect(updateCall.data.betmgmLogin).toBe('john@gmail.com')
+    expect(updateCall.data.betmgmPassword).toBe('B3tMGM!')
+    expect(updateCall.data.betmgmRegScreenshot).toBe('/uploads/betmgm-reg.png')
+    expect(updateCall.data.betmgmLoginScreenshot).toBe('/uploads/betmgm-login.png')
+    expect(updateCall.data.address).toBe('123 Main St')
+  })
 })
 
 describe('submitClientDraft', () => {

@@ -96,7 +96,7 @@ This is a CRM for managing client onboarding across multiple sports betting plat
 - **User** — All staff accounts (agents, admins, backoffice, finance). Includes hierarchy (supervisorId self-relation), profile fields, star level/tier, leadershipTier (NONE/ED/SED/MD/CMO).
 - **AgentApplication** — Public application form submissions. Status: PENDING → APPROVED/REJECTED. Links to reviewer (User) and created user on approval. Stores `idDocument` and `addressDocument` upload paths.
 - **Client** — Minimal client record. Status: PENDING → APPROVED. Links to closer (User via closerId). One optional BonusPool. Optional `fromDraft` back-link.
-- **ClientDraft** — Agent-owned draft for new client intake. Status: DRAFT → SUBMITTED. 4-step form data (pre-qual, background, platforms, contract). Links to closer (User via closerId) and optional resultClient (Client). Stores risk flags, platform data (Json), document paths, and Step 1 extras (dateOfBirth, address, gmailPassword, gmailScreenshot, betmgmRegScreenshot, betmgmLoginScreenshot).
+- **ClientDraft** — Agent-owned draft for new client intake. Status: DRAFT → SUBMITTED. 4-step form data (pre-qual, background, platforms, contract). Links to closer (User via closerId) and optional resultClient (Client). Stores risk flags, platform data (Json), document paths, and Step 1 extras (dateOfBirth, address, gmailPassword, gmailScreenshot, betmgmLogin, betmgmPassword, betmgmRegScreenshot, betmgmLoginScreenshot).
 - **BonusPool** — One per approved client ($400 fixed). Tracks closer snapshot, distribution stats, has many BonusAllocation[].
 - **BonusAllocation** — Individual payout line. Type: DIRECT ($200 to closer), STAR_SLICE (star pool walk), BACKFILL (remaining to highest supervisor). Status: PENDING → PAID.
 - **PromotionLog** — Immutable audit of star level and leadership tier changes.
@@ -171,12 +171,13 @@ Admin and Backoffice users can inline-edit agent profile fields. Each edit creat
 Agents create new clients through a 4-step intake form at `/agent/new-client`.
 
 **Steps:**
-1. **Pre-Qual** — 5 sections with `border-t` separators:
+1. **Pre-Qual** — 3 collapsible sections (collapsed by default):
    - **ID Document**: Upload dropzone with OCR auto-detection modal (mock), auto-fills first/last name, DOB, address, ID expiry. Fields: first/last name*, DOB (with computed age), ID expiry, address, ID number
-   - **Personal Phone**: Phone number
-   - **Company Gmail**: Gmail address, Gmail password (type=password), Gmail registration screenshot upload
-   - **BetMGM Verification**: Registration screenshot + Login credentials screenshot (2-col), BetMGM pre-check checkbox
+   - **Company Gmail**: Gmail address, Gmail password (type=password), Gmail registration screenshot upload with OCR detection (detects email address, auto-fills Gmail field)
+   - **BetMGM Verification**: BetMGM login email + password input fields, Registration screenshot (OCR detects "deposit" word to confirm registration), Login credentials screenshot (OCR detects credentials + deposit options), Phone number
    - All upload areas have hover tooltips (what to upload / what NOT to upload)
+   - All 3 screenshot uploads (Gmail, BetMGM reg, BetMGM login) trigger OCR detection with modals
+   - BetMGM detection auto-fills credential fields and sets `betmgmCheckPassed` when deposit detected
    - `email` field still in schema but not displayed in Step 1 UI
 2. **Background** — SSN document, secondary address, criminal record, banking/PayPal/sportsbook history, risk flags
 3. **Platforms** — Platform-by-platform registration (username, account ID, screenshot) for all 11 platforms
@@ -203,9 +204,11 @@ Agents create new clients through a 4-step intake form at `/agent/new-client`.
 - `src/app/agent/new-client/_components/drafts-panel.tsx` — Left panel: draft list + create/delete
 - `src/app/agent/new-client/_components/step-indicator.tsx` — 4-step progress indicator
 - `src/app/agent/new-client/_components/client-form.tsx` — Form state, auto-save, step navigation
-- `src/app/agent/new-client/_components/step1-prequal.tsx` — Step 1 fields (5 sections: ID, phone, Gmail, BetMGM, with uploads + tooltips)
-- `src/app/agent/new-client/_components/mock-extract-id.ts` — Mock OCR extraction (1.5s delay, returns fake data)
-- `src/app/agent/new-client/_components/id-detection-modal.tsx` — Extracted field confirmation dialog with checkboxes
+- `src/app/agent/new-client/_components/step1-prequal.tsx` — Step 1 fields (3 collapsible sections: ID, Gmail, BetMGM, with uploads + OCR detection)
+- `src/app/agent/new-client/_components/mock-extract-id.ts` — Mock OCR extraction for ID, Gmail, and BetMGM screenshots
+- `src/app/agent/new-client/_components/id-detection-modal.tsx` — ID field confirmation dialog with checkboxes
+- `src/app/agent/new-client/_components/gmail-detection-modal.tsx` — Gmail email detection dialog
+- `src/app/agent/new-client/_components/betmgm-detection-modal.tsx` — BetMGM detection dialog (credentials + deposit detection)
 - `src/app/agent/new-client/_components/step2-background.tsx` — Step 2 fields + risk flag toggles
 - `src/app/agent/new-client/_components/step3-platforms.tsx` — Platform grid using PLATFORM_INFO
 - `src/app/agent/new-client/_components/step3-platform-card.tsx` — Individual platform card

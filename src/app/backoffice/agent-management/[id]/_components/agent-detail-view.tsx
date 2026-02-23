@@ -89,7 +89,10 @@ export function AgentDetailView({ agent, prevAgentId, nextAgentId, viewMode = 't
               </span>
             </div>
             <div>
-              <h1 className="text-xl font-semibold" data-testid="agent-detail-name">
+              <h1
+                className="text-xl font-semibold"
+                data-testid="agent-detail-name"
+              >
                 {agent.name}
               </h1>
               <div className="mt-0.5 flex items-center gap-2">

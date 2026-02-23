@@ -32,21 +32,40 @@ export default async function AgentManagementPage({
   }
 
   // Map DB agents to the UI interface
-  const mappedAgents = agents.map((a) => ({
-    id: a.id,
-    name: a.name,
-    tier: a.tier,
-    starLevel: a.starLevel,
-    leadershipTier: a.leadershipTier,
-    phone: a.phone || '',
-    start: new Date(a.createdAt).toLocaleDateString(),
-    clients: 0,
-    working: 0,
-    successRate: 0,
-    delayRate: 0,
-    avgDaysToConvert: null as number | null,
-    supervisorId: a.supervisorId,
-  }))
+  const now = new Date()
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+
+  const mappedAgents = agents.map((a) => {
+    const totalEarned = a.allocations.reduce((s, al) => s + al.amount, 0)
+    const thisMonthEarned = a.allocations
+      .filter((al) => new Date(al.createdAt) >= startOfMonth)
+      .reduce((s, al) => s + al.amount, 0)
+    const newClientsThisMonth = a.closedClients.filter(
+      (c) => new Date(c.createdAt) >= startOfMonth,
+    ).length
+
+    return {
+      id: a.id,
+      name: a.name,
+      tier: a.tier,
+      starLevel: a.starLevel,
+      leadershipTier: a.leadershipTier,
+      phone: a.phone || '',
+      start: new Date(a.createdAt).toLocaleDateString(),
+      createdAt: a.createdAt.toISOString(),
+      clients: 0,
+      working: 0,
+      successRate: 0,
+      delayRate: 0,
+      avgDaysToConvert: null as number | null,
+      supervisorId: a.supervisorId,
+      zelle: a.zelle || '',
+      address: a.address || '',
+      totalEarned,
+      thisMonthEarned,
+      newClientsThisMonth,
+    }
+  })
 
   return (
     <AgentList

@@ -386,10 +386,10 @@ export const MOCK_AGENT_DETAIL: AgentDetailData = {
     { id: 'user-sub-2', name: 'Jamie Torres' },
   ],
   timeline: [
-    { date: '2026-02-16', event: 'Emily Davis approved', type: 'success' },
-    { date: '2026-02-15', event: 'John Smith moved to execution', type: 'info' },
-    { date: '2026-02-14', event: 'Deadline extension requested for David Lee', type: 'warning' },
-    { date: '2026-02-10', event: 'New client John Smith onboarded', type: 'info' },
+    { date: '2026-02-16', event: 'Emily Davis approved', type: 'success', actor: null },
+    { date: '2026-02-15', event: 'John Smith moved to execution', type: 'info', actor: null },
+    { date: '2026-02-14', event: 'Deadline extension requested for David Lee', type: 'warning', actor: null },
+    { date: '2026-02-10', event: 'New client John Smith onboarded', type: 'info', actor: null },
   ],
   idDocumentUrl: undefined,
 }

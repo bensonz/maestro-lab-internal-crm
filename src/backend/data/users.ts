@@ -33,8 +33,15 @@ export async function getAllAgents() {
       isActive: true,
       createdAt: true,
       supervisorId: true,
+      zelle: true,
+      address: true,
       supervisor: { select: { id: true, name: true } },
       _count: { select: { subordinates: true } },
+      allocations: { select: { amount: true, createdAt: true } },
+      closedClients: {
+        where: { status: 'APPROVED' },
+        select: { createdAt: true },
+      },
     },
   })
 }

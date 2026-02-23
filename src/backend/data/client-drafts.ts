@@ -14,7 +14,10 @@ export async function getDraftsByCloser(closerId: string) {
       // Step 1 fields (for inner-step progress)
       idDocument: true,
       assignedGmail: true,
+      gmailScreenshot: true,
       betmgmCheckPassed: true,
+      betmgmRegScreenshot: true,
+      betmgmLoginScreenshot: true,
       // Step 2 fields
       ssnDocument: true,
       secondAddress: true,

@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { ChevronRight, ChevronDown, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getAgentDisplayTier } from '@/lib/commission-constants'
+import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/ui/hover-card'
+import { Separator } from '@/components/ui/separator'
 
 interface Agent {
   id: string
@@ -15,6 +17,11 @@ interface Agent {
   phone: string
   clients: number
   supervisorId: string | null
+  zelle: string
+  address: string
+  totalEarned: number
+  thisMonthEarned: number
+  newClientsThisMonth: number
 }
 
 interface TreeNode {
@@ -75,6 +82,12 @@ function getInitials(name: string) {
     .toUpperCase()
 }
 
+/** Extract 2-letter US state abbreviation from an address string */
+function extractState(address: string): string | null {
+  const match = address.match(/\b([A-Z]{2})\b(?:\s*\d{5})?/)
+  return match?.[1] ?? null
+}
+
 function countDescendants(node: TreeNode): number {
   let count = node.children.length
   for (const child of node.children) {
@@ -87,9 +100,11 @@ interface AgentTreeViewProps {
   agents: Agent[]
   allAgents: Agent[]
   hasActiveFilter: boolean
+  onFilterTeam?: (agentId: string) => void
+  teamFilterId?: string | null
 }
 
-export function AgentTreeView({ agents, allAgents, hasActiveFilter }: AgentTreeViewProps) {
+export function AgentTreeView({ agents, allAgents, hasActiveFilter, onFilterTeam, teamFilterId }: AgentTreeViewProps) {
   // When filtering, include ancestors so the tree context is preserved
   const treeAgents = useMemo(() => {
     if (!hasActiveFilter) return agents
@@ -184,6 +199,8 @@ export function AgentTreeView({ agents, allAgents, hasActiveFilter }: AgentTreeV
           hasActiveFilter={hasActiveFilter}
           isLast={i === tree.length - 1}
           parentLines={[]}
+          onFilterTeam={onFilterTeam}
+          teamFilterId={teamFilterId}
         />
       ))}
     </div>
@@ -199,6 +216,8 @@ interface TreeNodeRowProps {
   hasActiveFilter: boolean
   isLast: boolean
   parentLines: boolean[] // true = parent at that depth still has more siblings below
+  onFilterTeam?: (agentId: string) => void
+  teamFilterId?: string | null
 }
 
 function TreeNodeRow({
@@ -210,6 +229,8 @@ function TreeNodeRow({
   hasActiveFilter,
   isLast,
   parentLines,
+  onFilterTeam,
+  teamFilterId,
 }: TreeNodeRowProps) {
   const router = useRouter()
   const { agent, children } = node
@@ -289,10 +310,51 @@ function TreeNodeRow({
             </span>
           </div>
 
-          {/* Name */}
-          <span className="truncate font-medium text-sm">
-            {agent.name}
-          </span>
+          {/* Name with hover card */}
+          <HoverCard openDelay={300}>
+            <HoverCardTrigger asChild>
+              <span
+                className="truncate font-medium text-sm cursor-default"
+                onClick={(e) => e.stopPropagation()}
+                data-testid={`agent-name-hover-trigger-${agent.id}`}
+              >
+                {agent.name}
+              </span>
+            </HoverCardTrigger>
+            <HoverCardContent align="start" className="w-56 p-3" data-testid={`agent-name-hover-${agent.id}`}>
+              <div className="space-y-2 text-xs">
+                <div>
+                  <span className="text-muted-foreground">Zelle:</span>{' '}
+                  <span className="font-mono">{agent.zelle || '\u2014'}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">State:</span>{' '}
+                  <span className="font-mono font-medium">{extractState(agent.address) || '\u2014'}</span>
+                </div>
+                <Separator />
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div>
+                    <p className="font-mono font-semibold text-success">
+                      ${(agent.totalEarned / 1000).toFixed(1)}K
+                    </p>
+                    <p className="text-[9px] text-muted-foreground">Total Earned</p>
+                  </div>
+                  <div>
+                    <p className="font-mono font-semibold">
+                      ${agent.thisMonthEarned.toLocaleString()}
+                    </p>
+                    <p className="text-[9px] text-muted-foreground">This Month</p>
+                  </div>
+                  <div>
+                    <p className="font-mono font-semibold">
+                      {agent.newClientsThisMonth}
+                    </p>
+                    <p className="text-[9px] text-muted-foreground">New Clients</p>
+                  </div>
+                </div>
+              </div>
+            </HoverCardContent>
+          </HoverCard>
 
           {/* Tier badge */}
           <span className="shrink-0 rounded bg-warning/10 px-1.5 py-0.5 text-[10px] font-semibold text-warning">
@@ -311,12 +373,25 @@ function TreeNodeRow({
             {agent.clients} clients
           </span>
 
-          {/* Subordinate count badge */}
+          {/* Subordinate count badge — clickable to filter by team */}
           {hasChildren && (
-            <span className="ml-auto shrink-0 inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onFilterTeam?.(agent.id)
+              }}
+              title={teamFilterId === agent.id ? 'Clear team filter' : `Filter ${agent.name}'s team`}
+              className={cn(
+                'ml-auto shrink-0 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors',
+                teamFilterId === agent.id
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground hover:bg-primary/20 hover:text-primary',
+              )}
+              data-testid={`agent-tree-team-filter-${agent.id}`}
+            >
               <Users className="h-3 w-3" />
               {descendantCount}
-            </span>
+            </button>
           )}
         </div>
       </div>
@@ -334,6 +409,8 @@ function TreeNodeRow({
             hasActiveFilter={hasActiveFilter}
             isLast={i === children.length - 1}
             parentLines={[...parentLines, !isLast]}
+            onFilterTeam={onFilterTeam}
+            teamFilterId={teamFilterId}
           />
         ))
       )}

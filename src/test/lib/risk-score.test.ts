@@ -6,27 +6,13 @@ describe('calculateRiskScore', () => {
     const result = calculateRiskScore({})
     expect(result.level).toBe('low')
     expect(result.score).toBe(0)
-  })
-
-  it('returns low risk with idExpiringSoon only (10 points)', () => {
-    const result = calculateRiskScore({ idExpiringSoon: true })
-    expect(result.level).toBe('low')
-    expect(result.score).toBe(10)
+    expect(result.flags.idExpiryRisk).toBe('none')
   })
 
   it('returns low risk with paypalPreviouslyUsed only (10 points)', () => {
     const result = calculateRiskScore({ paypalPreviouslyUsed: true })
     expect(result.level).toBe('low')
     expect(result.score).toBe(10)
-  })
-
-  it('returns low risk with both paypal + id expiring (20 points)', () => {
-    const result = calculateRiskScore({
-      idExpiringSoon: true,
-      paypalPreviouslyUsed: true,
-    })
-    expect(result.level).toBe('low')
-    expect(result.score).toBe(20)
   })
 
   it('does not add points for addressMismatch (informational only)', () => {
@@ -48,15 +34,6 @@ describe('calculateRiskScore', () => {
     expect(result.score).toBe(30)
   })
 
-  it('returns medium risk with undisclosedInfo + idExpiring (30 points)', () => {
-    const result = calculateRiskScore({
-      undisclosedInfo: true,
-      idExpiringSoon: true,
-    })
-    expect(result.score).toBe(30)
-    expect(result.level).toBe('medium')
-  })
-
   it('returns high risk with criminalRecord + undisclosedInfo (50 points)', () => {
     const result = calculateRiskScore({
       criminalRecord: true,
@@ -75,27 +52,96 @@ describe('calculateRiskScore', () => {
     expect(result.level).toBe('high')
   })
 
-  it('returns high risk with all flags active', () => {
+  // ── 2-tier ID expiry tests ───────────────────────────────
+
+  it('idExpiryRisk is none when null', () => {
+    const result = calculateRiskScore({ idExpiryDaysRemaining: null })
+    expect(result.flags.idExpiryRisk).toBe('none')
+    expect(result.score).toBe(0)
+  })
+
+  it('idExpiryRisk is none when >= 100 days', () => {
+    const result = calculateRiskScore({ idExpiryDaysRemaining: 100 })
+    expect(result.flags.idExpiryRisk).toBe('none')
+    expect(result.score).toBe(0)
+  })
+
+  it('idExpiryRisk is none when 200 days', () => {
+    const result = calculateRiskScore({ idExpiryDaysRemaining: 200 })
+    expect(result.flags.idExpiryRisk).toBe('none')
+    expect(result.score).toBe(0)
+  })
+
+  it('idExpiryRisk is moderate at 99 days (10 points)', () => {
+    const result = calculateRiskScore({ idExpiryDaysRemaining: 99 })
+    expect(result.flags.idExpiryRisk).toBe('moderate')
+    expect(result.score).toBe(10)
+  })
+
+  it('idExpiryRisk is moderate at 75 days (10 points)', () => {
+    const result = calculateRiskScore({ idExpiryDaysRemaining: 75 })
+    expect(result.flags.idExpiryRisk).toBe('moderate')
+    expect(result.score).toBe(10)
+  })
+
+  it('idExpiryRisk is high at 74 days (20 points)', () => {
+    const result = calculateRiskScore({ idExpiryDaysRemaining: 74 })
+    expect(result.flags.idExpiryRisk).toBe('high')
+    expect(result.score).toBe(20)
+  })
+
+  it('idExpiryRisk is high at 0 days (20 points)', () => {
+    const result = calculateRiskScore({ idExpiryDaysRemaining: 0 })
+    expect(result.flags.idExpiryRisk).toBe('high')
+    expect(result.score).toBe(20)
+  })
+
+  it('idExpiryRisk is high with negative days (20 points)', () => {
+    const result = calculateRiskScore({ idExpiryDaysRemaining: -10 })
+    expect(result.flags.idExpiryRisk).toBe('high')
+    expect(result.score).toBe(20)
+  })
+
+  it('moderate idExpiry + paypal stays low (20 points)', () => {
     const result = calculateRiskScore({
-      idExpiringSoon: true,
+      idExpiryDaysRemaining: 80,
+      paypalPreviouslyUsed: true,
+    })
+    expect(result.score).toBe(20)
+    expect(result.level).toBe('low')
+    expect(result.flags.idExpiryRisk).toBe('moderate')
+  })
+
+  it('high idExpiry + paypal stays low (30 points → medium)', () => {
+    const result = calculateRiskScore({
+      idExpiryDaysRemaining: 50,
+      paypalPreviouslyUsed: true,
+    })
+    expect(result.score).toBe(30)
+    expect(result.level).toBe('medium')
+  })
+
+  it('returns high risk with all flags active (110 points max)', () => {
+    const result = calculateRiskScore({
+      idExpiryDaysRemaining: 10,
       paypalPreviouslyUsed: true,
       addressMismatch: true,
       debankedHistory: true,
       criminalRecord: true,
       undisclosedInfo: true,
     })
-    // 10 + 10 + 0 + 30 + 30 + 20 = 100
-    expect(result.score).toBe(100)
+    // 20 + 10 + 0 + 30 + 30 + 20 = 110
+    expect(result.score).toBe(110)
     expect(result.level).toBe('high')
+    expect(result.flags.idExpiryRisk).toBe('high')
   })
 
+  // ── Boundary tests ───────────────────────────────────────
+
   it('boundary: 29 points is still low', () => {
-    // idExpiringSoon(10) + paypalPreviouslyUsed(10) = 20, not 29
-    // We can't hit exactly 29 with current weights, test at 20
-    const result = calculateRiskScore({
-      idExpiringSoon: true,
-      paypalPreviouslyUsed: true,
-    })
+    // high idExpiry(20) + no other scored flags that sum to 9
+    // idExpiry 74 days (20) is the closest we can get
+    const result = calculateRiskScore({ idExpiryDaysRemaining: 74 })
     expect(result.score).toBe(20)
     expect(result.level).toBe('low')
   })
@@ -128,11 +174,11 @@ describe('calculateRiskScore', () => {
 
   it('flags object reflects exact input state', () => {
     const result = calculateRiskScore({
-      idExpiringSoon: true,
+      idExpiryDaysRemaining: 50,
       criminalRecord: false,
       addressMismatch: true,
     })
-    expect(result.flags.idExpiringSoon).toBe(true)
+    expect(result.flags.idExpiryRisk).toBe('high')
     expect(result.flags.criminalRecord).toBe(false)
     expect(result.flags.addressMismatch).toBe(true)
     expect(result.flags.paypalPreviouslyUsed).toBe(false)

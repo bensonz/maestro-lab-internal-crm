@@ -1,7 +1,7 @@
 import type { RiskAssessment, RiskLevel } from '@/types/backend-types'
 
 interface RiskFlags {
-  idExpiringSoon?: boolean
+  idExpiryDaysRemaining?: number | null
   paypalPreviouslyUsed?: boolean
   addressMismatch?: boolean
   debankedHistory?: boolean
@@ -12,14 +12,25 @@ interface RiskFlags {
 export function calculateRiskScore(flags: RiskFlags): RiskAssessment {
   let score = 0
 
-  const idExpiringSoon = flags.idExpiringSoon ?? false
+  const days = flags.idExpiryDaysRemaining ?? null
   const paypalPreviouslyUsed = flags.paypalPreviouslyUsed ?? false
   const addressMismatch = flags.addressMismatch ?? false
   const debankedHistory = flags.debankedHistory ?? false
   const criminalRecord = flags.criminalRecord ?? false
   const undisclosedInfo = flags.undisclosedInfo ?? false
 
-  if (idExpiringSoon) score += 10
+  // 2-tier ID expiry: <75 = high (20pts), 75-99 = moderate (10pts), >=100 or null = none
+  let idExpiryRisk: 'high' | 'moderate' | 'none' = 'none'
+  if (days !== null) {
+    if (days < 75) {
+      idExpiryRisk = 'high'
+      score += 20
+    } else if (days < 100) {
+      idExpiryRisk = 'moderate'
+      score += 10
+    }
+  }
+
   if (paypalPreviouslyUsed) score += 10
   // addressMismatch is informational only — no score impact
   if (debankedHistory) score += 30
@@ -39,7 +50,7 @@ export function calculateRiskScore(flags: RiskFlags): RiskAssessment {
     level,
     score,
     flags: {
-      idExpiringSoon,
+      idExpiryRisk,
       paypalPreviouslyUsed,
       addressMismatch,
       debankedHistory,

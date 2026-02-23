@@ -16,7 +16,7 @@ interface ClientFormProps {
   draft: SerializedDraft
   currentStep: number
   onStepChange: (step: number) => void
-  onRiskFlagsChange: (flags: Record<string, boolean>) => void
+  onRiskFlagsChange: (flags: Record<string, unknown>) => void
   onRegisterStepHandler?: (handler: (step: number) => void) => void
 }
 
@@ -222,8 +222,16 @@ function buildFormDataFromDraft(draft: SerializedDraft): Record<string, unknown>
     idDocument: draft.idDocument ?? '',
     idNumber: draft.idNumber ?? '',
     idExpiry: draft.idExpiry ?? '',
+    dateOfBirth: draft.dateOfBirth ?? '',
+    address: draft.address ?? '',
     assignedGmail: draft.assignedGmail ?? '',
+    gmailPassword: draft.gmailPassword ?? '',
+    gmailScreenshot: draft.gmailScreenshot ?? '',
     betmgmCheckPassed: draft.betmgmCheckPassed ?? false,
+    betmgmLogin: draft.betmgmLogin ?? '',
+    betmgmPassword: draft.betmgmPassword ?? '',
+    betmgmRegScreenshot: draft.betmgmRegScreenshot ?? '',
+    betmgmLoginScreenshot: draft.betmgmLoginScreenshot ?? '',
     ssnDocument: draft.ssnDocument ?? '',
     secondAddress: draft.secondAddress ?? '',
     hasCriminalRecord: draft.hasCriminalRecord ?? false,

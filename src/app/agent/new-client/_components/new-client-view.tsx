@@ -29,8 +29,16 @@ export interface SerializedDraft {
   idDocument: string | null
   idNumber: string | null
   idExpiry: string | null
+  dateOfBirth: string | null
+  address: string | null
   assignedGmail: string | null
+  gmailPassword: string | null
+  gmailScreenshot: string | null
   betmgmCheckPassed: boolean | null
+  betmgmLogin: string | null
+  betmgmPassword: string | null
+  betmgmRegScreenshot: string | null
+  betmgmLoginScreenshot: string | null
   ssnDocument: string | null
   secondAddress: string | null
   hasCriminalRecord: boolean | null
@@ -62,7 +70,7 @@ export function NewClientView({ drafts, selectedDraft }: NewClientViewProps) {
 
   // Risk flags state — derived from draft + form data
   const [riskFlags, setRiskFlags] = useState({
-    idExpiringSoon: false,
+    idExpiryDaysRemaining: null as number | null,
     paypalPreviouslyUsed: selectedDraft?.paypalPreviouslyUsed ?? false,
     addressMismatch: selectedDraft?.addressMismatch ?? false,
     debankedHistory: selectedDraft?.debankedHistory ?? false,
@@ -76,7 +84,7 @@ export function NewClientView({ drafts, selectedDraft }: NewClientViewProps) {
   )
 
   const handleRiskFlagsChange = useCallback(
-    (flags: Partial<typeof riskFlags>) => {
+    (flags: Record<string, unknown>) => {
       setRiskFlags((prev) => ({ ...prev, ...flags }))
     },
     [],

@@ -39,6 +39,7 @@ export default async function NewClientPage({
             ? {
                 ...selectedDraft,
                 idExpiry: selectedDraft.idExpiry?.toISOString() ?? null,
+                dateOfBirth: selectedDraft.dateOfBirth?.toISOString() ?? null,
                 createdAt: selectedDraft.createdAt.toISOString(),
                 updatedAt: selectedDraft.updatedAt.toISOString(),
               }

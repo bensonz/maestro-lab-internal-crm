@@ -9,8 +9,16 @@ export const clientStep1Schema = z.object({
   idDocument: z.string().optional().or(z.literal('')),
   idNumber: z.string().max(50).optional().or(z.literal('')),
   idExpiry: z.string().optional().or(z.literal('')),
+  dateOfBirth: z.string().optional().or(z.literal('')),
+  address: z.string().max(500).optional().or(z.literal('')),
   assignedGmail: z.string().email('Invalid Gmail').optional().or(z.literal('')),
+  gmailPassword: z.string().max(200).optional().or(z.literal('')),
+  gmailScreenshot: z.string().optional().or(z.literal('')),
   betmgmCheckPassed: z.boolean().optional(),
+  betmgmLogin: z.string().max(200).optional().or(z.literal('')),
+  betmgmPassword: z.string().max(200).optional().or(z.literal('')),
+  betmgmRegScreenshot: z.string().optional().or(z.literal('')),
+  betmgmLoginScreenshot: z.string().optional().or(z.literal('')),
 })
 
 // Step 2: Background — all optional except hasCriminalRecord

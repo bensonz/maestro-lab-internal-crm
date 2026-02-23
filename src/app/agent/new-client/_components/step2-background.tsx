@@ -15,7 +15,7 @@ import {
 interface Step2Props {
   formData: Record<string, unknown>
   onChange: (field: string, value: unknown) => void
-  onRiskFlagsChange: (flags: Record<string, boolean>) => void
+  onRiskFlagsChange: (flags: Record<string, unknown>) => void
 }
 
 export function Step2Background({ formData, onChange, onRiskFlagsChange }: Step2Props) {
