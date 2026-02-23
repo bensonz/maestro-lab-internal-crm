@@ -434,8 +434,8 @@ export const MOCK_SERVER_CLIENTS = [
 export const MOCK_CLIENT_MANAGEMENT_STATS = {
   total: 47,
   active: 38,
-  closed: 6,
-  furtherVerification: 3,
+  ended: 6,
+  verificationNeeded: 3,
 }
 
 // ─── Backoffice Sales Interaction ─────────────────────────

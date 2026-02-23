@@ -7,6 +7,7 @@ import { ClientList } from './client-list'
 import { ClientDetail } from './client-detail'
 import type {
   Client,
+  ClientStatus,
   ServerClientData,
   ServerClientStats,
   ViewPlatformStatus,
@@ -56,6 +57,9 @@ export function ClientManagementPage({
   }, [clients, selectedClient])
 
   const [searchQuery, setSearchQuery] = useState('')
+  const [clientStatusFilter, setClientStatusFilter] = useState<
+    ClientStatus | 'all'
+  >('all')
   const [platformFilter, setPlatformFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState<
     ViewPlatformStatus | 'all'
@@ -76,6 +80,13 @@ export function ClientManagementPage({
             .includes(searchQuery.toLowerCase())
 
         if (!matchesSearch) return false
+
+        // Client-level status filter (from summary cards)
+        if (
+          clientStatusFilter !== 'all' &&
+          client.status !== clientStatusFilter
+        )
+          return false
 
         // Platform and status filter
         if (platformFilter !== 'all' && statusFilter !== 'all') {
@@ -102,7 +113,7 @@ export function ClientManagementPage({
         if (sortByFunds === 'asc') return a.totalFunds - b.totalFunds
         return 0
       })
-  }, [clients, searchQuery, platformFilter, statusFilter, sortByFunds])
+  }, [clients, searchQuery, clientStatusFilter, platformFilter, statusFilter, sortByFunds])
 
   // Navigate to another client from relationships
   const handleNavigateToClient = useCallback(
@@ -132,6 +143,8 @@ export function ClientManagementPage({
     <div className="flex h-full animate-fade-in">
       <ClientSidebar
         stats={stats}
+        clientStatusFilter={clientStatusFilter}
+        onClientStatusFilterChange={setClientStatusFilter}
         platformFilter={platformFilter}
         onPlatformFilterChange={setPlatformFilter}
         statusFilter={statusFilter}

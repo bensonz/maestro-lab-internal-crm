@@ -129,8 +129,8 @@ export function ClientList({
                                   </span>{' '}
                                   <span className={cn(
                                     client.status === 'active' && 'text-success',
-                                    client.status === 'closed' && 'text-destructive',
-                                    client.status === 'further_verification' && 'text-warning',
+                                    client.status === 'ended' && 'text-destructive',
+                                    client.status === 'verification_needed' && 'text-warning',
                                   )}>
                                     {client.intakeStatus ? formatIntakeStatus(client.intakeStatus) : client.status}
                                   </span>

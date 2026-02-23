@@ -39,9 +39,9 @@ function getStatusColor(status: ClientStatus): string {
   switch (status) {
     case 'active':
       return 'bg-success/20 text-success'
-    case 'closed':
+    case 'ended':
       return 'bg-muted text-muted-foreground'
-    case 'further_verification':
+    case 'verification_needed':
       return 'bg-warning/20 text-warning'
   }
 }
