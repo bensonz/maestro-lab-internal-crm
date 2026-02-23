@@ -7,9 +7,7 @@ import {
   ChevronUp,
   ChevronDown,
   Star,
-  Phone,
   MapPin,
-  User,
   TrendingUp,
   Users,
   Clock,
@@ -27,7 +25,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
-import { EditableField } from './editable-field'
 import type { AgentDetailData } from '@/types/backend-types'
 
 interface AgentDetailViewProps {
@@ -40,11 +37,6 @@ interface AgentDetailViewProps {
 export function AgentDetailView({ agent, prevAgentId, nextAgentId, viewMode = 'table' }: AgentDetailViewProps) {
   const router = useRouter()
   const [showIdModal, setShowIdModal] = useState(false)
-  const [agentData, setAgentData] = useState(agent)
-
-  const updateField = (field: keyof typeof agentData, value: string) => {
-    setAgentData((prev) => ({ ...prev, [field]: value }))
-  }
 
   const renderStars = (count: number) => {
     return Array(count)
@@ -77,7 +69,7 @@ export function AgentDetailView({ agent, prevAgentId, nextAgentId, viewMode = 't
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/20">
               <span className="text-sm font-medium text-primary">
-                {agentData.name
+                {agent.name
                   .split(' ')
                   .map((n) => n[0])
                   .join('')}
@@ -85,16 +77,16 @@ export function AgentDetailView({ agent, prevAgentId, nextAgentId, viewMode = 't
             </div>
             <div>
               <h1 className="text-xl font-semibold" data-testid="agent-detail-name">
-                {agentData.name}
+                {agent.name}
               </h1>
               <div className="mt-0.5 flex items-center gap-2">
-                {agentData.stars ? (
+                {agent.stars ? (
                   <div className="flex items-center">
-                    {renderStars(agentData.stars)}
+                    {renderStars(agent.stars)}
                   </div>
                 ) : (
                   <Badge className="bg-warning/20 text-[10px] text-warning">
-                    {agentData.tier}
+                    {agent.tier}
                   </Badge>
                 )}
               </div>
@@ -128,161 +120,116 @@ export function AgentDetailView({ agent, prevAgentId, nextAgentId, viewMode = 't
 
       <ScrollArea className="h-[calc(100vh-140px)]">
         <div className="space-y-4 pr-4">
-          {/* Top Section: Identity, Contact, Address */}
-          <div className="grid grid-cols-3 gap-4">
-            {/* Identity */}
-            <Card className="card-terminal" data-testid="agent-identity-card">
-              <CardHeader className="px-3 py-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-1 text-xs uppercase tracking-wider text-muted-foreground">
-                    <User className="h-3 w-3" /> Identity
-                  </CardTitle>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-6 gap-1 text-xs"
-                    onClick={() => setShowIdModal(true)}
-                    data-testid="view-id-btn"
-                  >
-                    <Eye className="h-3 w-3" />
-                    View ID
-                  </Button>
+          {/* Profile Section — single card, 3-column grid (matches Client Lifecycle Panel) */}
+          <Card className="card-terminal" data-testid="agent-profile-card">
+            <CardContent className="p-3">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                {/* Identity */}
+                <div className="space-y-1">
+                  <h4 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Identity
+                  </h4>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">{agent.name}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-5 px-1.5 text-[10px]"
+                      onClick={() => setShowIdModal(true)}
+                      data-testid="view-id-btn"
+                    >
+                      <Eye className="mr-0.5 h-3 w-3" />
+                      View ID
+                    </Button>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {agent.gender} &middot; {agent.age} yrs
+                  </div>
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">ID:</span>{' '}
+                    <span className="font-mono">{agent.idNumber || '\u2014'}</span>
+                  </div>
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">ID Exp:</span>{' '}
+                    <span className="font-mono">{agent.idExpiry || '\u2014'}</span>
+                  </div>
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">SSN:</span>{' '}
+                    <span className="font-mono">{agent.ssn || '\u2014'}</span>
+                  </div>
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Citizenship:</span>{' '}
+                    {agent.citizenship || '\u2014'}
+                  </div>
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Start Date:</span>{' '}
+                    <span className="font-mono">{agent.startDate}</span>
+                  </div>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-1.5 p-3 pt-0 text-sm">
-                <EditableField
-                  label="Name"
-                  value={agentData.name}
-                  onSave={(v) => updateField('name', v)}
-                />
-                <EditableField
-                  label="Gender"
-                  value={agentData.gender}
-                  onSave={(v) => updateField('gender', v)}
-                />
-                <EditableField
-                  label="Age"
-                  value={String(agentData.age)}
-                  onSave={(v) => updateField('age', v)}
-                />
-                <EditableField
-                  label="ID"
-                  value={agentData.idNumber}
-                  onSave={(v) => updateField('idNumber', v)}
-                  className="font-mono text-xs"
-                />
-                <EditableField
-                  label="ID Expiry"
-                  value={agentData.idExpiry}
-                  onSave={(v) => updateField('idExpiry', v)}
-                />
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">SSN:</span>
-                  <span className="font-mono text-xs">{agentData.ssn}</span>
-                </div>
-                <EditableField
-                  label="Citizenship"
-                  value={agentData.citizenship}
-                  onSave={(v) => updateField('citizenship', v)}
-                />
-                <EditableField
-                  label="Start Date"
-                  value={agentData.startDate}
-                  onSave={(v) => updateField('startDate', v)}
-                />
-              </CardContent>
-            </Card>
 
-            {/* Contact Info */}
-            <Card className="card-terminal" data-testid="agent-contact-card">
-              <CardHeader className="px-3 py-2">
-                <CardTitle className="flex items-center gap-1 text-xs uppercase tracking-wider text-muted-foreground">
-                  <Phone className="h-3 w-3" /> Contact Info
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-1.5 p-3 pt-0 text-sm">
-                <EditableField
-                  label="Company Phone"
-                  value={agentData.companyPhone}
-                  onSave={(v) => updateField('companyPhone', v)}
-                  className="font-mono text-xs"
-                />
-                <EditableField
-                  label="Carrier"
-                  value={agentData.carrier}
-                  onSave={(v) => updateField('carrier', v)}
-                />
-                <EditableField
-                  label="Company Email"
-                  value={agentData.companyEmail}
-                  onSave={(v) => updateField('companyEmail', v)}
-                  className="max-w-full truncate text-xs"
-                />
-                <EditableField
-                  label="Personal Email"
-                  value={agentData.personalEmail}
-                  onSave={(v) => updateField('personalEmail', v)}
-                  className="max-w-full truncate text-xs"
-                />
-                <EditableField
-                  label="Personal Phone"
-                  value={agentData.personalPhone}
-                  onSave={(v) => updateField('personalPhone', v)}
-                  className="font-mono text-xs"
-                />
-                <EditableField
-                  label="Zelle"
-                  value={agentData.zelle}
-                  onSave={(v) => updateField('zelle', v)}
-                  className="font-mono text-xs"
-                />
-              </CardContent>
-            </Card>
+                {/* Contact Information */}
+                <div className="space-y-1">
+                  <h4 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Contact Information
+                  </h4>
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Company Phone:</span>{' '}
+                    <span className="font-mono">{agent.companyPhone || '\u2014'}</span>
+                  </div>
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Carrier:</span>{' '}
+                    {agent.carrier || '\u2014'}
+                  </div>
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Company Email:</span>{' '}
+                    <span className="font-mono">{agent.companyEmail || '\u2014'}</span>
+                  </div>
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Personal Email:</span>{' '}
+                    <span className="font-mono">{agent.personalEmail || '\u2014'}</span>
+                  </div>
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Personal Phone:</span>{' '}
+                    <span className="font-mono">{agent.personalPhone || '\u2014'}</span>
+                  </div>
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Zelle:</span>{' '}
+                    <span className="font-mono">{agent.zelle || '\u2014'}</span>
+                  </div>
+                </div>
 
-            {/* Address & Login */}
-            <Card className="card-terminal" data-testid="agent-address-card">
-              <CardHeader className="px-3 py-2">
-                <CardTitle className="flex items-center gap-1 text-xs uppercase tracking-wider text-muted-foreground">
-                  <MapPin className="h-3 w-3" /> Address & Login
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-1.5 p-3 pt-0 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Address:</span>
+                {/* Address & Login */}
+                <div className="space-y-1">
+                  <h4 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Address & Login
+                  </h4>
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">
+                      <MapPin className="inline h-3 w-3" /> Address:
+                    </span>{' '}
+                    {agent.address || '\u2014'}
+                  </div>
+                  <div className="mt-1.5 space-y-1 border-t border-border/50 pt-1">
+                    <div className="text-sm">
+                      <span className="text-muted-foreground">Account:</span>{' '}
+                      <span className="font-mono">{agent.loginAccount || '\u2014'}</span>
+                    </div>
+                    <div className="text-sm">
+                      <span className="text-muted-foreground">Login Email:</span>{' '}
+                      <span className="font-mono">{agent.loginEmail || '\u2014'}</span>
+                    </div>
+                  </div>
                 </div>
-                <div
-                  className="-mx-1 cursor-pointer rounded px-1 transition-colors hover:bg-muted/30"
-                  onDoubleClick={() => {
-                    const newAddr = prompt('Edit Address:', agentData.address)
-                    if (newAddr !== null) updateField('address', newAddr)
-                  }}
-                  title="Double-click to edit"
-                >
-                  <p className="text-xs">{agentData.address}</p>
-                </div>
-                <Separator className="my-2" />
-                <EditableField
-                  label="Account"
-                  value={agentData.loginAccount}
-                  onSave={(v) => updateField('loginAccount', v)}
-                  className="font-mono text-xs"
-                />
-                <EditableField
-                  label="Login Email"
-                  value={agentData.loginEmail}
-                  onSave={(v) => updateField('loginEmail', v)}
-                  className="max-w-full truncate text-xs"
-                />
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Performance Summary: 4-card grid */}
           <div className="grid grid-cols-4 gap-3">
             <Card className="card-terminal" data-testid="stat-total-clients">
               <CardContent className="p-3 text-center">
                 <p className="text-2xl font-mono font-semibold">
-                  {agentData.totalClients}
+                  {agent.totalClients}
                 </p>
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                   Total Clients
@@ -292,7 +239,7 @@ export function AgentDetailView({ agent, prevAgentId, nextAgentId, viewMode = 't
             <Card className="card-terminal" data-testid="stat-total-earned">
               <CardContent className="p-3 text-center">
                 <p className="text-2xl font-mono font-semibold text-success">
-                  ${(agentData.totalEarned / 1000).toFixed(1)}K
+                  ${(agent.totalEarned / 1000).toFixed(1)}K
                 </p>
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                   Total Earned
@@ -302,7 +249,7 @@ export function AgentDetailView({ agent, prevAgentId, nextAgentId, viewMode = 't
             <Card className="card-terminal" data-testid="stat-this-month">
               <CardContent className="p-3 text-center">
                 <p className="text-2xl font-mono font-semibold">
-                  ${agentData.thisMonthEarned.toLocaleString()}
+                  ${agent.thisMonthEarned.toLocaleString()}
                 </p>
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                   This Month
@@ -312,10 +259,10 @@ export function AgentDetailView({ agent, prevAgentId, nextAgentId, viewMode = 't
             <Card className="card-terminal" data-testid="stat-new-clients">
               <CardContent className="p-3 text-center">
                 <p className="text-2xl font-mono font-semibold">
-                  {agentData.newClientsThisMonth}
+                  {agent.newClientsThisMonth}
                 </p>
                 <p className="text-[10px] uppercase tracking-wider text-success">
-                  +{agentData.newClientsGrowth}%
+                  +{agent.newClientsGrowth}%
                 </p>
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                   New Clients
@@ -341,8 +288,8 @@ export function AgentDetailView({ agent, prevAgentId, nextAgentId, viewMode = 't
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Title Level:</span>
                     <span>
-                      {agentData.tier}{' '}
-                      {agentData.stars && `(${agentData.stars}★)`}
+                      {agent.tier}{' '}
+                      {agent.stars && `(${agent.stars}★)`}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -350,7 +297,7 @@ export function AgentDetailView({ agent, prevAgentId, nextAgentId, viewMode = 't
                       Avg Days to Initiate:
                     </span>
                     <span className="font-mono">
-                      {agentData.avgDaysToInitiate}
+                      {agent.avgDaysToInitiate}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -358,7 +305,7 @@ export function AgentDetailView({ agent, prevAgentId, nextAgentId, viewMode = 't
                       Avg Days to Convert:
                     </span>
                     <span className="font-mono">
-                      {agentData.avgDaysToConvert}
+                      {agent.avgDaysToConvert}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -366,12 +313,12 @@ export function AgentDetailView({ agent, prevAgentId, nextAgentId, viewMode = 't
                     <span
                       className={cn(
                         'font-mono',
-                        agentData.successRate >= 80
+                        agent.successRate >= 80
                           ? 'text-success'
                           : 'text-warning',
                       )}
                     >
-                      {agentData.successRate}%
+                      {agent.successRate}%
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -379,7 +326,7 @@ export function AgentDetailView({ agent, prevAgentId, nextAgentId, viewMode = 't
                       Referral Rate:
                     </span>
                     <span className="font-mono">
-                      {agentData.referralRate}%
+                      {agent.referralRate}%
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -387,7 +334,7 @@ export function AgentDetailView({ agent, prevAgentId, nextAgentId, viewMode = 't
                       Extension Rate:
                     </span>
                     <span className="font-mono">
-                      {agentData.extensionRate}%
+                      {agent.extensionRate}%
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -395,7 +342,7 @@ export function AgentDetailView({ agent, prevAgentId, nextAgentId, viewMode = 't
                       Resubmission Rate:
                     </span>
                     <span className="font-mono">
-                      {agentData.resubmissionRate}%
+                      {agent.resubmissionRate}%
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -403,13 +350,13 @@ export function AgentDetailView({ agent, prevAgentId, nextAgentId, viewMode = 't
                       Avg Accounts/Client:
                     </span>
                     <span className="font-mono">
-                      {agentData.avgAccountsPerClient}
+                      {agent.avgAccountsPerClient}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">In Progress:</span>
                     <span className="font-mono">
-                      {agentData.clientsInProgress}
+                      {agent.clientsInProgress}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -417,7 +364,7 @@ export function AgentDetailView({ agent, prevAgentId, nextAgentId, viewMode = 't
                       Avg Daily Todos:
                     </span>
                     <span className="font-mono">
-                      {agentData.avgDailyTodos}
+                      {agent.avgDailyTodos}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -425,12 +372,12 @@ export function AgentDetailView({ agent, prevAgentId, nextAgentId, viewMode = 't
                     <span
                       className={cn(
                         'font-mono',
-                        agentData.delayRate > 15
+                        agent.delayRate > 15
                           ? 'text-destructive'
                           : 'text-foreground',
                       )}
                     >
-                      {agentData.delayRate}%
+                      {agent.delayRate}%
                     </span>
                   </div>
                 </div>
@@ -442,7 +389,7 @@ export function AgentDetailView({ agent, prevAgentId, nextAgentId, viewMode = 't
                     Monthly Client Breakdown
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {agentData.monthlyClients.map((m) => (
+                    {agent.monthlyClients.map((m) => (
                       <div
                         key={m.month}
                         className="rounded bg-muted/30 px-2 py-1 text-xs"
@@ -466,26 +413,26 @@ export function AgentDetailView({ agent, prevAgentId, nextAgentId, viewMode = 't
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 p-3 pt-0">
-                {agentData.supervisor ? (
+                {agent.supervisor ? (
                   <div>
                     <p className="mb-1 text-[10px] uppercase tracking-wider text-muted-foreground">
                       Supervisor
                     </p>
                     <button
                       onClick={() =>
-                        handleNavigateToAgent(agentData.supervisor!.id)
+                        handleNavigateToAgent(agent.supervisor!.id)
                       }
                       className="flex items-center gap-2 text-sm text-primary hover:underline"
                     >
                       <div className="flex h-6 w-6 items-center justify-center rounded-full bg-warning/20">
                         <span className="text-[10px] font-medium text-warning">
-                          {agentData.supervisor.name
+                          {agent.supervisor.name
                             .split(' ')
                             .map((n) => n[0])
                             .join('')}
                         </span>
                       </div>
-                      {agentData.supervisor.name}
+                      {agent.supervisor.name}
                     </button>
                   </div>
                 ) : (
@@ -494,14 +441,14 @@ export function AgentDetailView({ agent, prevAgentId, nextAgentId, viewMode = 't
                   </p>
                 )}
 
-                {agentData.directReports &&
-                  agentData.directReports.length > 0 && (
+                {agent.directReports &&
+                  agent.directReports.length > 0 && (
                     <div>
                       <p className="mb-1 text-[10px] uppercase tracking-wider text-muted-foreground">
-                        Direct Reports ({agentData.directReports.length})
+                        Direct Reports ({agent.directReports.length})
                       </p>
                       <div className="space-y-1">
-                        {agentData.directReports.slice(0, 5).map((report) => (
+                        {agent.directReports.slice(0, 5).map((report) => (
                           <button
                             key={report.id}
                             onClick={() => handleNavigateToAgent(report.id)}
@@ -518,9 +465,9 @@ export function AgentDetailView({ agent, prevAgentId, nextAgentId, viewMode = 't
                             {report.name}
                           </button>
                         ))}
-                        {agentData.directReports.length > 5 && (
+                        {agent.directReports.length > 5 && (
                           <p className="text-xs text-muted-foreground">
-                            +{agentData.directReports.length - 5} more
+                            +{agent.directReports.length - 5} more
                           </p>
                         )}
                       </div>
@@ -538,13 +485,13 @@ export function AgentDetailView({ agent, prevAgentId, nextAgentId, viewMode = 't
               </CardTitle>
             </CardHeader>
             <CardContent className="p-3 pt-0">
-              {agentData.timeline.length === 0 ? (
+              {agent.timeline.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   No activity recorded yet
                 </p>
               ) : (
                 <div className="space-y-2">
-                  {agentData.timeline.map((event, idx) => (
+                  {agent.timeline.map((event, idx) => (
                     <div key={idx} className="flex items-start gap-3 text-sm">
                       <div
                         className={cn(
@@ -573,12 +520,12 @@ export function AgentDetailView({ agent, prevAgentId, nextAgentId, viewMode = 't
       <Dialog open={showIdModal} onOpenChange={setShowIdModal}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>ID Document - {agentData.name}</DialogTitle>
+            <DialogTitle>ID Document - {agent.name}</DialogTitle>
           </DialogHeader>
           <div className="flex min-h-[300px] items-center justify-center rounded-lg bg-muted/30 p-4">
-            {agentData.idDocumentUrl ? (
+            {agent.idDocumentUrl ? (
               <img
-                src={agentData.idDocumentUrl}
+                src={agent.idDocumentUrl}
                 alt="ID Document"
                 className="max-h-[400px] max-w-full object-contain"
               />
