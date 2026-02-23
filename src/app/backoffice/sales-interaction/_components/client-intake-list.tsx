@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Check, Clock, Phone } from 'lucide-react'
+import { Check, Clock, Eye, Phone } from 'lucide-react'
 import { approveClientIntake } from '@/lib/mock-actions'
 import { toast } from 'sonner'
 import type { IntakeClient } from '@/types/backend-types'
@@ -18,12 +18,14 @@ interface ClientIntakeListProps {
   clients: IntakeClient[]
   selectedAgentId: string | null
   onSelectClient?: (clientId: string) => void
+  onReviewDraft?: (draftId: string, name: string, resultClientId?: string | null) => void
 }
 
 export function ClientIntakeList({
   clients,
   selectedAgentId,
   onSelectClient,
+  onReviewDraft,
 }: ClientIntakeListProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -134,7 +136,19 @@ export function ClientIntakeList({
               </div>
 
               {/* Action */}
-              <div className="w-28 text-right">
+              <div className="flex items-center justify-end gap-1.5">
+                {onReviewDraft && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 gap-1 px-2 text-xs"
+                    onClick={() => onReviewDraft(client.id, client.name, client.resultClientId)}
+                    data-testid={`review-draft-${client.id}`}
+                  >
+                    <Eye className="h-3 w-3" />
+                    Review
+                  </Button>
+                )}
                 {client.canApprove ? (
                   <Button
                     size="sm"

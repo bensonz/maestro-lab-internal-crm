@@ -34,6 +34,7 @@ import {
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { ClientIntakeList } from './client-intake-list'
+import { DraftReviewDialog } from './draft-review-dialog'
 import { VerificationTasksTable } from './verification-tasks-table'
 import { PostApprovalList } from './post-approval-list'
 import { ClientDetail } from '../../client-management/_components/client-detail'
@@ -167,6 +168,15 @@ export function SalesInteractionView({
   const [sortOption, setSortOption] = useState<SortOption>('priority')
   const [inProgressOpen, setInProgressOpen] = useState(false)
   const [verificationOpen, setVerificationOpen] = useState(false)
+  const [reviewingDraftId, setReviewingDraftId] = useState<string | null>(null)
+  const [reviewingDraftName, setReviewingDraftName] = useState('')
+  const [reviewingResultClientId, setReviewingResultClientId] = useState<string | null>(null)
+
+  const handleReviewDraft = useCallback((id: string, name: string, resultClientId?: string | null) => {
+    setReviewingDraftId(id)
+    setReviewingDraftName(name)
+    setReviewingResultClientId(resultClientId ?? null)
+  }, [])
 
   // Client detail panel state (lifecycle clients mapped to view model)
   const mappedClients = useMemo(
@@ -595,31 +605,9 @@ export function SalesInteractionView({
                       ) : (
                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
                       )}
-                      <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10">
-                        <Clock className="h-4 w-4 text-primary" />
-                      </div>
-                      <div className="text-left">
-                        <span className="text-sm font-semibold text-foreground">
-                          In Progress
-                        </span>
-                        {!inProgressOpen && (
-                          <div className="mt-0.5 flex items-center gap-1.5">
-                            {inProgressSubStages.map((stage) => {
-                              const count = subStageCounts[stage.key] || 0
-                              if (count === 0) return null
-                              return (
-                                <span
-                                  key={stage.key}
-                                  className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
-                                  title={stage.label}
-                                >
-                                  {stage.label.split(' ').map(w => w[0]).join('')} {count}
-                                </span>
-                              )
-                            })}
-                          </div>
-                        )}
-                      </div>
+                      <span className="text-sm font-semibold text-foreground">
+                        In Progress
+                      </span>
                     </div>
                     <Badge
                       variant="outline"
@@ -651,6 +639,7 @@ export function SalesInteractionView({
                               clients={stageClients}
                               exceptionCount={subStageExceptionCounts[stage.key] || 0}
                               onSelectClient={handleSelectClient}
+                              onReviewDraft={handleReviewDraft}
                             />
                           )
                         })}
@@ -681,23 +670,9 @@ export function SalesInteractionView({
                       ) : (
                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
                       )}
-                      <div className="flex h-7 w-7 items-center justify-center rounded-md bg-destructive/10">
-                        <AlertCircle className="h-4 w-4 text-destructive" />
-                      </div>
-                      <div className="text-left">
-                        <span className="text-sm font-semibold text-foreground">
-                          Verification Needed
-                        </span>
-                        {!verificationOpen && (verificationClients.length + filteredTasks.length + filteredPostApproval.length) > 0 && (
-                          <p className="mt-0.5 text-[10px] text-muted-foreground">
-                            {verificationClients.length > 0 && `${verificationClients.length} clients`}
-                            {verificationClients.length > 0 && (filteredTasks.length > 0 || filteredPostApproval.length > 0) && ' · '}
-                            {filteredTasks.length > 0 && `${filteredTasks.length} tasks`}
-                            {filteredTasks.length > 0 && filteredPostApproval.length > 0 && ' · '}
-                            {filteredPostApproval.length > 0 && `${filteredPostApproval.length} post-approval`}
-                          </p>
-                        )}
-                      </div>
+                      <span className="text-sm font-semibold text-foreground">
+                        Verification Needed
+                      </span>
                     </div>
                     <Badge
                       variant="outline"
@@ -720,6 +695,7 @@ export function SalesInteractionView({
                             clients={verificationClients}
                             selectedAgentId={selectedAgentId}
                             onSelectClient={handleSelectClient}
+                            onReviewDraft={handleReviewDraft}
                           />
                         )}
                         {filteredTasks.length > 0 && (
@@ -757,6 +733,13 @@ export function SalesInteractionView({
           </div>
         </ScrollArea>
       </div>
+
+      <DraftReviewDialog
+        draftId={reviewingDraftId}
+        draftName={reviewingDraftName}
+        resultClientId={reviewingResultClientId}
+        onClose={() => setReviewingDraftId(null)}
+      />
     </div>
   )
 }
@@ -767,11 +750,13 @@ function SubStageSection({
   clients,
   exceptionCount,
   onSelectClient,
+  onReviewDraft,
 }: {
   stage: SubStageGroup
   clients: IntakeClient[]
   exceptionCount: number
   onSelectClient?: (clientId: string) => void
+  onReviewDraft?: (draftId: string, name: string, resultClientId?: string | null) => void
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const Icon = stage.icon
@@ -823,7 +808,7 @@ function SubStageSection({
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="border-b border-border/20 bg-muted/10">
-          <ClientIntakeList clients={clients} selectedAgentId={null} onSelectClient={onSelectClient} />
+          <ClientIntakeList clients={clients} selectedAgentId={null} onSelectClient={onSelectClient} onReviewDraft={onReviewDraft} />
         </div>
       </CollapsibleContent>
     </Collapsible>

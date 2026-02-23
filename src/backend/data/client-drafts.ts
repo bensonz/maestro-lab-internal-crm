@@ -47,6 +47,25 @@ export async function getAllDrafts() {
   })
 }
 
+/** Fetch all drafts (DRAFT + SUBMITTED with PENDING client) for backoffice sales interaction */
+export async function getAllDraftsForBackoffice() {
+  return prisma.clientDraft.findMany({
+    where: {
+      OR: [
+        { status: 'DRAFT' },
+        {
+          status: 'SUBMITTED',
+          resultClient: { status: 'PENDING' },
+        },
+      ],
+    },
+    orderBy: { updatedAt: 'desc' },
+    include: {
+      closer: { select: { id: true, name: true } },
+    },
+  })
+}
+
 export async function getDraftByIdForAgent(draftId: string, closerId: string) {
   return prisma.clientDraft.findFirst({
     where: { id: draftId, closerId },

@@ -35,12 +35,24 @@ These pages fetch real commission/earnings data from DB but still use mock data 
 - Agent dashboard — earnings/star level real, pipeline stats mock
 - Agent earnings — transaction history real, KPIs/hierarchy mock
 - Agent clients — DB clients + drafts from real DB, falls back to mock if empty
-- Backoffice sales interaction — Team directory sidebar uses real agents from DB (grouped by display tier); In Progress section uses real ClientDraft records (4 steps); verification/post-approval still mock
+- Backoffice sales interaction — Team directory sidebar uses real agents from DB (grouped by display tier); In Progress section uses real ClientDraft records (DRAFT + SUBMITTED with PENDING client, 4 steps); Review button opens read-only 4-step dialog with Approve Client on Step 4 for submitted drafts; verification/post-approval still mock
 
-### Draft/Client Separation
+### Draft/Client Lifecycle & Separation
+
+**Full lifecycle:**
+```
+ClientDraft (DRAFT) → Agent submits → ClientDraft (SUBMITTED) + Client (PENDING)
+                                                                      ↓
+                                               Backoffice approves → Client (APPROVED)
+                                                                      + star level recalc
+                                                                      + $400 bonus pool
+```
 
 - **Agent "My Clients" page** — Shows in-progress `ClientDraft` records grouped by step (1-4) at the top, with clickable links back to `/agent/new-client?draft=<id>`. Approved/submitted clients appear in status groups below. PENDING clients are filtered out (they exist as drafts).
-- **Backoffice "Sales Interaction" page** — In Progress section shows 4 step-based sub-stages (Step 1–4) sourced from real `ClientDraft` DB records via `getAllDrafts()`. Falls back to mock data if DB unavailable.
+- **Backoffice "Sales Interaction" page** — In Progress section shows both `DRAFT` and `SUBMITTED` (pending approval) drafts in 4 step-based sub-stages via `getAllDraftsForBackoffice()`. Each row has a **Review** button (Eye icon) that opens a read-only 4-step dialog:
+  - Steps 1-3: navigate with Next/Back buttons, inspect all draft fields
+  - Step 4 (Contract): for **SUBMITTED** drafts → **"Approve Client"** button that calls `approveClient(resultClientId)` to promote `Client (PENDING → APPROVED)`, trigger star recalc + bonus pool, and refresh the page. For **DRAFT** entries → shows "Awaiting agent submission" text.
+  - Falls back to mock data if DB unavailable.
 - **Backoffice "Client Management" page** — Intended to show only APPROVED clients (currently mock).
 
 ### What's Mock (UI shell only)
@@ -245,8 +257,10 @@ Agents create new clients through a 4-step intake form at `/agent/new-client`.
 - `src/app/agent/new-client/_components/step3-platform-card.tsx` — Individual platform card
 - `src/app/agent/new-client/_components/step4-contract.tsx` — Contract upload + checklist
 - `src/app/agent/new-client/_components/risk-panel.tsx` — Right panel: risk score + flags
-- `src/app/actions/client-drafts.ts` — CRUD server actions (create, save, submit, delete)
-- `src/backend/data/client-drafts.ts` — Draft queries (by closer, by ID, ownership check, getAllDrafts for backoffice)
+- `src/app/actions/client-drafts.ts` — CRUD server actions (create, save, submit, delete, getFullDraft with role-based auth)
+- `src/app/backoffice/sales-interaction/_components/draft-review-dialog.tsx` — 4-step read-only review dialog with Approve Client button for submitted drafts (uses `useReducer` for state, calls `approveClient`)
+- `src/app/backoffice/sales-interaction/_components/client-intake-list.tsx` — Intake row list with Review button (Eye icon), threads `onReviewDraft` with `resultClientId`
+- `src/backend/data/client-drafts.ts` — Draft queries (by closer, by ID, ownership check, getAllDrafts, getAllDraftsForBackoffice — fetches DRAFT + SUBMITTED with PENDING client)
 - `src/lib/validations/client-draft.ts` — Zod per-step + submit schemas
 - `src/lib/risk-score.ts` — Pure risk score calculation (2-tier ID expiry)
 
@@ -298,7 +312,7 @@ Rookie (0★) → 1★ → 2★ → 3★ → 4★ → ED → SED → MD → CMO
 - `src/app/actions/commission.ts` — Mark allocation paid, bulk mark paid
 - `src/app/actions/leadership.ts` — Check+promote leadership, quarterly settlement CRUD
 - `src/types/index.ts` — Commission enums (ClientStatus, BonusPoolStatus, AllocationType, etc.)
-- `src/types/backend-types.ts` — Commission data interfaces (CommissionOverviewData, AgentEarningsData, etc.)
+- `src/types/backend-types.ts` — Commission data interfaces (CommissionOverviewData, AgentEarningsData, etc.), IntakeClient (includes `resultClientId` for submitted drafts)
 
 ### Key Patterns
 
@@ -430,7 +444,7 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 | `/backoffice/phone-tracking` | page.tsx | Mock — phones |
 | `/backoffice/profit-sharing` | page.tsx | Mock — profit sharing |
 | `/backoffice/reports` | page.tsx | Mock — reports |
-| `/backoffice/sales-interaction` | page.tsx | **Real DB** — Team directory (agents by tier) + ClientDraft (4 steps); Mock — verification, post-approval |
+| `/backoffice/sales-interaction` | page.tsx | **Real DB** — Team directory (agents by tier) + ClientDraft (DRAFT + SUBMITTED, 4 steps) + Review dialog with Approve; Mock — verification, post-approval |
 | `/backoffice/todo-list` | page.tsx | Mock — action hub |
 
 ### Auth
