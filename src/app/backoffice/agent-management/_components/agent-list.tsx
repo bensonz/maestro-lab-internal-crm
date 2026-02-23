@@ -61,6 +61,17 @@ interface ApplicationStats {
   total: number
 }
 
+interface ApplicationTimelineEntry {
+  id: string
+  date: string
+  time: string
+  event: string
+  type: 'info' | 'success' | 'warning'
+  actor: string | null
+  applicationId: string | null
+  action: string | null
+}
+
 interface AgentListProps {
   agents: Agent[]
   stats: AgentStats
@@ -70,6 +81,7 @@ interface AgentListProps {
   applicationStats?: ApplicationStats
   activeAgents?: { id: string; name: string }[]
   initialViewMode?: 'table' | 'tree'
+  applicationTimeline?: ApplicationTimelineEntry[]
 }
 
 type TabKey = 'agents' | 'applications'
@@ -130,6 +142,7 @@ export function AgentList({
   applicationStats,
   activeAgents = [],
   initialViewMode = 'table',
+  applicationTimeline = [],
 }: AgentListProps) {
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
@@ -500,6 +513,7 @@ export function AgentList({
           <ApplicationReviewList
             applications={applications}
             agents={activeAgents}
+            timeline={applicationTimeline}
           />
         ) : (
           <Card className="card-terminal">

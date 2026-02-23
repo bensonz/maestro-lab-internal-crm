@@ -63,6 +63,68 @@ export async function getAgentTimeline(agentId: string): Promise<TimelineEntry[]
   }))
 }
 
+export interface ApplicationTimelineEntry {
+  id: string
+  date: string
+  time: string
+  event: string
+  type: 'info' | 'success' | 'warning'
+  actor: string | null
+  applicationId: string | null
+  action: string | null  // 'approved' | 'rejected' | 'revert_to_pending'
+}
+
+/**
+ * Fetches application review events (approved, rejected, reverted) for the activity timeline.
+ * Queries events with APPLICATION_APPROVED and APPLICATION_REJECTED types.
+ * APPLICATION_REJECTED with metadata.action='revert_to_pending' is shown as "Reverted".
+ * Sorted newest first, limit 100.
+ */
+export async function getApplicationTimeline(): Promise<ApplicationTimelineEntry[]> {
+  const events = await prisma.eventLog.findMany({
+    where: {
+      eventType: {
+        in: ['APPLICATION_APPROVED', 'APPLICATION_REJECTED'],
+      },
+    },
+    include: { user: { select: { name: true } } },
+    orderBy: { createdAt: 'desc' },
+    take: 100,
+  })
+
+  return events.map((e) => {
+    const metadata = (e.metadata ?? {}) as Record<string, unknown>
+    const isRevert = metadata.action === 'revert_to_pending'
+    let action: string
+    if (isRevert) {
+      action = 'revert_to_pending'
+    } else if (e.eventType === 'APPLICATION_APPROVED') {
+      action = 'approved'
+    } else {
+      action = 'rejected'
+    }
+
+    return {
+      id: e.id,
+      date: e.createdAt.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      }),
+      time: e.createdAt.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      }),
+      event: e.description,
+      type: isRevert ? 'warning' as const : mapEventType(e.eventType),
+      actor: e.user?.name ?? null,
+      applicationId: (metadata.applicationId as string) ?? null,
+      action,
+    }
+  })
+}
+
 function mapEventType(eventType: string): 'info' | 'success' | 'warning' {
   switch (eventType) {
     case 'APPLICATION_APPROVED':

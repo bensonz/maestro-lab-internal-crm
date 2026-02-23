@@ -11,7 +11,7 @@ The backend has a fully functional **commission system** with real DB queries wi
 - **Prisma schema** with 9 models: `User`, `AgentApplication`, `EventLog`, `Client`, `ClientDraft`, `BonusPool`, `BonusAllocation`, `PromotionLog`, `QuarterlySettlement`
 - **Agent Application form** on login page ("Apply as Agent" tab) — uploads both ID + Address Proof documents
 - **Application review** in backoffice Agent Management ("Pending Applications" tab) — shows both documents
-- **Agent Directory** in backoffice Agent Management ("Agent Directory" tab) — queries real User table, star-level-based filter, toggleable table/tree view (tree shows upline→subordinate hierarchy with expand/collapse, ancestor-preserving search)
+- **Agent Directory** in backoffice Agent Management ("Agent Directory" tab) — queries real User table, star-level-based filter, toggleable table/tree view (tree shows upline→subordinate hierarchy with expand/collapse, ancestor-preserving search). Agent names have **HoverCard** showing Zelle, state, and performance snapshot (total earned, this month, new clients this month) from real DB data.
 - **Login Management** page (`/backoffice/login-management`) — full CRUD for all users from DB
 - **User management** server actions (create, update, toggle, reset password, inline field edit with audit trail)
 - **Commission system** — $400 fixed bonus pool per approved client, star-level-based distribution up hierarchy
@@ -23,7 +23,7 @@ The backend has a fully functional **commission system** with real DB queries wi
 - **Agent Dashboard** — real earnings + star level from DB (pipeline/KPIs still mock)
 - **Agent Earnings page** — real allocation history from DB (hierarchy/KPIs still mock)
 - **Agent Clients page** — real clients from DB if available, falls back to mock
-- **Agent Detail page** (backoffice) — real agent profile, earnings, hierarchy from DB; inline-editable fields with audit trail (activity timeline from EventLog)
+- **Agent Detail page** (backoffice) — real agent profile, earnings, hierarchy from DB; inline-editable fields with audit trail (activity timeline from EventLog). Agent name in header is plain text (no hover card — hover card lives on the Agent Management list page instead).
 - **Agent New Client page** — 4-step intake form with drafts panel, risk assessment, auto-save, and submission to real Client record
 - **Client draft** server actions (create, save, submit, delete) — auth-guarded, ownership-checked
 - **Search API** (simplified — searches Users only)
@@ -145,7 +145,38 @@ Four roles defined in `UserRole` enum: `AGENT`, `BACKOFFICE`, `ADMIN`, `FINANCE`
 - `src/app/backoffice/agent-management/[id]/page.tsx` — Agent detail server component (fetches user, earnings, timeline)
 - `src/app/backoffice/agent-management/[id]/_components/agent-detail-view.tsx` — Agent detail client view with inline-editable fields
 - `src/app/backoffice/agent-management/[id]/_components/editable-field.tsx` — Inline edit component (pencil icon, save/cancel, async onSave)
-- `src/backend/data/event-logs.ts` — `getAgentTimeline()` query (merges own + about events, deduped, sorted, limit 50)
+- `src/backend/data/event-logs.ts` — `getAgentTimeline()` query (merges own + about events, deduped, sorted, limit 50); `getApplicationTimeline()` query for application activity feed
+
+### Application Activity Timeline
+
+The "Pending Applications" tab in Agent Management includes an **Activity Timeline** at the bottom showing all application-related events from the EventLog table. Events are color-coded by action type:
+- **Submitted** (blue) — `APPLICATION_SUBMITTED` events
+- **Approved** (green) — `APPLICATION_APPROVED` events
+- **Rejected** (red) — `APPLICATION_REJECTED` events
+- **Reverted** (yellow) — `APPLICATION_REJECTED` events with `metadata.action = 'revert_to_pending'`
+
+Each entry shows: action icon, action label, event description, date, time, and actor name. The timeline is fetched server-side via `getApplicationTimeline()` and passed through `AgentList` → `ApplicationReviewList`.
+
+### Agent Management Page — UX Features
+
+**Agent Name HoverCard:** Hovering over an agent's name (in both table and tree views) shows a popover with:
+- Zelle account info
+- State (extracted from address via regex)
+- Performance snapshot: Total Earned ($XK), This Month earned, New Clients this month
+- Data sourced from real DB: `allocations` (amounts + dates) and `closedClients` (dates) joined in `getAllAgents()` query, computed server-side in the page component
+
+**Clickable Summary Cards (left sidebar):**
+- **Total Agents** card → switches to table/ranking view
+- **Total Teams** card → switches to tree view
+- **New Agents (Month)** card → toggles filter for agents created this month (uses `createdAt` field)
+- Active card shows a colored ring indicator
+
+**Team Filter (tree view):** Clicking the subordinate count badge on a tree node filters the list to that agent's team (agent + all descendants). Click again to clear.
+
+**Key files:**
+- `src/app/backoffice/agent-management/page.tsx` — Server component, computes per-agent earnings/client stats
+- `src/app/backoffice/agent-management/_components/agent-list.tsx` — Client component, HoverCard in table view, clickable stat cards, new agent filter
+- `src/app/backoffice/agent-management/_components/agent-tree-view.tsx` — Tree view with HoverCard + team filter
 
 ### Agent Detail Page — Editable Fields
 

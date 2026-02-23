@@ -38,6 +38,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { toast } from 'sonner'
 import { approveApplication, rejectApplication, revertApplicationToPending } from '@/app/actions/application-review'
 import type { ApplicationStatus } from '@/types'
+import { getAgentDisplayTier } from '@/lib/commission-constants'
 
 export interface ApplicationRow {
   id: string
@@ -64,18 +65,64 @@ export interface ApplicationRow {
   reviewedBy: { id: string; name: string } | null
   reviewedAt: Date | null
   reviewNotes: string | null
-  resultUser: { id: string; name: string; email: string } | null
+  resultUser: {
+    id: string
+    name: string
+    email: string
+    tier: string
+    starLevel: number
+    leadershipTier: string
+    supervisor: { id: string; name: string } | null
+  } | null
+}
+
+interface TimelineEntry {
+  id: string
+  date: string
+  time: string
+  event: string
+  type: 'info' | 'success' | 'warning'
+  actor: string | null
+  applicationId: string | null
+  action: string | null
 }
 
 interface Props {
   applications: ApplicationRow[]
   agents: { id: string; name: string }[]
+  timeline?: TimelineEntry[]
 }
 
-export function ApplicationReviewList({ applications, agents }: Props) {
+function getTimelineActionConfig(action: string | null) {
+  switch (action) {
+    case 'approved':
+      return {
+        label: 'Approved',
+        badgeClass: 'bg-success/20 text-success border-success/30',
+      }
+    case 'rejected':
+      return {
+        label: 'Rejected',
+        badgeClass: 'bg-destructive/20 text-destructive border-destructive/30',
+      }
+    case 'revert_to_pending':
+      return {
+        label: 'Reverted',
+        badgeClass: 'bg-warning/20 text-warning border-warning/30',
+      }
+    default:
+      return {
+        label: 'Event',
+        badgeClass: 'bg-muted text-muted-foreground border-border',
+      }
+  }
+}
+
+export function ApplicationReviewList({ applications, agents, timeline = [] }: Props) {
   const router = useRouter()
   const [reviewingId, setReviewingId] = useState<string | null>(null)
   const [reviewedOpen, setReviewedOpen] = useState(false)
+  const [timelineOpen, setTimelineOpen] = useState(false)
 
   // Approve/reject state inside review dialog
   const [reviewStep, setReviewStep] = useState<1 | 2 | 3>(1)
@@ -268,49 +315,134 @@ export function ApplicationReviewList({ applications, agents }: Props) {
           </button>
           {reviewedOpen && (
             <div className="mt-1 rounded-lg border border-border divide-y divide-border overflow-hidden">
-              {reviewed.map((app) => (
-                <div
-                  key={app.id}
-                  className="flex items-center gap-3 px-4 py-2"
-                  data-testid={`reviewed-row-${app.id}`}
-                >
-                  <Badge
-                    className={`text-[10px] px-1.5 py-0 ${
-                      app.status === 'APPROVED'
-                        ? 'bg-success/20 text-success border-success/30'
-                        : 'bg-destructive/20 text-destructive border-destructive/30'
-                    }`}
+              {reviewed.map((app) => {
+                const tierLabel = app.resultUser
+                  ? getAgentDisplayTier(app.resultUser.starLevel, app.resultUser.leadershipTier)
+                  : null
+
+                return (
+                  <div
+                    key={app.id}
+                    className="flex items-start gap-3 px-4 py-2"
+                    data-testid={`reviewed-row-${app.id}`}
                   >
-                    {app.status === 'APPROVED' ? 'Approved' : 'Rejected'}
-                  </Badge>
-                  <span className="text-sm font-medium truncate">
-                    {app.firstName} {app.lastName}
-                  </span>
-                  <span className="text-xs text-muted-foreground truncate">
-                    {app.email}
-                  </span>
-                  <span className="ml-auto text-xs text-muted-foreground whitespace-nowrap">
-                    {app.reviewedAt
-                      ? formatDistanceToNow(new Date(app.reviewedAt), { addSuffix: true })
-                      : ''}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground gap-1 shrink-0"
-                    onClick={() => handleRevert(app)}
-                    disabled={revertingId === app.id}
-                    data-testid={`revert-app-${app.id}`}
+                    <Badge
+                      className={`text-[10px] px-1.5 py-0 mt-0.5 shrink-0 ${
+                        app.status === 'APPROVED'
+                          ? 'bg-success/20 text-success border-success/30'
+                          : 'bg-destructive/20 text-destructive border-destructive/30'
+                      }`}
+                    >
+                      {app.status === 'APPROVED' ? 'Approved' : 'Rejected'}
+                    </Badge>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium truncate">
+                          {app.firstName} {app.lastName}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground truncate">
+                          {app.email}
+                        </span>
+                      </div>
+                      <div className="mt-0.5 flex items-center gap-1.5 flex-wrap text-[10px] text-muted-foreground">
+                        {app.reviewedBy && (
+                          <span>by {app.reviewedBy.name}</span>
+                        )}
+                        {app.status === 'APPROVED' && app.resultUser?.supervisor && (
+                          <>
+                            <span className="opacity-50">&middot;</span>
+                            <span>assigned to {app.resultUser.supervisor.name}</span>
+                          </>
+                        )}
+                        {app.status === 'APPROVED' && tierLabel && (
+                          <>
+                            <span className="opacity-50">&middot;</span>
+                            <span className="text-warning font-medium">{tierLabel}</span>
+                          </>
+                        )}
+                        {app.reviewNotes && (
+                          <>
+                            <span className="opacity-50">&middot;</span>
+                            <span className="italic truncate max-w-48">&ldquo;{app.reviewNotes}&rdquo;</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0 mt-0.5">
+                      {app.reviewedAt
+                        ? formatDistanceToNow(new Date(app.reviewedAt), { addSuffix: true })
+                        : ''}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground gap-1 shrink-0"
+                      onClick={() => handleRevert(app)}
+                      disabled={revertingId === app.id}
+                      data-testid={`revert-app-${app.id}`}
+                    >
+                      {revertingId === app.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Undo2 className="h-3 w-3" />
+                      )}
+                      Revert
+                    </Button>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Activity Timeline — collapsed by default */}
+      {timeline.length > 0 && (
+        <div className="mt-4" data-testid="application-activity-timeline">
+          <button
+            type="button"
+            onClick={() => setTimelineOpen(!timelineOpen)}
+            className="flex w-full items-center gap-2 rounded-lg border border-border bg-muted/30 px-4 py-2.5 text-left transition-colors hover:bg-muted/50 cursor-pointer"
+            data-testid="toggle-timeline"
+          >
+            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground flex-1">
+              Activity Timeline ({timeline.length})
+            </span>
+            {timelineOpen ? (
+              <ChevronUp className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            )}
+          </button>
+          {timelineOpen && (
+            <div className="mt-1 rounded-lg border border-border divide-y divide-border overflow-hidden">
+              {timeline.map((entry) => {
+                const actionConfig = getTimelineActionConfig(entry.action)
+                return (
+                  <div
+                    key={entry.id}
+                    className="flex items-center gap-3 px-4 py-2"
+                    data-testid={`timeline-entry-${entry.id}`}
                   >
-                    {revertingId === app.id ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <Undo2 className="h-3 w-3" />
+                    <Badge
+                      className={`text-[10px] px-1.5 py-0 shrink-0 ${actionConfig.badgeClass}`}
+                    >
+                      {actionConfig.label}
+                    </Badge>
+                    <span className="text-xs text-foreground truncate">
+                      {entry.event}
+                    </span>
+                    <span className="ml-auto text-[10px] text-muted-foreground whitespace-nowrap shrink-0">
+                      {entry.date} {entry.time}
+                    </span>
+                    {entry.actor && (
+                      <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0">
+                        by {entry.actor}
+                      </span>
                     )}
-                    Revert
-                  </Button>
-                </div>
-              ))}
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>

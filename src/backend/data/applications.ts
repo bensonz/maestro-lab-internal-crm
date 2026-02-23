@@ -15,7 +15,17 @@ export async function getAllApplications() {
     orderBy: { createdAt: 'desc' },
     include: {
       reviewedBy: { select: { id: true, name: true } },
-      resultUser: { select: { id: true, name: true, email: true } },
+      resultUser: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          tier: true,
+          starLevel: true,
+          leadershipTier: true,
+          supervisor: { select: { id: true, name: true } },
+        },
+      },
     },
   })
 }

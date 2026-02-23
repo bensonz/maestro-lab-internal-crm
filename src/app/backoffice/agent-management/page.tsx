@@ -2,6 +2,8 @@ import { requireAdmin } from '../_require-admin'
 import { AgentList } from './_components/agent-list'
 import { getAllApplications, getApplicationStats } from '@/backend/data/applications'
 import { getAllAgents, getAgentStats, getActiveAgents } from '@/backend/data/users'
+import { getApplicationTimeline } from '@/backend/data/event-logs'
+import type { ApplicationTimelineEntry } from '@/backend/data/event-logs'
 
 export default async function AgentManagementPage({
   searchParams,
@@ -18,14 +20,16 @@ export default async function AgentManagementPage({
   let activeAgents: { id: string; name: string }[] = []
   let agents: Awaited<ReturnType<typeof getAllAgents>> = []
   let agentStats: Awaited<ReturnType<typeof getAgentStats>> = { totalAgents: 0, newThisMonth: 0 }
+  let applicationTimeline: ApplicationTimelineEntry[] = []
 
   try {
-    ;[applications, applicationStats, activeAgents, agents, agentStats] = await Promise.all([
+    ;[applications, applicationStats, activeAgents, agents, agentStats, applicationTimeline] = await Promise.all([
       getAllApplications(),
       getApplicationStats(),
       getActiveAgents(),
       getAllAgents(),
       getAgentStats(),
+      getApplicationTimeline(),
     ])
   } catch {
     // Database not available — continue with empty data
@@ -82,6 +86,7 @@ export default async function AgentManagementPage({
       applicationStats={applicationStats}
       activeAgents={activeAgents}
       initialViewMode={initialViewMode}
+      applicationTimeline={applicationTimeline}
     />
   )
 }
