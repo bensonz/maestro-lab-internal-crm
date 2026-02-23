@@ -16,7 +16,7 @@ interface GmailDetectionModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   data: GmailExtractionResult
-  onConfirm: (emailAddress: string) => void
+  onConfirm: (data: { emailAddress: string; password: string }) => void
 }
 
 export function GmailDetectionModal({
@@ -51,6 +51,16 @@ export function GmailDetectionModal({
               </div>
             </div>
           )}
+
+          {data.password && (
+            <div
+              className="rounded-md border p-3"
+              data-testid="gmail-detected-password"
+            >
+              <p className="text-sm font-medium">Password</p>
+              <p className="text-sm font-mono text-muted-foreground">{data.password}</p>
+            </div>
+          )}
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
@@ -65,7 +75,7 @@ export function GmailDetectionModal({
           <Button
             size="sm"
             onClick={() => {
-              onConfirm(data.emailAddress)
+              onConfirm({ emailAddress: data.emailAddress, password: data.password })
               onOpenChange(false)
             }}
             data-testid="gmail-detection-confirm"

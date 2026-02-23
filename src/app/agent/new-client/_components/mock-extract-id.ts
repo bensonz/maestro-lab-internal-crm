@@ -27,12 +27,13 @@ export async function mockExtractFromId(_file: File): Promise<IdExtractionResult
 
 export interface GmailExtractionResult {
   emailAddress: string
+  password: string
   confidence: number
 }
 
 /**
  * Mock OCR extraction from a Gmail registration screenshot.
- * Detects the Gmail address shown in the screenshot.
+ * Detects the Gmail address and password shown in the screenshot.
  * Replace with real OCR/AI service in production.
  */
 export async function mockExtractFromGmail(_file: File): Promise<GmailExtractionResult> {
@@ -40,6 +41,7 @@ export async function mockExtractFromGmail(_file: File): Promise<GmailExtraction
 
   return {
     emailAddress: 'john.smith.2026@gmail.com',
+    password: 'Gmail_2026!',
     confidence: 0.91,
   }
 }

@@ -216,10 +216,14 @@ export function Step1PreQual({ formData, onChange, onRiskFlagsChange }: Step1Pro
     [onChange],
   )
 
-  function handleGmailDetectionConfirm(emailAddress: string) {
-    if (emailAddress) {
-      onChange('assignedGmail', emailAddress)
+  function handleGmailDetectionConfirm(data: { emailAddress: string; password: string }) {
+    if (data.emailAddress) {
+      onChange('assignedGmail', data.emailAddress)
       setAutoFilledFields((prev) => new Set([...prev, 'assignedGmail']))
+    }
+    if (data.password) {
+      onChange('gmailPassword', data.password)
+      setAutoFilledFields((prev) => new Set([...prev, 'gmailPassword']))
     }
   }
 
@@ -411,16 +415,6 @@ export function Step1PreQual({ formData, onChange, onRiskFlagsChange }: Step1Pro
                   />
                 </Field>
 
-                <Field>
-                  <FieldLabel htmlFor="idNumber">ID Number</FieldLabel>
-                  <Input
-                    id="idNumber"
-                    value={(formData.idNumber as string) || ''}
-                    onChange={(e) => onChange('idNumber', e.target.value)}
-                    placeholder="DL-12345678"
-                    data-testid="client-id-number"
-                  />
-                </Field>
               </div>
             </CollapsibleContent>
           </div>
@@ -450,10 +444,12 @@ export function Step1PreQual({ formData, onChange, onRiskFlagsChange }: Step1Pro
                   </Field>
 
                   <Field>
-                    <FieldLabel htmlFor="gmailPassword">Gmail Password</FieldLabel>
+                    <FieldLabel htmlFor="gmailPassword" className="flex items-center gap-1.5">
+                      Gmail Password
+                      {autoFilledFields.has('gmailPassword') && <AutoFilledBadge />}
+                    </FieldLabel>
                     <Input
                       id="gmailPassword"
-                      type="password"
                       value={(formData.gmailPassword as string) || ''}
                       onChange={(e) => onChange('gmailPassword', e.target.value)}
                       placeholder="Password"
@@ -522,7 +518,6 @@ export function Step1PreQual({ formData, onChange, onRiskFlagsChange }: Step1Pro
                     </FieldLabel>
                     <Input
                       id="betmgmPassword"
-                      type="password"
                       value={(formData.betmgmPassword as string) || ''}
                       onChange={(e) => onChange('betmgmPassword', e.target.value)}
                       placeholder="Password"
