@@ -355,14 +355,6 @@ interface ClientsGroupedListProps {
 export function ClientsGroupedList({ clients, drafts }: ClientsGroupedListProps) {
   return (
     <div className="space-y-1">
-      {/* Table header */}
-      <div className="mb-2 grid grid-cols-[1fr_100px_140px_40px] gap-4 border-b border-border px-4 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-        <span>Client</span>
-        <span>Progress</span>
-        <span>Last Updated</span>
-        <span />
-      </div>
-
       {/* In Progress section (drafts only, with sub-steps) */}
       <InProgressSection drafts={drafts} />
 
