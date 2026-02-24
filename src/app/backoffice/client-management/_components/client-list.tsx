@@ -70,21 +70,22 @@ export function ClientList({
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border text-xs text-muted-foreground">
-                  <th className="p-2 text-left font-medium">Name</th>
-                  <th className="p-2 text-left font-medium">Phone / Email</th>
-                  <th className="p-2 text-left font-medium">Start</th>
-                  <th className="p-2 text-right font-medium">Funds</th>
-                  <th className="p-2 text-left font-medium">
+                <tr className="border-b border-border bg-muted/30 text-xs text-muted-foreground">
+                  <th className="px-3 py-2 text-left font-medium">Name</th>
+                  <th className="px-3 py-2 text-left font-medium">Phone</th>
+                  <th className="px-3 py-2 text-left font-medium">Email</th>
+                  <th className="px-3 py-2 text-left font-medium">Start</th>
+                  <th className="px-3 py-2 text-right font-medium">Funds</th>
+                  <th className="px-3 py-2 text-left font-medium">
                     <span className="text-success">Active</span>
                   </th>
-                  <th className="p-2 text-left font-medium">
+                  <th className="px-3 py-2 text-left font-medium">
                     <span className="text-warning">Limited</span>
                   </th>
-                  <th className="p-2 text-left font-medium">
+                  <th className="px-3 py-2 text-left font-medium">
                     <span className="text-primary">Pipeline</span>
                   </th>
-                  <th className="p-2 text-right font-medium" />
+                  <th className="px-3 py-2 text-right font-medium" />
                 </tr>
               </thead>
               <tbody>
@@ -103,15 +104,15 @@ export function ClientList({
                     return (
                       <tr
                         key={client.id}
-                        className="group cursor-pointer border-b border-border last:border-0 hover:bg-muted/30"
+                        className="group cursor-pointer border-b border-border transition-colors last:border-0 hover:bg-muted/30"
                         onClick={() => onSelectClient(client)}
                         data-testid={`client-row-${client.id}`}
                       >
                         {/* Name with quick-info tooltip */}
-                        <td className="p-2">
+                        <td className="px-3 py-2">
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <span className="cursor-help font-medium">
+                              <span className="cursor-help truncate font-medium">
                                 {client.name}
                               </span>
                             </TooltipTrigger>
@@ -170,39 +171,36 @@ export function ClientList({
                           </Tooltip>
                         </td>
 
-                        {/* Phone / Email */}
-                        <td className="p-2">
-                          <div className="flex flex-col gap-0.5">
-                            <span className="font-mono text-xs">
-                              {client.companyPhone}{' '}
-                              <span className="text-[10px] text-muted-foreground">
-                                ({client.carrier})
-                              </span>
-                            </span>
-                            <span className="max-w-[140px] truncate text-[10px] text-muted-foreground">
-                              {client.companyEmail}
-                            </span>
-                          </div>
+                        {/* Phone */}
+                        <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
+                          {client.companyPhone}
+                        </td>
+
+                        {/* Email */}
+                        <td className="px-3 py-2">
+                          <span className="max-w-[160px] truncate text-xs text-muted-foreground">
+                            {client.companyEmail}
+                          </span>
                         </td>
 
                         {/* Start */}
-                        <td className="p-2 font-mono text-xs">
+                        <td className="px-3 py-2 text-xs text-muted-foreground">
                           {client.startDate}
                         </td>
 
                         {/* Funds */}
-                        <td className="p-2 text-right font-mono text-xs font-semibold">
+                        <td className="px-3 py-2 text-right font-mono text-xs font-semibold">
                           ${client.totalFunds.toLocaleString()}
                         </td>
 
                         {/* Active Platforms */}
-                        <td className="p-2">
-                          <div className="flex flex-wrap gap-0.5">
+                        <td className="px-3 py-2">
+                          <div className="flex gap-0.5">
                             {activePlatforms.map((platform) => (
                               <Tooltip key={platform.id}>
                                 <TooltipTrigger asChild>
                                   <span
-                                    className="cursor-help rounded border border-success/30 bg-success/20 px-1 py-0.5 text-[9px] font-medium text-success"
+                                    className="cursor-help rounded border border-success/30 bg-success/20 px-1 text-[9px] font-medium text-success"
                                     onClick={(e) => e.stopPropagation()}
                                   >
                                     {platform.abbr}
@@ -241,8 +239,8 @@ export function ClientList({
                         </td>
 
                         {/* Limited Platforms */}
-                        <td className="p-2">
-                          <div className="flex flex-wrap gap-0.5">
+                        <td className="px-3 py-2">
+                          <div className="flex gap-0.5">
                             {limitedPlatforms.map((platform) => {
                               const pnl =
                                 (platform.deposits || 0) -
@@ -251,7 +249,7 @@ export function ClientList({
                                 <Tooltip key={platform.id}>
                                   <TooltipTrigger asChild>
                                     <span
-                                      className="cursor-help rounded border border-warning/30 bg-warning/20 px-1 py-0.5 text-[9px] font-medium text-warning"
+                                      className="cursor-help rounded border border-warning/30 bg-warning/20 px-1 text-[9px] font-medium text-warning"
                                       onClick={(e) => e.stopPropagation()}
                                     >
                                       {platform.abbr}
@@ -314,12 +312,12 @@ export function ClientList({
                         </td>
 
                         {/* Pipeline Platforms */}
-                        <td className="p-2">
-                          <div className="flex flex-wrap gap-0.5">
+                        <td className="px-3 py-2">
+                          <div className="flex gap-0.5">
                             {pipelinePlatforms.map((platform) => (
                               <span
                                 key={platform.id}
-                                className="rounded border border-primary/30 bg-primary/20 px-1 py-0.5 text-[9px] font-medium text-primary"
+                                className="rounded border border-primary/30 bg-primary/20 px-1 text-[9px] font-medium text-primary"
                               >
                                 {platform.abbr}
                               </span>
@@ -332,8 +330,8 @@ export function ClientList({
                           </div>
                         </td>
 
-                        <td className="p-2 text-right">
-                          <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground transition-colors group-hover:text-foreground" />
+                        <td className="px-3 py-2 text-right">
+                          <ChevronRight className="ml-auto h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-foreground" />
                         </td>
                       </tr>
                     )
