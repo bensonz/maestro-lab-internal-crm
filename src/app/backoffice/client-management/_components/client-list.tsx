@@ -4,6 +4,11 @@ import { Search, ChevronRight } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from '@/components/ui/hover-card'
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -11,6 +16,17 @@ import {
 } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import type { Client } from './types'
+
+function formatDaysSinceActive(dateStr: string): string {
+  const start = new Date(dateStr)
+  const now = new Date()
+  const diffMs = now.getTime() - start.getTime()
+  const totalDays = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)))
+  const months = Math.floor(totalDays / 30)
+  const days = totalDays % 30
+  if (months === 0) return `${days}D`
+  return `${months}M${days}D`
+}
 
 function formatIntakeStatus(status: string): string {
   const map: Record<string, string> = {
@@ -73,8 +89,8 @@ export function ClientList({
                 <tr className="border-b border-border bg-muted/30 text-xs text-muted-foreground">
                   <th className="px-3 py-2 text-left font-medium">Name</th>
                   <th className="px-3 py-2 text-left font-medium">Phone</th>
-                  <th className="px-3 py-2 text-left font-medium">Email</th>
-                  <th className="px-3 py-2 text-left font-medium">Start</th>
+                  <th className="px-3 py-2 text-left font-medium">Co.Email</th>
+                  <th className="px-3 py-2 text-left font-medium">Active</th>
                   <th className="px-3 py-2 text-right font-medium">Funds</th>
                   <th className="px-3 py-2 text-left font-medium">
                     <span className="text-success">Active</span>
@@ -108,34 +124,23 @@ export function ClientList({
                         onClick={() => onSelectClient(client)}
                         data-testid={`client-row-${client.id}`}
                       >
-                        {/* Name with quick-info tooltip */}
+                        {/* Name with HoverCard */}
                         <td className="px-3 py-2">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="cursor-help truncate font-medium">
+                          <HoverCard openDelay={200} closeDelay={100}>
+                            <HoverCardTrigger asChild>
+                              <span
+                                className="cursor-default truncate font-medium"
+                                onClick={(e) => e.stopPropagation()}
+                              >
                                 {client.name}
                               </span>
-                            </TooltipTrigger>
-                            <TooltipContent
+                            </HoverCardTrigger>
+                            <HoverCardContent
                               side="right"
-                              className="space-y-1.5 p-3"
+                              align="start"
+                              className="w-56 p-3"
                             >
-                              <p className="text-sm font-semibold">
-                                {client.name}
-                              </p>
-                              <div className="space-y-1 text-xs text-muted-foreground">
-                                <p>
-                                  <span className="font-medium text-foreground">
-                                    Status:
-                                  </span>{' '}
-                                  <span className={cn(
-                                    client.status === 'active' && 'text-success',
-                                    client.status === 'ended' && 'text-destructive',
-                                    client.status === 'verification_needed' && 'text-warning',
-                                  )}>
-                                    {client.intakeStatus ? formatIntakeStatus(client.intakeStatus) : client.status}
-                                  </span>
-                                </p>
+                              <div className="space-y-1.5 text-xs text-muted-foreground">
                                 {client.agent && (
                                   <p>
                                     <span className="font-medium text-foreground">
@@ -152,23 +157,13 @@ export function ClientList({
                                 </p>
                                 <p>
                                   <span className="font-medium text-foreground">
-                                    Platforms:
+                                    Zelle:
                                   </span>{' '}
-                                  {client.bettingPlatforms.length > 0
-                                    ? client.bettingPlatforms.map(p => p.abbr).join(', ')
-                                    : '—'}
+                                  {client.quickInfo.zellePhone}
                                 </p>
-                                {client.quickInfo.zellePhone !== '—' && (
-                                  <p>
-                                    <span className="font-medium text-foreground">
-                                      Zelle:
-                                    </span>{' '}
-                                    {client.quickInfo.zellePhone}
-                                  </p>
-                                )}
                               </div>
-                            </TooltipContent>
-                          </Tooltip>
+                            </HoverCardContent>
+                          </HoverCard>
                         </td>
 
                         {/* Phone */}
@@ -183,9 +178,9 @@ export function ClientList({
                           </span>
                         </td>
 
-                        {/* Start */}
-                        <td className="px-3 py-2 text-xs text-muted-foreground">
-                          {client.startDate}
+                        {/* Days Since Active */}
+                        <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
+                          {formatDaysSinceActive(client.startDate)}
                         </td>
 
                         {/* Funds */}
