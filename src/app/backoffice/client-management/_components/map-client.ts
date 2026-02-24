@@ -147,6 +147,7 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
     status: mapIntakeStatusToClientStatus(serverClient.intakeStatus),
     intakeStatus: serverClient.intakeStatus,
     totalFunds: parseFloat(serverClient.funds.replace(/[$,]/g, '')) || 0,
+    totalPaid: serverClient.totalPaid || 0,
     financePlatforms: [
       {
         name: 'PayPal',

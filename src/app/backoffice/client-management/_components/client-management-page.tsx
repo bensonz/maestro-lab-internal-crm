@@ -117,15 +117,28 @@ export function ClientManagementPage({
       })
   }, [clients, searchQuery, clientStatusFilter, platformFilter, statusFilter, sortByFunds])
 
+  // Select a client and sync URL
+  const selectClient = useCallback(
+    (client: Client | null) => {
+      setSelectedClient(client)
+      if (client) {
+        router.replace(`?client=${client.id}`, { scroll: false })
+      } else {
+        router.replace('?', { scroll: false })
+      }
+    },
+    [router],
+  )
+
   // Navigate to another client from relationships
   const handleNavigateToClient = useCallback(
     (clientId: string) => {
       const target = clients.find((c) => c.id === clientId)
       if (target) {
-        setSelectedClient(target)
+        selectClient(target)
       }
     },
-    [clients],
+    [clients, selectClient],
   )
 
   // Detail view
@@ -134,7 +147,7 @@ export function ClientManagementPage({
       <ClientDetail
         client={selectedClient}
         allClients={clients}
-        onBack={() => setSelectedClient(null)}
+        onBack={() => selectClient(null)}
         onNavigateToClient={handleNavigateToClient}
       />
     )
@@ -158,7 +171,7 @@ export function ClientManagementPage({
         clients={filteredClients}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        onSelectClient={setSelectedClient}
+        onSelectClient={selectClient}
       />
     </div>
   )

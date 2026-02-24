@@ -1,8 +1,6 @@
 'use client'
 
-import { useState, useCallback, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
+import { useState, useCallback } from 'react'
 import {
   ArrowLeft,
   Images,
@@ -13,8 +11,6 @@ import {
   UserPlus,
   Eye,
   Clock,
-  Play,
-  Phone,
   ChevronUp,
   ChevronDown,
 } from 'lucide-react'
@@ -22,15 +18,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
-import { startExecution } from '@/lib/mock-actions'
 import { EditableField } from './editable-field'
 import { PlatformSection } from './platform-section'
-import { PendingReviewBanner } from './pending-review-banner'
-import { ApplicationReviewCard } from './application-review-card'
 import { ClientModals } from './client-modals'
-import { CloseClientDialog } from './close-client-dialog'
 import type { Client, ClientStatus, TimelineEvent } from './types'
 
 // ============================================================================
@@ -102,7 +100,6 @@ interface ClientDetailProps {
   allClients: Client[]
   onBack: () => void
   onNavigateToClient: (clientId: string) => void
-  isAdmin?: boolean
 }
 
 export function ClientDetail({
@@ -110,10 +107,10 @@ export function ClientDetail({
   allClients,
   onBack,
   onNavigateToClient,
-  isAdmin = false,
 }: ClientDetailProps) {
+  const [clientStatus, setClientStatus] = useState<ClientStatus>(client.status)
+  const [timeline, setTimeline] = useState<TimelineEvent[]>(client.timeline)
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null)
-  const [closeDialogOpen, setCloseDialogOpen] = useState(false)
   const [expandedPlatforms, setExpandedPlatforms] = useState<string[]>([])
   const [showIdModal, setShowIdModal] = useState(false)
   const [showSsnModal, setShowSsnModal] = useState(false)
@@ -126,28 +123,19 @@ export function ClientDetail({
     useState(false)
   const [showAllTransactionsModal, setShowAllTransactionsModal] =
     useState(false)
-  const [isPending, startTransition] = useTransition()
-  const router = useRouter()
-
-  const handleStartExecution = useCallback(() => {
-    startTransition(async () => {
-      const result = await startExecution(client.id)
-      if (result.success) {
-        toast.success('Execution started — platforms are now active')
-        router.refresh()
-      } else {
-        toast.error(result.error || 'Failed to start execution')
-      }
-    })
-  }, [client.id, router])
-
   const age = calculateAge(client.profile.dob)
-  const hasAlerts =
-    client.alertFlags?.paypalPreviouslyUsed ||
-    client.alertFlags?.idExpiring ||
-    isIdExpiringSoon(client.profile.idExpiryDate) ||
-    client.alertFlags?.pinIssue ||
-    (client.alertFlags?.customAlerts?.length ?? 0) > 0
+
+  const addTimelineEvent = useCallback((event: string, type: TimelineEvent['type']) => {
+    setTimeline((prev) => [
+      {
+        id: `local-${Date.now()}`,
+        date: new Date().toLocaleDateString(),
+        event,
+        type,
+      },
+      ...prev,
+    ])
+  }, [])
 
   const togglePlatformExpanded = useCallback((name: string) => {
     setExpandedPlatforms((prev) =>
@@ -156,11 +144,24 @@ export function ClientDetail({
   }, [])
 
   const handleFieldEdit = useCallback(
-    (_fieldKey: string, _oldValue: string, _newValue: string) => {
-      // TODO: Wire to server action for persisting edits
-      // Would also add a timeline event for the change
+    (fieldKey: string, oldValue: string, newValue: string) => {
+      addTimelineEvent(
+        `Updated ${fieldKey}: "${oldValue}" → "${newValue}"`,
+        'update',
+      )
     },
-    [],
+    [addTimelineEvent],
+  )
+
+  const handleStatusChange = useCallback(
+    (newStatus: ClientStatus) => {
+      const label = newStatus === 'active' ? 'Active' : newStatus === 'ended' ? 'Closed' : 'Verification Needed'
+      const oldLabel = clientStatus === 'active' ? 'Active' : clientStatus === 'ended' ? 'Closed' : 'Verification Needed'
+      setClientStatus(newStatus)
+      addTimelineEvent(`Status changed: "${oldLabel}" → "${label}"`, 'status')
+      toast.success(`Status changed to ${label}`)
+    },
+    [clientStatus, addTimelineEvent],
   )
 
   return (
@@ -183,65 +184,62 @@ export function ClientDetail({
           <h1 className="text-xl font-semibold text-foreground">
             {client.profile.fullName}
           </h1>
-          <p className="text-xs text-muted-foreground">
-            Client Lifecycle Panel &mdash; Source of Truth
-          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="cursor-pointer" data-testid="client-status-toggle">
+                  <Badge className={cn('text-[10px]', getStatusColor(clientStatus))}>
+                    {clientStatus === 'active' ? 'Active' : clientStatus === 'ended' ? 'Closed' : 'Verification Needed'}
+                  </Badge>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                {(['active', 'ended', 'verification_needed'] as ClientStatus[]).map((s) => (
+                  <DropdownMenuItem
+                    key={s}
+                    onClick={() => handleStatusChange(s)}
+                    data-testid={`status-option-${s}`}
+                  >
+                    <Badge className={cn('mr-2 text-[10px]', getStatusColor(s))}>
+                      {s === 'active' ? 'Active' : s === 'ended' ? 'Closed' : 'Verification Needed'}
+                    </Badge>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            {(client.alertFlags?.idExpiring || isIdExpiringSoon(client.profile.idExpiryDate)) && (
+              <Badge variant="outline" className="gap-1 border-destructive/30 bg-destructive/10 text-[10px] text-destructive">
+                <AlertCircle className="h-3 w-3" /> ID Expiring
+              </Badge>
+            )}
+            {client.alertFlags?.paypalPreviouslyUsed && (
+              <Badge variant="outline" className="gap-1 border-warning/30 bg-warning/10 text-[10px] text-warning">
+                <AlertCircle className="h-3 w-3" /> PayPal Used
+              </Badge>
+            )}
+            {client.alertFlags?.pinIssue && (
+              <Badge variant="outline" className="gap-1 border-destructive/30 bg-destructive/10 text-[10px] text-destructive">
+                <Lock className="h-3 w-3" /> PIN Issue
+              </Badge>
+            )}
+            {client.alertFlags?.customAlerts?.map((alert, idx) => (
+              <Badge key={idx} variant="outline" className="gap-1 border-warning/30 bg-warning/10 text-[10px] text-warning">
+                <AlertTriangle className="h-3 w-3" /> {alert}
+              </Badge>
+            ))}
+          </div>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex flex-col items-end gap-1">
-            <div className="flex items-center gap-2">
-              {client.intakeStatus === 'PHONE_ISSUED' && (
-                <Button
-                  size="sm"
-                  className="h-7 gap-1.5 text-xs"
-                  onClick={handleStartExecution}
-                  disabled={isPending}
-                  data-testid="start-execution-btn"
-                >
-                  <Play className="h-3.5 w-3.5" />
-                  {isPending ? 'Starting...' : 'Start Execution'}
-                </Button>
-              )}
-              {client.intakeStatus === 'APPROVED' && (
-                <>
-                  <Link href="/backoffice/phone-tracking">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 gap-1.5 text-xs"
-                      data-testid="assign-phone-btn"
-                    >
-                      <Phone className="h-3.5 w-3.5" />
-                      Assign Phone
-                    </Button>
-                  </Link>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 gap-1.5 text-xs border-destructive/30 text-destructive hover:bg-destructive/10"
-                    onClick={() => setCloseDialogOpen(true)}
-                    data-testid="close-partnership-btn"
-                  >
-                    <AlertTriangle className="h-3.5 w-3.5" />
-                    Close Partnership
-                  </Button>
-                </>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 gap-1.5 text-xs"
-                onClick={() => setShowAllScreenshotsModal(true)}
-                data-testid="view-all-screenshots"
-              >
-                <Images className="h-3.5 w-3.5" />
-                View All Screenshots
-              </Button>
-            </div>
-            <Badge className={cn(getStatusColor(client.status))}>
-              {client.status.replace('_', ' ')}
-            </Badge>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 gap-1.5 text-xs"
+            onClick={() => setShowAllScreenshotsModal(true)}
+            data-testid="view-all-screenshots"
+          >
+            <Images className="h-3.5 w-3.5" />
+            View All Screenshots
+          </Button>
           {/* Prev / Next client navigation */}
           <div className="flex flex-col gap-0.5">
             <Button
@@ -274,67 +272,6 @@ export function ClientDetail({
         </div>
       </div>
 
-      {/* Pending Review Banner — must be first thing the user sees */}
-      {client.intakeStatus === 'READY_FOR_APPROVAL' && (
-        <PendingReviewBanner
-          clientId={client.id}
-          clientName={client.profile.fullName}
-          submittedDate={client.startDate}
-          agentName={client.agent}
-          betmgmScreenshots={client.betmgmScreenshots ?? []}
-          betmgmStatus={client.betmgmStatus ?? 'NOT_STARTED'}
-          questionnaire={client.questionnaire}
-          state={client.quickInfo.state}
-          dob={client.profile.dob}
-          address={client.profile.primaryAddress}
-          idImageUrl={client.profile.idImageUrl}
-        />
-      )}
-
-      {/* Alert Flags */}
-      {hasAlerts && (
-        <div className="flex flex-wrap gap-2" data-testid="alert-flags">
-          {client.alertFlags?.paypalPreviouslyUsed && (
-            <Badge
-              variant="outline"
-              className="gap-1 border-warning/30 bg-warning/10 text-[10px] text-warning"
-            >
-              <AlertCircle className="h-3 w-3" />
-              PayPal Previously Used
-            </Badge>
-          )}
-          {(client.alertFlags?.idExpiring ||
-            isIdExpiringSoon(client.profile.idExpiryDate)) && (
-            <Badge
-              variant="outline"
-              className="gap-1 border-destructive/30 bg-destructive/10 text-[10px] text-destructive"
-            >
-              <AlertCircle className="h-3 w-3" />
-              ID Expiring Soon
-            </Badge>
-          )}
-          {client.alertFlags?.pinIssue && (
-            <Badge
-              variant="outline"
-              className="gap-1 border-destructive/30 bg-destructive/10 text-[10px] text-destructive"
-            >
-              <Lock className="h-3 w-3" />
-              PIN Issue
-            </Badge>
-          )}
-          {client.alertFlags?.customAlerts?.map((alert, idx) => (
-            <Badge
-              key={idx}
-              variant="outline"
-              className="gap-1 border-warning/30 bg-warning/10 text-[10px] text-warning"
-            >
-              <AlertTriangle className="h-3 w-3" />
-              {alert}
-            </Badge>
-          ))}
-        </div>
-      )}
-
       {/* Profile Section - 3 columns */}
       <Card className="card-terminal">
         <CardContent className="p-3">
@@ -362,17 +299,18 @@ export function ClientDetail({
                   View ID
                 </Button>
               </div>
-              <div className="text-sm text-muted-foreground">
+              <div className="flex items-center gap-1 text-sm text-muted-foreground">
                 <EditableField
                   value={client.profile.dob}
                   fieldKey="dob"
                   mono
                   onSave={handleFieldEdit}
-                />{' '}
-                &middot; {age} yrs &middot; {client.profile.gender}
-              </div>
-              <div className="text-sm">
-                <span className="text-muted-foreground">ID Exp:</span>{' '}
+                />
+                <span>({age})</span>
+                <span>&middot;</span>
+                <span>{client.profile.gender}</span>
+                <span>&middot;</span>
+                <span>ID Exp:</span>
                 <span
                   className={cn(
                     'font-mono',
@@ -595,17 +533,6 @@ export function ClientDetail({
         </CardContent>
       </Card>
 
-      {/* Application Review — only when questionnaire data exists */}
-      {client.questionnaire && client.intakeStatus &&
-        ['READY_FOR_APPROVAL', 'APPROVED', 'REJECTED', 'PARTNERSHIP_ENDED'].includes(client.intakeStatus) && (
-        <ApplicationReviewCard
-          clientId={client.id}
-          intakeStatus={client.intakeStatus}
-          questionnaire={client.questionnaire}
-          hideActions={client.intakeStatus === 'READY_FOR_APPROVAL'}
-        />
-      )}
-
       {/* Platform Section */}
       <PlatformSection
         client={client}
@@ -623,47 +550,34 @@ export function ClientDetail({
 
       {/* Activity Timeline */}
       <Card className="card-terminal">
-        <CardHeader className="px-4 pb-2 pt-3">
+        <CardHeader className="px-4 py-2">
           <CardTitle className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-            <Clock className="h-3.5 w-3.5" />
-            Activity Timeline
-            <Badge variant="outline" className="ml-1 text-[9px]">
-              Immutable
-            </Badge>
+            <Clock className="h-3 w-3" />
+            Activity
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <ScrollArea className="h-[200px]">
-            <div className="divide-y divide-border">
-              {client.timeline.map((event) => (
+          <ScrollArea className="h-[180px]">
+            <div className="divide-y divide-border/50">
+              {timeline.map((event) => (
                 <div
                   key={event.id}
-                  className="flex items-start gap-2 p-2.5 px-4"
+                  className="flex items-center gap-1.5 px-4 py-1.5"
                 >
                   <div
                     className={cn(
-                      'mt-1.5 h-2 w-2 shrink-0 rounded-full',
+                      'h-1.5 w-1.5 shrink-0 rounded-full',
                       getTimelineIcon(event.type),
                     )}
                   />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm">{event.event}</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {event.date}
-                    </p>
-                  </div>
-                  <Badge
-                    variant="outline"
-                    className="h-5 shrink-0 capitalize text-[9px]"
-                  >
-                    {event.type}
-                  </Badge>
+                  <span className="min-w-0 flex-1 truncate text-xs">{event.event}</span>
+                  <span className="shrink-0 text-[10px] text-muted-foreground">{event.date}</span>
                 </div>
               ))}
-              {client.timeline.length === 0 && (
-                <div className="p-4 text-center text-sm text-muted-foreground">
-                  No events recorded
-                </div>
+              {timeline.length === 0 && (
+                <p className="py-4 text-center text-xs text-muted-foreground">
+                  No events
+                </p>
               )}
             </div>
           </ScrollArea>
@@ -690,14 +604,6 @@ export function ClientDetail({
         onViewDocument={(url, type) => setShowDocumentModal({ url, type })}
       />
 
-      {/* Close Partnership Dialog */}
-      <CloseClientDialog
-        open={closeDialogOpen}
-        onOpenChange={setCloseDialogOpen}
-        clientId={client.id}
-        clientName={client.name}
-        isAdmin={isAdmin}
-      />
     </div>
   )
 }

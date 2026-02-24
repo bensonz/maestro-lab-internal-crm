@@ -92,7 +92,9 @@ export function ClientSidebar({
           const Icon = metric.icon
           // 'total' maps to 'all', others map to their ClientStatus key
           const filterValue: ClientStatus | 'all' =
-            metric.key === 'total' ? 'all' : metric.key
+            metric.key === 'total' ? 'all'
+            : metric.key === 'verificationNeeded' ? 'verification_needed'
+            : metric.key
           const isActive = clientStatusFilter === filterValue
           return (
             <Card

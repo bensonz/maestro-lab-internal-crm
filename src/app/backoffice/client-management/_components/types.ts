@@ -137,6 +137,7 @@ export interface Client {
   status: ClientStatus
   intakeStatus?: string
   totalFunds: number
+  totalPaid: number
   financePlatforms: FinancePlatform[]
   bettingPlatforms: BettingPlatform[]
   quickInfo: ClientQuickInfo
@@ -183,6 +184,7 @@ export interface ServerClientData {
   email: string | null
   start: string
   funds: string
+  totalPaid: number
   platforms: string[]
   activePlatforms: string[]
   intakeStatus: string
