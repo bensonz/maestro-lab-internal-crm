@@ -141,7 +141,7 @@ export function ClientIntakeList({
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-7 gap-1 px-2 text-xs"
+                    className="h-7 cursor-pointer gap-1 px-2 text-xs"
                     onClick={() => onReviewDraft(client.id, client.name, client.resultClientId)}
                     data-testid={`review-draft-${client.id}`}
                   >
