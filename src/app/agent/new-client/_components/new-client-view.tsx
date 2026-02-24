@@ -55,7 +55,22 @@ export interface SerializedDraft {
   paypalHistory: string | null
   paypalSsnLinked: boolean
   paypalBrowserVerified: boolean
+  occupation: string | null
+  annualIncome: string | null
+  employmentStatus: string | null
+  maritalStatus: string | null
+  creditScoreRange: string | null
+  dependents: string | null
+  educationLevel: string | null
+  householdAwareness: string | null
+  familyTechSupport: string | null
+  financialAutonomy: string | null
+  digitalComfort: string | null
+  deviceReservationDate: string | null
   sportsbookHistory: string | null
+  sportsbookUsedBefore: boolean
+  sportsbookUsedList: string | null
+  sportsbookStatuses: string | null
   platformData: unknown
   contractDocument: string | null
   paypalPreviouslyUsed: boolean
@@ -85,7 +100,10 @@ export function NewClientView({ drafts, selectedDraft }: NewClientViewProps) {
     multipleAddresses: selectedDraft?.addressMismatch ?? false,
     debankedHistory: selectedDraft?.debankedHistory ?? false,
     criminalRecord: selectedDraft?.hasCriminalRecord ?? false,
-    undisclosedInfo: selectedDraft?.undisclosedInfo ?? false,
+    missingIdCount: (selectedDraft?.missingIdType?.split(',').filter(Boolean).length) ?? 0,
+    householdAwareness: selectedDraft?.householdAwareness ?? '',
+    familyTechSupport: selectedDraft?.familyTechSupport ?? '',
+    financialAutonomy: selectedDraft?.financialAutonomy ?? '',
   })
 
   const riskAssessment: RiskAssessment = useMemo(

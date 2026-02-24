@@ -3,7 +3,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Loader2, Smartphone, AlertTriangle } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Checkbox } from '@/components/ui/checkbox'
 import { saveClientDraft, submitClientDraft } from '@/app/actions/client-drafts'
 import { toast } from 'sonner'
 import { Step1PreQual } from './step1-prequal'
@@ -169,6 +171,47 @@ export function ClientForm({
         <Step4Contract formData={formData} onChange={handleFieldChange} />
       )}
 
+      {/* Device Reservation — only on Step 2 */}
+      {currentStep === 2 && (
+        <div className="mt-8 rounded-md border border-amber-500/30 bg-amber-500/5 p-4 space-y-3" data-testid="device-reservation-section">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Device Reservation Required</p>
+              <p className="text-xs text-muted-foreground">
+                Once the device is issued, the client has <span className="font-semibold text-foreground">less than 3 days</span> to complete all platform registrations and return the device. Please confirm a reservation date before proceeding.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="deviceReservationConfirmed"
+                checked={!!(formData.deviceReservationDate as string)}
+                onCheckedChange={(checked) => {
+                  if (!checked) {
+                    handleFieldChange('deviceReservationDate', '')
+                  }
+                }}
+                data-testid="device-reservation-confirmed"
+              />
+              <label htmlFor="deviceReservationConfirmed" className="text-sm">
+                Reservation confirmed
+              </label>
+            </div>
+            <Input
+              type="date"
+              value={(formData.deviceReservationDate as string) || ''}
+              onChange={(e) => handleFieldChange('deviceReservationDate', e.target.value)}
+              className="w-44 h-8 text-sm"
+              min={new Date().toISOString().split('T')[0]}
+              data-testid="device-reservation-date"
+            />
+          </div>
+        </div>
+      )}
+
       {/* Navigation */}
       <div className="mt-8 flex items-center justify-between">
         <Button
@@ -183,14 +226,26 @@ export function ClientForm({
         </Button>
 
         {currentStep < 4 ? (
-          <Button
-            size="sm"
-            onClick={() => handleStepChange(currentStep + 1)}
-            data-testid="next-step-button"
-          >
-            Next
-            <ChevronRight className="ml-1 h-4 w-4" />
-          </Button>
+          currentStep === 2 ? (
+            <Button
+              size="sm"
+              onClick={() => handleStepChange(currentStep + 1)}
+              disabled={!(formData.deviceReservationDate as string)}
+              data-testid="next-step-button"
+            >
+              <Smartphone className="mr-1.5 h-4 w-4" />
+              Request for Device
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              onClick={() => handleStepChange(currentStep + 1)}
+              data-testid="next-step-button"
+            >
+              Next
+              <ChevronRight className="ml-1 h-4 w-4" />
+            </Button>
+          )
         ) : (
           <Button
             size="sm"
@@ -248,7 +303,22 @@ function buildFormDataFromDraft(draft: SerializedDraft): Record<string, unknown>
     paypalHistory: draft.paypalHistory ?? '',
     paypalSsnLinked: draft.paypalSsnLinked ?? false,
     paypalBrowserVerified: draft.paypalBrowserVerified ?? false,
+    occupation: draft.occupation ?? '',
+    annualIncome: draft.annualIncome ?? '',
+    employmentStatus: draft.employmentStatus ?? '',
+    maritalStatus: draft.maritalStatus ?? '',
+    creditScoreRange: draft.creditScoreRange ?? '',
+    dependents: draft.dependents ?? '',
+    educationLevel: draft.educationLevel ?? '',
+    householdAwareness: draft.householdAwareness ?? '',
+    familyTechSupport: draft.familyTechSupport ?? '',
+    financialAutonomy: draft.financialAutonomy ?? '',
+    digitalComfort: draft.digitalComfort ?? '',
+    deviceReservationDate: draft.deviceReservationDate ?? '',
     sportsbookHistory: draft.sportsbookHistory ?? '',
+    sportsbookUsedBefore: draft.sportsbookUsedBefore ?? false,
+    sportsbookUsedList: draft.sportsbookUsedList ?? '',
+    sportsbookStatuses: draft.sportsbookStatuses ?? '',
     platformData: draft.platformData ?? [],
     contractDocument: draft.contractDocument ?? '',
     paypalPreviouslyUsed: draft.paypalPreviouslyUsed,

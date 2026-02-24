@@ -39,7 +39,22 @@ export const clientStep2Schema = z.object({
   paypalHistory: z.string().max(500).optional().or(z.literal('')),
   paypalSsnLinked: z.boolean().optional(),
   paypalBrowserVerified: z.boolean().optional(),
+  occupation: z.string().max(200).optional().or(z.literal('')),
+  annualIncome: z.string().max(50).optional().or(z.literal('')),
+  employmentStatus: z.string().max(50).optional().or(z.literal('')),
+  maritalStatus: z.string().max(50).optional().or(z.literal('')),
+  creditScoreRange: z.string().max(50).optional().or(z.literal('')),
+  dependents: z.string().max(10).optional().or(z.literal('')),
+  educationLevel: z.string().max(50).optional().or(z.literal('')),
+  householdAwareness: z.string().max(50).optional().or(z.literal('')),
+  familyTechSupport: z.string().max(50).optional().or(z.literal('')),
+  financialAutonomy: z.string().max(50).optional().or(z.literal('')),
+  digitalComfort: z.string().max(50).optional().or(z.literal('')),
+  deviceReservationDate: z.string().max(20).optional().or(z.literal('')),
   sportsbookHistory: z.string().max(500).optional().or(z.literal('')),
+  sportsbookUsedBefore: z.boolean().optional(),
+  sportsbookUsedList: z.string().max(500).optional().or(z.literal('')),
+  sportsbookStatuses: z.string().max(2000).optional().or(z.literal('')),
 })
 
 // Step 3: Platform data validation

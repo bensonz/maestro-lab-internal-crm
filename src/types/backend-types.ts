@@ -334,7 +334,10 @@ export interface RiskAssessment {
     multipleAddresses: boolean
     debankedHistory: boolean
     criminalRecord: boolean
-    undisclosedInfo: boolean
+    missingIdCount: number
+    householdAwareness: string
+    familyTechSupport: string
+    financialAutonomy: string
   }
 }
 

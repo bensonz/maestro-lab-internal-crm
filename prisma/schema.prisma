@@ -250,7 +250,22 @@ model ClientDraft {
   paypalHistory         String?
   paypalSsnLinked       Boolean  @default(false)
   paypalBrowserVerified Boolean  @default(false)
+  occupation            String?
+  annualIncome          String?
+  employmentStatus      String?
+  maritalStatus         String?
+  creditScoreRange      String?
+  dependents            String?
+  educationLevel        String?
+  householdAwareness    String?
+  familyTechSupport     String?
+  financialAutonomy     String?
+  digitalComfort        String?
+  deviceReservationDate String?
   sportsbookHistory     String?
+  sportsbookUsedBefore  Boolean  @default(false)
+  sportsbookUsedList    String?
+  sportsbookStatuses    String?
 
   // Step 3: Platforms
   platformData Json?
