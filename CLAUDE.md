@@ -53,7 +53,7 @@ ClientDraft (DRAFT) → Agent submits → ClientDraft (SUBMITTED) + Client (PEND
   - Steps 1-3: navigate with Next/Back buttons, inspect all draft fields
   - Step 4 (Contract): for **SUBMITTED** drafts → **"Approve Client"** button that calls `approveClient(resultClientId)` to promote `Client (PENDING → APPROVED)`, trigger star recalc + bonus pool, and refresh the page. For **DRAFT** entries → shows "Awaiting agent submission" text.
   - Falls back to mock data if DB unavailable.
-- **Backoffice "Client Management" page** — Intended to show only APPROVED clients (currently mock).
+- **Backoffice "Client Management" page** — Intended to show only APPROVED clients (currently mock). Client detail view has: Contact column (Gmail label, Gmail Password field, Personal Phone), sportsbook platform credentials (Login/Password from DB), risk factor badges in header (De-banked, Criminal Record, Undisclosed Info, Address Mismatch, PayPal Used, ID Expiring, PIN Issue).
 
 ### What's Mock (UI shell only)
 
@@ -108,7 +108,7 @@ This is a CRM for managing client onboarding across multiple sports betting plat
 - **User** — All staff accounts (agents, admins, backoffice, finance). Includes hierarchy (supervisorId self-relation), profile fields, star level/tier, leadershipTier (NONE/ED/SED/MD/CMO).
 - **AgentApplication** — Public application form submissions. Status: PENDING → APPROVED/REJECTED. Links to reviewer (User) and created user on approval. Stores `idDocument` and `addressDocument` upload paths.
 - **Client** — Minimal client record. Status: PENDING → APPROVED. Links to closer (User via closerId). One optional BonusPool. Optional `fromDraft` back-link.
-- **ClientDraft** — Agent-owned draft for new client intake. Status: DRAFT → SUBMITTED. 4-step form data (pre-qual, background, platforms, contract). Links to closer (User via closerId) and optional resultClient (Client). Stores risk flags, platform data (Json), document paths, and Step 1 extras (dateOfBirth, address, gmailPassword, gmailScreenshot, betmgmLogin, betmgmPassword, betmgmRegScreenshot, betmgmLoginScreenshot).
+- **ClientDraft** — Agent-owned draft for new client intake. Status: DRAFT → SUBMITTED. 4-step form data (pre-qual, background, platforms, contract). Links to closer (User via closerId) and optional resultClient (Client). Stores risk flags, platform data (Json), document paths, Step 1 extras (dateOfBirth, address, gmailPassword, gmailScreenshot, betmgmLogin, betmgmPassword, betmgmRegScreenshot, betmgmLoginScreenshot), and different-address fields (livesAtDifferentAddress, currentAddress, differentAddressDuration, differentAddressProof).
 - **BonusPool** — One per approved client ($400 fixed). Tracks closer snapshot, distribution stats, has many BonusAllocation[].
 - **BonusAllocation** — Individual payout line. Type: DIRECT ($200 to closer), STAR_SLICE (star pool walk), BACKFILL (remaining to highest supervisor). Status: PENDING → PAID.
 - **PromotionLog** — Immutable audit of star level and leadership tier changes.
@@ -213,29 +213,30 @@ Admin and Backoffice users can inline-edit agent profile fields. Each edit creat
 
 Agents create new clients through a 4-step intake form at `/agent/new-client`.
 
-**Steps:**
-1. **Pre-Qual** — 3 collapsible sections (collapsed by default):
-   - **ID Document**: Upload dropzone with OCR auto-detection modal (mock), auto-fills first/last name, DOB, address, ID expiry. Fields: first/last name*, DOB (with computed age), ID expiry, address, ID number
+**Steps (all use `card-terminal` SectionCard pattern — collapsible cards, collapsed by default):**
+1. **Pre-Qual** — 3 collapsible SectionCards:
+   - **ID Document**: Upload dropzone with OCR auto-detection modal (mock), auto-fills first/last name, DOB, address, ID expiry. Fields: first/last name*, DOB (with computed age), ID expiry, address, ID number. **Different-address flow**: checkbox "Client currently lives at a different address" → reveals sub-section with Current Living Address, Duration, Proof selects; also auto-sets `multipleAddresses` risk flag and DB `addressMismatch` field
    - **Company Gmail**: Gmail address, Gmail password (type=password), Gmail registration screenshot upload with OCR detection (detects email address, auto-fills Gmail field)
    - **BetMGM Verification**: BetMGM login email + password input fields, Registration screenshot (OCR detects "deposit" word to confirm registration), Login credentials screenshot (OCR detects credentials + deposit options), Phone number
    - All upload areas have hover tooltips (what to upload / what NOT to upload)
    - All 3 screenshot uploads (Gmail, BetMGM reg, BetMGM login) trigger OCR detection with modals
    - BetMGM detection auto-fills credential fields and sets `betmgmCheckPassed` when deposit detected
    - `email` field still in schema but not displayed in Step 1 UI
-2. **Background** — SSN document, secondary address, criminal record, banking/PayPal/sportsbook history, risk flags
-3. **Platforms** — Platform-by-platform registration (username, account ID, screenshot) for all 11 platforms
-4. **Contract** — Contract document upload, submission checklist
+2. **Background** — 3 SectionCards: Background (SSN upload + OCR detection, Secondary Address Proof conditional on Step 1's `livesAtDifferentAddress`, Criminal Record — separated by `border-t`), History, Risk Flags
+3. **Platforms** — 2 SectionCards: Financial Platforms, Sportsbook Platforms (platform-by-platform registration for all 11 platforms)
+4. **Contract** — 2 SectionCards: Contract Document, Submission Checklist
 
-**Layout:** 3-panel — left drafts panel (w-56), center form, right risk assessment panel (w-56)
+**Layout:** 3-panel — left drafts panel (w-56), center form (full-width, no max-w constraint), right risk assessment panel (w-56). Step indicator is centered at `max-w-2xl` while form content stretches full width.
 
 **Auto-save:** 500ms debounced save on field changes. Flushes before step navigation or submission.
 
 **Risk Assessment:** Pure function `calculateRiskScore()` computes a score from flags:
 - ID expiry 2-tier: <75 days → 20 points (high), 75-99 days → 10 points (moderate), >=100 or null → 0 points (none)
 - PayPal previously used: +10, De-banked: +30, Criminal record: +30, Undisclosed info: +20
-- Address mismatch: informational only (0 points)
+- Multiple addresses: informational only (0 points) — auto-set when `livesAtDifferentAddress` is true in Step 1
 - Thresholds: 0-29 low, 30-49 medium, 50+ high
 - Max possible score: 110 (all flags active with high ID expiry)
+- Risk panel displays days remaining for ID expiry (e.g., "ID Expiring in 45D") when the flag is active
 
 **Inner-Step Progress (Step 1):** 5 items — ID document uploaded, Gmail filled, Gmail screenshot uploaded, at least one BetMGM screenshot uploaded, BetMGM check passed
 
@@ -244,18 +245,20 @@ Agents create new clients through a 4-step intake form at `/agent/new-client`.
 **Key files:**
 - `src/app/agent/new-client/page.tsx` — Server component: auth, load drafts + selected draft
 - `src/app/agent/new-client/_components/new-client-view.tsx` — Client: 3-panel layout orchestrator
-- `src/app/agent/new-client/_components/drafts-panel.tsx` — Left panel: draft list + create/delete
+- `src/app/agent/new-client/_components/drafts-panel.tsx` — Left panel: draft list + create/delete (no title/subtitle, no file icons, sidebar conventions matched with other pages)
 - `src/app/agent/new-client/_components/step-indicator.tsx` — 4-step progress indicator
 - `src/app/agent/new-client/_components/client-form.tsx` — Form state, auto-save, step navigation
-- `src/app/agent/new-client/_components/step1-prequal.tsx` — Step 1 fields (3 collapsible sections: ID, Gmail, BetMGM, with uploads + OCR detection)
-- `src/app/agent/new-client/_components/mock-extract-id.ts` — Mock OCR extraction for ID, Gmail, and BetMGM screenshots
+- `src/app/agent/new-client/_components/step1-prequal.tsx` — Step 1 fields (3 collapsible SectionCards: ID, Gmail, BetMGM, with uploads + OCR detection + different-address flow)
+- `src/app/agent/new-client/_components/mock-extract-id.ts` — Mock OCR extraction for ID, Gmail, BetMGM screenshots, SSN documents, and address proof
 - `src/app/agent/new-client/_components/id-detection-modal.tsx` — ID field confirmation dialog with checkboxes
 - `src/app/agent/new-client/_components/gmail-detection-modal.tsx` — Gmail email detection dialog
 - `src/app/agent/new-client/_components/betmgm-detection-modal.tsx` — BetMGM detection dialog (credentials + deposit detection)
-- `src/app/agent/new-client/_components/step2-background.tsx` — Step 2 fields + risk flag toggles
-- `src/app/agent/new-client/_components/step3-platforms.tsx` — Platform grid using PLATFORM_INFO
+- `src/app/agent/new-client/_components/ssn-detection-modal.tsx` — SSN number detection confirmation dialog
+- `src/app/agent/new-client/_components/address-detection-modal.tsx` — Address proof detection confirmation dialog
+- `src/app/agent/new-client/_components/step2-background.tsx` — Step 2: 3 SectionCards (Background with SSN/address proof/criminal record, History, Risk Flags) with upload + OCR detection
+- `src/app/agent/new-client/_components/step3-platforms.tsx` — Step 3: 2 SectionCards (Financial Platforms, Sportsbook Platforms)
 - `src/app/agent/new-client/_components/step3-platform-card.tsx` — Individual platform card
-- `src/app/agent/new-client/_components/step4-contract.tsx` — Contract upload + checklist
+- `src/app/agent/new-client/_components/step4-contract.tsx` — Step 4: 2 SectionCards (Contract Document, Submission Checklist)
 - `src/app/agent/new-client/_components/risk-panel.tsx` — Right panel: risk score + flags
 - `src/app/actions/client-drafts.ts` — CRUD server actions (create, save, submit, delete, getFullDraft with role-based auth)
 - `src/app/backoffice/sales-interaction/_components/draft-review-dialog.tsx` — 4-step read-only review dialog with Approve Client button for submitted drafts (uses `useReducer` for state, calls `approveClient`)
@@ -330,6 +333,13 @@ if (!session?.user) return { success: false, error: 'Not authenticated' }
 **Platform Utilities**: `@/lib/platforms` provides metadata for the 11 supported platforms.
 
 **UI Components**: shadcn/ui (new-york style) in `@/components/ui/`. Icons from `lucide-react`.
+
+**SectionCard Pattern**: All 4 steps of the new client intake form use a consistent `SectionCard` component pattern:
+- Wrapper: `card-terminal !p-0` (uses `--card` background, not `bg-muted` which is too grey)
+- Header: `border-b border-border px-4 py-3 text-sm font-medium` with `CollapsibleTrigger`
+- Content: `space-y-4 p-4` inside `CollapsibleContent`
+- Collapsed by default, chevron rotates on open/close
+- Each step file defines its own local `SectionCard` component
 
 **Form Fields**: Use `Field` component from `@/components/ui/field` instead of raw `Label` + `Input` combinations.
 
@@ -409,7 +419,7 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 
 **Client Draft (2 files, 41 tests):**
 - `src/test/backend/actions/client-drafts.test.ts` — CRUD actions, auth guards, ownership checks, submit validation, new Step 1 field allowlist
-- `src/test/lib/risk-score.test.ts` — 2-tier ID expiry boundaries (74/75/99/100 days), flag weights, addressMismatch exclusion, max score 110
+- `src/test/lib/risk-score.test.ts` — 2-tier ID expiry boundaries (74/75/99/100 days), flag weights, multipleAddresses exclusion, max score 110
 
 ---
 
@@ -426,7 +436,7 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 | `/agent/earnings` | `src/app/agent/earnings/page.tsx` | **Real DB** — allocations; Mock — KPIs/hierarchy |
 | `/agent/team` | `src/app/agent/team/page.tsx` | Mock — hierarchy tree |
 | `/agent/todo-list` | `src/app/agent/todo-list/page.tsx` | Mock — todo list |
-| `/agent/settings` | `src/app/agent/settings/page.tsx` | Mock — user settings |
+| `/agent/settings` | `src/app/agent/settings/page.tsx` | Mock — user settings (full-width layout) |
 
 ### Back Office
 
