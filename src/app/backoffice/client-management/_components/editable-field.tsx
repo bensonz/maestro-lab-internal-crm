@@ -80,6 +80,10 @@ export function EditableField({
           <Input
             value={editValue}
             onChange={(e) => setEditValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleSave()
+              if (e.key === 'Escape') handleCancel()
+            }}
             className="h-6 w-32 px-2 text-sm"
             autoFocus
           />
