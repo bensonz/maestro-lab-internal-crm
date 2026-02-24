@@ -15,7 +15,7 @@ export default function NewClientLoading() {
 
       {/* Center */}
       <div className="flex-1 overflow-y-auto p-6">
-        <div className="mx-auto max-w-2xl space-y-6">
+        <div className="w-full space-y-6">
           <Skeleton className="mx-auto h-10 w-80" />
           <div className="space-y-4">
             {Array.from({ length: 4 }).map((_, i) => (
