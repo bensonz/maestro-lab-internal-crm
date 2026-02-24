@@ -31,13 +31,12 @@ function computeInnerStepProgress(draft: Awaited<ReturnType<typeof getDraftsByCl
       return { completed, total }
     }
     case 2: {
-      // 4 inner-steps: SSN, Address, Criminal record, History
-      const total = 4
+      // 3 inner-steps: Identity & Document, Platforms History, Client Background
+      const total = 3
       let completed = 0
       if (draft.ssnDocument) completed++
-      if (draft.secondAddress) completed++
-      if (draft.hasCriminalRecord != null) completed++
       if (draft.bankingHistory) completed++
+      if (draft.hasCriminalRecord != null) completed++
       return { completed, total }
     }
     case 3: {
