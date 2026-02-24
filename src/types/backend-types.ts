@@ -68,6 +68,8 @@ export interface IntakeClient {
   platformProgress: { verified: number; total: number }
   exceptionStates: ExceptionState[]
   rejectedPlatforms: string[]
+  /** For SUBMITTED drafts: the linked PENDING Client ID */
+  resultClientId?: string | null
 }
 
 export interface PostApprovalClient {

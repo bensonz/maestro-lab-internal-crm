@@ -232,6 +232,11 @@ model ClientDraft {
   betmgmRegScreenshot   String?
   betmgmLoginScreenshot String?
 
+  livesAtDifferentAddress  Boolean  @default(false)
+  currentAddress           String?
+  differentAddressDuration String?
+  differentAddressProof    String?
+
   // Step 2: Background
   ssnDocument        String?
   secondAddress      String?

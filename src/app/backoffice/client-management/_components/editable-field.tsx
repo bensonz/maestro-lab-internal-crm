@@ -38,24 +38,26 @@ export function EditableField({
   onSave,
 }: EditableFieldProps) {
   const [isEditing, setIsEditing] = useState(false)
+  const [displayValue, setDisplayValue] = useState(value)
   const [editValue, setEditValue] = useState(value)
 
   const handleDoubleClick = useCallback(() => {
-    setEditValue(value)
+    setEditValue(displayValue)
     setIsEditing(true)
-  }, [value])
+  }, [displayValue])
 
   const handleSave = useCallback(() => {
-    if (onSave && editValue !== value) {
-      onSave(fieldKey, value, editValue)
+    if (editValue !== displayValue) {
+      onSave?.(fieldKey, displayValue, editValue)
+      setDisplayValue(editValue)
     }
     setIsEditing(false)
-  }, [onSave, fieldKey, value, editValue])
+  }, [onSave, fieldKey, displayValue, editValue])
 
   const handleCancel = useCallback(() => {
-    setEditValue(value)
+    setEditValue(displayValue)
     setIsEditing(false)
-  }, [value])
+  }, [displayValue])
 
   const isLong = isLongField(fieldKey)
 
@@ -116,7 +118,7 @@ export function EditableField({
       onDoubleClick={handleDoubleClick}
       title="Double-click to edit"
     >
-      {value}
+      {displayValue}
     </span>
   )
 }

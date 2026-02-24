@@ -19,6 +19,7 @@ import {
 import { cn } from '@/lib/utils'
 import {
   BETTING_PLATFORMS,
+  type ClientStatus,
   type ServerClientStats,
   type ViewPlatformStatus,
 } from './types'
@@ -37,14 +38,14 @@ const METRIC_CONFIG = [
     variant: 'success' as const,
   },
   {
-    key: 'closed' as const,
-    label: 'Closed',
+    key: 'ended' as const,
+    label: 'Ended',
     icon: XCircle,
     variant: 'muted' as const,
   },
   {
-    key: 'furtherVerification' as const,
-    label: 'Further Verification',
+    key: 'verificationNeeded' as const,
+    label: 'Verification Needed',
     icon: AlertTriangle,
     variant: 'warning' as const,
   },
@@ -52,6 +53,8 @@ const METRIC_CONFIG = [
 
 interface ClientSidebarProps {
   stats: ServerClientStats
+  clientStatusFilter: ClientStatus | 'all'
+  onClientStatusFilterChange: (v: ClientStatus | 'all') => void
   platformFilter: string
   onPlatformFilterChange: (v: string) => void
   statusFilter: ViewPlatformStatus | 'all'
@@ -62,6 +65,8 @@ interface ClientSidebarProps {
 
 export function ClientSidebar({
   stats,
+  clientStatusFilter,
+  onClientStatusFilterChange,
   platformFilter,
   onPlatformFilterChange,
   statusFilter,
@@ -81,12 +86,28 @@ export function ClientSidebar({
         </h1>
       </div>
 
-      {/* Summary Metrics */}
+      {/* Summary Metrics — click to filter */}
       <div className="space-y-2">
         {METRIC_CONFIG.map((metric) => {
           const Icon = metric.icon
+          // 'total' maps to 'all', others map to their ClientStatus key
+          const filterValue: ClientStatus | 'all' =
+            metric.key === 'total' ? 'all'
+            : metric.key === 'verificationNeeded' ? 'verification_needed'
+            : metric.key
+          const isActive = clientStatusFilter === filterValue
           return (
-            <Card key={metric.key} className="card-terminal">
+            <Card
+              key={metric.key}
+              className={cn(
+                'card-terminal cursor-pointer transition-colors',
+                isActive && 'ring-2 ring-primary/50',
+              )}
+              onClick={() =>
+                onClientStatusFilterChange(isActive ? 'all' : filterValue)
+              }
+              data-testid={`metric-card-${metric.key}`}
+            >
               <CardContent className="p-3">
                 <div className="flex items-center justify-between">
                   <div>

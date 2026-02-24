@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { FileText, Trash2, ChevronRight } from 'lucide-react'
+import { Trash2, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
@@ -99,7 +99,7 @@ export function DraftsPanel({
       className="hidden w-56 min-w-56 shrink-0 flex-col border-r border-sidebar-border bg-sidebar lg:flex"
       data-testid="drafts-panel"
     >
-      <div className="border-b p-3">
+      <div className="border-b border-sidebar-border p-4">
         <Button
           size="sm"
           className="w-full"
@@ -112,14 +112,17 @@ export function DraftsPanel({
       </div>
 
       <ScrollArea className="flex-1">
-        <div className="p-2">
+        <div className="p-3">
           {drafts.length === 0 && (
             <p className="px-2 py-4 text-center text-xs text-muted-foreground">
               No drafts yet
             </p>
           )}
 
-          {drafts.length > 0 && STEP_LABELS.map((label, i) => {
+          {drafts.length > 0 && (
+            <>
+              <p className="mb-2 px-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">By Step</p>
+              {STEP_LABELS.map((label, i) => {
             const stepNum = i + 1
             const stepDrafts = grouped[stepNum]
             if (stepDrafts.length === 0) return null
@@ -127,10 +130,10 @@ export function DraftsPanel({
             return (
               <Collapsible key={stepNum} defaultOpen>
                 <div className="mb-1">
-                  <CollapsibleTrigger className="flex w-full items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors group">
+                  <CollapsibleTrigger className="flex w-full items-center gap-1 rounded-md px-2 py-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors group">
                     <ChevronRight className="h-3 w-3 transition-transform group-data-[state=open]:rotate-90" />
                     {label}
-                    <span className="ml-auto text-[10px] tabular-nums">{stepDrafts.length}</span>
+                    <span className="ml-auto font-mono text-[10px]">{stepDrafts.length}</span>
                   </CollapsibleTrigger>
 
                   <CollapsibleContent>
@@ -145,7 +148,6 @@ export function DraftsPanel({
                           )}
                           data-testid={`draft-item-${draft.id}`}
                         >
-                          <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                           <span className="min-w-0 flex-1 truncate">
                             {getDraftName(draft)}
                           </span>
@@ -165,6 +167,8 @@ export function DraftsPanel({
               </Collapsible>
             )
           })}
+            </>
+          )}
         </div>
       </ScrollArea>
     </div>

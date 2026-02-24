@@ -61,6 +61,10 @@ export async function saveClientDraft(
     'idExpiry',
     'dateOfBirth',
     'address',
+    'livesAtDifferentAddress',
+    'currentAddress',
+    'differentAddressDuration',
+    'differentAddressProof',
     'assignedGmail',
     'gmailPassword',
     'gmailScreenshot',
@@ -164,6 +168,32 @@ export async function submitClientDraft(draftId: string) {
   revalidatePath('/backoffice/client-management')
 
   return { success: true, clientId: client.id }
+}
+
+export async function getFullDraft(draftId: string) {
+  const session = await auth()
+  if (!session?.user) return { success: false as const, error: 'Not authenticated' }
+
+  // Backoffice/admin can view any draft; agents can only view their own
+  const role = session.user.role
+  const where = role === 'ADMIN' || role === 'BACKOFFICE'
+    ? { id: draftId }
+    : { id: draftId, closerId: session.user.id }
+
+  const draft = await prisma.clientDraft.findFirst({ where })
+
+  if (!draft) return { success: false as const, error: 'Draft not found' }
+
+  return {
+    success: true as const,
+    draft: {
+      ...draft,
+      idExpiry: draft.idExpiry?.toISOString() ?? null,
+      dateOfBirth: draft.dateOfBirth?.toISOString() ?? null,
+      createdAt: draft.createdAt.toISOString(),
+      updatedAt: draft.updatedAt.toISOString(),
+    },
+  }
 }
 
 export async function deleteClientDraft(draftId: string) {

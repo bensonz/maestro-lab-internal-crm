@@ -7,7 +7,7 @@ import {
   MOCK_LIFECYCLE_CLIENTS,
 } from '@/lib/mock-data'
 import { SalesInteractionView } from './_components/sales-interaction-view'
-import { getAllDrafts } from '@/backend/data/client-drafts'
+import { getAllDraftsForBackoffice } from '@/backend/data/client-drafts'
 import { getAgentsForHierarchy } from '@/backend/data/users'
 import { getAgentDisplayTier, LEADERSHIP_TIERS, STAR_THRESHOLDS } from '@/lib/commission-constants'
 import type { IntakeClient, InProgressSubStage } from '@/types/backend-types'
@@ -62,34 +62,38 @@ export default async function SalesInteractionPage() {
     // DB not available, fall back to mock
   }
 
-  // Fetch real drafts from DB
+  // Fetch real drafts from DB (DRAFT + SUBMITTED with PENDING client)
   let draftIntake: IntakeClient[] = []
   try {
-    const drafts = await getAllDrafts()
-    draftIntake = drafts.map((d) => ({
-      id: d.id,
-      name: d.firstName && d.lastName
-        ? `${d.firstName} ${d.lastName}`
-        : d.firstName || 'Untitled Draft',
-      status: 'DRAFT',
-      statusType: 'pending_platform' as const,
-      statusColor: 'text-muted-foreground',
-      agentId: d.closerId,
-      agentName: d.closer?.name ?? 'Unknown',
-      days: Math.floor(
-        (Date.now() - new Date(d.updatedAt).getTime()) / (1000 * 60 * 60 * 24),
-      ),
-      daysLabel: `${Math.floor((Date.now() - new Date(d.updatedAt).getTime()) / (1000 * 60 * 60 * 24))}d`,
-      canApprove: false,
-      canAssignPhone: false,
-      subStage: stepToSubStage(d.step),
-      executionDeadline: null,
-      deadlineExtensions: 0,
-      pendingExtensionRequest: null,
-      platformProgress: { verified: 0, total: 0 },
-      exceptionStates: [],
-      rejectedPlatforms: [],
-    }))
+    const drafts = await getAllDraftsForBackoffice()
+    draftIntake = drafts.map((d) => {
+      const isSubmitted = d.status === 'SUBMITTED'
+      return {
+        id: d.id,
+        name: d.firstName && d.lastName
+          ? `${d.firstName} ${d.lastName}`
+          : d.firstName || 'Untitled Draft',
+        status: isSubmitted ? 'PENDING APPROVAL' : 'DRAFT',
+        statusType: isSubmitted ? 'ready' as const : 'pending_platform' as const,
+        statusColor: isSubmitted ? 'text-warning' : 'text-muted-foreground',
+        agentId: d.closerId,
+        agentName: d.closer?.name ?? 'Unknown',
+        days: Math.floor(
+          (Date.now() - new Date(d.updatedAt).getTime()) / (1000 * 60 * 60 * 24),
+        ),
+        daysLabel: `${Math.floor((Date.now() - new Date(d.updatedAt).getTime()) / (1000 * 60 * 60 * 24))}d`,
+        canApprove: false,
+        canAssignPhone: false,
+        subStage: stepToSubStage(d.step),
+        executionDeadline: null,
+        deadlineExtensions: 0,
+        pendingExtensionRequest: null,
+        platformProgress: { verified: 0, total: 0 },
+        exceptionStates: [],
+        rejectedPlatforms: [],
+        resultClientId: d.resultClientId,
+      }
+    })
   } catch {
     // DB not available, fall back to mock
   }

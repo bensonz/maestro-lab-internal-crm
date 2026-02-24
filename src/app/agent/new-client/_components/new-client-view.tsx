@@ -31,6 +31,10 @@ export interface SerializedDraft {
   idExpiry: string | null
   dateOfBirth: string | null
   address: string | null
+  livesAtDifferentAddress: boolean
+  currentAddress: string | null
+  differentAddressDuration: string | null
+  differentAddressProof: string | null
   assignedGmail: string | null
   gmailPassword: string | null
   gmailScreenshot: string | null
@@ -132,8 +136,10 @@ export function NewClientView({ drafts, selectedDraft }: NewClientViewProps) {
 
       {/* Center: Form */}
       <div className="flex flex-1 flex-col overflow-y-auto">
-        <div className="mx-auto w-full max-w-2xl p-6">
-          <StepIndicator currentStep={currentStep} totalSteps={4} onStepChange={handleStepIndicatorClick} />
+        <div className="w-full p-6">
+          <div className="mx-auto max-w-2xl">
+            <StepIndicator currentStep={currentStep} totalSteps={4} onStepChange={handleStepIndicatorClick} />
+          </div>
 
           {selectedDraft ? (
             <ClientForm
@@ -159,6 +165,7 @@ export function NewClientView({ drafts, selectedDraft }: NewClientViewProps) {
         assessment={riskAssessment}
         onFlagsChange={handleRiskFlagsChange}
         draftSelected={!!selectedDraft}
+        idExpiryDaysRemaining={riskFlags.idExpiryDaysRemaining}
       />
     </div>
   )

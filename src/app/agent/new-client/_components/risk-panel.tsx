@@ -8,6 +8,7 @@ interface RiskPanelProps {
   assessment: RiskAssessment
   onFlagsChange: (flags: Record<string, unknown>) => void
   draftSelected: boolean
+  idExpiryDaysRemaining?: number | null
 }
 
 const FLAG_LABELS: { key: keyof RiskAssessment['flags']; label: string }[] = [
@@ -19,7 +20,7 @@ const FLAG_LABELS: { key: keyof RiskAssessment['flags']; label: string }[] = [
   { key: 'undisclosedInfo', label: 'Undisclosed Info' },
 ]
 
-export function RiskPanel({ assessment, draftSelected }: RiskPanelProps) {
+export function RiskPanel({ assessment, draftSelected, idExpiryDaysRemaining }: RiskPanelProps) {
   const levelColors = {
     low: 'text-success bg-success/10 border-success/30',
     medium: 'text-warning bg-warning/10 border-warning/30',
@@ -99,7 +100,9 @@ export function RiskPanel({ assessment, draftSelected }: RiskPanelProps) {
                           active ? 'bg-destructive' : 'bg-muted-foreground/30',
                         )}
                       />
-                      {label}
+                      {key === 'idExpiryRisk' && active && idExpiryDaysRemaining != null
+                        ? `ID Expiring in ${idExpiryDaysRemaining}D`
+                        : label}
                     </span>
                   </div>
                 )

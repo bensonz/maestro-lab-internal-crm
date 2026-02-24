@@ -7,6 +7,7 @@ import { ClientList } from './client-list'
 import { ClientDetail } from './client-detail'
 import type {
   Client,
+  ClientStatus,
   ServerClientData,
   ServerClientStats,
   ViewPlatformStatus,
@@ -55,7 +56,20 @@ export function ClientManagementPage({
     }
   }, [clients, selectedClient])
 
+  // Sync selectedClient with URL — deselect when param is removed (e.g. sidebar nav click)
+  useEffect(() => {
+    if (!clientIdParam && selectedClient) {
+      setSelectedClient(null)
+    } else if (clientIdParam && clientIdParam !== selectedClient?.id) {
+      const target = clients.find((c) => c.id === clientIdParam)
+      if (target) setSelectedClient(target)
+    }
+  }, [clientIdParam, clients])
+
   const [searchQuery, setSearchQuery] = useState('')
+  const [clientStatusFilter, setClientStatusFilter] = useState<
+    ClientStatus | 'all'
+  >('all')
   const [platformFilter, setPlatformFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState<
     ViewPlatformStatus | 'all'
@@ -73,9 +87,18 @@ export function ClientManagementPage({
           client.companyPhone.includes(searchQuery) ||
           client.companyEmail
             .toLowerCase()
-            .includes(searchQuery.toLowerCase())
+            .includes(searchQuery.toLowerCase()) ||
+          (client.agent &&
+            client.agent.toLowerCase().includes(searchQuery.toLowerCase()))
 
         if (!matchesSearch) return false
+
+        // Client-level status filter (from summary cards)
+        if (
+          clientStatusFilter !== 'all' &&
+          client.status !== clientStatusFilter
+        )
+          return false
 
         // Platform and status filter
         if (platformFilter !== 'all' && statusFilter !== 'all') {
@@ -102,17 +125,30 @@ export function ClientManagementPage({
         if (sortByFunds === 'asc') return a.totalFunds - b.totalFunds
         return 0
       })
-  }, [clients, searchQuery, platformFilter, statusFilter, sortByFunds])
+  }, [clients, searchQuery, clientStatusFilter, platformFilter, statusFilter, sortByFunds])
+
+  // Select a client and sync URL
+  const selectClient = useCallback(
+    (client: Client | null) => {
+      setSelectedClient(client)
+      if (client) {
+        router.replace(`?client=${client.id}`, { scroll: false })
+      } else {
+        router.replace('?', { scroll: false })
+      }
+    },
+    [router],
+  )
 
   // Navigate to another client from relationships
   const handleNavigateToClient = useCallback(
     (clientId: string) => {
       const target = clients.find((c) => c.id === clientId)
       if (target) {
-        setSelectedClient(target)
+        selectClient(target)
       }
     },
-    [clients],
+    [clients, selectClient],
   )
 
   // Detail view
@@ -121,7 +157,7 @@ export function ClientManagementPage({
       <ClientDetail
         client={selectedClient}
         allClients={clients}
-        onBack={() => setSelectedClient(null)}
+        onBack={() => selectClient(null)}
         onNavigateToClient={handleNavigateToClient}
       />
     )
@@ -132,6 +168,8 @@ export function ClientManagementPage({
     <div className="flex h-full animate-fade-in">
       <ClientSidebar
         stats={stats}
+        clientStatusFilter={clientStatusFilter}
+        onClientStatusFilterChange={setClientStatusFilter}
         platformFilter={platformFilter}
         onPlatformFilterChange={setPlatformFilter}
         statusFilter={statusFilter}
@@ -143,7 +181,7 @@ export function ClientManagementPage({
         clients={filteredClients}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        onSelectClient={setSelectedClient}
+        onSelectClient={selectClient}
       />
     </div>
   )

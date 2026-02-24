@@ -22,14 +22,14 @@ export function mapIntakeStatusToClientStatus(
     case 'REJECTED':
     case 'INACTIVE':
     case 'PARTNERSHIP_ENDED':
-      return 'closed'
+      return 'ended'
     case 'NEEDS_MORE_INFO':
     case 'PENDING_EXTERNAL':
     case 'READY_FOR_APPROVAL':
     case 'EXECUTION_DELAYED':
-      return 'further_verification'
+      return 'verification_needed'
     default:
-      return 'further_verification'
+      return 'verification_needed'
   }
 }
 
@@ -147,6 +147,7 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
     status: mapIntakeStatusToClientStatus(serverClient.intakeStatus),
     intakeStatus: serverClient.intakeStatus,
     totalFunds: parseFloat(serverClient.funds.replace(/[$,]/g, '')) || 0,
+    totalPaid: serverClient.totalPaid || 0,
     financePlatforms: [
       {
         name: 'PayPal',

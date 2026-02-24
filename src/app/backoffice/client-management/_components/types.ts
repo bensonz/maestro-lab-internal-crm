@@ -2,7 +2,7 @@
 // Client Management View-Model Types (mirrors Lovable reference)
 // ============================================================================
 
-export type ClientStatus = 'active' | 'closed' | 'further_verification'
+export type ClientStatus = 'active' | 'ended' | 'verification_needed'
 export type ViewPlatformStatus = 'active' | 'limited' | 'pipeline' | 'dead'
 export type FinancePlatformStatus = 'active' | 'permanent_limited' | 'rejected' | 'pipeline'
 export type BankType = 'Chase' | 'Citi' | 'BofA'
@@ -137,6 +137,7 @@ export interface Client {
   status: ClientStatus
   intakeStatus?: string
   totalFunds: number
+  totalPaid: number
   financePlatforms: FinancePlatform[]
   bettingPlatforms: BettingPlatform[]
   quickInfo: ClientQuickInfo
@@ -183,6 +184,7 @@ export interface ServerClientData {
   email: string | null
   start: string
   funds: string
+  totalPaid: number
   platforms: string[]
   activePlatforms: string[]
   intakeStatus: string
@@ -219,6 +221,6 @@ export interface ServerClientData {
 export interface ServerClientStats {
   total: number
   active: number
-  closed: number
-  furtherVerification: number
+  ended: number
+  verificationNeeded: number
 }

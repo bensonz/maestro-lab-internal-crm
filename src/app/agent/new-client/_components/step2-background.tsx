@@ -11,6 +11,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible'
+import { ChevronDown } from 'lucide-react'
 
 interface Step2Props {
   formData: Record<string, unknown>
@@ -18,35 +24,63 @@ interface Step2Props {
   onRiskFlagsChange: (flags: Record<string, unknown>) => void
 }
 
+function SectionCard({
+  title,
+  children,
+  defaultOpen,
+}: {
+  title: string
+  children: React.ReactNode
+  defaultOpen?: boolean
+}) {
+  return (
+    <Collapsible defaultOpen={defaultOpen}>
+      <div className="card-terminal w-full overflow-hidden !p-0" data-testid={`section-card-${title.toLowerCase().replace(/\s+/g, '-')}`}>
+        <CollapsibleTrigger className="flex w-full items-center justify-between border-b border-border px-4 py-3 text-sm font-medium transition-colors hover:bg-card-hover group" data-testid="section-trigger">
+          <span>{title}</span>
+          <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=closed]:-rotate-90" />
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="space-y-4 p-4">
+            {children}
+          </div>
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
+  )
+}
+
 export function Step2Background({ formData, onChange, onRiskFlagsChange }: Step2Props) {
   return (
-    <div className="space-y-5" data-testid="step2-background">
-      <h2 className="text-lg font-semibold">Step 2: Background Information</h2>
+    <div className="space-y-4" data-testid="step2-background">
 
-      <Field>
-        <FieldLabel htmlFor="ssnDocument">SSN Document</FieldLabel>
-        <Input
-          id="ssnDocument"
-          value={(formData.ssnDocument as string) || ''}
-          onChange={(e) => onChange('ssnDocument', e.target.value)}
-          placeholder="Upload path or URL"
-          data-testid="client-ssn-document"
-        />
-      </Field>
+      {/* Documents & Address */}
+      <SectionCard title="Documents & Address">
+        <Field>
+          <FieldLabel htmlFor="ssnDocument">SSN Document</FieldLabel>
+          <Input
+            id="ssnDocument"
+            value={(formData.ssnDocument as string) || ''}
+            onChange={(e) => onChange('ssnDocument', e.target.value)}
+            placeholder="Upload path or URL"
+            data-testid="client-ssn-document"
+          />
+        </Field>
 
-      <Field>
-        <FieldLabel htmlFor="secondAddress">Secondary Address</FieldLabel>
-        <Input
-          id="secondAddress"
-          value={(formData.secondAddress as string) || ''}
-          onChange={(e) => onChange('secondAddress', e.target.value)}
-          placeholder="Secondary address (if any)"
-          data-testid="client-second-address"
-        />
-      </Field>
+        <Field>
+          <FieldLabel htmlFor="secondAddress">Secondary Address</FieldLabel>
+          <Input
+            id="secondAddress"
+            value={(formData.secondAddress as string) || ''}
+            onChange={(e) => onChange('secondAddress', e.target.value)}
+            placeholder="Secondary address (if any)"
+            data-testid="client-second-address"
+          />
+        </Field>
+      </SectionCard>
 
       {/* Criminal Record */}
-      <div className="rounded-md border p-4 space-y-3">
+      <SectionCard title="Criminal Record">
         <div className="flex items-center gap-2">
           <Checkbox
             id="hasCriminalRecord"
@@ -76,66 +110,66 @@ export function Step2Background({ formData, onChange, onRiskFlagsChange }: Step2
             />
           </Field>
         )}
-      </div>
+      </SectionCard>
 
-      {/* History Questions */}
-      <Field>
-        <FieldLabel htmlFor="bankingHistory">Banking History</FieldLabel>
-        <Select
-          value={(formData.bankingHistory as string) || ''}
-          onValueChange={(value) => onChange('bankingHistory', value)}
-        >
-          <SelectTrigger id="bankingHistory" data-testid="client-banking-history">
-            <SelectValue placeholder="Select banking history" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="good">Good Standing</SelectItem>
-            <SelectItem value="fair">Fair</SelectItem>
-            <SelectItem value="poor">Poor / Issues</SelectItem>
-            <SelectItem value="unknown">Unknown</SelectItem>
-          </SelectContent>
-        </Select>
-      </Field>
+      {/* History */}
+      <SectionCard title="History">
+        <Field>
+          <FieldLabel htmlFor="bankingHistory">Banking History</FieldLabel>
+          <Select
+            value={(formData.bankingHistory as string) || ''}
+            onValueChange={(value) => onChange('bankingHistory', value)}
+          >
+            <SelectTrigger id="bankingHistory" data-testid="client-banking-history">
+              <SelectValue placeholder="Select banking history" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="good">Good Standing</SelectItem>
+              <SelectItem value="fair">Fair</SelectItem>
+              <SelectItem value="poor">Poor / Issues</SelectItem>
+              <SelectItem value="unknown">Unknown</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
 
-      <Field>
-        <FieldLabel htmlFor="paypalHistory">PayPal History</FieldLabel>
-        <Select
-          value={(formData.paypalHistory as string) || ''}
-          onValueChange={(value) => onChange('paypalHistory', value)}
-        >
-          <SelectTrigger id="paypalHistory" data-testid="client-paypal-history">
-            <SelectValue placeholder="Select PayPal history" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="new">New Account</SelectItem>
-            <SelectItem value="active">Active Account</SelectItem>
-            <SelectItem value="limited">Limited / Restricted</SelectItem>
-            <SelectItem value="none">No Account</SelectItem>
-          </SelectContent>
-        </Select>
-      </Field>
+        <Field>
+          <FieldLabel htmlFor="paypalHistory">PayPal History</FieldLabel>
+          <Select
+            value={(formData.paypalHistory as string) || ''}
+            onValueChange={(value) => onChange('paypalHistory', value)}
+          >
+            <SelectTrigger id="paypalHistory" data-testid="client-paypal-history">
+              <SelectValue placeholder="Select PayPal history" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="new">New Account</SelectItem>
+              <SelectItem value="active">Active Account</SelectItem>
+              <SelectItem value="limited">Limited / Restricted</SelectItem>
+              <SelectItem value="none">No Account</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
 
-      <Field>
-        <FieldLabel htmlFor="sportsbookHistory">Sportsbook History</FieldLabel>
-        <Select
-          value={(formData.sportsbookHistory as string) || ''}
-          onValueChange={(value) => onChange('sportsbookHistory', value)}
-        >
-          <SelectTrigger id="sportsbookHistory" data-testid="client-sportsbook-history">
-            <SelectValue placeholder="Select sportsbook history" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">No Prior Accounts</SelectItem>
-            <SelectItem value="some">Some Prior Accounts</SelectItem>
-            <SelectItem value="many">Many Prior Accounts</SelectItem>
-          </SelectContent>
-        </Select>
-      </Field>
+        <Field>
+          <FieldLabel htmlFor="sportsbookHistory">Sportsbook History</FieldLabel>
+          <Select
+            value={(formData.sportsbookHistory as string) || ''}
+            onValueChange={(value) => onChange('sportsbookHistory', value)}
+          >
+            <SelectTrigger id="sportsbookHistory" data-testid="client-sportsbook-history">
+              <SelectValue placeholder="Select sportsbook history" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">No Prior Accounts</SelectItem>
+              <SelectItem value="some">Some Prior Accounts</SelectItem>
+              <SelectItem value="many">Many Prior Accounts</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+      </SectionCard>
 
-      {/* Risk flag toggles */}
-      <div className="rounded-md border p-4 space-y-3">
-        <p className="text-sm font-medium text-muted-foreground">Risk Flags</p>
-
+      {/* Risk Flags */}
+      <SectionCard title="Risk Flags">
         <div className="flex items-center gap-2">
           <Checkbox
             id="paypalPreviouslyUsed"
@@ -147,7 +181,7 @@ export function Step2Background({ formData, onChange, onRiskFlagsChange }: Step2
             }}
             data-testid="flag-paypal-used"
           />
-          <label htmlFor="paypalPreviouslyUsed" className="text-sm">
+          <label htmlFor="paypalPreviouslyUsed" className="text-sm font-medium">
             PayPal Previously Used for Sportsbook
           </label>
         </div>
@@ -163,7 +197,7 @@ export function Step2Background({ formData, onChange, onRiskFlagsChange }: Step2
             }}
             data-testid="flag-debanked"
           />
-          <label htmlFor="debankedHistory" className="text-sm">
+          <label htmlFor="debankedHistory" className="text-sm font-medium">
             De-banked History
           </label>
         </div>
@@ -192,7 +226,7 @@ export function Step2Background({ formData, onChange, onRiskFlagsChange }: Step2
             }}
             data-testid="flag-address-mismatch"
           />
-          <label htmlFor="addressMismatch" className="text-sm">
+          <label htmlFor="addressMismatch" className="text-sm font-medium">
             Address Mismatch
           </label>
         </div>
@@ -208,11 +242,11 @@ export function Step2Background({ formData, onChange, onRiskFlagsChange }: Step2
             }}
             data-testid="flag-undisclosed"
           />
-          <label htmlFor="undisclosedInfo" className="text-sm">
+          <label htmlFor="undisclosedInfo" className="text-sm font-medium">
             Undisclosed Information
           </label>
         </div>
-      </div>
+      </SectionCard>
     </div>
   )
 }

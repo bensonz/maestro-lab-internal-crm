@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   XCircle,
   Ban,
-  PenLine,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
@@ -146,22 +145,6 @@ export function ClientsSummaryPanel({
             {stats.total}
           </span>
         </button>
-
-        {/* Drafts count (non-interactive info row) */}
-        {stats.draftsCount > 0 && (
-          <div
-            className="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm text-muted-foreground"
-            data-testid="filter-drafts-count"
-          >
-            <div className="flex items-center gap-2">
-              <PenLine className="h-4 w-4 text-muted-foreground" />
-              <span className="text-xs">In Progress (Drafts)</span>
-            </div>
-            <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-sm font-semibold">
-              {stats.draftsCount}
-            </span>
-          </div>
-        )}
 
         {statusRows.map((row) => {
           const Icon = row.icon
