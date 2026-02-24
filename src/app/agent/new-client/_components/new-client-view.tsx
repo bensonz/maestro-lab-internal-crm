@@ -133,7 +133,10 @@ export function NewClientView({ drafts, selectedDraft }: NewClientViewProps) {
       {/* Center: Form */}
       <div className="flex flex-1 flex-col overflow-y-auto">
         <div className="mx-auto w-full max-w-2xl p-6">
-          <StepIndicator currentStep={currentStep} totalSteps={4} onStepChange={handleStepIndicatorClick} />
+          <h1 className="text-2xl font-semibold text-foreground" data-testid="new-client-header">New Client</h1>
+          <div className="mt-4">
+            <StepIndicator currentStep={currentStep} totalSteps={4} onStepChange={handleStepIndicatorClick} />
+          </div>
 
           {selectedDraft ? (
             <ClientForm
