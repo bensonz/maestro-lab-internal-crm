@@ -28,11 +28,17 @@ export const clientStep1Schema = z.object({
 // Step 2: Background — all optional except hasCriminalRecord
 export const clientStep2Schema = z.object({
   ssnDocument: z.string().optional().or(z.literal('')),
+  ssnNumber: z.string().max(20).optional().or(z.literal('')),
+  citizenship: z.string().max(100).optional().or(z.literal('')),
+  missingIdType: z.string().max(100).optional().or(z.literal('')),
   secondAddress: z.string().max(500).optional().or(z.literal('')),
+  secondAddressProof: z.string().optional().or(z.literal('')),
   hasCriminalRecord: z.boolean(),
   criminalRecordNotes: z.string().max(1000).optional().or(z.literal('')),
   bankingHistory: z.string().max(500).optional().or(z.literal('')),
   paypalHistory: z.string().max(500).optional().or(z.literal('')),
+  paypalSsnLinked: z.boolean().optional(),
+  paypalBrowserVerified: z.boolean().optional(),
   sportsbookHistory: z.string().max(500).optional().or(z.literal('')),
 })
 

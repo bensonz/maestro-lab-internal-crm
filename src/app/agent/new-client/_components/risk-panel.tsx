@@ -14,7 +14,7 @@ interface RiskPanelProps {
 const FLAG_LABELS: { key: keyof RiskAssessment['flags']; label: string }[] = [
   { key: 'idExpiryRisk', label: 'ID Expiring Soon' },
   { key: 'paypalPreviouslyUsed', label: 'PayPal Previously Used' },
-  { key: 'addressMismatch', label: 'Address Mismatch' },
+  { key: 'multipleAddresses', label: 'Multiple Addresses' },
   { key: 'debankedHistory', label: 'De-banked History' },
   { key: 'criminalRecord', label: 'Criminal Record' },
   { key: 'undisclosedInfo', label: 'Undisclosed Info' },

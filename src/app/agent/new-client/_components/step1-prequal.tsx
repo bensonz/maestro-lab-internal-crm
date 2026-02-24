@@ -441,6 +441,8 @@ export function Step1PreQual({ formData, onChange, onRiskFlagsChange }: Step1Pro
               onCheckedChange={(checked) => {
                 const val = checked === true
                 onChange('livesAtDifferentAddress', val)
+                onChange('addressMismatch', val)
+                onRiskFlagsChange({ multipleAddresses: val })
                 if (!val) {
                   onChange('currentAddress', '')
                   onChange('differentAddressDuration', '')

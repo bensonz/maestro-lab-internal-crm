@@ -108,7 +108,7 @@ This is a CRM for managing client onboarding across multiple sports betting plat
 - **User** — All staff accounts (agents, admins, backoffice, finance). Includes hierarchy (supervisorId self-relation), profile fields, star level/tier, leadershipTier (NONE/ED/SED/MD/CMO).
 - **AgentApplication** — Public application form submissions. Status: PENDING → APPROVED/REJECTED. Links to reviewer (User) and created user on approval. Stores `idDocument` and `addressDocument` upload paths.
 - **Client** — Minimal client record. Status: PENDING → APPROVED. Links to closer (User via closerId). One optional BonusPool. Optional `fromDraft` back-link.
-- **ClientDraft** — Agent-owned draft for new client intake. Status: DRAFT → SUBMITTED. 4-step form data (pre-qual, background, platforms, contract). Links to closer (User via closerId) and optional resultClient (Client). Stores risk flags, platform data (Json), document paths, Step 1 extras (dateOfBirth, address, gmailPassword, gmailScreenshot, betmgmLogin, betmgmPassword, betmgmRegScreenshot, betmgmLoginScreenshot), and different-address fields (livesAtDifferentAddress, currentAddress, differentAddressDuration, differentAddressProof).
+- **ClientDraft** — Agent-owned draft for new client intake. Status: DRAFT → SUBMITTED. 4-step form data (pre-qual, background, platforms, contract). Links to closer (User via closerId) and optional resultClient (Client). Stores risk flags, platform data (Json), document paths, Step 1 extras (dateOfBirth, address, gmailPassword, gmailScreenshot, betmgmLogin, betmgmPassword, betmgmRegScreenshot, betmgmLoginScreenshot), different-address fields (livesAtDifferentAddress, currentAddress, differentAddressDuration, differentAddressProof), Step 2 extras (ssnNumber, citizenship, missingIdType, secondAddressProof, paypalSsnLinked, paypalBrowserVerified).
 - **BonusPool** — One per approved client ($400 fixed). Tracks closer snapshot, distribution stats, has many BonusAllocation[].
 - **BonusAllocation** — Individual payout line. Type: DIRECT ($200 to closer), STAR_SLICE (star pool walk), BACKFILL (remaining to highest supervisor). Status: PENDING → PAID.
 - **PromotionLog** — Immutable audit of star level and leadership tier changes.
@@ -222,7 +222,7 @@ Agents create new clients through a 4-step intake form at `/agent/new-client`.
    - All 3 screenshot uploads (Gmail, BetMGM reg, BetMGM login) trigger OCR detection with modals
    - BetMGM detection auto-fills credential fields and sets `betmgmCheckPassed` when deposit detected
    - `email` field still in schema but not displayed in Step 1 UI
-2. **Background** — 3 SectionCards: Background (SSN upload + OCR detection, Secondary Address Proof conditional on Step 1's `livesAtDifferentAddress`, Criminal Record — separated by `border-t`), History, Risk Flags
+2. **Background** — 3 SectionCards: Background (SSN upload + OCR detection + citizenship/missing ID dropdowns, Secondary Address Proof conditional on `livesAtDifferentAddress` checkbox, Criminal Record — separated by `border-t`), Platforms History (Banks Opened/De-banked multi-check dropdowns, PayPal conditional flow: used before? → SSN linked? → guidance note, Sportsbook History), Risk Flags (Undisclosed Information — PayPal/de-banked flags auto-derived from their sections)
 3. **Platforms** — 2 SectionCards: Financial Platforms, Sportsbook Platforms (platform-by-platform registration for all 11 platforms)
 4. **Contract** — 2 SectionCards: Contract Document, Submission Checklist
 
@@ -255,7 +255,7 @@ Agents create new clients through a 4-step intake form at `/agent/new-client`.
 - `src/app/agent/new-client/_components/betmgm-detection-modal.tsx` — BetMGM detection dialog (credentials + deposit detection)
 - `src/app/agent/new-client/_components/ssn-detection-modal.tsx` — SSN number detection confirmation dialog
 - `src/app/agent/new-client/_components/address-detection-modal.tsx` — Address proof detection confirmation dialog
-- `src/app/agent/new-client/_components/step2-background.tsx` — Step 2: 3 SectionCards (Background with SSN/address proof/criminal record, History, Risk Flags) with upload + OCR detection
+- `src/app/agent/new-client/_components/step2-background.tsx` — Step 2: 3 SectionCards (Background with SSN/address proof/criminal record, Platforms History with bank multi-check dropdowns + PayPal conditional flow + sportsbook, Risk Flags) with upload + OCR detection
 - `src/app/agent/new-client/_components/step3-platforms.tsx` — Step 3: 2 SectionCards (Financial Platforms, Sportsbook Platforms)
 - `src/app/agent/new-client/_components/step3-platform-card.tsx` — Individual platform card
 - `src/app/agent/new-client/_components/step4-contract.tsx` — Step 4: 2 SectionCards (Contract Document, Submission Checklist)

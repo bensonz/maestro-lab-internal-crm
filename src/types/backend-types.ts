@@ -331,7 +331,7 @@ export interface RiskAssessment {
   flags: {
     idExpiryRisk: 'high' | 'moderate' | 'none'
     paypalPreviouslyUsed: boolean
-    addressMismatch: boolean
+    multipleAddresses: boolean
     debankedHistory: boolean
     criminalRecord: boolean
     undisclosedInfo: boolean
