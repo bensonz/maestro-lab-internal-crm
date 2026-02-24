@@ -367,7 +367,6 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, onClose 
                       { flag: draft.paypalPreviouslyUsed, label: 'PayPal Previously Used', color: 'bg-warning' },
                       { flag: draft.addressMismatch, label: 'Multiple Addresses', color: 'bg-muted-foreground' },
                       { flag: draft.debankedHistory, label: `De-banked${draft.debankedBank ? ` (${draft.debankedBank})` : ''}`, color: 'bg-destructive' },
-                      { flag: draft.undisclosedInfo, label: 'Undisclosed Info', color: 'bg-destructive' },
                     ].map(({ flag, label, color }) => (
                       <div key={label} className="flex items-center gap-2">
                         <div className={cn('h-2 w-2 rounded-full', flag ? color : 'bg-muted')} />
