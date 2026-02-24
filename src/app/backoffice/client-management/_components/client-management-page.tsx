@@ -56,6 +56,16 @@ export function ClientManagementPage({
     }
   }, [clients, selectedClient])
 
+  // Sync selectedClient with URL — deselect when param is removed (e.g. sidebar nav click)
+  useEffect(() => {
+    if (!clientIdParam && selectedClient) {
+      setSelectedClient(null)
+    } else if (clientIdParam && clientIdParam !== selectedClient?.id) {
+      const target = clients.find((c) => c.id === clientIdParam)
+      if (target) setSelectedClient(target)
+    }
+  }, [clientIdParam, clients])
+
   const [searchQuery, setSearchQuery] = useState('')
   const [clientStatusFilter, setClientStatusFilter] = useState<
     ClientStatus | 'all'
