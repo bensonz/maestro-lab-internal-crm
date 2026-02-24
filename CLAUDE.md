@@ -53,7 +53,7 @@ ClientDraft (DRAFT) → Agent submits → ClientDraft (SUBMITTED) + Client (PEND
   - Steps 1-3: navigate with Next/Back buttons, inspect all draft fields
   - Step 4 (Contract): for **SUBMITTED** drafts → **"Approve Client"** button that calls `approveClient(resultClientId)` to promote `Client (PENDING → APPROVED)`, trigger star recalc + bonus pool, and refresh the page. For **DRAFT** entries → shows "Awaiting agent submission" text.
   - Falls back to mock data if DB unavailable.
-- **Backoffice "Client Management" page** — Intended to show only APPROVED clients (currently mock). Client detail view has: Contact column (Gmail label, Gmail Password field, Personal Phone), sportsbook platform credentials (Login/Password from DB), risk factor badges in header (De-banked, Criminal Record, Undisclosed Info, Address Mismatch, PayPal Used, ID Expiring, PIN Issue).
+- **Backoffice "Client Management" page** — Intended to show only APPROVED clients (currently mock). Client detail view has: Contact column (Gmail label, Gmail Password field, Personal Phone), sportsbook platform credentials (Login/Password from DB), risk factor badges in header (De-banked, Criminal Record, Address Mismatch, PayPal Used, ID Expiring, PIN Issue).
 
 ### What's Mock (UI shell only)
 
@@ -108,7 +108,7 @@ This is a CRM for managing client onboarding across multiple sports betting plat
 - **User** — All staff accounts (agents, admins, backoffice, finance). Includes hierarchy (supervisorId self-relation), profile fields, star level/tier, leadershipTier (NONE/ED/SED/MD/CMO).
 - **AgentApplication** — Public application form submissions. Status: PENDING → APPROVED/REJECTED. Links to reviewer (User) and created user on approval. Stores `idDocument` and `addressDocument` upload paths.
 - **Client** — Minimal client record. Status: PENDING → APPROVED. Links to closer (User via closerId). One optional BonusPool. Optional `fromDraft` back-link.
-- **ClientDraft** — Agent-owned draft for new client intake. Status: DRAFT → SUBMITTED. 4-step form data (pre-qual, background, platforms, contract). Links to closer (User via closerId) and optional resultClient (Client). Stores risk flags, platform data (Json), document paths, Step 1 extras (dateOfBirth, address, gmailPassword, gmailScreenshot, betmgmLogin, betmgmPassword, betmgmRegScreenshot, betmgmLoginScreenshot), different-address fields (livesAtDifferentAddress, currentAddress, differentAddressDuration, differentAddressProof), Step 2 extras (ssnNumber, citizenship, missingIdType, secondAddressProof, paypalSsnLinked, paypalBrowserVerified).
+- **ClientDraft** — Agent-owned draft for new client intake. Status: DRAFT → SUBMITTED. 4-step form data (pre-qual, background, platforms, contract). Links to closer (User via closerId) and optional resultClient (Client). Stores risk flags, platform data (Json), document paths, Step 1 extras (dateOfBirth, address, gmailPassword, gmailScreenshot, betmgmLogin, betmgmPassword, betmgmRegScreenshot, betmgmLoginScreenshot), different-address fields (livesAtDifferentAddress, currentAddress, differentAddressDuration, differentAddressProof), Step 2 extras (ssnNumber, citizenship, missingIdType, secondAddressProof, paypalSsnLinked, paypalBrowserVerified, occupation, annualIncome, employmentStatus, maritalStatus, creditScoreRange, dependents, educationLevel, householdAwareness, familyTechSupport, financialAutonomy, digitalComfort, deviceReservationDate, sportsbookUsedBefore, sportsbookUsedList, sportsbookStatuses).
 - **BonusPool** — One per approved client ($400 fixed). Tracks closer snapshot, distribution stats, has many BonusAllocation[].
 - **BonusAllocation** — Individual payout line. Type: DIRECT ($200 to closer), STAR_SLICE (star pool walk), BACKFILL (remaining to highest supervisor). Status: PENDING → PAID.
 - **PromotionLog** — Immutable audit of star level and leadership tier changes.
@@ -222,7 +222,11 @@ Agents create new clients through a 4-step intake form at `/agent/new-client`.
    - All 3 screenshot uploads (Gmail, BetMGM reg, BetMGM login) trigger OCR detection with modals
    - BetMGM detection auto-fills credential fields and sets `betmgmCheckPassed` when deposit detected
    - `email` field still in schema but not displayed in Step 1 UI
-2. **Background** — 3 SectionCards: Background (SSN upload + OCR detection + citizenship/missing ID dropdowns, Secondary Address Proof conditional on `livesAtDifferentAddress` checkbox, Criminal Record — separated by `border-t`), Platforms History (Banks Opened/De-banked multi-check dropdowns, PayPal conditional flow: used before? → SSN linked? → guidance note, Sportsbook History), Risk Flags (Undisclosed Information — PayPal/de-banked flags auto-derived from their sections)
+2. **Background** — 3 SectionCards:
+   - **Identity & Document**: SSN upload + OCR detection, SSN Number field, Citizenship dropdown, Missing ID Type (multi-select: Passport, State ID, Driver's License), Secondary Address Proof (conditional on `livesAtDifferentAddress`), Criminal Record — separated by `border-t`
+   - **Platforms History**: Banks Opened/De-banked multi-check dropdowns (de-banked has tooltip definition), PayPal conditional flow (Yes → SSN linked? → browser verified? → guidance; No → create new account guidance), Sportsbook History (Yes/No → multi-select 8 sportsbooks → per-sportsbook status: Lost money/Won money/IDK)
+   - **Client Background**: Demographics (occupation, annual income, employment status, marital status, credit score, dependents, education level) + 4 Risk Assessment Questions (Household Awareness & Support, Family Available for Account Setup, Financial Decision Autonomy, Online Account Management Comfort)
+   - **Device Reservation Gate**: After Step 2, "Next" button becomes "Request for Device" (disabled until reservation date selected). Warning box explains the 3-day device return window.
 3. **Platforms** — 2 SectionCards: Financial Platforms, Sportsbook Platforms (platform-by-platform registration for all 11 platforms)
 4. **Contract** — 2 SectionCards: Contract Document, Submission Checklist
 
@@ -230,13 +234,19 @@ Agents create new clients through a 4-step intake form at `/agent/new-client`.
 
 **Auto-save:** 500ms debounced save on field changes. Flushes before step navigation or submission.
 
-**Risk Assessment:** Pure function `calculateRiskScore()` computes a score from flags:
-- ID expiry 2-tier: <75 days → 20 points (high), 75-99 days → 10 points (moderate), >=100 or null → 0 points (none)
-- PayPal previously used: +10, De-banked: +30, Criminal record: +30, Undisclosed info: +20
-- Multiple addresses: informational only (0 points) — auto-set when `livesAtDifferentAddress` is true in Step 1
-- Thresholds: 0-29 low, 30-49 medium, 50+ high
-- Max possible score: 110 (all flags active with high ID expiry)
-- Risk panel displays days remaining for ID expiry (e.g., "ID Expiring in 45D") when the flag is active
+**Risk Assessment:** Pure function `calculateRiskScore()` uses **negative scoring** (deductions from 0):
+- **Missing IDs**: 0 missing = +10 bonus, each missing type = -10 (max -30 for 3 missing)
+- **ID expiry** 2-tier: <75 days → -20, 75-99 days → -10, >=100 or null → 0
+- **Boolean flags**: PayPal previously used: -10, De-banked: -30, Criminal record: -30
+- **Multiple addresses**: informational only (0 points) — auto-set when `livesAtDifferentAddress` is true in Step 1
+- **Risk Assessment Questions** (scored via lookup tables):
+  - Household Awareness: supportive=0, neutral=-3, not_aware=-8, n/a=0
+  - Family Tech Support: willing=0, uninvolved=-5, no=-10, prefer_not=-15
+  - Financial Autonomy: independent=0, shared=-5, dependent=-15
+  - Digital Comfort: all values=0 (informational only)
+- **Thresholds**: 0 to +10 = low (green), -1 to -29 = medium (amber), -30 or below = high (red)
+- **Score range**: Best possible = +10 (all IDs present, no flags), Worst possible = -158 (all flags active)
+- Risk panel displays days remaining for ID expiry (e.g., "ID Expiring in 45D") and assessment question values
 
 **Inner-Step Progress (Step 1):** 5 items — ID document uploaded, Gmail filled, Gmail screenshot uploaded, at least one BetMGM screenshot uploaded, BetMGM check passed
 
@@ -255,7 +265,7 @@ Agents create new clients through a 4-step intake form at `/agent/new-client`.
 - `src/app/agent/new-client/_components/betmgm-detection-modal.tsx` — BetMGM detection dialog (credentials + deposit detection)
 - `src/app/agent/new-client/_components/ssn-detection-modal.tsx` — SSN number detection confirmation dialog
 - `src/app/agent/new-client/_components/address-detection-modal.tsx` — Address proof detection confirmation dialog
-- `src/app/agent/new-client/_components/step2-background.tsx` — Step 2: 3 SectionCards (Background with SSN/address proof/criminal record, Platforms History with bank multi-check dropdowns + PayPal conditional flow + sportsbook, Risk Flags) with upload + OCR detection
+- `src/app/agent/new-client/_components/step2-background.tsx` — Step 2: 3 SectionCards (Identity & Document with SSN/address proof/missing ID/criminal record, Platforms History with bank/de-banked multi-check + PayPal conditional + sportsbook multi-select with per-book status, Client Background with demographics + 4 risk assessment questions) with upload + OCR detection
 - `src/app/agent/new-client/_components/step3-platforms.tsx` — Step 3: 2 SectionCards (Financial Platforms, Sportsbook Platforms)
 - `src/app/agent/new-client/_components/step3-platform-card.tsx` — Individual platform card
 - `src/app/agent/new-client/_components/step4-contract.tsx` — Step 4: 2 SectionCards (Contract Document, Submission Checklist)
@@ -265,7 +275,7 @@ Agents create new clients through a 4-step intake form at `/agent/new-client`.
 - `src/app/backoffice/sales-interaction/_components/client-intake-list.tsx` — Intake row list with Review button (Eye icon), threads `onReviewDraft` with `resultClientId`
 - `src/backend/data/client-drafts.ts` — Draft queries (by closer, by ID, ownership check, getAllDrafts, getAllDraftsForBackoffice — fetches DRAFT + SUBMITTED with PENDING client)
 - `src/lib/validations/client-draft.ts` — Zod per-step + submit schemas
-- `src/lib/risk-score.ts` — Pure risk score calculation (2-tier ID expiry)
+- `src/lib/risk-score.ts` — Pure negative risk score calculation (missing IDs, ID expiry, boolean flags, assessment question weights)
 
 ### Bonus & Commission System
 
@@ -399,7 +409,7 @@ vi.mock('@/backend/auth', () => ({ auth: mockAuth }))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 ```
 
-### Existing Tests (15 files, 181 tests)
+### Existing Tests (15 files, 194 tests)
 
 **Phase 1 — Agent Application (5 files, 57 tests):**
 - `src/test/backend/actions/agent-application.test.ts` — Validation, email uniqueness, happy path, addressDocument
@@ -417,9 +427,9 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 - `src/test/backend/actions/commission.test.ts` — Mark paid, bulk mark paid, auth guards
 - `src/test/backend/actions/leadership.test.ts` — Promote, quarterly settlement, approve/pay settlement
 
-**Client Draft (2 files, 41 tests):**
+**Client Draft (2 files, 54 tests):**
 - `src/test/backend/actions/client-drafts.test.ts` — CRUD actions, auth guards, ownership checks, submit validation, new Step 1 field allowlist
-- `src/test/lib/risk-score.test.ts` — 2-tier ID expiry boundaries (74/75/99/100 days), flag weights, multipleAddresses exclusion, max score 110
+- `src/test/lib/risk-score.test.ts` — Negative scoring: missing ID bonus/penalty, 2-tier ID expiry boundaries, boolean flag weights, assessment question weights (household/family/autonomy/digital), multipleAddresses exclusion, max worst -158
 
 ---
 
