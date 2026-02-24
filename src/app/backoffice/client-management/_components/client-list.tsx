@@ -15,8 +15,6 @@ import type { Client } from './types'
 function formatIntakeStatus(status: string): string {
   const map: Record<string, string> = {
     PENDING: 'Pending',
-    PREQUAL_REVIEW: 'Pre-Qual Review',
-    PREQUAL_APPROVED: 'Pre-Qual Approved',
     PHONE_ISSUED: 'Phone Issued',
     IN_EXECUTION: 'In Execution',
     NEEDS_MORE_INFO: 'Needs More Info',

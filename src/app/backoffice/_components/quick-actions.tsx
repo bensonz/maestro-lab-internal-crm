@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Phone, Wallet, FileCheck, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
-import { checkOverdueClients } from '@/app/actions/status'
+import { checkOverdueClients } from '@/lib/mock-actions'
 
 const actions = [
   {

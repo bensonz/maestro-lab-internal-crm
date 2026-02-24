@@ -1,232 +1,97 @@
 'use server'
 
-import { auth } from '@/backend/auth'
 import prisma from '@/backend/prisma/client'
-import { ALL_PLATFORMS } from '@/lib/platforms'
-import { createClientSchema } from '@/lib/validations/client'
-import { EventType, IntakeStatus, PlatformStatus } from '@/types'
+import { auth } from '@/backend/auth'
 import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
+import { recalculateAgentStarLevel } from '@/backend/services/star-level'
+import { createAndDistributeBonusPool } from '@/backend/services/bonus-pool'
 
-export type ActionState = {
-  errors?: Record<string, string[]>
-  message?: string
+export async function createClient(formData: FormData) {
+  const session = await auth()
+  if (!session?.user) return { success: false, error: 'Not authenticated' }
+
+  const role = (session.user as { role: string }).role
+  if (!['ADMIN', 'BACKOFFICE', 'AGENT'].includes(role)) {
+    return { success: false, error: 'Not authorized' }
+  }
+
+  const firstName = formData.get('firstName') as string
+  const lastName = formData.get('lastName') as string
+  const email = (formData.get('email') as string) || undefined
+  const phone = (formData.get('phone') as string) || undefined
+  const closerId = (formData.get('closerId') as string) || session.user.id
+
+  if (!firstName || !lastName) {
+    return { success: false, error: 'First name and last name are required' }
+  }
+
+  const client = await prisma.client.create({
+    data: {
+      firstName,
+      lastName,
+      email: email || null,
+      phone: phone || null,
+      closerId,
+      status: 'PENDING',
+    },
+  })
+
+  revalidatePath('/backoffice/client-management')
+  revalidatePath('/agent/clients')
+
+  return { success: true, clientId: client.id }
 }
 
-export async function createClient(
-  prevState: ActionState,
-  formData: FormData,
-): Promise<ActionState> {
-  // 1. Auth check - must be logged in
+export async function approveClient(clientId: string) {
   const session = await auth()
-  if (!session?.user?.id) {
-    return { message: 'You must be logged in to create a client' }
-  }
+  if (!session?.user) return { success: false, error: 'Not authenticated' }
 
-  // 2. Parse form data
-  const clientId = formData.get('clientId') as string | null
-  const rawData = {
-    firstName: formData.get('firstName'),
-    middleName: formData.get('middleName'),
-    lastName: formData.get('lastName'),
-    dateOfBirth: formData.get('dateOfBirth'),
-    phone: formData.get('phone'),
-    email: formData.get('email'),
-    primaryAddress: formData.get('primaryAddress'),
-    primaryCity: formData.get('primaryCity'),
-    primaryState: formData.get('primaryState'),
-    primaryZip: formData.get('primaryZip'),
-    hasSecondAddress: formData.get('hasSecondAddress'),
-    secondaryAddress: formData.get('secondaryAddress'),
-    secondaryCity: formData.get('secondaryCity'),
-    secondaryState: formData.get('secondaryState'),
-    secondaryZip: formData.get('secondaryZip'),
-    questionnaire: formData.get('questionnaire'),
-    notes: formData.get('notes'),
-    agentConfirmsSuitable: formData.get('agentConfirmsSuitable'),
-  }
-
-  // 3. Validate with Zod
-  const validationResult = createClientSchema.safeParse(rawData)
-
-  if (!validationResult.success) {
-    return {
-      errors: validationResult.error.flatten().fieldErrors as Record<
-        string,
-        string[]
-      >,
-    }
-  }
-
-  const {
-    firstName,
-    middleName,
-    lastName,
-    dateOfBirth,
-    phone,
-    email,
-    primaryAddress,
-    primaryCity,
-    primaryState,
-    primaryZip,
-    hasSecondAddress,
-    secondaryAddress,
-    secondaryCity,
-    secondaryState,
-    secondaryZip,
-    questionnaire,
-    notes,
-  } = validationResult.data
-
-  // 4. Build questionnaire JSON with all data
-  let questionnaireData = {}
-  try {
-    if (questionnaire) {
-      questionnaireData = JSON.parse(questionnaire)
-    }
-  } catch {
-    // If parsing fails, use empty object
-  }
-
-  // Add additional fields to questionnaire
-  const fullQuestionnaire = {
-    ...questionnaireData,
-    middleName,
-    dateOfBirth,
-    secondaryAddress: hasSecondAddress
-      ? {
-          address: secondaryAddress,
-          city: secondaryCity,
-          state: secondaryState,
-          zip: secondaryZip,
-        }
-      : null,
-  }
-
-  // 5. Create or update client in a transaction
-  if (clientId) {
-    // Phase 2 flow: update existing client created during pre-qualification
-    const existingClient = await prisma.client.findUnique({
-      where: { id: clientId },
-      select: { agentId: true, intakeStatus: true },
-    })
-
-    if (!existingClient || existingClient.agentId !== session.user.id) {
-      return { message: 'Client not found or not owned by you' }
-    }
-
-    // Phase 2 requires prequal to be submitted (PREQUAL_REVIEW allows parallel work)
-    if (
-      existingClient.intakeStatus !== 'PREQUAL_APPROVED' &&
-      existingClient.intakeStatus !== 'PREQUAL_REVIEW' &&
-      existingClient.intakeStatus !== 'PENDING'
-    ) {
-      return { message: 'Pre-qualification must be submitted before submitting the full application' }
-    }
-
-    await prisma.$transaction(async (tx) => {
-      await tx.client.update({
-        where: { id: clientId },
-        data: {
-          firstName,
-          lastName,
-          phone,
-          email: email || null,
-          address: primaryAddress,
-          city: primaryCity,
-          state: primaryState,
-          zipCode: primaryZip,
-          country: 'USA',
-          applicationNotes: notes || null,
-          questionnaire: JSON.stringify(fullQuestionnaire),
-          intakeStatus: IntakeStatus.READY_FOR_APPROVAL,
-          statusChangedAt: new Date(),
-        },
-      })
-
-      await tx.eventLog.create({
-        data: {
-          eventType: EventType.APPLICATION_SUBMITTED,
-          description: `Full application submitted (Phase 2): ${firstName} ${lastName}`,
-          clientId,
-          userId: session.user.id,
-        },
-      })
-    })
-  } else {
-    // Original flow: create new client
-    await prisma.$transaction(async (tx) => {
-      const client = await tx.client.create({
-        data: {
-          firstName,
-          lastName,
-          phone,
-          email: email || null,
-          address: primaryAddress,
-          city: primaryCity,
-          state: primaryState,
-          zipCode: primaryZip,
-          country: 'USA',
-          applicationNotes: notes || null,
-          questionnaire: JSON.stringify(fullQuestionnaire),
-          intakeStatus: IntakeStatus.PENDING,
-          agentId: session.user.id,
-        },
-      })
-
-      await tx.clientPlatform.createMany({
-        data: ALL_PLATFORMS.map((platformType) => ({
-          clientId: client.id,
-          platformType,
-          status: PlatformStatus.NOT_STARTED,
-        })),
-      })
-
-      await tx.eventLog.create({
-        data: {
-          eventType: EventType.APPLICATION_SUBMITTED,
-          description: `New client application submitted: ${firstName} ${lastName}`,
-          clientId: client.id,
-          userId: session.user.id,
-        },
-      })
-    })
-  }
-
-  // 6. Redirect on success
-  redirect('/agent/clients')
-}
-
-export async function deleteClient(
-  clientId: string,
-): Promise<{ success: boolean; error?: string }> {
-  const session = await auth()
-  if (!session?.user?.id) {
-    return { success: false, error: 'Unauthorized' }
+  const role = (session.user as { role: string }).role
+  if (!['ADMIN', 'BACKOFFICE'].includes(role)) {
+    return { success: false, error: 'Not authorized' }
   }
 
   const client = await prisma.client.findUnique({
     where: { id: clientId },
-    select: { agentId: true, intakeStatus: true },
+    select: { id: true, status: true, closerId: true, firstName: true, lastName: true },
   })
 
-  if (!client) {
-    return { success: false, error: 'Client not found' }
+  if (!client) return { success: false, error: 'Client not found' }
+  if (client.status === 'APPROVED') {
+    return { success: false, error: 'Client already approved' }
   }
 
-  // Only the owning agent can delete
-  if (client.agentId !== session.user.id) {
-    return { success: false, error: 'Not your client' }
-  }
+  // Update client status
+  await prisma.client.update({
+    where: { id: clientId },
+    data: { status: 'APPROVED', approvedAt: new Date() },
+  })
 
-  // Only PENDING clients can be deleted
-  if (client.intakeStatus !== 'PENDING') {
-    return { success: false, error: 'Only pending clients can be deleted' }
-  }
+  // Log approval event
+  await prisma.eventLog.create({
+    data: {
+      eventType: 'CLIENT_APPROVED',
+      description: `Client ${client.firstName} ${client.lastName} approved`,
+      userId: session.user.id,
+      metadata: { clientId, closerId: client.closerId },
+    },
+  })
 
-  await prisma.client.delete({ where: { id: clientId } })
+  // Recalculate closer's star level
+  await recalculateAgentStarLevel(client.closerId)
 
-  revalidatePath('/agent/new-client')
+  // Create and distribute bonus pool
+  const poolResult = await createAndDistributeBonusPool(clientId, client.closerId)
+
+  revalidatePath('/backoffice/client-management')
+  revalidatePath('/backoffice/commissions')
   revalidatePath('/agent/clients')
-  return { success: true }
+  revalidatePath('/agent/earnings')
+
+  return {
+    success: true,
+    poolId: poolResult.poolId,
+    distributedSlices: poolResult.distributedSlices,
+    recycledSlices: poolResult.recycledSlices,
+  }
 }

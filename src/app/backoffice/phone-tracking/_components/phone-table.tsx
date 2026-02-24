@@ -31,7 +31,7 @@ import {
   Clock,
   XCircle,
 } from 'lucide-react'
-import { signOutPhone, returnPhone } from '@/app/actions/phones'
+import { signOutPhone, returnPhone } from '@/lib/mock-actions'
 import { toast } from 'sonner'
 
 interface PhoneAssignment {

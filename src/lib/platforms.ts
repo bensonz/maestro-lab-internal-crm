@@ -1,4 +1,4 @@
-import { PlatformType } from '@prisma/generated/browser'
+import { PlatformType } from '@/types'
 
 /**
  * Platform metadata and utilities

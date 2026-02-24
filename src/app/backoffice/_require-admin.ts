@@ -1,25 +1,22 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/backend/auth'
 
-const ADMIN_ROLES = ['BACKOFFICE', 'ADMIN', 'FINANCE'] as const
-
-/**
- * Requires the user to be authenticated with an admin role (BACKOFFICE, ADMIN, or FINANCE).
- * Redirects to /login if not authenticated, or /agent if wrong role.
- * Returns the session user if authorized.
- */
 export async function requireAdmin() {
   const session = await auth()
 
-  if (!session?.user) {
+  if (!session?.user?.id) {
     redirect('/login')
   }
 
-  if (
-    !ADMIN_ROLES.includes(session.user.role as (typeof ADMIN_ROLES)[number])
-  ) {
+  const role = (session.user as { role?: string }).role
+  if (role !== 'ADMIN' && role !== 'BACKOFFICE') {
     redirect('/agent')
   }
 
-  return session.user
+  return {
+    id: session.user.id,
+    name: session.user.name ?? '',
+    email: session.user.email ?? '',
+    role: role as string,
+  }
 }

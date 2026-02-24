@@ -1,217 +1,130 @@
 'use server'
 
-import { auth } from '@/backend/auth'
-import prisma from '@/backend/prisma/client'
-import { UserRole, EventType } from '@/types'
+import { hash } from 'bcryptjs'
 import { revalidatePath } from 'next/cache'
-import bcrypt from 'bcryptjs'
+import prisma from '@/backend/prisma/client'
+import { auth } from '@/backend/auth'
 
-const ALLOWED_ROLES = new Set<UserRole>([UserRole.ADMIN, UserRole.BACKOFFICE])
-const ALL_ROLES = new Set<UserRole>([
-  UserRole.AGENT,
-  UserRole.BACKOFFICE,
-  UserRole.ADMIN,
-  UserRole.FINANCE,
-])
-
-export async function createUser(
-  formData: FormData,
-): Promise<{ success: boolean; error?: string }> {
+export async function createUser(formData: FormData) {
   const session = await auth()
-  if (!session?.user?.id) {
-    return { success: false, error: 'Unauthorized' }
+  if (!session?.user) {
+    return { success: false, error: 'Not authenticated' }
+  }
+  if (session.user.role !== 'ADMIN') {
+    return { success: false, error: 'Not authorized' }
   }
 
-  const currentUser = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { role: true },
-  })
-  if (!currentUser || !ALLOWED_ROLES.has(currentUser.role)) {
-    return { success: false, error: 'Insufficient permissions' }
+  const name = formData.get('name') as string
+  const email = formData.get('email') as string
+  const password = formData.get('password') as string
+  const role = formData.get('role') as string
+  const phone = (formData.get('phone') as string) || null
+  const supervisorId = (formData.get('supervisorId') as string) || null
+
+  if (!name || !email || !password || !role) {
+    return { success: false, error: 'Name, email, password, and role are required' }
   }
 
-  const name = formData.get('name') as string | null
-  const email = formData.get('email') as string | null
-  const password = formData.get('password') as string | null
-  const role = formData.get('role') as UserRole | null
-  const phone = formData.get('phone') as string | null
-
-  if (!name || !name.trim()) {
-    return { success: false, error: 'Name is required' }
-  }
-  if (!email || !email.trim()) {
-    return { success: false, error: 'Email is required' }
-  }
-  if (!password || password.length < 8) {
-    return { success: false, error: 'Password must be at least 8 characters' }
-  }
-  if (!role || !ALL_ROLES.has(role)) {
-    return { success: false, error: 'Invalid role' }
-  }
-
-  // BACKOFFICE users can only create AGENT accounts
-  if (currentUser.role === UserRole.BACKOFFICE && role !== UserRole.AGENT) {
-    return {
-      success: false,
-      error: 'Backoffice users can only create Agent accounts',
-    }
-  }
-
-  // Check email uniqueness
-  const existing = await prisma.user.findUnique({
-    where: { email: email.trim() },
-  })
+  const existing = await prisma.user.findUnique({ where: { email } })
   if (existing) {
-    return { success: false, error: 'Email is already in use' }
+    return { success: false, error: 'A user with this email already exists' }
   }
 
-  const passwordHash = bcrypt.hashSync(password, 10)
+  const passwordHash = await hash(password, 12)
 
   const user = await prisma.user.create({
     data: {
-      name: name.trim(),
-      email: email.trim(),
+      name,
+      email,
       passwordHash,
-      role,
-      phone: phone?.trim() || null,
+      role: role as 'AGENT' | 'BACKOFFICE' | 'ADMIN' | 'FINANCE',
+      phone,
+      supervisorId,
     },
   })
 
-  // Create AgentMetrics if role is AGENT
-  if (role === UserRole.AGENT) {
-    await prisma.agentMetrics.create({
-      data: { agentId: user.id },
-    })
-  }
-
   await prisma.eventLog.create({
     data: {
-      eventType: EventType.USER_CREATED,
-      description: `Created user account: ${user.email} (${role})`,
+      eventType: 'USER_CREATED',
+      description: `User ${name} (${role}) created by ${session.user.name}`,
       userId: session.user.id,
+      metadata: { createdUserId: user.id, email, role },
     },
   })
 
   revalidatePath('/backoffice/agent-management')
-  return { success: true }
+  revalidatePath('/backoffice/login-management')
+  return { success: true, userId: user.id }
 }
 
-export async function updateUser(
-  userId: string,
-  formData: FormData,
-): Promise<{ success: boolean; error?: string }> {
+export async function updateUser(userId: string, formData: FormData) {
   const session = await auth()
-  if (!session?.user?.id) {
-    return { success: false, error: 'Unauthorized' }
+  if (!session?.user) {
+    return { success: false, error: 'Not authenticated' }
+  }
+  if (session.user.role !== 'ADMIN') {
+    return { success: false, error: 'Not authorized' }
   }
 
-  const currentUser = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { role: true },
-  })
-  if (!currentUser || !ALLOWED_ROLES.has(currentUser.role)) {
-    return { success: false, error: 'Insufficient permissions' }
-  }
+  const name = (formData.get('name') as string) || undefined
+  const email = (formData.get('email') as string) || undefined
+  const role = (formData.get('role') as string) || undefined
+  const phone = formData.get('phone') as string | null
+  const supervisorId = formData.get('supervisorId') as string | null
 
-  const targetUser = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { id: true, role: true, email: true },
-  })
-  if (!targetUser) {
+  const user = await prisma.user.findUnique({ where: { id: userId } })
+  if (!user) {
     return { success: false, error: 'User not found' }
   }
 
-  const name = formData.get('name') as string | null
-  const email = formData.get('email') as string | null
-  const role = formData.get('role') as UserRole | null
-  const phone = formData.get('phone') as string | null
-
-  if (!name || !name.trim()) {
-    return { success: false, error: 'Name is required' }
-  }
-  if (!email || !email.trim()) {
-    return { success: false, error: 'Email is required' }
-  }
-
-  // Check email uniqueness (exclude current user)
-  if (email.trim() !== targetUser.email) {
-    const existing = await prisma.user.findUnique({
-      where: { email: email.trim() },
-    })
+  // Check email uniqueness if changed
+  if (email && email !== user.email) {
+    const existing = await prisma.user.findUnique({ where: { email } })
     if (existing) {
-      return { success: false, error: 'Email is already in use' }
-    }
-  }
-
-  // Role change validation
-  if (role && role !== targetUser.role) {
-    if (!ALL_ROLES.has(role)) {
-      return { success: false, error: 'Invalid role' }
-    }
-    // Cannot change own role
-    if (userId === session.user.id) {
-      return { success: false, error: 'Cannot change your own role' }
-    }
-    // BACKOFFICE can only set AGENT role
-    if (currentUser.role === UserRole.BACKOFFICE && role !== UserRole.AGENT) {
-      return {
-        success: false,
-        error: 'Backoffice users can only assign Agent role',
-      }
+      return { success: false, error: 'A user with this email already exists' }
     }
   }
 
   await prisma.user.update({
     where: { id: userId },
     data: {
-      name: name.trim(),
-      email: email.trim(),
-      role: role || undefined,
-      phone: phone?.trim() || null,
+      ...(name && { name }),
+      ...(email && { email }),
+      ...(role && { role: role as 'AGENT' | 'BACKOFFICE' | 'ADMIN' | 'FINANCE' }),
+      ...(phone !== undefined && { phone }),
+      ...(supervisorId !== undefined && { supervisorId }),
     },
   })
 
   await prisma.eventLog.create({
     data: {
-      eventType: EventType.USER_UPDATED,
-      description: `Updated user account: ${email}`,
+      eventType: 'USER_UPDATED',
+      description: `User ${user.name} updated by ${session.user.name}`,
       userId: session.user.id,
+      metadata: { updatedUserId: userId },
     },
   })
 
   revalidatePath('/backoffice/agent-management')
+  revalidatePath('/backoffice/login-management')
   return { success: true }
 }
 
-export async function toggleUserActive(
-  userId: string,
-): Promise<{ success: boolean; error?: string }> {
+export async function toggleUserActive(userId: string) {
   const session = await auth()
-  if (!session?.user?.id) {
-    return { success: false, error: 'Unauthorized' }
+  if (!session?.user) {
+    return { success: false, error: 'Not authenticated' }
+  }
+  if (session.user.role !== 'ADMIN') {
+    return { success: false, error: 'Not authorized' }
   }
 
-  const currentUser = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { role: true },
-  })
-  if (!currentUser || currentUser.role !== UserRole.ADMIN) {
-    return { success: false, error: 'Only admins can toggle user status' }
-  }
-
-  if (userId === session.user.id) {
-    return { success: false, error: 'Cannot deactivate yourself' }
-  }
-
-  const targetUser = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { id: true, isActive: true, email: true },
-  })
-  if (!targetUser) {
+  const user = await prisma.user.findUnique({ where: { id: userId } })
+  if (!user) {
     return { success: false, error: 'User not found' }
   }
 
-  const newStatus = !targetUser.isActive
+  const newStatus = !user.isActive
 
   await prisma.user.update({
     where: { id: userId },
@@ -220,63 +133,116 @@ export async function toggleUserActive(
 
   await prisma.eventLog.create({
     data: {
-      eventType: EventType.USER_DEACTIVATED,
-      description: `${newStatus ? 'Activated' : 'Deactivated'} user: ${targetUser.email}`,
+      eventType: newStatus ? 'USER_UPDATED' : 'USER_DEACTIVATED',
+      description: `User ${user.name} ${newStatus ? 'activated' : 'deactivated'} by ${session.user.name}`,
       userId: session.user.id,
+      metadata: { targetUserId: userId, newStatus },
     },
   })
 
   revalidatePath('/backoffice/agent-management')
+  revalidatePath('/backoffice/login-management')
+  return { success: true, isActive: newStatus }
+}
+
+// Whitelist of fields editable via inline editing on agent detail page.
+// Maps UI field key → Prisma User column name.
+const EDITABLE_AGENT_FIELDS: Record<string, string> = {
+  companyPhone: 'companyPhone',
+  carrier: 'carrier',
+  personalEmail: 'personalEmail',
+  personalPhone: 'personalPhone',
+  zelle: 'zelle',
+  address: 'address',
+  loginAccount: 'loginAccount',
+  idNumber: 'idNumber',
+  citizenship: 'citizenship',
+}
+
+// Human-readable labels for event log descriptions
+const FIELD_LABELS: Record<string, string> = {
+  companyPhone: 'Company Phone',
+  carrier: 'Carrier',
+  personalEmail: 'Personal Email',
+  personalPhone: 'Personal Phone',
+  zelle: 'Zelle',
+  address: 'Address',
+  loginAccount: 'Login Account',
+  idNumber: 'ID Number',
+  citizenship: 'Citizenship',
+}
+
+export async function updateAgentField(
+  agentId: string,
+  field: string,
+  oldValue: string,
+  newValue: string,
+) {
+  const session = await auth()
+  if (!session?.user) {
+    return { success: false, error: 'Not authenticated' }
+  }
+  if (session.user.role !== 'ADMIN' && session.user.role !== 'BACKOFFICE') {
+    return { success: false, error: 'Not authorized' }
+  }
+
+  const dbColumn = EDITABLE_AGENT_FIELDS[field]
+  if (!dbColumn) {
+    return { success: false, error: `Field "${field}" is not editable` }
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: agentId } })
+  if (!user) {
+    return { success: false, error: 'Agent not found' }
+  }
+
+  const trimmed = newValue.trim()
+
+  await prisma.user.update({
+    where: { id: agentId },
+    data: { [dbColumn]: trimmed || null },
+  })
+
+  const label = FIELD_LABELS[field] ?? field
+  await prisma.eventLog.create({
+    data: {
+      eventType: 'USER_UPDATED',
+      description: `Updated ${label}: ${oldValue || '\u2014'} \u2192 ${trimmed || '\u2014'}`,
+      userId: session.user.id,
+      metadata: { updatedUserId: agentId, field, oldValue, newValue: trimmed },
+    },
+  })
+
+  revalidatePath(`/backoffice/agent-management/${agentId}`)
+  revalidatePath('/backoffice/agent-management')
   return { success: true }
 }
 
-export async function resetUserPassword(
-  userId: string,
-  newPassword: string,
-): Promise<{ success: boolean; error?: string }> {
+export async function resetUserPassword(userId: string, newPassword: string) {
   const session = await auth()
-  if (!session?.user?.id) {
-    return { success: false, error: 'Unauthorized' }
+  if (!session?.user) {
+    return { success: false, error: 'Not authenticated' }
+  }
+  if (session.user.role !== 'ADMIN') {
+    return { success: false, error: 'Not authorized' }
   }
 
-  const currentUser = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { role: true },
-  })
-  if (!currentUser || !ALLOWED_ROLES.has(currentUser.role)) {
-    return { success: false, error: 'Insufficient permissions' }
-  }
-
-  if (newPassword.length < 8) {
+  if (!newPassword || newPassword.length < 8) {
     return { success: false, error: 'Password must be at least 8 characters' }
   }
 
-  const targetUser = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { id: true, role: true, email: true },
-  })
-  if (!targetUser) {
+  const user = await prisma.user.findUnique({ where: { id: userId } })
+  if (!user) {
     return { success: false, error: 'User not found' }
   }
 
-  // BACKOFFICE can only reset AGENT passwords
-  if (
-    currentUser.role === UserRole.BACKOFFICE &&
-    targetUser.role !== UserRole.AGENT
-  ) {
-    return {
-      success: false,
-      error: 'Backoffice users can only reset Agent passwords',
-    }
-  }
-
-  const passwordHash = bcrypt.hashSync(newPassword, 10)
-
+  const passwordHash = await hash(newPassword, 12)
   await prisma.user.update({
     where: { id: userId },
     data: { passwordHash },
   })
 
   revalidatePath('/backoffice/agent-management')
+  revalidatePath('/backoffice/login-management')
   return { success: true }
 }

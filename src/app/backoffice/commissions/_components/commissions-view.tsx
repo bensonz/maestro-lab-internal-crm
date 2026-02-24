@@ -105,6 +105,9 @@ const TIER_COLORS: Record<string, string> = {
 }
 
 const TYPE_LABELS: Record<string, string> = {
+  DIRECT: 'Direct',
+  STAR_SLICE: 'Star Slice',
+  BACKFILL: 'Backfill',
   direct: 'Direct',
   star_slice: 'Star Slice',
   backfill: 'Backfill',
@@ -184,7 +187,7 @@ export function CommissionsView({ data }: CommissionsViewProps) {
     startTransition(async () => {
       const result = await bulkMarkPaid([...selectedPayouts])
       if (result.success) {
-        toast({ title: `${result.updated} allocation(s) marked as paid` })
+        toast({ title: `${result.paidCount} allocation(s) marked as paid` })
         setSelectedPayouts(new Set())
       } else {
         toast({ title: 'Error', description: result.error, variant: 'destructive' })
@@ -219,10 +222,10 @@ export function CommissionsView({ data }: CommissionsViewProps) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold font-mono text-success">
-              {formatMoney(data.totalDistributed * 400)}
+              {formatMoney(data.totalDistributed)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              From {data.totalDistributed} pools
+              From {data.totalPools} pools
             </p>
           </CardContent>
         </Card>
@@ -234,10 +237,10 @@ export function CommissionsView({ data }: CommissionsViewProps) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold font-mono">
-              {formatMoney(data.totalRecycled * 50)}
+              {formatMoney(data.totalRecycled)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              {data.totalRecycled} slices returned
+              Unclaimed slices returned
             </p>
           </CardContent>
         </Card>
@@ -412,12 +415,12 @@ export function CommissionsView({ data }: CommissionsViewProps) {
                           variant="outline"
                           className={cn(
                             'text-xs',
-                            pool.status === 'distributed'
+                            pool.status.toUpperCase() === 'DISTRIBUTED'
                               ? 'border-success/50 bg-success/10 text-success'
                               : 'border-warning/50 bg-warning/10 text-warning',
                           )}
                         >
-                          {pool.status === 'distributed' ? 'Distributed' : 'Pending'}
+                          {pool.status.toUpperCase() === 'DISTRIBUTED' ? 'Distributed' : 'Pending'}
                         </Badge>
                         <span className="text-xs text-muted-foreground">
                           {formatDate(pool.createdAt)}
@@ -469,12 +472,12 @@ export function CommissionsView({ data }: CommissionsViewProps) {
                                   variant="outline"
                                   className={cn(
                                     'text-xs',
-                                    alloc.status === 'paid'
+                                    alloc.status.toUpperCase() === 'PAID'
                                       ? 'border-success/50 bg-success/10 text-success'
                                       : 'border-warning/50 bg-warning/10 text-warning',
                                   )}
                                 >
-                                  {alloc.status === 'paid' ? 'Paid' : 'Pending'}
+                                  {alloc.status.toUpperCase() === 'PAID' ? 'Paid' : 'Pending'}
                                 </Badge>
                               </TableCell>
                             </TableRow>

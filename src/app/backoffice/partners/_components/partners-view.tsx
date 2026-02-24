@@ -45,7 +45,7 @@ import {
   updatePartner,
   deletePartner,
   assignClientToPartner,
-} from '@/app/actions/partners'
+} from '@/lib/mock-actions'
 
 interface PartnerDetail {
   partnerAmount: unknown

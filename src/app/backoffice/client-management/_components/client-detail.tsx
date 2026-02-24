@@ -22,7 +22,7 @@ import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
-import { startExecution } from '@/app/actions/status'
+import { startExecution } from '@/lib/mock-actions'
 import { EditableField } from './editable-field'
 import { PlatformSection } from './platform-section'
 import { PendingReviewBanner } from './pending-review-banner'
@@ -240,7 +240,7 @@ export function ClientDetail({
       </div>
 
       {/* Pending Review Banner — must be first thing the user sees */}
-      {(client.intakeStatus === 'READY_FOR_APPROVAL' || client.intakeStatus === 'PREQUAL_REVIEW') && (
+      {client.intakeStatus === 'READY_FOR_APPROVAL' && (
         <PendingReviewBanner
           clientId={client.id}
           clientName={client.profile.fullName}
@@ -253,9 +253,6 @@ export function ClientDetail({
           dob={client.profile.dob}
           address={client.profile.primaryAddress}
           idImageUrl={client.profile.idImageUrl}
-          reviewPhase={client.intakeStatus === 'PREQUAL_REVIEW' ? 1 : 2}
-          betmgmAgentResult={client.betmgmAgentResult}
-          betmgmRetryCount={client.betmgmRetryCount}
         />
       )}
 

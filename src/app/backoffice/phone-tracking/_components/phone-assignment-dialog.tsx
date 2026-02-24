@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Field, FieldLabel } from '@/components/ui/field'
-import { assignPhone } from '@/app/actions/phones'
+import { assignPhone } from '@/lib/mock-actions'
 import { toast } from 'sonner'
 
 interface EligibleClient {

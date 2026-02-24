@@ -1,13 +1,7 @@
-import { auth } from '@/backend/auth'
-import { redirect } from 'next/navigation'
+import { MOCK_PROFIT_SHARING_DATA } from '@/lib/mock-data'
 import { ProfitSharingView } from './_components/profit-sharing-view'
-import { getProfitSharingOverview } from '@/backend/data/profit-sharing-overview'
 
-export default async function ProfitSharingPage() {
-  const session = await auth()
-  if (!session?.user) redirect('/login')
-
-  const data = await getProfitSharingOverview()
+export default function ProfitSharingPage() {
   return (
     <div
       className="space-y-6 p-6 animate-fade-in"
@@ -23,7 +17,7 @@ export default async function ProfitSharingPage() {
         </p>
       </div>
 
-      <ProfitSharingView data={data} />
+      <ProfitSharingView data={MOCK_PROFIT_SHARING_DATA} />
     </div>
   )
 }

@@ -1,36 +1,12 @@
-import { describe, it, expect, vi, beforeEach, Mock } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// Mock the auth module
-vi.mock('@/backend/auth', () => ({
-  auth: vi.fn(),
-}))
-
-type MockedAuth = Mock<
-  () => Promise<{ user: { id: string; role: string }; expires: string } | null>
->
-
-// Mock the prisma client
-vi.mock('@/backend/prisma/client', () => ({
-  default: {
-    user: {
-      findUnique: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-    },
-    agentMetrics: {
-      create: vi.fn(),
-    },
-    eventLog: {
-      create: vi.fn(),
-    },
-  },
-}))
+// Mock auth
+const { mockAuth } = vi.hoisted(() => ({ mockAuth: vi.fn() }))
+vi.mock('@/backend/auth', () => ({ auth: mockAuth }))
 
 // Mock bcryptjs
 vi.mock('bcryptjs', () => ({
-  default: {
-    hashSync: vi.fn((password: string) => `hashed_${password}`),
-  },
+  hash: vi.fn().mockResolvedValue('$2a$12$mockhash'),
 }))
 
 // Mock next/cache
@@ -38,466 +14,319 @@ vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
 }))
 
-import { auth } from '@/backend/auth'
-import prisma from '@/backend/prisma/client'
+// Mock Prisma
+const { mockPrisma } = vi.hoisted(() => ({
+  mockPrisma: {
+    user: {
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+    },
+    eventLog: {
+      create: vi.fn(),
+    },
+  },
+}))
+vi.mock('@/backend/prisma/client', () => ({ default: mockPrisma }))
+
 import {
   createUser,
   updateUser,
+  updateAgentField,
   toggleUserActive,
   resetUserPassword,
 } from '@/app/actions/user-management'
 
-const mockedAuth = auth as unknown as MockedAuth
-
-function createFormData(data: Record<string, string>): FormData {
-  const formData = new FormData()
-  Object.entries(data).forEach(([key, value]) => {
-    formData.append(key, value)
-  })
-  return formData
-}
-
 describe('createUser', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockPrisma.user.findUnique.mockResolvedValue(null)
+    mockPrisma.user.create.mockResolvedValue({ id: 'user-new' })
+    mockPrisma.eventLog.create.mockResolvedValue({})
   })
 
-  it('returns error when user is not authenticated', async () => {
-    mockedAuth.mockResolvedValue(null)
+  it('rejects unauthenticated users', async () => {
+    mockAuth.mockResolvedValue(null)
+    const fd = new FormData()
+    fd.set('name', 'Test')
+    fd.set('email', 'test@test.com')
+    fd.set('password', 'password123')
+    fd.set('role', 'AGENT')
 
-    const formData = createFormData({
-      name: 'Test',
-      email: 'test@test.com',
-      password: 'password123',
-      role: 'AGENT',
-    })
-    const result = await createUser(formData)
-
+    const result = await createUser(fd)
     expect(result.success).toBe(false)
-    expect(result.error).toBe('Unauthorized')
+    expect(result.error).toBe('Not authenticated')
   })
 
-  it('returns error when user has insufficient permissions', async () => {
-    mockedAuth.mockResolvedValue({
-      user: { id: 'user-1', role: 'AGENT' },
-      expires: '',
-    })
-    vi.mocked(prisma.user.findUnique).mockResolvedValue({
-      role: 'AGENT',
-    } as never)
+  it('rejects non-admin users', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'AGENT', name: 'A' } })
+    const fd = new FormData()
+    fd.set('name', 'Test')
+    fd.set('email', 'test@test.com')
+    fd.set('password', 'password123')
+    fd.set('role', 'AGENT')
 
-    const formData = createFormData({
-      name: 'Test',
-      email: 'test@test.com',
-      password: 'password123',
-      role: 'AGENT',
-    })
-    const result = await createUser(formData)
-
+    const result = await createUser(fd)
     expect(result.success).toBe(false)
-    expect(result.error).toBe('Insufficient permissions')
+    expect(result.error).toBe('Not authorized')
   })
 
-  it('creates user with valid data', async () => {
-    mockedAuth.mockResolvedValue({
-      user: { id: 'admin-1', role: 'ADMIN' },
-      expires: '',
-    })
-    vi.mocked(prisma.user.findUnique)
-      .mockResolvedValueOnce({ role: 'ADMIN' } as never) // current user lookup
-      .mockResolvedValueOnce(null as never) // email uniqueness check
-    vi.mocked(prisma.user.create).mockResolvedValue({
-      id: 'new-user-1',
-      email: 'test@test.com',
-      role: 'BACKOFFICE',
-    } as never)
-    vi.mocked(prisma.eventLog.create).mockResolvedValue({} as never)
+  it('requires all fields', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN', name: 'Admin' } })
+    const fd = new FormData()
 
-    const formData = createFormData({
-      name: 'Test User',
-      email: 'test@test.com',
-      password: 'password123',
-      role: 'BACKOFFICE',
-      phone: '555-1234',
-    })
+    const result = await createUser(fd)
+    expect(result.success).toBe(false)
+    expect(result.error).toContain('required')
+  })
 
-    const result = await createUser(formData)
+  it('rejects duplicate email', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN', name: 'Admin' } })
+    mockPrisma.user.findUnique.mockResolvedValue({ id: 'existing' })
 
+    const fd = new FormData()
+    fd.set('name', 'Test')
+    fd.set('email', 'existing@test.com')
+    fd.set('password', 'password123')
+    fd.set('role', 'AGENT')
+
+    const result = await createUser(fd)
+    expect(result.success).toBe(false)
+    expect(result.error).toContain('already exists')
+  })
+
+  it('creates user on success', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN', name: 'Admin' } })
+
+    const fd = new FormData()
+    fd.set('name', 'New Agent')
+    fd.set('email', 'new@test.com')
+    fd.set('password', 'password123')
+    fd.set('role', 'AGENT')
+
+    const result = await createUser(fd)
     expect(result.success).toBe(true)
-    expect(prisma.user.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        name: 'Test User',
-        email: 'test@test.com',
-        passwordHash: 'hashed_password123',
-        role: 'BACKOFFICE',
-        phone: '555-1234',
-      }),
-    })
-  })
-
-  it('returns error for duplicate email', async () => {
-    mockedAuth.mockResolvedValue({
-      user: { id: 'admin-1', role: 'ADMIN' },
-      expires: '',
-    })
-    vi.mocked(prisma.user.findUnique)
-      .mockResolvedValueOnce({ role: 'ADMIN' } as never) // current user
-      .mockResolvedValueOnce({ id: 'existing' } as never) // email already taken
-
-    const formData = createFormData({
-      name: 'Test',
-      email: 'taken@test.com',
-      password: 'password123',
-      role: 'AGENT',
-    })
-
-    const result = await createUser(formData)
-
-    expect(result.success).toBe(false)
-    expect(result.error).toBe('Email is already in use')
-  })
-
-  it('BACKOFFICE user cannot create ADMIN account', async () => {
-    mockedAuth.mockResolvedValue({
-      user: { id: 'bo-1', role: 'BACKOFFICE' },
-      expires: '',
-    })
-    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
-      role: 'BACKOFFICE',
-    } as never)
-
-    const formData = createFormData({
-      name: 'Admin Attempt',
-      email: 'admin@test.com',
-      password: 'password123',
-      role: 'ADMIN',
-    })
-
-    const result = await createUser(formData)
-
-    expect(result.success).toBe(false)
-    expect(result.error).toBe('Backoffice users can only create Agent accounts')
-  })
-
-  it('creates AgentMetrics when role is AGENT', async () => {
-    mockedAuth.mockResolvedValue({
-      user: { id: 'admin-1', role: 'ADMIN' },
-      expires: '',
-    })
-    vi.mocked(prisma.user.findUnique)
-      .mockResolvedValueOnce({ role: 'ADMIN' } as never)
-      .mockResolvedValueOnce(null as never)
-    vi.mocked(prisma.user.create).mockResolvedValue({
-      id: 'agent-new',
-      email: 'agent@test.com',
-      role: 'AGENT',
-    } as never)
-    vi.mocked(prisma.agentMetrics.create).mockResolvedValue({} as never)
-    vi.mocked(prisma.eventLog.create).mockResolvedValue({} as never)
-
-    const formData = createFormData({
-      name: 'New Agent',
-      email: 'agent@test.com',
-      password: 'password123',
-      role: 'AGENT',
-    })
-
-    const result = await createUser(formData)
-
-    expect(result.success).toBe(true)
-    expect(prisma.agentMetrics.create).toHaveBeenCalledWith({
-      data: { agentId: 'agent-new' },
-    })
-  })
-
-  it('does not create AgentMetrics for non-AGENT roles', async () => {
-    mockedAuth.mockResolvedValue({
-      user: { id: 'admin-1', role: 'ADMIN' },
-      expires: '',
-    })
-    vi.mocked(prisma.user.findUnique)
-      .mockResolvedValueOnce({ role: 'ADMIN' } as never)
-      .mockResolvedValueOnce(null as never)
-    vi.mocked(prisma.user.create).mockResolvedValue({
-      id: 'bo-new',
-      email: 'bo@test.com',
-      role: 'BACKOFFICE',
-    } as never)
-    vi.mocked(prisma.eventLog.create).mockResolvedValue({} as never)
-
-    const formData = createFormData({
-      name: 'BO User',
-      email: 'bo@test.com',
-      password: 'password123',
-      role: 'BACKOFFICE',
-    })
-
-    await createUser(formData)
-
-    expect(prisma.agentMetrics.create).not.toHaveBeenCalled()
-  })
-
-  it('returns error for password too short', async () => {
-    mockedAuth.mockResolvedValue({
-      user: { id: 'admin-1', role: 'ADMIN' },
-      expires: '',
-    })
-    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
-      role: 'ADMIN',
-    } as never)
-
-    const formData = createFormData({
-      name: 'Test',
-      email: 'test@test.com',
-      password: 'short',
-      role: 'AGENT',
-    })
-
-    const result = await createUser(formData)
-
-    expect(result.success).toBe(false)
-    expect(result.error).toBe('Password must be at least 8 characters')
+    expect(result.userId).toBe('user-new')
+    expect(mockPrisma.user.create).toHaveBeenCalledTimes(1)
+    expect(mockPrisma.eventLog.create).toHaveBeenCalledTimes(1)
   })
 })
 
 describe('updateUser', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockPrisma.user.findUnique.mockResolvedValue({
+      id: 'user-1',
+      name: 'Old Name',
+      email: 'old@test.com',
+    })
+    mockPrisma.user.update.mockResolvedValue({})
+    mockPrisma.eventLog.create.mockResolvedValue({})
   })
 
-  it('returns error when not authenticated', async () => {
-    mockedAuth.mockResolvedValue(null)
-
-    const formData = createFormData({ name: 'Test', email: 'test@test.com' })
-    const result = await updateUser('user-1', formData)
-
+  it('rejects unauthenticated users', async () => {
+    mockAuth.mockResolvedValue(null)
+    const result = await updateUser('user-1', new FormData())
     expect(result.success).toBe(false)
-    expect(result.error).toBe('Unauthorized')
   })
 
-  it('updates user with valid data', async () => {
-    mockedAuth.mockResolvedValue({
-      user: { id: 'admin-1', role: 'ADMIN' },
-      expires: '',
-    })
-    vi.mocked(prisma.user.findUnique)
-      .mockResolvedValueOnce({ role: 'ADMIN' } as never) // current user
-      .mockResolvedValueOnce({
-        id: 'user-1',
-        role: 'AGENT',
-        email: 'old@test.com',
-      } as never) // target user
-      .mockResolvedValueOnce(null as never) // email uniqueness check (new email not taken)
-    vi.mocked(prisma.user.update).mockResolvedValue({} as never)
-    vi.mocked(prisma.eventLog.create).mockResolvedValue({} as never)
+  it('rejects non-admin users', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'BACKOFFICE', name: 'BO' } })
+    const result = await updateUser('user-1', new FormData())
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('Not authorized')
+  })
 
-    const formData = createFormData({
-      name: 'Updated Name',
-      email: 'new@test.com',
-      role: 'AGENT',
-      phone: '555-9999',
-    })
+  it('returns error for non-existent user', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN', name: 'Admin' } })
+    mockPrisma.user.findUnique.mockResolvedValue(null)
 
-    const result = await updateUser('user-1', formData)
+    const result = await updateUser('user-nonexistent', new FormData())
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('User not found')
+  })
 
+  it('updates user on success', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN', name: 'Admin' } })
+
+    const fd = new FormData()
+    fd.set('name', 'New Name')
+
+    const result = await updateUser('user-1', fd)
     expect(result.success).toBe(true)
-    expect(prisma.user.update).toHaveBeenCalledWith({
-      where: { id: 'user-1' },
-      data: expect.objectContaining({
-        name: 'Updated Name',
-        email: 'new@test.com',
-      }),
-    })
-  })
-
-  it('cannot change own role', async () => {
-    mockedAuth.mockResolvedValue({
-      user: { id: 'admin-1', role: 'ADMIN' },
-      expires: '',
-    })
-    vi.mocked(prisma.user.findUnique)
-      .mockResolvedValueOnce({ role: 'ADMIN' } as never)
-      .mockResolvedValueOnce({
-        id: 'admin-1',
-        role: 'ADMIN',
-        email: 'admin@test.com',
-      } as never)
-
-    const formData = createFormData({
-      name: 'Admin',
-      email: 'admin@test.com',
-      role: 'BACKOFFICE', // trying to change own role
-    })
-
-    const result = await updateUser('admin-1', formData)
-
-    expect(result.success).toBe(false)
-    expect(result.error).toBe('Cannot change your own role')
+    expect(mockPrisma.user.update).toHaveBeenCalledTimes(1)
   })
 })
 
 describe('toggleUserActive', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockPrisma.user.update.mockResolvedValue({})
+    mockPrisma.eventLog.create.mockResolvedValue({})
   })
 
-  it('toggles user active to inactive', async () => {
-    mockedAuth.mockResolvedValue({
-      user: { id: 'admin-1', role: 'ADMIN' },
-      expires: '',
-    })
-    vi.mocked(prisma.user.findUnique)
-      .mockResolvedValueOnce({ role: 'ADMIN' } as never)
-      .mockResolvedValueOnce({
-        id: 'user-1',
-        isActive: true,
-        email: 'user@test.com',
-      } as never)
-    vi.mocked(prisma.user.update).mockResolvedValue({} as never)
-    vi.mocked(prisma.eventLog.create).mockResolvedValue({} as never)
-
+  it('rejects unauthenticated users', async () => {
+    mockAuth.mockResolvedValue(null)
     const result = await toggleUserActive('user-1')
-
-    expect(result.success).toBe(true)
-    expect(prisma.user.update).toHaveBeenCalledWith({
-      where: { id: 'user-1' },
-      data: { isActive: false },
-    })
-  })
-
-  it('toggles user inactive to active', async () => {
-    mockedAuth.mockResolvedValue({
-      user: { id: 'admin-1', role: 'ADMIN' },
-      expires: '',
-    })
-    vi.mocked(prisma.user.findUnique)
-      .mockResolvedValueOnce({ role: 'ADMIN' } as never)
-      .mockResolvedValueOnce({
-        id: 'user-1',
-        isActive: false,
-        email: 'user@test.com',
-      } as never)
-    vi.mocked(prisma.user.update).mockResolvedValue({} as never)
-    vi.mocked(prisma.eventLog.create).mockResolvedValue({} as never)
-
-    const result = await toggleUserActive('user-1')
-
-    expect(result.success).toBe(true)
-    expect(prisma.user.update).toHaveBeenCalledWith({
-      where: { id: 'user-1' },
-      data: { isActive: true },
-    })
-  })
-
-  it('cannot deactivate yourself', async () => {
-    mockedAuth.mockResolvedValue({
-      user: { id: 'admin-1', role: 'ADMIN' },
-      expires: '',
-    })
-    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
-      role: 'ADMIN',
-    } as never)
-
-    const result = await toggleUserActive('admin-1')
-
     expect(result.success).toBe(false)
-    expect(result.error).toBe('Cannot deactivate yourself')
   })
 
-  it('only ADMIN can toggle user status', async () => {
-    mockedAuth.mockResolvedValue({
-      user: { id: 'bo-1', role: 'BACKOFFICE' },
-      expires: '',
+  it('toggles active status', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN', name: 'Admin' } })
+    mockPrisma.user.findUnique.mockResolvedValue({
+      id: 'user-1',
+      name: 'Test User',
+      isActive: true,
     })
-    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
-      role: 'BACKOFFICE',
-    } as never)
 
     const result = await toggleUserActive('user-1')
+    expect(result.success).toBe(true)
+    expect(result.isActive).toBe(false)
 
-    expect(result.success).toBe(false)
-    expect(result.error).toBe('Only admins can toggle user status')
+    const updateCall = mockPrisma.user.update.mock.calls[0][0]
+    expect(updateCall.data.isActive).toBe(false)
   })
 })
 
 describe('resetUserPassword', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockPrisma.user.update.mockResolvedValue({})
   })
 
-  it('resets password with valid data', async () => {
-    mockedAuth.mockResolvedValue({
-      user: { id: 'admin-1', role: 'ADMIN' },
-      expires: '',
-    })
-    vi.mocked(prisma.user.findUnique)
-      .mockResolvedValueOnce({ role: 'ADMIN' } as never)
-      .mockResolvedValueOnce({
-        id: 'user-1',
-        role: 'AGENT',
-        email: 'user@test.com',
-      } as never)
-    vi.mocked(prisma.user.update).mockResolvedValue({} as never)
+  it('rejects unauthenticated users', async () => {
+    mockAuth.mockResolvedValue(null)
+    const result = await resetUserPassword('user-1', 'newpass123')
+    expect(result.success).toBe(false)
+  })
+
+  it('requires minimum password length', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN', name: 'Admin' } })
+    const result = await resetUserPassword('user-1', 'short')
+    expect(result.success).toBe(false)
+    expect(result.error).toContain('8 characters')
+  })
+
+  it('resets password on success', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN', name: 'Admin' } })
+    mockPrisma.user.findUnique.mockResolvedValue({ id: 'user-1', name: 'Test' })
 
     const result = await resetUserPassword('user-1', 'newpassword123')
-
     expect(result.success).toBe(true)
-    expect(prisma.user.update).toHaveBeenCalledWith({
-      where: { id: 'user-1' },
-      data: { passwordHash: 'hashed_newpassword123' },
-    })
+    expect(mockPrisma.user.update).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('updateAgentField', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockPrisma.user.findUnique.mockResolvedValue({ id: 'agent-1', name: 'Marcus Rivera' })
+    mockPrisma.user.update.mockResolvedValue({})
+    mockPrisma.eventLog.create.mockResolvedValue({})
   })
 
-  it('returns error for password too short', async () => {
-    mockedAuth.mockResolvedValue({
-      user: { id: 'admin-1', role: 'ADMIN' },
-      expires: '',
-    })
-    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
-      role: 'ADMIN',
-    } as never)
-
-    const result = await resetUserPassword('user-1', 'short')
-
+  it('rejects unauthenticated users', async () => {
+    mockAuth.mockResolvedValue(null)
+    const result = await updateAgentField('agent-1', 'companyPhone', '111', '222')
     expect(result.success).toBe(false)
-    expect(result.error).toBe('Password must be at least 8 characters')
+    expect(result.error).toBe('Not authenticated')
   })
 
-  it('BACKOFFICE can only reset AGENT passwords', async () => {
-    mockedAuth.mockResolvedValue({
-      user: { id: 'bo-1', role: 'BACKOFFICE' },
-      expires: '',
-    })
-    vi.mocked(prisma.user.findUnique)
-      .mockResolvedValueOnce({ role: 'BACKOFFICE' } as never) // current user
-      .mockResolvedValueOnce({
-        id: 'admin-1',
-        role: 'ADMIN',
-        email: 'admin@test.com',
-      } as never) // target is ADMIN
-
-    const result = await resetUserPassword('admin-1', 'newpassword123')
-
+  it('rejects non-admin/backoffice users', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'AGENT', name: 'Agent' } })
+    const result = await updateAgentField('agent-1', 'companyPhone', '111', '222')
     expect(result.success).toBe(false)
-    expect(result.error).toBe('Backoffice users can only reset Agent passwords')
+    expect(result.error).toBe('Not authorized')
   })
 
-  it('BACKOFFICE can reset AGENT passwords', async () => {
-    mockedAuth.mockResolvedValue({
-      user: { id: 'bo-1', role: 'BACKOFFICE' },
-      expires: '',
-    })
-    vi.mocked(prisma.user.findUnique)
-      .mockResolvedValueOnce({ role: 'BACKOFFICE' } as never)
-      .mockResolvedValueOnce({
-        id: 'agent-1',
-        role: 'AGENT',
-        email: 'agent@test.com',
-      } as never)
-    vi.mocked(prisma.user.update).mockResolvedValue({} as never)
-
-    const result = await resetUserPassword('agent-1', 'newpassword123')
-
+  it('allows ADMIN users', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN', name: 'Admin' } })
+    const result = await updateAgentField('agent-1', 'companyPhone', '111', '222')
     expect(result.success).toBe(true)
+  })
+
+  it('allows BACKOFFICE users', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'BACKOFFICE', name: 'BO' } })
+    const result = await updateAgentField('agent-1', 'companyPhone', '111', '222')
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects non-whitelisted fields', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN', name: 'Admin' } })
+    const result = await updateAgentField('agent-1', 'email', 'old@test.com', 'new@test.com')
+    expect(result.success).toBe(false)
+    expect(result.error).toContain('not editable')
+  })
+
+  it('returns error for non-existent agent', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN', name: 'Admin' } })
+    mockPrisma.user.findUnique.mockResolvedValue(null)
+    const result = await updateAgentField('nonexistent', 'companyPhone', '111', '222')
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('Agent not found')
+  })
+
+  it('updates the correct DB column and creates event log', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN', name: 'Sarah Chen' } })
+
+    const result = await updateAgentField('agent-1', 'companyPhone', '917-979-2293', '917-898-2222')
+    expect(result.success).toBe(true)
+
+    // Check user update with correct column
+    expect(mockPrisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'agent-1' },
+      data: { companyPhone: '917-898-2222' },
+    })
+
+    // Check event log has field details
+    const logCall = mockPrisma.eventLog.create.mock.calls[0][0]
+    expect(logCall.data.eventType).toBe('USER_UPDATED')
+    expect(logCall.data.description).toContain('Company Phone')
+    expect(logCall.data.description).toContain('917-979-2293')
+    expect(logCall.data.description).toContain('917-898-2222')
+    expect(logCall.data.userId).toBe('u1')
+    expect(logCall.data.metadata).toEqual({
+      updatedUserId: 'agent-1',
+      field: 'companyPhone',
+      oldValue: '917-979-2293',
+      newValue: '917-898-2222',
+    })
+  })
+
+  it('trims whitespace from new value', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN', name: 'Admin' } })
+
+    await updateAgentField('agent-1', 'zelle', 'old@zelle.com', '  new@zelle.com  ')
+
+    const updateCall = mockPrisma.user.update.mock.calls[0][0]
+    expect(updateCall.data.zelle).toBe('new@zelle.com')
+  })
+
+  it('sets field to null when new value is empty', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN', name: 'Admin' } })
+
+    await updateAgentField('agent-1', 'carrier', 'T-Mobile', '  ')
+
+    const updateCall = mockPrisma.user.update.mock.calls[0][0]
+    expect(updateCall.data.carrier).toBeNull()
+  })
+
+  it('works for all whitelisted fields', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN', name: 'Admin' } })
+
+    const fields = [
+      'companyPhone', 'carrier', 'personalEmail', 'personalPhone',
+      'zelle', 'address', 'loginAccount', 'idNumber', 'citizenship',
+    ]
+
+    for (const field of fields) {
+      vi.clearAllMocks()
+      mockPrisma.user.findUnique.mockResolvedValue({ id: 'agent-1', name: 'Test' })
+      mockPrisma.user.update.mockResolvedValue({})
+      mockPrisma.eventLog.create.mockResolvedValue({})
+
+      const result = await updateAgentField('agent-1', field, 'old', 'new')
+      expect(result.success).toBe(true)
+    }
   })
 })

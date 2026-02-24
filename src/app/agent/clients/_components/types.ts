@@ -13,5 +13,16 @@ export interface AgentClient {
   lastUpdated: string
   updatedAt: string
   deadline: string | null
-  phase: number | null
+}
+
+export interface AgentDraft {
+  id: string
+  name: string
+  step: number
+  /** Completed inner-steps for the current step */
+  innerStepCompleted: number
+  /** Total inner-steps for the current step (step 1: 3, step 2: 4, step 3: 11, step 4: 11) */
+  innerStepTotal: number
+  updatedAt: string
+  lastUpdated: string
 }

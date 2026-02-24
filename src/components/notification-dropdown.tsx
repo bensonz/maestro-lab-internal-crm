@@ -16,7 +16,7 @@ import {
   getNotifications,
   markNotificationRead,
   markAllNotificationsRead,
-} from '@/app/actions/notifications'
+} from '@/lib/mock-actions'
 
 interface Notification {
   id: string

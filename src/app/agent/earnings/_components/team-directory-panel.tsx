@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { STAR_THRESHOLDS } from '@/lib/commission-constants'
-import type { HierarchyAgent, HierarchyNode } from '@/backend/data/hierarchy'
+import type { HierarchyAgent, HierarchyNode } from '@/types/backend-types'
 
 interface TeamDirectoryPanelProps {
   hierarchy: {
@@ -77,18 +77,12 @@ export function TeamDirectoryPanel({ hierarchy }: TeamDirectoryPanelProps) {
               My Position
             </p>
             <div className="flex items-center gap-2">
-              {agent.starLevel > 0 ? (
-                <>
-                  <StarDisplay count={agent.starLevel} size="md" />
-                  <span className="text-sm font-medium text-foreground">
-                    {agent.starLevel}-Star
-                  </span>
-                </>
-              ) : (
-                <span className="text-sm font-medium text-foreground">
-                  Rookie
-                </span>
+              {agent.starLevel > 0 && (
+                <StarDisplay count={agent.starLevel} size="md" />
               )}
+              <span className="text-sm font-medium text-foreground">
+                {STAR_THRESHOLDS[agent.starLevel]?.label ?? `${agent.starLevel}-Star`}
+              </span>
             </div>
           </div>
 
@@ -125,7 +119,7 @@ export function TeamDirectoryPanel({ hierarchy }: TeamDirectoryPanelProps) {
                           <StarDisplay count={sup.starLevel} />
                         ) : (
                           <span className="text-[10px] text-muted-foreground">
-                            Rookie
+                            {STAR_THRESHOLDS[0]?.label ?? 'Rookie'}
                           </span>
                         )}
                       </div>
@@ -179,7 +173,7 @@ export function TeamDirectoryPanel({ hierarchy }: TeamDirectoryPanelProps) {
                       <StarDisplay count={member.starLevel} />
                     ) : (
                       <span className="text-[10px] text-muted-foreground">
-                        Rookie
+                        {STAR_THRESHOLDS[0]?.label ?? 'Rookie'}
                       </span>
                     )}
                   </div>
@@ -241,18 +235,16 @@ export function TeamDirectoryPanel({ hierarchy }: TeamDirectoryPanelProps) {
             <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
               <p className="text-xs text-muted-foreground">Current Position</p>
               <div className="mt-1 flex items-center gap-2">
-                {agent.starLevel > 0 ? (
-                  <>
-                    <div className="flex gap-0.5">
-                      {Array(agent.starLevel).fill(0).map((_, i) => (
-                        <Star key={i} className="h-4 w-4 fill-warning text-warning" />
-                      ))}
-                    </div>
-                    <span className="text-sm font-semibold">{agent.starLevel}-Star Agent</span>
-                  </>
-                ) : (
-                  <span className="text-sm font-semibold">Rookie</span>
+                {agent.starLevel > 0 && (
+                  <div className="flex gap-0.5">
+                    {Array(agent.starLevel).fill(0).map((_, i) => (
+                      <Star key={i} className="h-4 w-4 fill-warning text-warning" />
+                    ))}
+                  </div>
                 )}
+                <span className="text-sm font-semibold">
+                  {STAR_THRESHOLDS[agent.starLevel]?.label ?? `${agent.starLevel}-Star`}
+                </span>
               </div>
             </div>
 

@@ -9,8 +9,8 @@ import { TeamDirectoryPanel } from './team-directory-panel'
 import { WalletSummaryStrip } from './wallet-summary-strip'
 import { LevelProgressCard } from './level-progress-card'
 import { PerformancePanel } from './performance-panel'
-import type { AgentKPIs } from '@/backend/services/agent-kpis'
-import type { HierarchyAgent, HierarchyNode } from '@/backend/data/hierarchy'
+import type { AgentKPIs } from '@/types/backend-types'
+import type { HierarchyAgent, HierarchyNode } from '@/types/backend-types'
 
 function countFourStarInTree(nodes: HierarchyNode[]): number {
   let count = 0

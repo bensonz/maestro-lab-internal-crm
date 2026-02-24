@@ -1,22 +1,12 @@
-import { auth } from '@/backend/auth'
-import { redirect } from 'next/navigation'
-import { getAgentHierarchy, getTeamRollup } from '@/backend/data/hierarchy'
+import { MOCK_HIERARCHY, MOCK_TEAM_ROLLUP, MOCK_SESSION } from '@/lib/mock-data'
 import { TeamView } from './_components/team-view'
 
-export default async function TeamPage() {
-  const session = await auth()
-  if (!session?.user) redirect('/login')
-
-  const [hierarchy, rollup] = await Promise.all([
-    getAgentHierarchy(session.user.id),
-    getTeamRollup(session.user.id),
-  ])
-
+export default function TeamPage() {
   return (
     <TeamView
-      hierarchy={hierarchy}
-      rollup={rollup}
-      currentUserId={session.user.id}
+      hierarchy={MOCK_HIERARCHY}
+      rollup={MOCK_TEAM_ROLLUP}
+      currentUserId={MOCK_SESSION.user.id}
     />
   )
 }

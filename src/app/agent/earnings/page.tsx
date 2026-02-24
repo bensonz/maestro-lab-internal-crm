@@ -1,28 +1,38 @@
-import { auth } from '@/backend/auth'
-import { redirect } from 'next/navigation'
-import { getAgentEarnings } from '@/backend/data/agent'
-import { getAgentKPIs } from '@/backend/services/agent-kpis'
-import { getAgentHierarchy } from '@/backend/data/hierarchy'
+import { MOCK_KPIS, MOCK_HIERARCHY } from '@/lib/mock-data'
 import { EarningsView } from './_components/earnings-view'
+import { requireAgent } from '../_require-agent'
+import { getAgentEarnings } from '@/backend/data/bonus-pools'
 
 export default async function EarningsPage() {
-  const session = await auth()
-  if (!session?.user) redirect('/login')
+  const agent = await requireAgent()
 
-  const [earningsRaw, kpis, hierarchy] = await Promise.all([
-    getAgentEarnings(session.user.id),
-    getAgentKPIs(session.user.id),
-    getAgentHierarchy(session.user.id),
-  ])
+  let earningsData = await getAgentEarnings(agent.id).catch(() => null)
 
-  // Strip commission/overrides which contain Prisma Decimal objects
-  // that cannot be serialized to Client Components
+  // Build transactions from real allocations, or fall back to empty
+  const transactions = earningsData
+    ? earningsData.allocations.map((a) => ({
+        id: a.id,
+        client: a.agentName,
+        description: a.type === 'DIRECT'
+          ? 'Direct bonus'
+          : a.type === 'STAR_SLICE'
+            ? `Star slice (${a.slices} slices)`
+            : `Backfill (${a.slices} slices)`,
+        amount: a.amount,
+        status: a.status === 'PAID' ? 'Paid' : 'Pending',
+        date: a.paidAt
+          ? new Date(a.paidAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+          : 'Pending',
+        rawDate: a.paidAt?.toISOString() ?? new Date().toISOString(),
+      }))
+    : []
+
   const earnings = {
-    totalEarnings: earningsRaw.totalEarnings,
-    pendingPayout: earningsRaw.pendingPayout,
-    thisMonth: earningsRaw.thisMonth,
-    recentTransactions: earningsRaw.recentTransactions,
+    totalEarnings: earningsData?.totalEarned ?? 0,
+    pendingPayout: earningsData?.pendingAmount ?? 0,
+    thisMonth: 0,
+    recentTransactions: transactions,
   }
 
-  return <EarningsView earnings={earnings} kpis={kpis} hierarchy={hierarchy} />
+  return <EarningsView earnings={earnings} kpis={MOCK_KPIS} hierarchy={MOCK_HIERARCHY} />
 }

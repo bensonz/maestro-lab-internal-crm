@@ -1,6 +1,4 @@
-import { auth } from '@/backend/auth'
-import { redirect, notFound } from 'next/navigation'
-import { getClientDetail } from '@/backend/data/agent'
+import { MOCK_CLIENT_DETAIL } from '@/lib/mock-data'
 import { ClientDetailView } from './_components/client-detail-view'
 
 interface PageProps {
@@ -8,15 +6,8 @@ interface PageProps {
 }
 
 export default async function ClientDetailPage({ params }: PageProps) {
-  const session = await auth()
-  if (!session?.user) redirect('/login')
+  // Consume the params promise (required by Next.js) but use mock data
+  await params
 
-  const { id } = await params
-  const client = await getClientDetail(id, session.user.id)
-
-  if (!client) {
-    notFound()
-  }
-
-  return <ClientDetailView client={client} />
+  return <ClientDetailView client={MOCK_CLIENT_DETAIL} />
 }

@@ -1,15 +1,10 @@
 generator client {
-  provider = "prisma-client"
-  output   = "./generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
 }
-
-// ============================================
-// ENUMS
-// ============================================
 
 enum UserRole {
   AGENT
@@ -18,703 +13,358 @@ enum UserRole {
   FINANCE
 }
 
-enum IntakeStatus {
+enum ApplicationStatus {
   PENDING
-  PREQUAL_REVIEW
-  PREQUAL_APPROVED
-  PHONE_ISSUED
-  IN_EXECUTION
-  NEEDS_MORE_INFO
-  PENDING_EXTERNAL
-  EXECUTION_DELAYED
-  INACTIVE
-  READY_FOR_APPROVAL
   APPROVED
   REJECTED
-  PARTNERSHIP_ENDED
 }
 
-enum PlatformType {
-  // Sports Betting (8)
-  DRAFTKINGS
-  FANDUEL
-  BETMGM
-  CAESARS
-  FANATICS
-  BALLYBET
-  BETRIVERS
-  BET365
-  // Financial (3)
-  BANK
-  PAYPAL
-  EDGEBOOST
-}
-
-enum PlatformStatus {
-  NOT_STARTED
-  PENDING_UPLOAD
-  PENDING_REVIEW
-  NEEDS_MORE_INFO
-  RETRY_PENDING
-  PENDING_EXTERNAL
-  VERIFIED
-  REJECTED
-  LIMITED
-}
-
-enum ToDoType {
-  EXECUTION
-  UPLOAD_SCREENSHOT
-  PROVIDE_INFO
-  PAYMENT
-  PHONE_SIGNOUT
-  PHONE_RETURN
-  VERIFICATION
-}
-
-enum ToDoStatus {
+enum ClientStatus {
   PENDING
   IN_PROGRESS
-  COMPLETED
-  OVERDUE
-  CANCELLED
-}
-
-enum ExtensionRequestStatus {
-  PENDING
   APPROVED
   REJECTED
+  CLOSED
+}
+
+enum BonusPoolStatus {
+  PENDING
+  DISTRIBUTED
+}
+
+enum AllocationStatus {
+  PENDING
+  PAID
+}
+
+enum AllocationType {
+  DIRECT
+  STAR_SLICE
+  BACKFILL
+}
+
+enum LeadershipTier {
+  NONE
+  ED
+  SED
+  MD
+  CMO
+}
+
+enum QuarterlySettlementStatus {
+  DRAFT
+  APPROVED
+  PAID
+}
+
+enum ClientDraftStatus {
+  DRAFT
+  SUBMITTED
 }
 
 enum EventType {
-  // Client lifecycle
-  APPLICATION_SUBMITTED
-  PHONE_ISSUED
-  PHONE_RETURNED
-  PLATFORM_UPLOAD
-  PLATFORM_STATUS_CHANGE
-  TODO_CREATED
-  TODO_COMPLETED
-  STATUS_CHANGE
-  DEADLINE_EXTENDED
-  DEADLINE_MISSED
-  APPROVAL
-  REJECTION
-  COMMENT
-  KPI_IMPACT
-  // Auth
   LOGIN
   LOGOUT
-  // Financial
-  TRANSACTION_CREATED
-  SETTLEMENT_CREATED
-  // User management
+  APPLICATION_SUBMITTED
+  APPLICATION_APPROVED
+  APPLICATION_REJECTED
   USER_CREATED
   USER_UPDATED
   USER_DEACTIVATED
-  // System
-  CONFIG_CHANGED
-  EXPORT
+  CLIENT_APPROVED
+  BONUS_POOL_CREATED
+  BONUS_POOL_DISTRIBUTED
+  STAR_LEVEL_CHANGED
+  LEADERSHIP_PROMOTED
+  ALLOCATION_PAID
+  QUARTERLY_SETTLEMENT_CREATED
+  CLIENT_DRAFT_CREATED
+  CLIENT_DRAFT_SUBMITTED
 }
 
-enum TransactionType {
-  DEPOSIT
-  WITHDRAWAL
-  INTERNAL_TRANSFER
-  COMMISSION_PAYOUT
-  FEE
-  ADJUSTMENT
-}
-
-enum SettlementStatus {
-  PENDING_REVIEW
-  CONFIRMED
-  REJECTED
-}
-
-// ============================================
-// MODELS
-// ============================================
+// ─── User ────────────────────────────────────────────────
 
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
-  passwordHash String? // null for OAuth users
+  passwordHash String?
   name         String
-  role         UserRole
+  role         UserRole @default(AGENT)
   phone        String?
   avatar       String?
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  // ── Hierarchy ──
-  supervisorId    String?
-  supervisor      User?    @relation("AgentHierarchy", fields: [supervisorId], references: [id])
-  subordinates    User[]   @relation("AgentHierarchy")
+  // Hierarchy
+  supervisorId String?
+  supervisor   User?  @relation("UserHierarchy", fields: [supervisorId], references: [id])
+  subordinates User[] @relation("UserHierarchy")
 
-  // ── Tier & Star Level ──
-  tier            String   @default("rookie")
-  starLevel       Int      @default(0)
+  // Agent profile
+  tier          String @default("rookie")
+  starLevel     Int    @default(0)
+  leadershipTier LeadershipTier @default(NONE)
+  gender        String?
+  dateOfBirth   DateTime?
+  idNumber      String?
+  idExpiry      DateTime?
+  idDocument      String?
+  addressDocument String?
+  ssn             String?
+  citizenship   String?
+  personalEmail String?
+  personalPhone String?
+  companyPhone  String?
+  carrier       String?
+  zelle         String?
+  address       String?
+  loginAccount  String?
 
-  // ── Profile (for Agent Detail page) ──
-  gender          String?
-  dateOfBirth     DateTime?
+  // Relations
+  eventLogs              EventLog[]
+  reviewedApplications   AgentApplication[] @relation("ApplicationReviewer")
+  resultOfApplications   AgentApplication[] @relation("ApplicationResult")
+  closedClients          Client[]           @relation("ClientCloser")
+  closedBonusPools       BonusPool[]        @relation("BonusPoolCloser")
+  allocations            BonusAllocation[]  @relation("AllocationAgent")
+  allocationsPaidBy      BonusAllocation[]  @relation("AllocationPayer")
+  promotionLogs          PromotionLog[]
+  quarterlySettlements   QuarterlySettlement[]
+  clientDrafts           ClientDraft[]      @relation("DraftCloser")
+}
+
+// ─── Agent Application ───────────────────────────────────
+
+model AgentApplication {
+  id     String            @id @default(cuid())
+  status ApplicationStatus @default(PENDING)
+
+  // Applicant info
+  firstName   String
+  lastName    String
+  email       String
+  phone       String
+  password    String // hashed
+
+  // Personal
+  gender      String?
+  dateOfBirth DateTime?
+  citizenship String?
+
+  // Address
+  address String?
+  city    String?
+  state   String?
+  zipCode String?
+  country String?
+
+  // ID document
+  idDocument      String?
+  addressDocument String?
   idNumber        String?
   idExpiry        DateTime?
-  idDocument      String?
-  ssn             String?
-  citizenship     String?
-  personalEmail   String?
-  personalPhone   String?
-  companyPhone    String?
-  carrier         String?
-  zelle           String?
-  address         String?
-  loginAccount    String?
 
-  notifications     Notification[]     @relation("UserNotifications")
+  // Payment
+  zelle String?
 
-  agentClients      Client[]           @relation("AgentClients")
-  assignedToDos     ToDo[]             @relation("AssignedToDos")
-  createdToDos      ToDo[]             @relation("CreatedToDos")
-  eventLogs         EventLog[]
-  agentMetrics      AgentMetrics?
-  phoneAssignments  PhoneAssignment[]
-  phoneIssuedBy     PhoneAssignment[] @relation("PhoneIssuedBy")
-  applicationDrafts ApplicationDraft[]
-  extensionRequests ExtensionRequest[] @relation("ExtensionRequests")
-  extensionReviews  ExtensionRequest[] @relation("ExtensionReviews")
-  fundMovements        FundMovement[]
-  fundMovementReviews  FundMovement[] @relation("FundMovementReviewer")
+  // Referral
+  referredByName String?
 
-  // ── Commission relations ──
-  bonusPoolsAsCloser  BonusPool[]        @relation("BonusPoolCloser")
-  bonusAllocations    BonusAllocation[]
-  leadershipPayouts   LeadershipPayout[]
+  // Review
+  reviewedById String?
+  reviewedBy   User?    @relation("ApplicationReviewer", fields: [reviewedById], references: [id])
+  reviewedAt   DateTime?
+  reviewNotes  String?
 
-  // ── Transaction relations ──
-  recordedTransactions Transaction[]     @relation("RecordedTransactions")
+  // Links to created user on approval
+  resultUserId String?
+  resultUser   User?   @relation("ApplicationResult", fields: [resultUserId], references: [id])
 
-  // ── Closure relations ──
-  closedClients     Client[]           @relation("ClosedClients")
-
-  @@index([supervisorId])
-  @@index([role])
-  @@index([email])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
+
+// ─── Client (minimal) ───────────────────────────────────
 
 model Client {
-  id                 String           @id @default(cuid())
-  firstName          String
-  lastName           String
-  email              String?
-  phone              String?
-  idNumber           String?
-  idDocument         String?
-  address            String?
-  city               String?
-  state              String?
-  zipCode            String?
-  country            String?
-  questionnaire      String?
-  applicationNotes   String?
-  gmailAccount       String?
-  gmailPassword      String?
-  prequalCompleted   Boolean          @default(false)
-  intakeStatus       IntakeStatus     @default(PENDING)
-  statusChangedAt    DateTime         @default(now())
-  complianceReview   String?
-  complianceStatus   String?
-  backgroundCheck    Boolean          @default(false)
-  executionDeadline  DateTime?
-  deadlineExtensions Int              @default(0)
-  agentId            String
-  agent              User             @relation("AgentClients", fields: [agentId], references: [id])
-  platforms          ClientPlatform[]
-  toDos              ToDo[]
-  eventLogs          EventLog[]
-  phoneAssignment    PhoneAssignment?
-  earnings           Earning[]
-  extensionRequests  ExtensionRequest[]
-  fundMovementsFrom  FundMovement[]   @relation("FundMovementsFrom")
-  fundMovementsTo    FundMovement[]   @relation("FundMovementsTo")
-  bonusPool          BonusPool?
-  transactions       Transaction[]
+  id        String       @id @default(cuid())
+  firstName String
+  lastName  String
+  email     String?
+  phone     String?
+  status    ClientStatus @default(PENDING)
 
-  // ── Partner ──
-  partnerId          String?
-  partner            Partner?         @relation("PartnerClients", fields: [partnerId], references: [id])
+  closerId  String
+  closer    User     @relation("ClientCloser", fields: [closerId], references: [id])
 
-  // ── Closure ──
-  closedAt           DateTime?
-  closureReason      String?
-  closureProof       String[]
-  closedById         String?
-  closedBy           User?            @relation("ClosedClients", fields: [closedById], references: [id])
+  approvedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
-
-  @@index([intakeStatus])
-  @@index([agentId])
-  @@index([partnerId])
-  @@index([createdAt])
+  bonusPool BonusPool?
+  fromDraft ClientDraft? @relation("DraftResult")
 }
 
-model ClientPlatform {
-  id             String         @id @default(cuid())
-  clientId       String
-  client         Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  platformType   PlatformType
-  status         PlatformStatus @default(NOT_STARTED)
-  username       String?
-  accountId      String?
-  screenshots    String[]
-  reviewNotes    String?
-  reviewedBy     String?
-  reviewedAt     DateTime?
-  externalId     String?
-  externalStatus String?
-  agentResult    String?
-  retryAfter     DateTime?
-  retryCount     Int            @default(0)
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+// ─── Client Draft ──────────────────────────────────────
 
-  @@unique([clientId, platformType])
-  @@index([status])
-  @@index([platformType])
-}
+model ClientDraft {
+  id     String            @id @default(cuid())
+  status ClientDraftStatus @default(DRAFT)
+  step   Int               @default(1)
 
-model ToDo {
-  id             String        @id @default(cuid())
-  title          String
-  description    String?
-  type           ToDoType
-  status         ToDoStatus    @default(PENDING)
-  priority       Int           @default(0)
-  dueDate        DateTime?
-  completedAt    DateTime?
-  // Upload & extension tracking
-  stepNumber     Int?
-  platformType   PlatformType?
-  extensionsUsed Int           @default(0)
-  maxExtensions  Int           @default(3)
-  screenshots    String[]
+  // Step 1: Pre-Qual
+  firstName             String?
+  lastName              String?
+  email                 String?
+  phone                 String?
+  idDocument            String?
+  idNumber              String?
+  idExpiry              DateTime?
+  dateOfBirth           DateTime?
+  address               String?
+  assignedGmail         String?
+  gmailPassword         String?
+  gmailScreenshot       String?
+  betmgmCheckPassed     Boolean?
+  betmgmLogin           String?
+  betmgmPassword        String?
+  betmgmRegScreenshot   String?
+  betmgmLoginScreenshot String?
+
+  // Step 2: Background
+  ssnDocument        String?
+  secondAddress      String?
+  hasCriminalRecord  Boolean?
+  criminalRecordNotes String?
+  bankingHistory     String?
+  paypalHistory      String?
+  sportsbookHistory  String?
+
+  // Step 3: Platforms
+  platformData Json?
+
+  // Step 4: Contract
+  contractDocument String?
+
+  // Risk flags
+  paypalPreviouslyUsed Boolean @default(false)
+  addressMismatch      Boolean @default(false)
+  debankedHistory      Boolean @default(false)
+  debankedBank         String?
+  undisclosedInfo      Boolean @default(false)
+
   // Relations
-  clientId       String?
-  client         Client?       @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  assignedToId   String?
-  assignedTo     User?         @relation("AssignedToDos", fields: [assignedToId], references: [id])
-  createdById    String
-  createdBy      User          @relation("CreatedToDos", fields: [createdById], references: [id])
-  metadata       Json?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  closerId       String
+  closer         User    @relation("DraftCloser", fields: [closerId], references: [id])
+  resultClientId String? @unique
+  resultClient   Client? @relation("DraftResult", fields: [resultClientId], references: [id])
 
-  @@index([status])
-  @@index([type])
-  @@index([assignedToId])
-  @@index([clientId])
-  @@index([dueDate])
-  @@index([platformType])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
+
+// ─── Bonus Pool ─────────────────────────────────────────
+
+model BonusPool {
+  id       String          @id @default(cuid())
+  clientId String          @unique
+  client   Client          @relation(fields: [clientId], references: [id])
+
+  closerId       String
+  closer         User   @relation("BonusPoolCloser", fields: [closerId], references: [id])
+  closerStarLevel Int
+
+  totalAmount    Int @default(400)
+  directAmount   Int @default(200)
+  starPoolAmount Int @default(200)
+
+  distributedSlices Int @default(0)
+  recycledSlices    Int @default(0)
+
+  status        BonusPoolStatus @default(PENDING)
+  distributedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  allocations BonusAllocation[]
+}
+
+// ─── Bonus Allocation ───────────────────────────────────
+
+model BonusAllocation {
+  id     String         @id @default(cuid())
+  poolId String
+  pool   BonusPool      @relation(fields: [poolId], references: [id])
+
+  agentId       String
+  agent         User           @relation("AllocationAgent", fields: [agentId], references: [id])
+  agentStarLevel Int
+
+  type    AllocationType
+  slices  Int
+  amount  Int
+
+  status  AllocationStatus @default(PENDING)
+  paidAt  DateTime?
+  paidById String?
+  paidBy   User?   @relation("AllocationPayer", fields: [paidById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Promotion Log ──────────────────────────────────────
+
+model PromotionLog {
+  id      String @id @default(cuid())
+  agentId String
+  agent   User   @relation(fields: [agentId], references: [id])
+
+  previousStarLevel    Int
+  newStarLevel         Int
+  previousLeadershipTier LeadershipTier @default(NONE)
+  newLeadershipTier      LeadershipTier @default(NONE)
+  promotionBonus       Int?
+  approvedClientCount  Int
+  metadata             Json?
+
+  createdAt DateTime @default(now())
+}
+
+// ─── Quarterly Settlement ───────────────────────────────
+
+model QuarterlySettlement {
+  id       String @id @default(cuid())
+  leaderId String
+  leader   User   @relation(fields: [leaderId], references: [id])
+
+  leaderTier        LeadershipTier
+  year              Int
+  quarter           Int
+  teamRevenue       Decimal @db.Decimal(12, 2)
+  commissionPercent Int
+  commissionAmount  Decimal @db.Decimal(12, 2)
+  teamAgentIds      String[]
+  metadata          Json?
+
+  status QuarterlySettlementStatus @default(DRAFT)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([leaderId, year, quarter])
+}
+
+// ─── Event Log ───────────────────────────────────────────
 
 model EventLog {
   id          String    @id @default(cuid())
   eventType   EventType
   description String
-  clientId    String?
-  client      Client?   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   userId      String?
   user        User?     @relation(fields: [userId], references: [id])
   metadata    Json?
-  oldValue    String?
-  newValue    String?
   createdAt   DateTime  @default(now())
-
-  notifications     Notification[]
-
-  @@index([clientId])
-  @@index([userId])
-  @@index([eventType])
-  @@index([createdAt])
-}
-
-model Notification {
-  id          String    @id @default(cuid())
-  userId      String
-  user        User      @relation("UserNotifications", fields: [userId], references: [id])
-
-  type        String
-  title       String
-  message     String
-  link        String?
-
-  eventLogId  String?
-  eventLog    EventLog? @relation(fields: [eventLogId], references: [id])
-  clientId    String?
-
-  isRead      Boolean   @default(false)
-  readAt      DateTime?
-  createdAt   DateTime  @default(now())
-
-  @@index([userId, isRead])
-  @@index([userId, createdAt])
-  @@index([eventLogId])
-}
-
-model PhoneAssignment {
-  id          String    @id @default(cuid())
-  phoneNumber String
-  deviceId    String?
-  clientId    String?   @unique
-  client      Client?   @relation(fields: [clientId], references: [id])
-  agentId     String
-  agent       User      @relation(fields: [agentId], references: [id])
-  issuedById  String?
-  issuedBy    User?     @relation("PhoneIssuedBy", fields: [issuedById], references: [id])
-  issuedAt    DateTime?
-  signedOutAt DateTime?
-  returnedAt  DateTime?
-  notes       String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  @@index([phoneNumber])
-  @@index([agentId])
-}
-
-model AgentMetrics {
-  id              String    @id @default(cuid())
-  agentId         String    @unique
-  agent           User      @relation(fields: [agentId], references: [id])
-  totalClients    Int       @default(0)
-  approvedClients Int       @default(0)
-  rejectedClients Int       @default(0)
-  delayCount      Int       @default(0)
-  extensionCount  Int       @default(0)
-  successRate     Float     @default(0)
-  delayRate       Float     @default(0)
-  periodStart     DateTime?
-  periodEnd       DateTime?
-  updatedAt       DateTime  @updatedAt
-
-  @@index([agentId])
-}
-
-model Earning {
-  id          String    @id @default(cuid())
-  clientId    String
-  client      Client    @relation(fields: [clientId], references: [id])
-  amount      Decimal   @db.Decimal(10, 2)
-  currency    String    @default("USD")
-  description String?
-  status      String    @default("pending")
-  paidAt      DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  @@index([clientId])
-  @@index([status])
-}
-
-model FundAllocation {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  amount      Decimal  @db.Decimal(10, 2)
-  currency    String   @default("USD")
-  allocatedAt DateTime @default(now())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-model ApplicationDraft {
-  id        String   @id @default(cuid())
-  formData  Json
-  agentId   String
-  agent     User     @relation(fields: [agentId], references: [id])
-  clientId  String?
-  phase     Int      @default(1)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([agentId])
-  @@index([clientId])
-}
-
-model ExtensionRequest {
-  id              String                 @id @default(cuid())
-  clientId        String
-  client          Client                 @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  requestedById   String
-  requestedBy     User                   @relation("ExtensionRequests", fields: [requestedById], references: [id])
-  reviewedById    String?
-  reviewedBy      User?                  @relation("ExtensionReviews", fields: [reviewedById], references: [id])
-  status          ExtensionRequestStatus @default(PENDING)
-  reason          String
-  requestedDays   Int                    @default(3)
-  currentDeadline DateTime
-  newDeadline     DateTime?
-  reviewedAt      DateTime?
-  reviewNotes     String?
-  createdAt       DateTime               @default(now())
-
-  @@index([clientId])
-  @@index([status])
-  @@index([requestedById])
-}
-
-model FundMovement {
-  id           String   @id @default(cuid())
-
-  // Transfer classification
-  type         String // "internal" | "external"
-  flowType     String // "same_client" | "different_clients" | "external"
-
-  // Sender
-  fromClientId String?
-  fromClient   Client?  @relation("FundMovementsFrom", fields: [fromClientId], references: [id])
-  fromPlatform String
-
-  // Receiver
-  toClientId   String?
-  toClient     Client?  @relation("FundMovementsTo", fields: [toClientId], references: [id])
-  toPlatform   String
-
-  // Amount
-  amount       Decimal  @db.Decimal(10, 2)
-  currency     String   @default("USD")
-  fee          Decimal? @db.Decimal(10, 2)
-
-  // Transfer details
-  method       String? // "zelle" | "wire" | "transfer" | null
-  status       String   @default("completed") // "pending" | "completed"
-  notes        String?
-
-  // Settlement confirmation
-  settlementStatus SettlementStatus @default(PENDING_REVIEW)
-  reviewedById     String?
-  reviewedBy       User?    @relation("FundMovementReviewer", fields: [reviewedById], references: [id])
-  reviewedAt       DateTime?
-  reviewNotes      String?
-
-  // Audit
-  recordedById String
-  recordedBy   User     @relation(fields: [recordedById], references: [id])
-
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  @@index([fromClientId])
-  @@index([toClientId])
-  @@index([recordedById])
-  @@index([settlementStatus])
-  @@index([createdAt])
-}
-
-// ── Per-client bonus pool ($400 per approved client) ──
-model BonusPool {
-  id                String            @id @default(cuid())
-  clientId          String            @unique
-  client            Client            @relation(fields: [clientId], references: [id])
-  closerId          String
-  closer            User              @relation("BonusPoolCloser", fields: [closerId], references: [id])
-
-  totalAmount       Decimal           @db.Decimal(10, 2) @default(400)
-  directAmount      Decimal           @db.Decimal(10, 2) @default(200)
-  starPoolAmount    Decimal           @db.Decimal(10, 2) @default(200)
-
-  totalSlices       Int               @default(4)
-  sliceValue        Decimal           @db.Decimal(10, 2) @default(50)
-  distributedSlices Int               @default(0)
-  recycledSlices    Int               @default(0)
-  status            String            @default("pending")
-
-  hierarchySnapshot Json?
-
-  allocations       BonusAllocation[]
-
-  createdAt         DateTime          @default(now())
-
-  @@index([closerId])
-  @@index([status])
-}
-
-// ── Individual allocation from a pool ──
-model BonusAllocation {
-  id              String    @id @default(cuid())
-  bonusPoolId     String
-  bonusPool       BonusPool @relation(fields: [bonusPoolId], references: [id])
-  agentId         String
-  agent           User      @relation(fields: [agentId], references: [id])
-
-  type            String
-  slices          Int       @default(0)
-  amount          Decimal   @db.Decimal(10, 2)
-  starLevelAtTime Int
-
-  status          String    @default("pending")
-  paidAt          DateTime?
-  payoutRef       String?
-
-  createdAt       DateTime  @default(now())
-
-  @@index([bonusPoolId])
-  @@index([agentId])
-  @@index([status])
-}
-
-// ── Leadership tier payouts (5★+ only) ──
-model LeadershipPayout {
-  id              String    @id @default(cuid())
-  agentId         String
-  agent           User      @relation(fields: [agentId], references: [id])
-
-  type            String
-  tier            String
-
-  bonusAmount     Decimal?  @db.Decimal(10, 2)
-  sharePercent    Decimal?  @db.Decimal(5, 2)
-  periodStart     DateTime?
-  periodEnd       DateTime?
-  teamRevenue     Decimal?  @db.Decimal(12, 2)
-  payoutAmount    Decimal?  @db.Decimal(10, 2)
-
-  status          String    @default("pending")
-  paidAt          DateTime?
-
-  createdAt       DateTime  @default(now())
-
-  @@index([agentId])
-  @@index([tier])
-  @@index([status])
-}
-
-// ── Append-only financial ledger ──
-model Transaction {
-  id              String          @id @default(cuid())
-  type            TransactionType
-  amount          Decimal         @db.Decimal(10, 2)
-  currency        String          @default("USD")
-  status          String          @default("completed")
-
-  clientId        String?
-  client          Client?         @relation(fields: [clientId], references: [id])
-  platformType    PlatformType?
-  fundMovementId  String?
-  bonusPoolId     String?
-
-  description     String?
-  reference       String?
-  documentUrl     String?
-
-  recordedById    String
-  recordedBy      User            @relation("RecordedTransactions", fields: [recordedById], references: [id])
-  metadata        Json?
-
-  createdAt       DateTime        @default(now())
-
-  @@index([clientId])
-  @@index([platformType])
-  @@index([type])
-  @@index([createdAt])
-  @@index([recordedById])
-  @@index([fundMovementId])
-}
-
-// ── Partners (external business entities that share in profits) ──
-model Partner {
-  id              String            @id @default(cuid())
-  name            String
-  contactName     String?
-  contactEmail    String?
-  contactPhone    String?
-  company         String?
-  type            String            @default("referral")  // "referral" | "platform" | "investor" | "affiliate"
-  status          String            @default("active")    // "active" | "inactive" | "suspended"
-  notes           String?
-
-  clients         Client[]          @relation("PartnerClients")
-  profitShareRules ProfitShareRule[]
-  profitShareDetails ProfitShareDetail[]
-
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-
-  @@index([status])
-  @@index([type])
-}
-
-// ── Profit sharing rules (defines how profits are split with partners) ──
-model ProfitShareRule {
-  id              String            @id @default(cuid())
-  partnerId       String
-  partner         Partner           @relation(fields: [partnerId], references: [id])
-
-  name            String
-  description     String?
-
-  // Split configuration
-  splitType       String            @default("percentage")  // "percentage" | "fixed" | "tiered"
-  partnerPercent  Decimal?          @db.Decimal(5, 2)
-  companyPercent  Decimal?          @db.Decimal(5, 2)
-  fixedAmount     Decimal?          @db.Decimal(10, 2)
-
-  // Applicability
-  appliesTo       String            @default("all")         // "all" | "deposits" | "withdrawals" | "commissions"
-  platformType    PlatformType?
-  minAmount       Decimal?          @db.Decimal(10, 2)
-  maxAmount       Decimal?          @db.Decimal(10, 2)
-
-  // Fee deductions (taken before split)
-  feePercent      Decimal?          @db.Decimal(5, 2)
-  feeFixed        Decimal?          @db.Decimal(10, 2)
-
-  status          String            @default("active")      // "active" | "inactive" | "draft"
-  effectiveFrom   DateTime          @default(now())
-  effectiveTo     DateTime?
-  priority        Int               @default(0)
-
-  details         ProfitShareDetail[]
-
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-
-  @@index([partnerId])
-  @@index([status])
-  @@index([appliesTo])
-}
-
-// ── Transaction-level profit share tracking ──
-model ProfitShareDetail {
-  id              String           @id @default(cuid())
-  partnerId       String
-  partner         Partner          @relation(fields: [partnerId], references: [id])
-  ruleId          String
-  rule            ProfitShareRule  @relation(fields: [ruleId], references: [id])
-
-  // Source transaction
-  transactionId   String?
-  fundMovementId  String?
-
-  // Calculation breakdown
-  grossAmount     Decimal          @db.Decimal(10, 2)
-  feeAmount       Decimal          @db.Decimal(10, 2) @default(0)
-  netAmount       Decimal          @db.Decimal(10, 2)
-  partnerAmount   Decimal          @db.Decimal(10, 2)
-  companyAmount   Decimal          @db.Decimal(10, 2)
-
-  description     String?
-  status          String           @default("pending")  // "pending" | "approved" | "paid"
-  paidAt          DateTime?
-
-  createdAt       DateTime         @default(now())
-
-  @@index([partnerId])
-  @@index([ruleId])
-  @@index([status])
-  @@index([createdAt])
 }

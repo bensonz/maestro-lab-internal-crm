@@ -1,925 +1,250 @@
 'use client'
 
-import {
-  useActionState,
-  useState,
-  useCallback,
-  useEffect,
-  useRef,
-  useTransition,
-} from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient, ActionState } from '@/app/actions/clients'
-import {
-  submitPrequalification,
-  PrequalActionState,
-} from '@/app/actions/prequal'
-import { checkBetmgmStatus } from '@/app/actions/betmgm-verification'
-import { retryBetmgmSubmission } from '@/app/actions/betmgm-retry'
-import { saveDraft } from '@/app/actions/drafts'
+import { Button } from '@/components/ui/button'
+import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
+import { saveClientDraft, submitClientDraft } from '@/app/actions/client-drafts'
 import { toast } from 'sonner'
-import { cn } from '@/lib/utils'
-
-import { StatusHeader } from './status-header'
-import { StepCard } from './step-card'
-import { RiskPanel } from './risk-panel'
-import { IdUploadSection } from './id-upload-section'
-import { GmailSection } from './gmail-section'
-import { BetmgmCheckSection } from './betmgm-check-section'
-import { BasicInfoSection } from './basic-info-section'
-import { AddressSection } from './address-section'
-import { ComplianceGroups, EMPTY_COMPLIANCE_DATA } from './compliance-groups'
-import type { ComplianceData } from './compliance-groups'
-import { PhaseHeader } from './phase-header'
-import { PhaseGate } from './phase-gate'
-
-type StepStatus = 'complete' | 'pending' | 'blocked' | 'not-started'
-
-interface AgeFlag {
-  message: string
-  severity: 'high-risk' | 'review'
-}
-
-interface ExtractedIdData {
-  firstName: string
-  middleName?: string
-  lastName: string
-  dateOfBirth: string
-  address?: string
-  city?: string
-  state?: string
-  zip?: string
-  idExpiry?: string
-}
-
-const initialState: ActionState = {}
-const initialPrequalState: PrequalActionState = {}
-
-interface ClientData {
-  id: string
-  firstName: string
-  lastName: string
-  gmailAccount?: string | null
-  gmailPassword?: string | null
-  prequalCompleted: boolean
-  phone?: string | null
-  email?: string | null
-  address?: string | null
-  city?: string | null
-  state?: string | null
-  zipCode?: string | null
-  questionnaire?: string | null
-  idDocument?: string | null
-  betmgmScreenshots?: string[]
-  intakeStatus?: string
-}
-
-interface BetmgmRetryInfo {
-  isRetryPending: boolean
-  retryAfter?: string
-  retryCount: number
-  rejectionReason?: string
-  cooldownPassed: boolean
-  previousAgentResult?: string
-}
+import { Step1PreQual } from './step1-prequal'
+import { Step2Background } from './step2-background'
+import { Step3Platforms } from './step3-platforms'
+import { Step4Contract } from './step4-contract'
+import type { SerializedDraft } from './new-client-view'
 
 interface ClientFormProps {
-  initialData?: Record<string, string> | null
-  draftId?: string
-  clientData?: ClientData | null
-  betmgmStatus?: string
-  serverPhase?: number | null
-  betmgmRetryState?: BetmgmRetryInfo
+  draft: SerializedDraft
+  currentStep: number
+  onStepChange: (step: number) => void
+  onRiskFlagsChange: (flags: Record<string, unknown>) => void
+  onRegisterStepHandler?: (handler: (step: number) => void) => void
 }
 
 export function ClientForm({
-  initialData,
-  draftId,
-  clientData,
-  betmgmStatus: initialBetmgmStatus,
-  serverPhase,
-  betmgmRetryState: initialRetryState,
+  draft,
+  currentStep,
+  onStepChange,
+  onRiskFlagsChange,
+  onRegisterStepHandler,
 }: ClientFormProps) {
   const router = useRouter()
-  const [phase2State, phase2FormAction, isPhase2Pending] = useActionState(
-    createClient,
-    initialState,
+  const [formData, setFormData] = useState<Record<string, unknown>>(() =>
+    buildFormDataFromDraft(draft),
   )
-  const [prequalState, prequalFormAction, isPrequalPending] = useActionState(
-    submitPrequalification,
-    initialPrequalState,
-  )
-  const [isSavingDraft, startDraftTransition] = useTransition()
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
+  const [submitting, setSubmitting] = useState(false)
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastSavedRef = useRef<string>(JSON.stringify(buildFormDataFromDraft(draft)))
 
-  // Phase state
-  const prequalSubmitted = clientData?.prequalCompleted ?? false
-  const [betmgmVerified, setBetmgmVerified] = useState(
-    initialBetmgmStatus === 'VERIFIED',
-  )
-  const [betmgmStatus, setBetmgmStatus] = useState(
-    initialBetmgmStatus ?? 'NOT_STARTED',
-  )
-  const [betmgmRetryInfo, setBetmgmRetryInfo] = useState<BetmgmRetryInfo | undefined>(
-    initialRetryState,
-  )
-  const [isRetrySubmitting, setIsRetrySubmitting] = useState(false)
-  const currentPhase: number =
-    serverPhase ?? (prequalSubmitted && betmgmVerified ? 2 : 1)
-
-  // Parse questionnaire from both sources and merge
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const parsedQuestionnaire: Record<string, any> | null = (() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let fromClient: Record<string, any> | null = null
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let fromDraft: Record<string, any> | null = null
-
-    if (clientData?.questionnaire) {
-      try { fromClient = JSON.parse(clientData.questionnaire) } catch { /* ignore */ }
-    }
-    if (initialData?.questionnaire) {
-      try { fromDraft = JSON.parse(initialData.questionnaire) } catch { /* ignore */ }
-    }
-
-    if (!fromClient && !fromDraft) return null
-
-    // Merge: draft overrides for Phase 2 fields (compliance),
-    // but Phase 1 fields fall back to client record
-    return {
-      ...fromClient,
-      ...fromDraft,
-      betmgmResult: fromDraft?.betmgmResult ?? fromClient?.betmgmResult ?? null,
-      idVerified: fromDraft?.idVerified ?? fromClient?.idVerified ?? false,
-      dateOfBirth: fromDraft?.dateOfBirth ?? fromClient?.dateOfBirth ?? null,
-      middleName: fromDraft?.middleName ?? fromClient?.middleName ?? null,
-      idExpiry: fromDraft?.idExpiry ?? fromClient?.idExpiry ?? null,
-      extractedAddress: fromDraft?.extractedAddress?.address
-        ? fromDraft.extractedAddress
-        : fromClient?.extractedAddress ?? null,
-      overriddenFields: fromDraft?.overriddenFields ?? fromClient?.overriddenFields ?? [],
-      compliance: fromDraft?.compliance ?? fromClient?.compliance ?? null,
-    }
-  })()
-
-  // ID document URL state
-  const [idDocumentUrl, setIdDocumentUrl] = useState<string | null>(
-    clientData?.idDocument ?? initialData?.idDocument ?? null,
-  )
-
-  // ID verification state
-  const [isIdConfirmed, setIsIdConfirmed] = useState(
-    parsedQuestionnaire?.idVerified ?? false,
-  )
-  const [idUploaded, setIdUploaded] = useState(
-    !!(initialData?.firstName || clientData?.firstName),
-  )
-  const [extractedData, setExtractedData] = useState<ExtractedIdData | null>(
-    (() => {
-      if (clientData) {
-        const ea = parsedQuestionnaire?.extractedAddress ?? parsedQuestionnaire?.secondaryAddress
-        return {
-          firstName: clientData.firstName ?? '',
-          lastName: clientData.lastName ?? '',
-          middleName: parsedQuestionnaire?.middleName,
-          dateOfBirth: parsedQuestionnaire?.dateOfBirth ?? '',
-          address: clientData.address ?? ea?.address ?? undefined,
-          city: clientData.city ?? ea?.city ?? undefined,
-          state: clientData.state ?? ea?.state ?? undefined,
-          zip: clientData.zipCode ?? ea?.zip ?? undefined,
-          idExpiry: parsedQuestionnaire?.idExpiry,
-        }
-      }
-      if (initialData) {
-        return {
-          firstName: initialData.firstName ?? '',
-          lastName: initialData.lastName ?? '',
-          middleName: initialData.middleName,
-          dateOfBirth:
-            initialData.dateOfBirth ?? parsedQuestionnaire?.dateOfBirth ?? '',
-          address: initialData.primaryAddress ?? initialData.address,
-          city: initialData.primaryCity ?? initialData.city,
-          state: initialData.primaryState ?? initialData.state,
-          zip: initialData.primaryZip ?? initialData.zipCode ?? initialData.zip,
-          idExpiry: initialData.idExpiry ?? parsedQuestionnaire?.idExpiry,
-        }
-      }
-      return null
-    })(),
-  )
-  const [overriddenFields, setOverriddenFields] = useState<string[]>(
-    parsedQuestionnaire?.overriddenFields ?? [],
-  )
-
-  // Track original ID-extracted values for override detection
-  const originalIdDataRef = useRef<Record<string, string>>({})
-
-  // Gmail state for Phase 1 step tracking
-  const [gmailValue, setGmailValue] = useState(
-    clientData?.gmailAccount ?? initialData?.gmailAccount ?? '',
-  )
-  const [passwordValue, setPasswordValue] = useState(
-    clientData?.gmailPassword ?? initialData?.gmailPassword ?? '',
-  )
-  const [phoneValue, setPhoneValue] = useState(
-    clientData?.phone ?? initialData?.phone ?? '',
-  )
-
-  // BetMGM check state — restore from questionnaire + platform screenshots
-  const [betmgmResult, setBetmgmResult] = useState<'success' | 'failed' | null>(
-    parsedQuestionnaire?.betmgmResult ?? (initialData?.betmgmResult as 'success' | 'failed' | null) ?? null,
-  )
-  const [betmgmScreenshots, setBetmgmScreenshots] = useState<{
-    login?: string
-    deposit?: string
-  }>(() => {
-    const screenshots = clientData?.betmgmScreenshots
-    if (screenshots && screenshots.length > 0) {
-      return {
-        login: screenshots[0] || undefined,
-        deposit: screenshots[1] || undefined,
-      }
-    }
-    if (initialData?.betmgmLoginScreenshot || initialData?.betmgmDepositScreenshot) {
-      return {
-        login: initialData.betmgmLoginScreenshot || undefined,
-        deposit: initialData.betmgmDepositScreenshot || undefined,
-      }
-    }
-    return {}
-  })
-
-  // Compliance data state (expanded — includes former clientSourceData)
-  const [complianceData, setComplianceData] = useState<ComplianceData>(() => {
-    const c = parsedQuestionnaire?.compliance
-    const cs = parsedQuestionnaire?.clientSource
-    if (!c && !cs) return { ...EMPTY_COMPLIANCE_DATA }
-    return {
-      ...EMPTY_COMPLIANCE_DATA,
-      ...(c || {}),
-      // Merge clientSource fields into complianceData (Group E)
-      introducedBy: cs?.introducedBy ?? c?.introducedBy ?? '',
-      howMet: cs?.howMet ?? c?.howMet ?? '',
-      profession: cs?.profession ?? c?.profession ?? '',
-      isReliable: cs?.isReliable ?? c?.isReliable ?? '',
-      previouslyFlagged: cs?.previouslyFlagged ?? c?.previouslyFlagged ?? '',
-      previousPlatforms: c?.previousPlatforms ?? [],
-    }
-  })
-
-  // Agent confirmation state — restore from draft if available
-  const [agentConfirms, setAgentConfirms] = useState(
-    initialData?.agentConfirmsSuitable === 'true',
-  )
-
-  // Age flag state
-  const [ageFlag, setAgeFlag] = useState<AgeFlag | null>(null)
-
-  // Form refs
-  const phase1FormRef = useRef<HTMLFormElement>(null)
-  const phase2FormRef = useRef<HTMLFormElement>(null)
-
-  // BetMGM polling — poll every 60s when prequal submitted but not yet verified
+  // Reset form data when draft changes
   useEffect(() => {
-    if (!prequalSubmitted || betmgmVerified || !clientData?.id) return
+    const newData = buildFormDataFromDraft(draft)
+    setFormData(newData)
+    lastSavedRef.current = JSON.stringify(newData)
+    onStepChange(draft.step)
+  }, [draft.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-    const interval = setInterval(async () => {
-      const result = await checkBetmgmStatus(clientData.id)
-      setBetmgmStatus(result.status)
+  // Auto-save debounced
+  const doSave = useCallback(
+    async (data: Record<string, unknown>) => {
+      const serialized = JSON.stringify(data)
+      if (serialized === lastSavedRef.current) return
 
-      if (result.verified) {
-        setBetmgmVerified(true)
-        toast.success('BetMGM verified! Full application unlocked.')
-        clearInterval(interval)
-      } else if (result.status === 'RETRY_PENDING') {
-        const cooldownPassed = result.retryAfter
-          ? new Date(result.retryAfter).getTime() <= Date.now()
-          : false
-        setBetmgmRetryInfo({
-          isRetryPending: true,
-          retryAfter: result.retryAfter,
-          retryCount: result.retryCount ?? 0,
-          rejectionReason: result.rejectionReason,
-          cooldownPassed,
+      setSaveStatus('saving')
+      try {
+        const result = await saveClientDraft(draft.id, {
+          ...data,
+          step: currentStep,
         })
-        if (cooldownPassed) {
-          toast.info('BetMGM retry is now available. Upload new screenshots and resubmit.')
+        if (result.success) {
+          lastSavedRef.current = serialized
+          setSaveStatus('saved')
         } else {
-          toast.warning('BetMGM was rejected with retry — cooldown active.')
+          setSaveStatus('idle')
         }
+      } catch {
+        setSaveStatus('idle')
       }
-    }, 60000)
+    },
+    [draft.id, currentStep],
+  )
 
-    return () => clearInterval(interval)
-  }, [prequalSubmitted, betmgmVerified, clientData?.id])
+  const scheduleAutoSave = useCallback(
+    (data: Record<string, unknown>) => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+      saveTimerRef.current = setTimeout(() => doSave(data), 500)
+    },
+    [doSave],
+  )
 
-  // Age compliance check
+  // Cleanup timer on unmount
   useEffect(() => {
-    const dob = extractedData?.dateOfBirth
-    if (dob) {
-      const birthDate = new Date(dob)
-      const today = new Date()
-      const age = Math.floor(
-        (today.getTime() - birthDate.getTime()) /
-          (365.25 * 24 * 60 * 60 * 1000),
-      )
-
-      const twentyFirstBirthday = new Date(birthDate)
-      twentyFirstBirthday.setFullYear(twentyFirstBirthday.getFullYear() + 21)
-
-      const sixtyDaysAgo = new Date()
-      sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60)
-
-      if (age < 21) {
-        setAgeFlag({
-          message: 'HIGH-RISK: Client is under 21 — not eligible',
-          severity: 'high-risk',
-        })
-      } else if (
-        twentyFirstBirthday >= sixtyDaysAgo &&
-        twentyFirstBirthday <= today
-      ) {
-        setAgeFlag({
-          message: 'REVIEW: Client turned 21 within last 30–60 days',
-          severity: 'review',
-        })
-      } else if (age >= 75) {
-        setAgeFlag({
-          message: 'REVIEW: Client is 75+ — compliance notes required',
-          severity: 'review',
-        })
-      } else {
-        setAgeFlag(null)
-      }
-    } else {
-      setAgeFlag(null)
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     }
-  }, [extractedData?.dateOfBirth])
+  }, [])
 
-  // Handle Phase 1 submit result — redirect to ?client=
-  useEffect(() => {
-    if (prequalState.clientId) {
-      toast.success('Pre-qualification submitted! Awaiting BetMGM verification.')
-      router.push(`/agent/new-client?client=${prequalState.clientId}`)
-    }
-    if (prequalState.message) {
-      toast.error(prequalState.message)
-    } else if (prequalState.errors && Object.keys(prequalState.errors).length > 0) {
-      const errorCount = Object.keys(prequalState.errors).length
-      toast.error(
-        `Please fix ${errorCount} validation error${errorCount > 1 ? 's' : ''}`,
-      )
-    }
-  }, [prequalState, router])
-
-  // Show toast on Phase 2 validation errors
-  useEffect(() => {
-    if (phase2State.message) {
-      toast.error(phase2State.message)
-    } else if (
-      phase2State.errors &&
-      Object.keys(phase2State.errors).length > 0
-    ) {
-      const errorCount = Object.keys(phase2State.errors).length
-      toast.error(
-        `Please fix ${errorCount} validation error${errorCount > 1 ? 's' : ''}`,
-      )
-    }
-  }, [phase2State])
-
-  // Handle save draft
-  const handleSaveDraft = useCallback(() => {
-    const formRef = currentPhase === 1 ? phase1FormRef : phase2FormRef
-    if (!formRef.current) return
-
-    const formData = new FormData(formRef.current)
-    if (draftId) {
-      formData.set('draftId', draftId)
-    }
-    if (clientData?.id) {
-      formData.set('clientId', clientData.id)
-    }
-    formData.set('phase', String(currentPhase))
-
-    startDraftTransition(async () => {
-      const result = await saveDraft({}, formData)
-      if (result.success) {
-        toast.success(result.message || 'Draft saved successfully')
-      } else {
-        toast.error(result.message || 'Failed to save draft')
-      }
+  function handleFieldChange(field: string, value: unknown) {
+    setFormData((prev) => {
+      const next = { ...prev, [field]: value }
+      scheduleAutoSave(next)
+      return next
     })
-  }, [draftId, currentPhase, clientData?.id])
-
-  // Handlers
-  const handleIdDataExtracted = useCallback((data: ExtractedIdData) => {
-    setExtractedData(data)
-    setIdUploaded(true)
-    // Store original values for override detection
-    originalIdDataRef.current = {
-      firstName: data.firstName,
-      lastName: data.lastName,
-      middleName: data.middleName ?? '',
-      dateOfBirth: data.dateOfBirth,
-    }
-  }, [])
-
-  const handleIdConfirm = useCallback(() => {
-    setIsIdConfirmed(true)
-  }, [])
-
-  const handleComplianceChange = useCallback((data: ComplianceData) => {
-    setComplianceData(data)
-  }, [])
-
-  // Step status computation — Phase 1 now has 3 sub-steps
-  const computePhase1Steps = (): {
-    status: StepStatus
-    missingItems: string[]
-  }[] => {
-    // Step 1a: ID Verification
-    const step1aStatus: StepStatus = isIdConfirmed
-      ? 'complete'
-      : idUploaded
-        ? 'pending'
-        : 'not-started'
-    const step1aMissing: string[] = []
-    if (!idUploaded) step1aMissing.push('Upload ID')
-    else if (!isIdConfirmed) step1aMissing.push('Confirm ID data')
-
-    // Step 1b: Contact & Gmail
-    const hasGmail = !!gmailValue
-    const hasPassword = !!passwordValue
-    const hasPhone = !!phoneValue
-    const step1bStatus: StepStatus =
-      hasGmail && hasPassword && hasPhone ? 'complete' : 'pending'
-    const step1bMissing: string[] = []
-    if (!hasPhone) step1bMissing.push('Phone number')
-    if (!hasGmail) step1bMissing.push('Gmail account')
-    if (!hasPassword) step1bMissing.push('Gmail password')
-
-    // Step 1c: BetMGM Check — both success and failed require screenshots
-    const betmgmComplete =
-      (betmgmResult === 'failed' && !!betmgmScreenshots.login) ||
-      (betmgmResult === 'success' &&
-        !!betmgmScreenshots.login &&
-        !!betmgmScreenshots.deposit)
-    const step1cStatus: StepStatus = betmgmComplete
-      ? 'complete'
-      : betmgmResult
-        ? 'pending'
-        : 'not-started'
-    const step1cMissing: string[] = []
-    if (!betmgmResult) step1cMissing.push('Record BetMGM result')
-    else if (betmgmResult === 'success') {
-      if (!betmgmScreenshots.login) step1cMissing.push('Login screenshot')
-      if (!betmgmScreenshots.deposit) step1cMissing.push('Deposit screenshot')
-    } else if (betmgmResult === 'failed') {
-      if (!betmgmScreenshots.login) step1cMissing.push('Rejection screenshot')
-    }
-
-    return [
-      { status: step1aStatus, missingItems: step1aMissing },
-      { status: step1bStatus, missingItems: step1bMissing },
-      { status: step1cStatus, missingItems: step1cMissing },
-    ]
   }
 
-  const computePhase2Steps = (): {
-    status: StepStatus
-    missingItems: string[]
-  }[] => {
-    // Step 2: Basic Info
-    const hasName = extractedData?.firstName && extractedData?.lastName
-    const step2Status: StepStatus =
-      ageFlag?.severity === 'high-risk'
-        ? 'blocked'
-        : hasName && extractedData?.dateOfBirth
-          ? 'complete'
-          : 'pending'
-    const step2Missing: string[] = []
-    if (!hasName) step2Missing.push('Name required')
-    if (!extractedData?.dateOfBirth) step2Missing.push('DOB required')
-    if (ageFlag?.severity === 'high-risk') step2Missing.push('Under 21')
-
-    // Step 3: Address
-    const hasPrimary =
-      extractedData?.address &&
-      extractedData?.city &&
-      extractedData?.state &&
-      extractedData?.zip
-    const step3Status: StepStatus = hasPrimary ? 'complete' : 'pending'
-    const step3Missing: string[] = []
-    if (!hasPrimary) step3Missing.push('Primary address required')
-
-    // Step 4: Compliance (expanded requirements)
-    const hasRecord = complianceData.hasCriminalRecord !== ''
-    const hasPayPal = complianceData.hasPayPal !== ''
-    const hasBetting = complianceData.hasBettingHistory !== ''
-    const hasBanking = complianceData.hasBankingHistory !== ''
-    const hasRiskLevel = complianceData.riskLevel !== ''
-    const hasEnglish = complianceData.canReadEnglish !== ''
-    const hasSSN = !!complianceData.ssn
-    const hasBankName =
-      complianceData.hasBankingHistory !== 'yes' || !!complianceData.bankName
-
-    const allRequired =
-      hasRecord && hasPayPal && hasBetting && hasBanking && hasRiskLevel && hasEnglish && hasSSN && hasBankName
-    const step4Status: StepStatus =
-      complianceData.hasCriminalRecord === 'yes'
-        ? 'blocked'
-        : allRequired
-          ? 'complete'
-          : 'pending'
-    const step4Missing: string[] = []
-    if (!hasBanking) step4Missing.push('Banking history')
-    if (!hasSSN) step4Missing.push('SSN')
-    if (!hasPayPal) step4Missing.push('PayPal status')
-    if (!hasBetting) step4Missing.push('Betting history')
-    if (!hasRecord) step4Missing.push('Criminal record')
-    if (!hasRiskLevel) step4Missing.push('Risk level')
-    if (!hasEnglish) step4Missing.push('English proficiency')
-    if (!hasBankName) step4Missing.push('Bank name')
-    if (complianceData.hasCriminalRecord === 'yes')
-      step4Missing.push('Criminal record blocks submission')
-
-    return [
-      { status: step2Status, missingItems: step2Missing },
-      { status: step3Status, missingItems: step3Missing },
-      { status: step4Status, missingItems: step4Missing },
-    ]
-  }
-
-  const phase1Steps = computePhase1Steps()
-  const phase2Steps = computePhase2Steps()
-  const getRiskLevel = (): 'low' | 'medium' | 'high' => {
-    // HIGH
-    if (ageFlag?.severity === 'high-risk') return 'high'
-    if (complianceData.hasCriminalRecord === 'yes') return 'high'
-    if (complianceData.hasBeenDebanked === 'yes') return 'high'
-    if (
-      complianceData.paypalPreviouslyUsed === 'yes' &&
-      complianceData.paypalVerificationStatus === 'multiple'
-    )
-      return 'high'
-
-    // MEDIUM
-    if (ageFlag) return 'medium'
-    if (complianceData.hasCriminalRecord === 'unknown') return 'medium'
-    if (extractedData?.idExpiry && /^\d{4}-\d{2}-\d{2}$/.test(extractedData.idExpiry)) {
-      const daysUntilExpiry = Math.floor(
-        (new Date(extractedData.idExpiry).getTime() - Date.now()) / 86400000,
-      )
-      if (daysUntilExpiry > 0 && daysUntilExpiry <= 75) return 'medium'
+  // Flush save before step change
+  async function handleStepChange(newStep: number) {
+    if (newStep < 1 || newStep > 4) return
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current)
+      saveTimerRef.current = null
     }
-    if (
-      complianceData.canReadEnglish === 'limited' ||
-      complianceData.canReadEnglish === 'no' ||
-      complianceData.canSpeakEnglish === 'limited' ||
-      complianceData.canSpeakEnglish === 'no'
-    )
-      return 'medium'
-    if (complianceData.hasBettingHistory === 'extensive') return 'medium'
-    if (complianceData.hasEightPlusRegistrations === 'yes') return 'medium'
-    if (overriddenFields.length > 0) return 'medium'
-
-    return 'low'
+    await doSave({ ...formData, step: newStep })
+    onStepChange(newStep)
   }
 
-  // Combine all questionnaire data into JSON
-  const questionnaireJson = JSON.stringify({
-    compliance: complianceData,
-    idVerified: isIdConfirmed,
-    dateOfBirth: extractedData?.dateOfBirth,
-    idExpiry: extractedData?.idExpiry,
-    middleName: extractedData?.middleName,
-    overriddenFields,
-    extractedAddress: extractedData ? {
-      address: extractedData.address,
-      city: extractedData.city,
-      state: extractedData.state,
-      zip: extractedData.zip,
-    } : undefined,
-  })
+  // Expose handleStepChange to parent (for step indicator clicks)
+  useEffect(() => {
+    onRegisterStepHandler?.(handleStepChange)
+  }) // re-register on every render so it captures latest formData
 
-  // Retry BetMGM handler
-  const handleRetrySubmit = useCallback(async () => {
-    if (!clientData?.id || !betmgmResult) return
-    setIsRetrySubmitting(true)
+  async function handleSubmit() {
+    // Flush save first
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current)
+      saveTimerRef.current = null
+    }
+    await doSave(formData)
+
+    setSubmitting(true)
     try {
-      const screenshotUrls: string[] = []
-      if (betmgmScreenshots.login) screenshotUrls.push(betmgmScreenshots.login)
-      if (betmgmScreenshots.deposit) screenshotUrls.push(betmgmScreenshots.deposit)
-
-      const result = await retryBetmgmSubmission(clientData.id, betmgmResult, screenshotUrls)
+      const result = await submitClientDraft(draft.id)
       if (result.success) {
-        toast.success('BetMGM resubmitted for review')
-        setBetmgmRetryInfo(undefined)
-        setBetmgmStatus('PENDING_REVIEW')
-        router.refresh()
+        toast.success('Client submitted successfully')
+        router.push('/agent/clients')
       } else {
-        toast.error(result.message || 'Failed to resubmit')
+        toast.error(result.error ?? 'Failed to submit')
       }
     } catch {
-      toast.error('Failed to resubmit BetMGM')
+      toast.error('Failed to submit')
     } finally {
-      setIsRetrySubmitting(false)
-    }
-  }, [clientData?.id, betmgmResult, betmgmScreenshots, router])
-
-  // Submit handler
-  const handleSubmit = () => {
-    // If in retry mode, call retry action instead of form submit
-    if (betmgmRetryInfo?.isRetryPending && betmgmRetryInfo.cooldownPassed) {
-      handleRetrySubmit()
-      return
-    }
-    if (currentPhase === 1 && !prequalSubmitted) {
-      phase1FormRef.current?.requestSubmit()
-    } else if (currentPhase >= 2) {
-      phase2FormRef.current?.requestSubmit()
+      setSubmitting(false)
     }
   }
 
-  // Phase 1 submit disabled — all 3 sub-steps must be complete
-  const phase1SubmitDisabled =
-    !isIdConfirmed ||
-    !gmailValue ||
-    !passwordValue ||
-    !phoneValue ||
-    !betmgmResult ||
-    (betmgmResult === 'success' &&
-      (!betmgmScreenshots.login || !betmgmScreenshots.deposit)) ||
-    (betmgmResult === 'failed' && !betmgmScreenshots.login)
-  // Phase 2 submit disabled
-  const phase2SubmitDisabled = !agentConfirms || currentPhase >= 3
-
-  // ID expiration check for Phase 1 blocking — only for complete dates
-  const idExpiryDate = extractedData?.idExpiry
-  const isIdExpired =
-    idExpiryDate &&
-    /^\d{4}-\d{2}-\d{2}$/.test(idExpiryDate) &&
-    Math.floor(
-      (new Date(idExpiryDate).getTime() - Date.now()) / 86400000,
-    ) <= 0
-
-  // Risk panel element (rendered in the layout's right panel)
-  const riskPanelElement = (
-    <RiskPanel
-      extractedData={extractedData}
-      complianceData={complianceData}
-      ageFlag={ageFlag}
-      idConfirmed={isIdConfirmed}
-      overriddenFields={overriddenFields}
-      agentConfirms={agentConfirms}
-      onAgentConfirmChange={setAgentConfirms}
-      phase={currentPhase}
-    />
-  )
-
-  return {
-    form: (
-      <div className="relative h-full">
-        <div className="h-full">
-          {/* Sticky Status Header */}
-          <StatusHeader
-            clientName={
-              extractedData?.firstName && extractedData?.lastName
-                ? `${extractedData.firstName} ${extractedData.lastName}`
-                : ''
-            }
-            riskLevel={getRiskLevel()}
-            onSubmit={handleSubmit}
-            submitDisabled={
-              currentPhase === 1
-                ? phase1SubmitDisabled || !!isIdExpired
-                : phase2SubmitDisabled
-            }
-            isSubmitting={currentPhase === 1 ? (isPrequalPending || isRetrySubmitting) : isPhase2Pending}
-            onSaveDraft={handleSaveDraft}
-            isSaving={isSavingDraft}
-            phase={currentPhase}
-            betmgmVerified={betmgmVerified}
-            prequalSubmitted={prequalSubmitted}
-            retryAvailable={betmgmRetryInfo?.isRetryPending && betmgmRetryInfo.cooldownPassed}
-            retryPending={betmgmRetryInfo?.isRetryPending && !betmgmRetryInfo.cooldownPassed}
-          />
-
-          {/* Main Content */}
-          <div>
-            <div className="space-y-4 px-8 py-6">
-              {/* PHASE 1: Pre-qualification */}
-              <PhaseHeader
-                phase={1}
-                title="Pre-qualification"
-                active={currentPhase === 1}
-              />
-
-              <form ref={phase1FormRef} action={prequalFormAction}>
-                {/* Hidden fields for Phase 1 */}
-                {extractedData && (
-                  <>
-                    <input type="hidden" name="firstName" value={extractedData.firstName} />
-                    <input type="hidden" name="lastName" value={extractedData.lastName} />
-                    {extractedData.middleName && (
-                      <input type="hidden" name="middleName" value={extractedData.middleName} />
-                    )}
-                    {extractedData.dateOfBirth && (
-                      <input type="hidden" name="dateOfBirth" value={extractedData.dateOfBirth} />
-                    )}
-                    {extractedData.idExpiry && (
-                      <input type="hidden" name="idExpiry" value={extractedData.idExpiry} />
-                    )}
-                    {extractedData.address && (
-                      <input type="hidden" name="primaryAddress" value={extractedData.address} />
-                    )}
-                    {extractedData.city && (
-                      <input type="hidden" name="primaryCity" value={extractedData.city} />
-                    )}
-                    {extractedData.state && (
-                      <input type="hidden" name="primaryState" value={extractedData.state} />
-                    )}
-                    {extractedData.zip && (
-                      <input type="hidden" name="primaryZip" value={extractedData.zip} />
-                    )}
-                  </>
-                )}
-                <input type="hidden" name="gmailAccount" value={gmailValue} />
-                <input type="hidden" name="gmailPassword" value={passwordValue} />
-                <input type="hidden" name="phone" value={phoneValue} />
-                <input type="hidden" name="agentConfirmsId" value={isIdConfirmed ? 'true' : 'false'} />
-                {idDocumentUrl && <input type="hidden" name="idDocument" value={idDocumentUrl} />}
-                {draftId && <input type="hidden" name="draftId" value={draftId} />}
-
-                <div className="space-y-4">
-                  {/* Step 1a: ID Verification */}
-                  <StepCard
-                    stepNumber={1.1}
-                    title="Client ID Verification"
-                    status={phase1Steps[0].status}
-                    missingItems={phase1Steps[0].missingItems}
-                    defaultOpen={!prequalSubmitted}
-                    locked={false}
-                  >
-                    <IdUploadSection
-                      onDataExtracted={handleIdDataExtracted}
-                      onConfirm={handleIdConfirm}
-                      isConfirmed={isIdConfirmed}
-                      initialData={extractedData ?? undefined}
-                      onIdUploaded={setIdDocumentUrl}
-                      initialIdUrl={idDocumentUrl ?? undefined}
-                    />
-                  </StepCard>
-
-                  {/* Step 1b: Gmail Account */}
-                  <StepCard
-                    stepNumber={1.2}
-                    title="Assign Gmail Account"
-                    status={phase1Steps[1].status}
-                    missingItems={phase1Steps[1].missingItems}
-                    defaultOpen={!prequalSubmitted && isIdConfirmed}
-                    locked={false}
-                  >
-                    <GmailSection
-                      defaultGmail={clientData?.gmailAccount ?? initialData?.gmailAccount ?? undefined}
-                      defaultPassword={clientData?.gmailPassword ?? initialData?.gmailPassword ?? undefined}
-                      defaultPhone={clientData?.phone ?? initialData?.phone ?? undefined}
-                      clientId={clientData?.id}
-                      errors={prequalState.errors}
-                      disabled={prequalSubmitted}
-                      onGmailChange={setGmailValue}
-                      onPasswordChange={setPasswordValue}
-                      onPhoneChange={setPhoneValue}
-                    />
-                  </StepCard>
-
-                  {/* Step 1c: BetMGM Registration Check */}
-                  <StepCard
-                    stepNumber={1.3}
-                    title="BetMGM Registration Check"
-                    status={phase1Steps[2].status}
-                    missingItems={phase1Steps[2].missingItems}
-                    defaultOpen={!prequalSubmitted && isIdConfirmed && !!gmailValue && !!passwordValue && !!phoneValue}
-                    locked={false}
-                  >
-                    <BetmgmCheckSection
-                      onStatusChange={setBetmgmResult}
-                      onScreenshotsChange={setBetmgmScreenshots}
-                      status={betmgmResult}
-                      screenshots={betmgmScreenshots}
-                      disabled={prequalSubmitted && !betmgmRetryInfo?.isRetryPending}
-                      retryState={betmgmRetryInfo}
-                    />
-                  </StepCard>
-                </div>
-              </form>
-
-              {/* PHASE GATE */}
-              <PhaseGate
-                unlocked={betmgmVerified || currentPhase >= 2}
-                lockedMessage={
-                  clientData?.intakeStatus === 'PREQUAL_REVIEW'
-                    ? 'Awaiting backoffice approval of pre-qualification'
-                    : undefined
-                }
-              />
-
-              {/* PHASE 2: Full Application */}
-              <PhaseHeader
-                phase={2}
-                title="Full Application"
-                active={currentPhase >= 2}
-              />
-
-              <form ref={phase2FormRef} action={phase2FormAction}>
-                <input type="hidden" name="questionnaire" value={questionnaireJson} />
-                <input type="hidden" name="agentConfirmsSuitable" value={agentConfirms ? 'true' : 'false'} />
-                {clientData?.id && <input type="hidden" name="clientId" value={clientData.id} />}
-                {draftId && <input type="hidden" name="draftId" value={draftId} />}
-
-                <div className="space-y-4">
-                  {/* Step 2: Basic Info */}
-                  <StepCard
-                    stepNumber={2}
-                    title="Basic Information"
-                    status={phase2Steps[0].status}
-                    missingItems={phase2Steps[0].missingItems}
-                    defaultOpen={(betmgmVerified || currentPhase >= 2) && phase2Steps[0].status !== 'complete'}
-                    locked={!betmgmVerified && currentPhase < 2}
-                  >
-                    <BasicInfoSection
-                      isIdConfirmed={isIdConfirmed}
-                      errors={phase2State.errors}
-                      defaultValues={{
-                        firstName: extractedData?.firstName ?? clientData?.firstName ?? initialData?.firstName,
-                        middleName: extractedData?.middleName ?? initialData?.middleName,
-                        lastName: extractedData?.lastName ?? clientData?.lastName ?? initialData?.lastName,
-                        dateOfBirth: extractedData?.dateOfBirth ?? initialData?.dateOfBirth,
-                        phone: clientData?.phone ?? initialData?.phone,
-                        email: clientData?.email ?? initialData?.email,
-                      }}
-                    />
-                    {ageFlag && (
-                      <div
-                        className={cn(
-                          'mt-3 rounded-lg border p-3 text-sm',
-                          ageFlag.severity === 'high-risk'
-                            ? 'border-destructive/30 bg-destructive/10 text-destructive'
-                            : 'border-warning/30 bg-warning/10 text-warning',
-                        )}
-                      >
-                        {ageFlag.message}
-                      </div>
-                    )}
-                  </StepCard>
-
-                  {/* Step 3: Address */}
-                  <StepCard
-                    stepNumber={3}
-                    title="Address Information"
-                    status={phase2Steps[1].status}
-                    missingItems={phase2Steps[1].missingItems}
-                    defaultOpen={(betmgmVerified || currentPhase >= 2) && phase2Steps[0].status === 'complete' && phase2Steps[1].status !== 'complete'}
-                    locked={!betmgmVerified && currentPhase < 2}
-                  >
-                    <AddressSection
-                      errors={phase2State.errors}
-                      defaultValues={{
-                        primaryAddress: extractedData?.address ?? clientData?.address ?? initialData?.primaryAddress ?? initialData?.address,
-                        primaryCity: extractedData?.city ?? clientData?.city ?? initialData?.primaryCity ?? initialData?.city,
-                        primaryState: extractedData?.state ?? clientData?.state ?? initialData?.primaryState ?? initialData?.state,
-                        primaryZip: extractedData?.zip ?? clientData?.zipCode ?? initialData?.primaryZip ?? initialData?.zipCode ?? initialData?.zip,
-                        hasSecondAddress: initialData?.hasSecondAddress === 'true',
-                        secondaryAddress: initialData?.secondaryAddress,
-                        secondaryCity: initialData?.secondaryCity,
-                        secondaryState: initialData?.secondaryState,
-                        secondaryZip: initialData?.secondaryZip,
-                      }}
-                    />
-                  </StepCard>
-
-                  {/* Step 4: Compliance */}
-                  <StepCard
-                    stepNumber={4}
-                    title="Compliance & Background"
-                    status={phase2Steps[2].status}
-                    missingItems={phase2Steps[2].missingItems}
-                    defaultOpen={(betmgmVerified || currentPhase >= 2) && phase2Steps[1].status === 'complete' && phase2Steps[2].status !== 'complete'}
-                    locked={!betmgmVerified && currentPhase < 2}
-                  >
-                    <ComplianceGroups
-                      onChange={handleComplianceChange}
-                      defaultValues={complianceData}
-                    />
-                  </StepCard>
-                </div>
-              </form>
-
-              <div className="h-8" />
-            </div>
-          </div>
-        </div>
+  return (
+    <div data-testid="client-form">
+      {/* Save status indicator */}
+      <div className="mb-4 flex items-center justify-end text-xs text-muted-foreground">
+        {saveStatus === 'saving' && (
+          <span className="flex items-center gap-1" data-testid="save-status-saving">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Saving...
+          </span>
+        )}
+        {saveStatus === 'saved' && (
+          <span data-testid="save-status-saved">Saved</span>
+        )}
       </div>
-    ),
-    riskPanel: riskPanelElement,
+
+      {/* Step content */}
+      {currentStep === 1 && (
+        <Step1PreQual
+          formData={formData}
+          onChange={handleFieldChange}
+          onRiskFlagsChange={onRiskFlagsChange}
+        />
+      )}
+      {currentStep === 2 && (
+        <Step2Background
+          formData={formData}
+          onChange={handleFieldChange}
+          onRiskFlagsChange={onRiskFlagsChange}
+        />
+      )}
+      {currentStep === 3 && (
+        <Step3Platforms formData={formData} onChange={handleFieldChange} />
+      )}
+      {currentStep === 4 && (
+        <Step4Contract formData={formData} onChange={handleFieldChange} />
+      )}
+
+      {/* Navigation */}
+      <div className="mt-8 flex items-center justify-between">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleStepChange(currentStep - 1)}
+          disabled={currentStep === 1}
+          data-testid="prev-step-button"
+        >
+          <ChevronLeft className="mr-1 h-4 w-4" />
+          Previous
+        </Button>
+
+        {currentStep < 4 ? (
+          <Button
+            size="sm"
+            onClick={() => handleStepChange(currentStep + 1)}
+            data-testid="next-step-button"
+          >
+            Next
+            <ChevronRight className="ml-1 h-4 w-4" />
+          </Button>
+        ) : (
+          <Button
+            size="sm"
+            onClick={handleSubmit}
+            disabled={submitting}
+            data-testid="submit-draft-button"
+          >
+            {submitting ? (
+              <>
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                Submitting...
+              </>
+            ) : (
+              'Submit Client'
+            )}
+          </Button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function buildFormDataFromDraft(draft: SerializedDraft): Record<string, unknown> {
+  return {
+    firstName: draft.firstName ?? '',
+    lastName: draft.lastName ?? '',
+    email: draft.email ?? '',
+    phone: draft.phone ?? '',
+    idDocument: draft.idDocument ?? '',
+    idNumber: draft.idNumber ?? '',
+    idExpiry: draft.idExpiry ?? '',
+    dateOfBirth: draft.dateOfBirth ?? '',
+    address: draft.address ?? '',
+    assignedGmail: draft.assignedGmail ?? '',
+    gmailPassword: draft.gmailPassword ?? '',
+    gmailScreenshot: draft.gmailScreenshot ?? '',
+    betmgmCheckPassed: draft.betmgmCheckPassed ?? false,
+    betmgmLogin: draft.betmgmLogin ?? '',
+    betmgmPassword: draft.betmgmPassword ?? '',
+    betmgmRegScreenshot: draft.betmgmRegScreenshot ?? '',
+    betmgmLoginScreenshot: draft.betmgmLoginScreenshot ?? '',
+    ssnDocument: draft.ssnDocument ?? '',
+    secondAddress: draft.secondAddress ?? '',
+    hasCriminalRecord: draft.hasCriminalRecord ?? false,
+    criminalRecordNotes: draft.criminalRecordNotes ?? '',
+    bankingHistory: draft.bankingHistory ?? '',
+    paypalHistory: draft.paypalHistory ?? '',
+    sportsbookHistory: draft.sportsbookHistory ?? '',
+    platformData: draft.platformData ?? [],
+    contractDocument: draft.contractDocument ?? '',
+    paypalPreviouslyUsed: draft.paypalPreviouslyUsed,
+    addressMismatch: draft.addressMismatch,
+    debankedHistory: draft.debankedHistory,
+    debankedBank: draft.debankedBank ?? '',
+    undisclosedInfo: draft.undisclosedInfo,
   }
 }

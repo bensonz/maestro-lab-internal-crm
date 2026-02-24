@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/select'
 import { Field, FieldLabel, FieldError } from '@/components/ui/field'
 import { Plus } from 'lucide-react'
-import { createUser } from '@/app/actions/user-management'
+import { createUser } from '@/lib/mock-actions'
 import { toast } from 'sonner'
 
 interface CreateUserDialogProps {

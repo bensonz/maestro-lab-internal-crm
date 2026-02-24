@@ -1,13 +1,7 @@
-import { auth } from '@/backend/auth'
-import { redirect } from 'next/navigation'
+import { MOCK_PARTNERS_DATA } from '@/lib/mock-data'
 import { PartnersView } from './_components/partners-view'
-import { getPartnersOverview } from '@/backend/data/partners-overview'
 
-export default async function PartnersPage() {
-  const session = await auth()
-  if (!session?.user) redirect('/login')
-
-  const data = await getPartnersOverview()
+export default function PartnersPage() {
   return (
     <div
       className="space-y-6 p-6 animate-fade-in"
@@ -20,7 +14,7 @@ export default async function PartnersPage() {
         </p>
       </div>
 
-      <PartnersView data={data} />
+      <PartnersView data={MOCK_PARTNERS_DATA} />
     </div>
   )
 }

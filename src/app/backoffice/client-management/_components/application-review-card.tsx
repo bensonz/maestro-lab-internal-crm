@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
-import { approveClientIntake, rejectClientIntake } from '@/app/actions/backoffice'
+import { approveClientIntake, rejectClientIntake } from '@/lib/mock-actions'
 
 // ============================================================================
 // Types

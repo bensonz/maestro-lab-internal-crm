@@ -4,7 +4,7 @@ import { Star, Crown, Lock, Unlock } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
-import { STAR_THRESHOLDS } from '@/lib/commission-constants'
+import { STAR_THRESHOLDS, DIRECT_BONUS, SLICE_VALUE, BONUS_POOL_TOTAL } from '@/lib/commission-constants'
 
 interface LevelProgressCardProps {
   starLevel: number
@@ -33,7 +33,8 @@ function Stars({ count, filled = true }: { count: number; filled?: boolean }) {
   )
 }
 
-const PER_CLIENT = [200, 250, 300, 350, 400]
+// Per-client income at each star level: $200 direct + starLevel * $50 slices
+const PER_CLIENT = Array.from({ length: 5 }, (_, i) => DIRECT_BONUS + i * SLICE_VALUE)
 
 export function LevelProgressCard({
   starLevel,
@@ -49,7 +50,7 @@ export function LevelProgressCard({
     ? 100
     : Math.min(100, (approvedClients / next.min) * 100)
   const clientsToNext = isMaxLevel ? 0 : Math.max(0, next.min - approvedClients)
-  const nextPerClient = isMaxLevel ? 400 : PER_CLIENT[starLevel + 1]
+  const nextPerClient = isMaxLevel ? BONUS_POOL_TOTAL : PER_CLIENT[starLevel + 1]
 
   return (
     <Card
@@ -108,7 +109,7 @@ export function LevelProgressCard({
               <div>
                 <p className="text-[10px] leading-tight text-success/70">Max unlocked</p>
                 <p className="font-mono text-sm font-bold leading-tight text-success">
-                  +$400/client
+                  +${BONUS_POOL_TOTAL}/client
                 </p>
               </div>
             </div>

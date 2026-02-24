@@ -1,27 +1,16 @@
-import { auth } from '@/backend/auth'
-import { redirect } from 'next/navigation'
-import { ReportsView } from './_components/reports-view'
 import {
-  getPartnerProfitReport,
-  getAgentCommissionReport,
-  getClientLTVReport,
-} from '@/backend/data/reports'
+  MOCK_PARTNER_REPORT,
+  MOCK_AGENT_REPORT,
+  MOCK_LTV_REPORT,
+} from '@/lib/mock-data'
+import { ReportsView } from './_components/reports-view'
 
-export default async function ReportsPage() {
-  const session = await auth()
-  if (!session?.user) redirect('/login')
-
-  const [partnerReport, agentReport, ltvReport] = await Promise.all([
-    getPartnerProfitReport(),
-    getAgentCommissionReport(),
-    getClientLTVReport(),
-  ])
-
+export default function ReportsPage() {
   return (
     <ReportsView
-      partnerReport={partnerReport}
-      agentReport={agentReport}
-      ltvReport={ltvReport}
+      partnerReport={MOCK_PARTNER_REPORT}
+      agentReport={MOCK_AGENT_REPORT}
+      ltvReport={MOCK_LTV_REPORT}
     />
   )
 }

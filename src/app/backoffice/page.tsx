@@ -2,24 +2,22 @@ import { format } from 'date-fns'
 import { Button } from '@/components/ui/button'
 import { Bell } from 'lucide-react'
 import {
-  getOverviewStats,
-  getPriorityTasks,
-  getReminders,
-  getOverviewRecentActivity,
-} from '@/backend/data/backoffice'
+  MOCK_OVERVIEW_STATS,
+  MOCK_PRIORITY_TASKS,
+  MOCK_REMINDERS,
+  MOCK_RECENT_ACTIVITY,
+} from '@/lib/mock-data'
 import { OverviewStats } from './_components/overview-stats'
 import { PriorityTasks } from './_components/priority-tasks'
 import { QuickActions } from './_components/quick-actions'
 import { RemindersPanel } from './_components/reminders-panel'
 import { RecentActivity } from './_components/recent-activity'
 
-export default async function BackofficeOverviewPage() {
-  const [stats, tasks, reminders, activities] = await Promise.all([
-    getOverviewStats(),
-    getPriorityTasks(),
-    getReminders(),
-    getOverviewRecentActivity(),
-  ])
+export default function BackofficeOverviewPage() {
+  const stats = MOCK_OVERVIEW_STATS
+  const tasks = MOCK_PRIORITY_TASKS
+  const reminders = MOCK_REMINDERS
+  const activities = MOCK_RECENT_ACTIVITY
 
   const today = format(new Date(), 'EEEE, MMMM d')
 
