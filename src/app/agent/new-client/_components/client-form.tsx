@@ -12,7 +12,7 @@ import { Step1PreQual } from './step1-prequal'
 import { Step2Background } from './step2-background'
 import { Step3Platforms } from './step3-platforms'
 import { Step4Contract } from './step4-contract'
-import type { SerializedDraft } from './new-client-view'
+import type { SerializedDraft, SerializedPhoneAssignment } from './new-client-view'
 
 interface ClientFormProps {
   draft: SerializedDraft
@@ -20,6 +20,7 @@ interface ClientFormProps {
   onStepChange: (step: number) => void
   onRiskFlagsChange: (flags: Record<string, unknown>) => void
   onRegisterStepHandler?: (handler: (step: number) => void) => void
+  activeAssignment: SerializedPhoneAssignment | null
 }
 
 export function ClientForm({
@@ -28,6 +29,7 @@ export function ClientForm({
   onStepChange,
   onRiskFlagsChange,
   onRegisterStepHandler,
+  activeAssignment,
 }: ClientFormProps) {
   const router = useRouter()
   const [formData, setFormData] = useState<Record<string, unknown>>(() =>
@@ -165,7 +167,7 @@ export function ClientForm({
         />
       )}
       {currentStep === 3 && (
-        <Step3Platforms formData={formData} onChange={handleFieldChange} />
+        <Step3Platforms formData={formData} onChange={handleFieldChange} activeAssignment={activeAssignment} />
       )}
       {currentStep === 4 && (
         <Step4Contract formData={formData} onChange={handleFieldChange} />

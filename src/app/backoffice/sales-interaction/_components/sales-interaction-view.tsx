@@ -35,6 +35,7 @@ import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { ClientIntakeList } from './client-intake-list'
 import { DraftReviewDialog } from './draft-review-dialog'
+import { DeviceAssignDialog } from './device-assign-dialog'
 import { VerificationTasksTable } from './verification-tasks-table'
 import { PostApprovalList } from './post-approval-list'
 import { ClientDetail } from '../../client-management/_components/client-detail'
@@ -72,7 +73,7 @@ interface SalesInteractionViewProps {
   lifecycleClients: ServerClientData[]
 }
 
-// ── Summary filter items (4 statuses only) ──────────
+// ── Summary filter items ──────────
 type SummaryFilter = 'total' | 'in-progress' | 'pending-approval' | 'verification-needed'
 
 const summaryItems: {
@@ -81,7 +82,6 @@ const summaryItems: {
   icon: React.ElementType
   colorClass: string
   activeClass: string
-  statKey: keyof SalesInteractionViewProps['stats']
 }[] = [
   {
     key: 'in-progress',
@@ -89,7 +89,6 @@ const summaryItems: {
     icon: Clock,
     colorClass: 'text-primary',
     activeClass: 'bg-primary/10 text-primary',
-    statKey: 'inProgress',
   },
   {
     key: 'pending-approval',
@@ -97,7 +96,6 @@ const summaryItems: {
     icon: Hourglass,
     colorClass: 'text-warning',
     activeClass: 'bg-warning/10 text-warning',
-    statKey: 'pendingApproval',
   },
   {
     key: 'verification-needed',
@@ -105,7 +103,6 @@ const summaryItems: {
     icon: AlertCircle,
     colorClass: 'text-destructive',
     activeClass: 'bg-destructive/10 text-destructive',
-    statKey: 'verificationNeeded',
   },
 ]
 
@@ -166,16 +163,26 @@ export function SalesInteractionView({
   const [clientSearch, setClientSearch] = useState('')
   const [summaryFilter, setSummaryFilter] = useState<SummaryFilter>('total')
   const [sortOption, setSortOption] = useState<SortOption>('priority')
-  const [inProgressOpen, setInProgressOpen] = useState(false)
   const [verificationOpen, setVerificationOpen] = useState(false)
   const [reviewingDraftId, setReviewingDraftId] = useState<string | null>(null)
   const [reviewingDraftName, setReviewingDraftName] = useState('')
   const [reviewingResultClientId, setReviewingResultClientId] = useState<string | null>(null)
 
+  // Device assign dialog state
+  const [assigningDraftId, setAssigningDraftId] = useState<string | null>(null)
+  const [assigningClientName, setAssigningClientName] = useState('')
+  const [assigningAgentName, setAssigningAgentName] = useState('')
+
   const handleReviewDraft = useCallback((id: string, name: string, resultClientId?: string | null) => {
     setReviewingDraftId(id)
     setReviewingDraftName(name)
     setReviewingResultClientId(resultClientId ?? null)
+  }, [])
+
+  const handleAssignDevice = useCallback((draftId: string, clientName: string, agentName: string) => {
+    setAssigningDraftId(draftId)
+    setAssigningClientName(clientName)
+    setAssigningAgentName(agentName)
   }, [])
 
   // Client detail panel state (lifecycle clients mapped to view model)
@@ -288,15 +295,6 @@ export function SalesInteractionView({
     }
   }, [filteredIntake, filteredTasks, filteredPostApproval, inProgressClients, verificationClients])
 
-  // Sub-stage counts for the overview strip
-  const subStageCounts = useMemo(() => {
-    const counts: Record<string, number> = {}
-    for (const stage of inProgressSubStages) {
-      counts[stage.key] = inProgressClients.filter((c) => c.subStage === stage.key).length
-    }
-    return counts
-  }, [inProgressClients])
-
   // Exception counts per sub-stage
   const subStageExceptionCounts = useMemo(() => {
     const counts: Record<string, number> = {}
@@ -357,7 +355,7 @@ export function SalesInteractionView({
           </p>
         </div>
 
-        {/* Summary (4 statuses only) */}
+        {/* Summary */}
         <div className="space-y-1 border-b border-sidebar-border p-3">
           <p className="px-1 text-[10px] uppercase tracking-wider text-muted-foreground">
             Summary
@@ -390,7 +388,11 @@ export function SalesInteractionView({
 
           {summaryItems.map((item) => {
             const isActive = summaryFilter === item.key
-            const count = dynamicCounts[item.statKey]
+            const count = item.key === 'in-progress'
+              ? dynamicCounts.inProgress
+              : item.key === 'pending-approval'
+                ? dynamicCounts.pendingApproval
+                : dynamicCounts.verificationNeeded
 
             return (
               <button
@@ -585,69 +587,50 @@ export function SalesInteractionView({
         {/* Collapsible Sections Content */}
         <ScrollArea className="flex-1">
           <div className="space-y-3 p-4">
-            {/* ── In Progress Section ── */}
+            {/* ── In Progress Section (always open, sub-steps collapsible) ── */}
             {showInProgress && (
-              <Collapsible
-                open={inProgressOpen}
-                onOpenChange={setInProgressOpen}
-                data-testid="section-in-progress"
-              >
-                <CollapsibleTrigger asChild>
-                  <button
-                    className={cn(
-                      'flex w-full items-center justify-between rounded-lg border border-border/50 bg-card px-4 py-3 shadow-sm transition-colors hover:bg-accent/5',
-                      inProgressOpen && 'rounded-b-none border-b-0',
-                    )}
+              <div data-testid="section-in-progress">
+                <div className="flex w-full items-center justify-between rounded-t-lg border border-border/50 bg-card px-4 py-3 shadow-sm">
+                  <span className="text-sm font-semibold text-foreground">
+                    In Progress
+                  </span>
+                  <Badge
+                    variant="outline"
+                    className="h-6 border-primary/30 bg-primary/10 px-2.5 font-mono text-xs font-semibold text-primary"
                   >
-                    <div className="flex items-center gap-3">
-                      {inProgressOpen ? (
-                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      )}
-                      <span className="text-sm font-semibold text-foreground">
-                        In Progress
-                      </span>
-                    </div>
-                    <Badge
-                      variant="outline"
-                      className="h-6 border-primary/30 bg-primary/10 px-2.5 font-mono text-xs font-semibold text-primary"
-                    >
-                      {inProgressClients.length}
-                    </Badge>
-                  </button>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <div className="overflow-hidden rounded-b-lg border border-t-0 border-border/50 shadow-sm">
-                    {inProgressClients.length === 0 ? (
-                      <p className="py-8 text-center text-sm text-muted-foreground">
-                        No clients in progress
-                      </p>
-                    ) : (
-                      <div>
-                        {inProgressSubStages.map((stage) => {
-                          const stageClients = summaryFilter === 'pending-approval'
-                            ? inProgressClients.filter((c) => c.subStage === 'step-4')
-                            : inProgressClients.filter((c) => c.subStage === stage.key)
-                          if (stageClients.length === 0 && summaryFilter !== 'pending-approval') return null
-                          if (summaryFilter === 'pending-approval' && stage.key !== 'step-4') return null
+                    {inProgressClients.length}
+                  </Badge>
+                </div>
+                <div className="overflow-hidden rounded-b-lg border border-t-0 border-border/50 shadow-sm">
+                  {inProgressClients.length === 0 ? (
+                    <p className="py-8 text-center text-sm text-muted-foreground">
+                      No clients in progress
+                    </p>
+                  ) : (
+                    <div>
+                      {inProgressSubStages.map((stage) => {
+                        const stageClients = summaryFilter === 'pending-approval'
+                          ? inProgressClients.filter((c) => c.subStage === 'step-4')
+                          : inProgressClients.filter((c) => c.subStage === stage.key)
+                        if (stageClients.length === 0 && summaryFilter !== 'pending-approval') return null
+                        if (summaryFilter === 'pending-approval' && stage.key !== 'step-4') return null
 
-                          return (
-                            <SubStageSection
-                              key={stage.key}
-                              stage={stage}
-                              clients={stageClients}
-                              exceptionCount={subStageExceptionCounts[stage.key] || 0}
-                              onSelectClient={handleSelectClient}
-                              onReviewDraft={handleReviewDraft}
-                            />
-                          )
-                        })}
-                      </div>
-                    )}
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
+                        return (
+                          <SubStageSection
+                            key={stage.key}
+                            stage={stage}
+                            clients={stageClients}
+                            exceptionCount={subStageExceptionCounts[stage.key] || 0}
+                            onSelectClient={handleSelectClient}
+                            onReviewDraft={handleReviewDraft}
+                            onAssignDevice={handleAssignDevice}
+                          />
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
 
             {/* ── Verification Needed Section ── */}
@@ -740,6 +723,13 @@ export function SalesInteractionView({
         resultClientId={reviewingResultClientId}
         onClose={() => setReviewingDraftId(null)}
       />
+
+      <DeviceAssignDialog
+        draftId={assigningDraftId}
+        clientName={assigningClientName}
+        agentName={assigningAgentName}
+        onClose={() => setAssigningDraftId(null)}
+      />
     </div>
   )
 }
@@ -751,12 +741,14 @@ function SubStageSection({
   exceptionCount,
   onSelectClient,
   onReviewDraft,
+  onAssignDevice,
 }: {
   stage: SubStageGroup
   clients: IntakeClient[]
   exceptionCount: number
   onSelectClient?: (clientId: string) => void
   onReviewDraft?: (draftId: string, name: string, resultClientId?: string | null) => void
+  onAssignDevice?: (draftId: string, clientName: string, agentName: string) => void
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const Icon = stage.icon
@@ -808,7 +800,7 @@ function SubStageSection({
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="border-b border-border/20 bg-muted/10">
-          <ClientIntakeList clients={clients} selectedAgentId={null} onSelectClient={onSelectClient} onReviewDraft={onReviewDraft} />
+          <ClientIntakeList clients={clients} selectedAgentId={null} onSelectClient={onSelectClient} onReviewDraft={onReviewDraft} onAssignDevice={onAssignDevice} />
         </div>
       </CollapsibleContent>
     </Collapsible>

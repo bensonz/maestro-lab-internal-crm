@@ -699,12 +699,19 @@ async function main() {
 
   // ── Sample Client Draft ────────────────────────────────
 
+  await prisma.phoneAssignment.deleteMany({
+    where: { clientDraft: { closerId: agent.id } },
+  })
   await prisma.clientDraft.deleteMany({ where: { closerId: agent.id } })
+  // Compute future dates for phone assignment (sign out = now, due back = 3 days from now)
+  const signOutDate = new Date()
+  const dueBackDate = new Date(signOutDate.getTime() + 3 * 24 * 60 * 60 * 1000)
+
   const sampleDraft = await prisma.clientDraft.create({
     data: {
       closerId: agent.id,
       status: 'DRAFT',
-      step: 2,
+      step: 3,
       firstName: 'Sarah',
       lastName: 'Martinez',
       email: 'sarah.m@example.com',
@@ -712,9 +719,27 @@ async function main() {
       idDocument: '/uploads/sample-client-id.jpg',
       idNumber: 'DL-55667788',
       idExpiry: new Date('2028-08-20'),
+      assignedGmail: 'sarah.martinez.work@gmail.com',
+      deviceReservationDate: new Date().toISOString().split('T')[0],
     },
   })
-  console.log(`  Created sample client draft: ${sampleDraft.id} (step 2, for Marcus)`)
+  console.log(`  Created sample client draft: ${sampleDraft.id} (step 3, for Marcus, with device reservation + Gmail)`)
+
+  // Sample PhoneAssignment — signed out device for Sarah Martinez's draft
+  const sampleAssignment = await prisma.phoneAssignment.create({
+    data: {
+      phoneNumber: '(555) 777-0001',
+      carrier: 'T-Mobile',
+      deviceId: 'IMEI-9876543210',
+      clientDraftId: sampleDraft.id,
+      agentId: agent.id,
+      signedOutById: boStaff.id,
+      signedOutAt: signOutDate,
+      dueBackAt: dueBackDate,
+      status: 'SIGNED_OUT',
+    },
+  })
+  console.log(`  Created sample phone assignment: ${sampleAssignment.id} (signed out, due ${dueBackDate.toISOString().split('T')[0]})`)
 
   // ── Event Logs ─────────────────────────────────────────
 

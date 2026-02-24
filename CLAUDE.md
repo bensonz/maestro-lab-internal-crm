@@ -8,7 +8,7 @@ The backend has a fully functional **commission system** with real DB queries wi
 
 ### What's Live (backed by database)
 
-- **Prisma schema** with 9 models: `User`, `AgentApplication`, `EventLog`, `Client`, `ClientDraft`, `BonusPool`, `BonusAllocation`, `PromotionLog`, `QuarterlySettlement`
+- **Prisma schema** with 10 models: `User`, `AgentApplication`, `EventLog`, `Client`, `ClientDraft`, `BonusPool`, `BonusAllocation`, `PromotionLog`, `QuarterlySettlement`, `PhoneAssignment`
 - **Agent Application form** on login page ("Apply as Agent" tab) — uploads both ID + Address Proof documents
 - **Application review** in backoffice Agent Management ("Pending Applications" tab) — shows both documents
 - **Agent Directory** in backoffice Agent Management ("Agent Directory" tab) — queries real User table, star-level-based filter, toggleable table/tree view (tree shows upline→subordinate hierarchy with expand/collapse, ancestor-preserving search). Agent names have **HoverCard** showing Zelle, state, and performance snapshot (total earned, this month, new clients this month) from real DB data.
@@ -26,6 +26,7 @@ The backend has a fully functional **commission system** with real DB queries wi
 - **Agent Detail page** (backoffice) — real agent profile, earnings, hierarchy from DB; inline-editable fields with audit trail (activity timeline from EventLog). Agent name in header is plain text (no hover card — hover card lives on the Agent Management list page instead).
 - **Agent New Client page** — 4-step intake form with drafts panel, risk assessment, auto-save, and submission to real Client record
 - **Client draft** server actions (create, save, submit, delete) — auth-guarded, ownership-checked
+- **Phone assignment** server actions (assign & sign out device, return device) — ADMIN/BACKOFFICE only, with EventLog audit trail
 - **Search API** (simplified — searches Users only)
 - **NextAuth v5** credentials-based authentication with JWT sessions
 
@@ -35,7 +36,7 @@ These pages fetch real commission/earnings data from DB but still use mock data 
 - Agent dashboard — earnings/star level real, pipeline stats mock
 - Agent earnings — transaction history real, KPIs/hierarchy mock
 - Agent clients — DB clients + drafts from real DB, falls back to mock if empty
-- Backoffice sales interaction — Team directory sidebar uses real agents from DB (grouped by display tier); In Progress section uses real ClientDraft records (DRAFT + SUBMITTED with PENDING client, 4 steps); Review button opens read-only 4-step dialog with Approve Client on Step 4 for submitted drafts; verification/post-approval still mock
+- Backoffice sales interaction — Team directory sidebar uses real agents from DB (grouped by display tier); In Progress section uses real ClientDraft records combined with mock data (DRAFT + SUBMITTED with PENDING client, 4 steps); device assign/return actions merged into In Progress rows (no separate Device Requests section); verification/post-approval still mock
 
 ### Draft/Client Lifecycle & Separation
 
@@ -49,10 +50,13 @@ ClientDraft (DRAFT) → Agent submits → ClientDraft (SUBMITTED) + Client (PEND
 ```
 
 - **Agent "My Clients" page** — Shows in-progress `ClientDraft` records grouped by step (1-4) at the top, with clickable links back to `/agent/new-client?draft=<id>`. Approved/submitted clients appear in status groups below. PENDING clients are filtered out (they exist as drafts).
-- **Backoffice "Sales Interaction" page** — In Progress section shows both `DRAFT` and `SUBMITTED` (pending approval) drafts in 4 step-based sub-stages via `getAllDraftsForBackoffice()`. Each row has a **Review** button (Eye icon) that opens a read-only 4-step dialog:
-  - Steps 1-3: navigate with Next/Back buttons, inspect all draft fields
-  - Step 4 (Contract): for **SUBMITTED** drafts → **"Approve Client"** button that calls `approveClient(resultClientId)` to promote `Client (PENDING → APPROVED)`, trigger star recalc + bonus pool, and refresh the page. For **DRAFT** entries → shows "Awaiting agent submission" text.
-  - Falls back to mock data if DB unavailable.
+- **Backoffice "Sales Interaction" page** — In Progress section shows real DB drafts combined with mock data in 4 step-based sub-stages. Each row has a consistent layout:
+  - **Left:** Client name (clickable) + Agent name (link) + status badge (only `PHONE ISSUED` or `PHONE RETURNED`)
+  - **Center:** Days since update (aligned column)
+  - **Right:** Action buttons — **Review** (always visible), plus step-specific: **Assign Device** (step-3, no device yet), **Mark Returned** (step-3, device active), **Approve** (step-4, submitted)
+  - **Device lifecycle integrated into rows** — no separate Device Requests section. Step 1-2: no device buttons. Step 3: Assign Device → PHONE ISSUED + Mark Returned. Step 4: PHONE RETURNED + Approve.
+  - **Review dialog**: 4-step read-only with Approve Client on Step 4 for submitted drafts.
+  - Real DB drafts always shown alongside mock data (mock kept for UI development).
 - **Backoffice "Client Management" page** — Intended to show only APPROVED clients (currently mock). Client detail view has: Contact column (Gmail label, Gmail Password field, Personal Phone), sportsbook platform credentials (Login/Password from DB), risk factor badges in header (De-banked, Criminal Record, Address Mismatch, PayPal Used, ID Expiring, PIN Issue).
 
 ### What's Mock (UI shell only)
@@ -103,7 +107,7 @@ This is a CRM for managing client onboarding across multiple sports betting plat
 
 ### Database Schema (Phase 2)
 
-9 models in `prisma/schema.prisma`:
+10 models in `prisma/schema.prisma`:
 
 - **User** — All staff accounts (agents, admins, backoffice, finance). Includes hierarchy (supervisorId self-relation), profile fields, star level/tier, leadershipTier (NONE/ED/SED/MD/CMO).
 - **AgentApplication** — Public application form submissions. Status: PENDING → APPROVED/REJECTED. Links to reviewer (User) and created user on approval. Stores `idDocument` and `addressDocument` upload paths.
@@ -113,7 +117,8 @@ This is a CRM for managing client onboarding across multiple sports betting plat
 - **BonusAllocation** — Individual payout line. Type: DIRECT ($200 to closer), STAR_SLICE (star pool walk), BACKFILL (remaining to highest supervisor). Status: PENDING → PAID.
 - **PromotionLog** — Immutable audit of star level and leadership tier changes.
 - **QuarterlySettlement** — Leadership P&L commission. Status: DRAFT → APPROVED → PAID. Unique per [leaderId, year, quarter].
-- **EventLog** — Append-only audit trail. EventType enum covers login, application, user management, commission, leadership, and client draft events.
+- **PhoneAssignment** — Device sign-out tracking. Links to ClientDraft, agent (User), and signedOutBy (User). Status: SIGNED_OUT → RETURNED. Tracks phoneNumber, carrier, deviceId, signedOutAt, dueBackAt (3-day window), returnedAt. OVERDUE is computed at view time, not stored.
+- **EventLog** — Append-only audit trail. EventType enum covers login, application, user management, commission, leadership, client draft, and device sign-out/return events.
 
 ### User Roles
 
@@ -227,7 +232,7 @@ Agents create new clients through a 4-step intake form at `/agent/new-client`.
    - **Platforms History**: Banks Opened/De-banked multi-check dropdowns (de-banked has tooltip definition), PayPal conditional flow (Yes → SSN linked? → browser verified? → guidance; No → create new account guidance), Sportsbook History (Yes/No → multi-select 8 sportsbooks → per-sportsbook status: Lost money/Won money/IDK)
    - **Client Background**: Demographics (occupation, annual income, employment status, marital status, credit score, dependents, education level) + 4 Risk Assessment Questions (Household Awareness & Support, Family Available for Account Setup, Financial Decision Autonomy, Online Account Management Comfort)
    - **Device Reservation Gate**: After Step 2, "Next" button becomes "Request for Device" (disabled until reservation date selected). Warning box explains the 3-day device return window.
-3. **Platforms** — 2 SectionCards: Financial Platforms, Sportsbook Platforms (platform-by-platform registration for all 11 platforms)
+3. **Platforms** — Device Info Banner (if phone assigned: phone number, company Gmail, 3-day countdown via `DeadlineCountdown`) + 2 SectionCards: Financial Platforms, Sportsbook Platforms (platform-by-platform registration for all 11 platforms)
 4. **Contract** — 2 SectionCards: Contract Document, Submission Checklist
 
 **Layout:** 3-panel — left drafts panel (w-56), center form (full-width, no max-w constraint), right risk assessment panel (w-56). Step indicator is centered at `max-w-2xl` while form content stretches full width.
@@ -266,14 +271,17 @@ Agents create new clients through a 4-step intake form at `/agent/new-client`.
 - `src/app/agent/new-client/_components/ssn-detection-modal.tsx` — SSN number detection confirmation dialog
 - `src/app/agent/new-client/_components/address-detection-modal.tsx` — Address proof detection confirmation dialog
 - `src/app/agent/new-client/_components/step2-background.tsx` — Step 2: 3 SectionCards (Identity & Document with SSN/address proof/missing ID/criminal record, Platforms History with bank/de-banked multi-check + PayPal conditional + sportsbook multi-select with per-book status, Client Background with demographics + 4 risk assessment questions) with upload + OCR detection
-- `src/app/agent/new-client/_components/step3-platforms.tsx` — Step 3: 2 SectionCards (Financial Platforms, Sportsbook Platforms)
+- `src/app/agent/new-client/_components/step3-platforms.tsx` — Step 3: Device Info Banner (phone, Gmail, countdown) + 2 SectionCards (Financial Platforms, Sportsbook Platforms)
 - `src/app/agent/new-client/_components/step3-platform-card.tsx` — Individual platform card
 - `src/app/agent/new-client/_components/step4-contract.tsx` — Step 4: 2 SectionCards (Contract Document, Submission Checklist)
 - `src/app/agent/new-client/_components/risk-panel.tsx` — Right panel: risk score + flags
 - `src/app/actions/client-drafts.ts` — CRUD server actions (create, save, submit, delete, getFullDraft with role-based auth)
 - `src/app/backoffice/sales-interaction/_components/draft-review-dialog.tsx` — 4-step read-only review dialog with Approve Client button for submitted drafts (uses `useReducer` for state, calls `approveClient`)
-- `src/app/backoffice/sales-interaction/_components/client-intake-list.tsx` — Intake row list with Review button (Eye icon), threads `onReviewDraft` with `resultClientId`
+- `src/app/backoffice/sales-interaction/_components/client-intake-list.tsx` — Intake row list with consistent layout: Review (always), Assign Device (step-3 no device), Mark Returned (step-3 PHONE ISSUED), Approve (step-4 submitted). Status badges: only PHONE ISSUED / PHONE RETURNED
+- `src/app/backoffice/sales-interaction/_components/device-assign-dialog.tsx` — Phone/carrier/deviceId assignment dialog
 - `src/backend/data/client-drafts.ts` — Draft queries (by closer, by ID, ownership check, getAllDrafts, getAllDraftsForBackoffice — fetches DRAFT + SUBMITTED with PENDING client)
+- `src/backend/data/phone-assignments.ts` — Queries: getPendingDeviceRequests (drafts with reservation date + no active assignment), getActivePhoneAssignments (SIGNED_OUT), getAssignmentForDraft (most recent assignment for draft, any status — powers Step 3 device info banner)
+- `src/app/actions/phone-assignments.ts` — Server actions: assignAndSignOutDevice, returnDevice (ADMIN/BACKOFFICE only, with EventLog audit)
 - `src/lib/validations/client-draft.ts` — Zod per-step + submit schemas
 - `src/lib/risk-score.ts` — Pure negative risk score calculation (missing IDs, ID expiry, boolean flags, assessment question weights)
 
@@ -409,7 +417,7 @@ vi.mock('@/backend/auth', () => ({ auth: mockAuth }))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 ```
 
-### Existing Tests (15 files, 194 tests)
+### Existing Tests (16 files, 209 tests)
 
 **Phase 1 — Agent Application (5 files, 57 tests):**
 - `src/test/backend/actions/agent-application.test.ts` — Validation, email uniqueness, happy path, addressDocument
@@ -430,6 +438,9 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 **Client Draft (2 files, 54 tests):**
 - `src/test/backend/actions/client-drafts.test.ts` — CRUD actions, auth guards, ownership checks, submit validation, new Step 1 field allowlist
 - `src/test/lib/risk-score.test.ts` — Negative scoring: missing ID bonus/penalty, 2-tier ID expiry boundaries, boolean flag weights, assessment question weights (household/family/autonomy/digital), multipleAddresses exclusion, max worst -158
+
+**Phone Assignment (1 file, 15 tests):**
+- `src/test/backend/actions/phone-assignments.test.ts` — assignAndSignOutDevice (auth guards, validation, happy path with dueBackAt +3d), returnDevice (auth guards, already-returned check, happy path with RETURNED status + EventLog)
 
 ---
 
@@ -461,10 +472,10 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 | `/backoffice/commissions` | page.tsx | **Real DB** — bonus pools, payouts, leaderboard, mark-paid actions |
 | `/backoffice/fund-allocation` | page.tsx | Mock — fund movements |
 | `/backoffice/partners` | page.tsx | Mock — partners |
-| `/backoffice/phone-tracking` | page.tsx | Mock — phones |
+| `/backoffice/phone-tracking` | page.tsx | Mock — phones (can wire to PhoneAssignment model in future) |
 | `/backoffice/profit-sharing` | page.tsx | Mock — profit sharing |
 | `/backoffice/reports` | page.tsx | Mock — reports |
-| `/backoffice/sales-interaction` | page.tsx | **Real DB** — Team directory (agents by tier) + ClientDraft (DRAFT + SUBMITTED, 4 steps) + Review dialog with Approve; Mock — verification, post-approval |
+| `/backoffice/sales-interaction` | page.tsx | **Real DB + Mock combined** — Team directory (agents by tier) + ClientDraft (real DB drafts + mock data, 4 steps) with integrated device lifecycle (assign/return in rows) + Review dialog with Approve; Mock — verification, post-approval |
 | `/backoffice/todo-list` | page.tsx | Mock — action hub |
 
 ### Auth
@@ -605,7 +616,13 @@ Note: Leadership agents (ED/SED/MD/CMO) have `starLevel: 4` in DB (they passed t
 
 | Draft | Status | Step | Closer | Notes |
 |-------|--------|------|--------|-------|
-| Sarah Martinez | DRAFT | 2 | Marcus Rivera | Partially filled (name, email, phone, ID doc) |
+| Sarah Martinez | DRAFT | 2 | Marcus Rivera | Partially filled (name, email, phone, ID doc), deviceReservationDate: 2026-02-22 |
+
+### Sample Phone Assignments
+
+| Phone | Carrier | Draft Client | Agent | Status | Due Back | Signed Out By |
+|-------|---------|-------------|-------|--------|----------|---------------|
+| (555) 777-0001 | T-Mobile | Sarah Martinez | Marcus Rivera | SIGNED_OUT | Feb 25, 2026 | Nina Patel |
 
 ---
 

@@ -49,8 +49,19 @@ export const EventType = {
   QUARTERLY_SETTLEMENT_CREATED: 'QUARTERLY_SETTLEMENT_CREATED',
   CLIENT_DRAFT_CREATED: 'CLIENT_DRAFT_CREATED',
   CLIENT_DRAFT_SUBMITTED: 'CLIENT_DRAFT_SUBMITTED',
+  DEVICE_SIGNED_OUT: 'DEVICE_SIGNED_OUT',
+  DEVICE_RETURNED: 'DEVICE_RETURNED',
 } as const
 export type EventType = (typeof EventType)[keyof typeof EventType]
+
+// --- Phone Assignment Enums ---
+
+export const PhoneAssignmentStatus = {
+  SIGNED_OUT: 'SIGNED_OUT',
+  RETURNED: 'RETURNED',
+} as const
+export type PhoneAssignmentStatus =
+  (typeof PhoneAssignmentStatus)[keyof typeof PhoneAssignmentStatus]
 
 // --- Client Draft Enums ---
 

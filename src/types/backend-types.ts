@@ -70,6 +70,8 @@ export interface IntakeClient {
   rejectedPlatforms: string[]
   /** For SUBMITTED drafts: the linked PENDING Client ID */
   resultClientId?: string | null
+  /** For step-3 clients with active device sign-out: the PhoneAssignment ID */
+  activeAssignmentId?: string | null
 }
 
 export interface PostApprovalClient {
@@ -408,6 +410,35 @@ export interface AgentLeaderboardEntry {
   starLevel: number
   approvedClients: number
   totalEarned: number
+}
+
+// --- Device / Phone Assignment Types ---
+
+export interface DeviceRequestItem {
+  draftId: string
+  clientName: string
+  agentId: string
+  agentName: string
+  reservationDate: string
+  draftStep: number
+  daysSinceRequest: number
+}
+
+export interface ActiveDeviceSignOut {
+  assignmentId: string
+  phoneNumber: string
+  carrier: string | null
+  deviceId: string | null
+  clientName: string
+  draftId: string
+  agentId: string
+  agentName: string
+  signedOutAt: Date
+  dueBackAt: Date
+  hoursRemaining: number
+  isOverdue: boolean
+  signedOutByName: string
+  notes: string | null
 }
 
 export interface QuarterlySettlementData {

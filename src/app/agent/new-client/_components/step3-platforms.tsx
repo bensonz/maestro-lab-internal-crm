@@ -8,13 +8,16 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Phone, Mail, CheckCircle2 } from 'lucide-react'
+import { DeadlineCountdown } from '@/components/deadline-countdown'
 import type { PlatformEntry } from '@/types/backend-types'
 import type { PlatformType } from '@/types'
+import type { SerializedPhoneAssignment } from './new-client-view'
 
 interface Step3Props {
   formData: Record<string, unknown>
   onChange: (field: string, value: unknown) => void
+  activeAssignment: SerializedPhoneAssignment | null
 }
 
 function SectionCard({
@@ -49,7 +52,7 @@ function getEntryForPlatform(
   return existing ?? { platform, username: '', accountId: '', screenshot: '', status: '' }
 }
 
-export function Step3Platforms({ formData, onChange }: Step3Props) {
+export function Step3Platforms({ formData, onChange, activeAssignment }: Step3Props) {
   const platformData = (formData.platformData as PlatformEntry[]) || []
 
   const handlePlatformChange = useCallback(
@@ -69,6 +72,35 @@ export function Step3Platforms({ formData, onChange }: Step3Props) {
 
   return (
     <div className="space-y-4" data-testid="step3-platforms">
+
+      {/* Device Info Banner */}
+      {activeAssignment && (
+        <div className="flex items-center gap-3 rounded-md border border-border/60 bg-muted/30 px-4 py-2.5 text-sm" data-testid="device-info-banner">
+          <div className="flex items-center gap-1.5">
+            <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="font-medium">{activeAssignment.phoneNumber}</span>
+          </div>
+          {(formData.assignedGmail as string) ? (
+            <>
+              <span className="text-muted-foreground/40">&middot;</span>
+              <div className="flex items-center gap-1.5">
+                <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="font-medium">{formData.assignedGmail as string}</span>
+              </div>
+            </>
+          ) : null}
+          <div className="ml-auto">
+            {activeAssignment.status === 'RETURNED' ? (
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-success/30 bg-success/20 px-2 py-0.5 text-xs font-medium text-success">
+                <CheckCircle2 className="h-3 w-3" />
+                Returned
+              </span>
+            ) : (
+              <DeadlineCountdown deadline={activeAssignment.dueBackAt} variant="badge" />
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Financial Platforms */}
       <SectionCard title="Financial Platforms">
