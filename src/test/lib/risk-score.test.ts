@@ -15,11 +15,11 @@ describe('calculateRiskScore', () => {
     expect(result.score).toBe(10)
   })
 
-  it('does not add points for addressMismatch (informational only)', () => {
-    const result = calculateRiskScore({ addressMismatch: true })
+  it('does not add points for multipleAddresses (informational only)', () => {
+    const result = calculateRiskScore({ multipleAddresses: true })
     expect(result.score).toBe(0)
     expect(result.level).toBe('low')
-    expect(result.flags.addressMismatch).toBe(true)
+    expect(result.flags.multipleAddresses).toBe(true)
   })
 
   it('returns medium risk with debankedHistory (30 points)', () => {
@@ -125,7 +125,7 @@ describe('calculateRiskScore', () => {
     const result = calculateRiskScore({
       idExpiryDaysRemaining: 10,
       paypalPreviouslyUsed: true,
-      addressMismatch: true,
+      multipleAddresses: true,
       debankedHistory: true,
       criminalRecord: true,
       undisclosedInfo: true,
@@ -176,11 +176,11 @@ describe('calculateRiskScore', () => {
     const result = calculateRiskScore({
       idExpiryDaysRemaining: 50,
       criminalRecord: false,
-      addressMismatch: true,
+      multipleAddresses: true,
     })
     expect(result.flags.idExpiryRisk).toBe('high')
     expect(result.flags.criminalRecord).toBe(false)
-    expect(result.flags.addressMismatch).toBe(true)
+    expect(result.flags.multipleAddresses).toBe(true)
     expect(result.flags.paypalPreviouslyUsed).toBe(false)
     expect(result.flags.debankedHistory).toBe(false)
     expect(result.flags.undisclosedInfo).toBe(false)

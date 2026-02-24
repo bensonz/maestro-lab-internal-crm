@@ -44,11 +44,17 @@ export interface SerializedDraft {
   betmgmRegScreenshot: string | null
   betmgmLoginScreenshot: string | null
   ssnDocument: string | null
+  ssnNumber: string | null
+  citizenship: string | null
+  missingIdType: string | null
   secondAddress: string | null
+  secondAddressProof: string | null
   hasCriminalRecord: boolean | null
   criminalRecordNotes: string | null
   bankingHistory: string | null
   paypalHistory: string | null
+  paypalSsnLinked: boolean
+  paypalBrowserVerified: boolean
   sportsbookHistory: string | null
   platformData: unknown
   contractDocument: string | null
@@ -76,7 +82,7 @@ export function NewClientView({ drafts, selectedDraft }: NewClientViewProps) {
   const [riskFlags, setRiskFlags] = useState({
     idExpiryDaysRemaining: null as number | null,
     paypalPreviouslyUsed: selectedDraft?.paypalPreviouslyUsed ?? false,
-    addressMismatch: selectedDraft?.addressMismatch ?? false,
+    multipleAddresses: selectedDraft?.addressMismatch ?? false,
     debankedHistory: selectedDraft?.debankedHistory ?? false,
     criminalRecord: selectedDraft?.hasCriminalRecord ?? false,
     undisclosedInfo: selectedDraft?.undisclosedInfo ?? false,

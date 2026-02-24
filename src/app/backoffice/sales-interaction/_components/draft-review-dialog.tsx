@@ -365,7 +365,7 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, onClose 
                   <div className="space-y-1 text-xs">
                     {[
                       { flag: draft.paypalPreviouslyUsed, label: 'PayPal Previously Used', color: 'bg-warning' },
-                      { flag: draft.addressMismatch, label: 'Address Mismatch', color: 'bg-muted-foreground' },
+                      { flag: draft.addressMismatch, label: 'Multiple Addresses', color: 'bg-muted-foreground' },
                       { flag: draft.debankedHistory, label: `De-banked${draft.debankedBank ? ` (${draft.debankedBank})` : ''}`, color: 'bg-destructive' },
                       { flag: draft.undisclosedInfo, label: 'Undisclosed Info', color: 'bg-destructive' },
                     ].map(({ flag, label, color }) => (

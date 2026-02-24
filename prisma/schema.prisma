@@ -239,12 +239,18 @@ model ClientDraft {
 
   // Step 2: Background
   ssnDocument        String?
+  ssnNumber          String?
+  citizenship        String?
+  missingIdType      String?
   secondAddress      String?
+  secondAddressProof String?
   hasCriminalRecord  Boolean?
   criminalRecordNotes String?
   bankingHistory     String?
-  paypalHistory      String?
-  sportsbookHistory  String?
+  paypalHistory         String?
+  paypalSsnLinked       Boolean  @default(false)
+  paypalBrowserVerified Boolean  @default(false)
+  sportsbookHistory     String?
 
   // Step 3: Platforms
   platformData Json?
