@@ -15,6 +15,8 @@ import {
   Clock,
   Play,
   Phone,
+  ChevronUp,
+  ChevronDown,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -186,56 +188,89 @@ export function ClientDetail({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 gap-1.5 text-xs"
-            onClick={() => setShowAllScreenshotsModal(true)}
-            data-testid="view-all-screenshots"
-          >
-            <Images className="h-3.5 w-3.5" />
-            View All Screenshots
-          </Button>
-          {client.intakeStatus === 'PHONE_ISSUED' && (
-            <Button
-              size="sm"
-              className="h-7 gap-1.5 text-xs"
-              onClick={handleStartExecution}
-              disabled={isPending}
-              data-testid="start-execution-btn"
-            >
-              <Play className="h-3.5 w-3.5" />
-              {isPending ? 'Starting...' : 'Start Execution'}
-            </Button>
-          )}
-          {client.intakeStatus === 'APPROVED' && (
-            <>
-              <Link href="/backoffice/phone-tracking">
+          <div className="flex flex-col items-end gap-1">
+            <div className="flex items-center gap-2">
+              {client.intakeStatus === 'PHONE_ISSUED' && (
                 <Button
-                  variant="outline"
                   size="sm"
                   className="h-7 gap-1.5 text-xs"
-                  data-testid="assign-phone-btn"
+                  onClick={handleStartExecution}
+                  disabled={isPending}
+                  data-testid="start-execution-btn"
                 >
-                  <Phone className="h-3.5 w-3.5" />
-                  Assign Phone
+                  <Play className="h-3.5 w-3.5" />
+                  {isPending ? 'Starting...' : 'Start Execution'}
                 </Button>
-              </Link>
+              )}
+              {client.intakeStatus === 'APPROVED' && (
+                <>
+                  <Link href="/backoffice/phone-tracking">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 gap-1.5 text-xs"
+                      data-testid="assign-phone-btn"
+                    >
+                      <Phone className="h-3.5 w-3.5" />
+                      Assign Phone
+                    </Button>
+                  </Link>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 gap-1.5 text-xs border-destructive/30 text-destructive hover:bg-destructive/10"
+                    onClick={() => setCloseDialogOpen(true)}
+                    data-testid="close-partnership-btn"
+                  >
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    Close Partnership
+                  </Button>
+                </>
+              )}
               <Button
                 variant="outline"
                 size="sm"
-                className="h-7 gap-1.5 text-xs border-destructive/30 text-destructive hover:bg-destructive/10"
-                onClick={() => setCloseDialogOpen(true)}
-                data-testid="close-partnership-btn"
+                className="h-7 gap-1.5 text-xs"
+                onClick={() => setShowAllScreenshotsModal(true)}
+                data-testid="view-all-screenshots"
               >
-                <AlertTriangle className="h-3.5 w-3.5" />
-                Close Partnership
+                <Images className="h-3.5 w-3.5" />
+                View All Screenshots
               </Button>
-            </>
-          )}
-          <Badge className={cn(getStatusColor(client.status))}>
-            {client.status.replace('_', ' ')}
-          </Badge>
+            </div>
+            <Badge className={cn(getStatusColor(client.status))}>
+              {client.status.replace('_', ' ')}
+            </Badge>
+          </div>
+          {/* Prev / Next client navigation */}
+          <div className="flex flex-col gap-0.5">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-6 w-6"
+              disabled={allClients.indexOf(client) <= 0}
+              onClick={() => {
+                const idx = allClients.indexOf(client)
+                if (idx > 0) onNavigateToClient(allClients[idx - 1].id)
+              }}
+              data-testid="prev-client-btn"
+            >
+              <ChevronUp className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-6 w-6"
+              disabled={allClients.indexOf(client) >= allClients.length - 1}
+              onClick={() => {
+                const idx = allClients.indexOf(client)
+                if (idx < allClients.length - 1) onNavigateToClient(allClients[idx + 1].id)
+              }}
+              data-testid="next-client-btn"
+            >
+              <ChevronDown className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </div>
       </div>
 
