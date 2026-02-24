@@ -9,6 +9,13 @@ import { RiskPanel } from './risk-panel'
 import { calculateRiskScore } from '@/lib/risk-score'
 import type { RiskAssessment } from '@/types/backend-types'
 
+export interface SerializedPhoneAssignment {
+  phoneNumber: string
+  signedOutAt: string
+  dueBackAt: string
+  status: string
+}
+
 interface DraftSummary {
   id: string
   firstName: string | null
@@ -87,9 +94,10 @@ export interface SerializedDraft {
 interface NewClientViewProps {
   drafts: (Omit<DraftSummary, 'updatedAt'> & { updatedAt: string })[]
   selectedDraft: SerializedDraft | null
+  activeAssignment: SerializedPhoneAssignment | null
 }
 
-export function NewClientView({ drafts, selectedDraft }: NewClientViewProps) {
+export function NewClientView({ drafts, selectedDraft, activeAssignment }: NewClientViewProps) {
   const router = useRouter()
   const [currentStep, setCurrentStep] = useState(selectedDraft?.step ?? 1)
 
@@ -172,6 +180,7 @@ export function NewClientView({ drafts, selectedDraft }: NewClientViewProps) {
               onStepChange={handleStepChange}
               onRiskFlagsChange={handleRiskFlagsChange}
               onRegisterStepHandler={(handler) => { formStepHandlerRef.current = handler }}
+              activeAssignment={activeAssignment}
             />
           ) : (
             <div className="mt-12 text-center text-muted-foreground" data-testid="no-draft-selected">

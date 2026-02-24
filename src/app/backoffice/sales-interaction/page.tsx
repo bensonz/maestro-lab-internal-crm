@@ -1,5 +1,4 @@
 import {
-  MOCK_SALES_STATS,
   MOCK_SALES_HIERARCHY,
   MOCK_INTAKE_CLIENTS,
   MOCK_VERIFICATION_TASKS,
@@ -8,6 +7,7 @@ import {
 } from '@/lib/mock-data'
 import { SalesInteractionView } from './_components/sales-interaction-view'
 import { getAllDraftsForBackoffice } from '@/backend/data/client-drafts'
+import { getActivePhoneAssignments } from '@/backend/data/phone-assignments'
 import { getAgentsForHierarchy } from '@/backend/data/users'
 import { getAgentDisplayTier, LEADERSHIP_TIERS, STAR_THRESHOLDS } from '@/lib/commission-constants'
 import type { IntakeClient, InProgressSubStage } from '@/types/backend-types'
@@ -58,33 +58,63 @@ export default async function SalesInteractionPage() {
         .sort(([a], [b]) => (TIER_SORT_ORDER[a] ?? 99) - (TIER_SORT_ORDER[b] ?? 99))
         .map(([level, agents]) => ({ level, agents }))
     }
-  } catch {
-    // DB not available, fall back to mock
+  } catch (e) {
+    console.error('[sales-interaction] agents fetch error:', e)
   }
 
-  // Fetch real drafts from DB (DRAFT + SUBMITTED with PENDING client)
+  // Fetch real drafts + device data from DB
   let draftIntake: IntakeClient[] = []
+
   try {
-    const drafts = await getAllDraftsForBackoffice()
+    const [drafts, activeAssignments] = await Promise.all([
+      getAllDraftsForBackoffice(),
+      getActivePhoneAssignments(),
+    ])
+
+    // Map draft ID → active assignment ID
+    const draftToAssignmentId = new Map<string, string>()
+    for (const a of activeAssignments) {
+      draftToAssignmentId.set(a.clientDraftId, a.id)
+    }
+
     draftIntake = drafts.map((d) => {
       const isSubmitted = d.status === 'SUBMITTED'
+      const subStage = stepToSubStage(d.step)
+      const activeAssignmentId = draftToAssignmentId.get(d.id) ?? null
+
+      // Status: PHONE ISSUED (step-3 with active device), PHONE RETURNED (step-4), empty otherwise
+      let status = ''
+      let statusColor = ''
+      if (subStage === 'step-3' && activeAssignmentId) {
+        status = 'PHONE ISSUED'
+        statusColor = 'text-success'
+      } else if (subStage === 'step-4') {
+        status = 'PHONE RETURNED'
+        statusColor = 'text-primary'
+      }
+
+      // Assign Device only on step-3 when device reservation exists but no active assignment yet
+      const canAssignPhone = subStage === 'step-3' && !!(d.deviceReservationDate) && !activeAssignmentId
+
+      const daysSince = Math.floor(
+        (Date.now() - new Date(d.updatedAt).getTime()) / (1000 * 60 * 60 * 24),
+      )
+
       return {
         id: d.id,
         name: d.firstName && d.lastName
           ? `${d.firstName} ${d.lastName}`
           : d.firstName || 'Untitled Draft',
-        status: isSubmitted ? 'PENDING APPROVAL' : 'DRAFT',
+        status,
         statusType: isSubmitted ? 'ready' as const : 'pending_platform' as const,
-        statusColor: isSubmitted ? 'text-warning' : 'text-muted-foreground',
+        statusColor,
         agentId: d.closerId,
         agentName: d.closer?.name ?? 'Unknown',
-        days: Math.floor(
-          (Date.now() - new Date(d.updatedAt).getTime()) / (1000 * 60 * 60 * 24),
-        ),
-        daysLabel: `${Math.floor((Date.now() - new Date(d.updatedAt).getTime()) / (1000 * 60 * 60 * 24))}d`,
+        days: daysSince,
+        daysLabel: `${daysSince}d`,
         canApprove: false,
-        canAssignPhone: false,
-        subStage: stepToSubStage(d.step),
+        canAssignPhone,
+        subStage,
         executionDeadline: null,
         deadlineExtensions: 0,
         pendingExtensionRequest: null,
@@ -92,24 +122,23 @@ export default async function SalesInteractionPage() {
         exceptionStates: [],
         rejectedPlatforms: [],
         resultClientId: d.resultClientId,
+        activeAssignmentId,
       }
     })
-  } catch {
-    // DB not available, fall back to mock
+  } catch (e) {
+    console.error('[sales-interaction] drafts fetch error:', e)
   }
 
-  // Use real drafts if available, otherwise mock data
-  const clientIntake = draftIntake.length > 0 ? draftIntake : MOCK_INTAKE_CLIENTS
+  // Combine real drafts + mock data (mock kept for UI development)
+  const clientIntake = [...draftIntake, ...MOCK_INTAKE_CLIENTS]
 
-  // Compute stats from actual data
-  const stats = draftIntake.length > 0
-    ? {
-        totalClients: draftIntake.length,
-        inProgress: draftIntake.length,
-        pendingApproval: draftIntake.filter((c) => c.subStage === 'step-4').length,
-        verificationNeeded: 0,
-      }
-    : MOCK_SALES_STATS
+  // Compute stats from combined data
+  const stats = {
+    totalClients: clientIntake.length,
+    inProgress: clientIntake.filter((c) => c.subStage !== 'verification-needed').length,
+    pendingApproval: clientIntake.filter((c) => c.subStage === 'step-4').length,
+    verificationNeeded: clientIntake.filter((c) => c.subStage === 'verification-needed').length,
+  }
 
   return (
     <SalesInteractionView

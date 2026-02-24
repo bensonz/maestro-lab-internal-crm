@@ -516,40 +516,41 @@ export const MOCK_SALES_HIERARCHY = [
 
 export const MOCK_INTAKE_CLIENTS: IntakeClient[] = [
   {
-    id: 'client-7', name: 'Robert Taylor', status: 'PENDING', statusType: 'ready', statusColor: 'gray', agentId: 'user-agent-1', agentName: 'Marcus Rivera',
-    days: 4, daysLabel: '4d', canApprove: false, canAssignPhone: true, subStage: 'step-1',
+    id: 'client-7', name: 'Robert Taylor', status: '', statusType: 'pending_platform', statusColor: '', agentId: 'user-agent-1', agentName: 'Marcus Rivera',
+    days: 4, daysLabel: '4d', canApprove: false, canAssignPhone: false, subStage: 'step-1',
     executionDeadline: null, deadlineExtensions: 0, pendingExtensionRequest: null,
-    platformProgress: { verified: 0, total: 11 }, exceptionStates: [], rejectedPlatforms: [],
+    platformProgress: { verified: 0, total: 0 }, exceptionStates: [], rejectedPlatforms: [],
   },
   {
-    id: 'client-4', name: 'Sarah Wilson', status: 'PHONE_ISSUED', statusType: 'ready', statusColor: 'green', agentId: 'user-agent-1', agentName: 'Marcus Rivera',
+    id: 'client-4', name: 'Sarah Wilson', status: '', statusType: 'pending_platform', statusColor: '', agentId: 'user-agent-1', agentName: 'Marcus Rivera',
     days: 5, daysLabel: '5d', canApprove: false, canAssignPhone: false, subStage: 'step-2',
-    executionDeadline: new Date('2026-02-21'), deadlineExtensions: 0, pendingExtensionRequest: null,
-    platformProgress: { verified: 0, total: 11 }, exceptionStates: [{ type: 'deadline-approaching', label: 'Deadline in 2 days' }], rejectedPlatforms: [],
-  },
-  {
-    id: 'client-1', name: 'John Smith', status: 'IN_EXECUTION', statusType: 'pending_platform', statusColor: 'blue', agentId: 'user-agent-1', agentName: 'Marcus Rivera',
-    days: 9, daysLabel: '9d', canApprove: false, canAssignPhone: false, subStage: 'step-3',
-    executionDeadline: new Date('2026-02-25'), deadlineExtensions: 0, pendingExtensionRequest: null,
-    platformProgress: { verified: 2, total: 11 }, exceptionStates: [], rejectedPlatforms: [],
-  },
-  {
-    id: 'client-8', name: 'Lisa Anderson', status: 'IN_EXECUTION', statusType: 'pending_platform', statusColor: 'blue', agentId: 'user-agent-1', agentName: 'Marcus Rivera',
-    days: 7, daysLabel: '7d', canApprove: false, canAssignPhone: false, subStage: 'step-3',
-    executionDeadline: new Date('2026-02-26'), deadlineExtensions: 0, pendingExtensionRequest: null,
-    platformProgress: { verified: 7, total: 11 }, exceptionStates: [], rejectedPlatforms: [],
-  },
-  {
-    id: 'client-5', name: 'James Brown', status: 'READY_FOR_APPROVAL', statusType: 'ready', statusColor: 'purple', agentId: 'user-agent-1', agentName: 'Marcus Rivera',
-    days: 22, daysLabel: '22d', canApprove: true, canAssignPhone: false, subStage: 'step-4',
     executionDeadline: null, deadlineExtensions: 0, pendingExtensionRequest: null,
-    platformProgress: { verified: 11, total: 11 }, exceptionStates: [], rejectedPlatforms: [],
+    platformProgress: { verified: 0, total: 0 }, exceptionStates: [], rejectedPlatforms: [],
   },
   {
-    id: 'client-3', name: 'David Lee', status: 'NEEDS_MORE_INFO', statusType: 'needs_info', statusColor: 'yellow', agentId: 'user-agent-1', agentName: 'Marcus Rivera',
+    id: 'client-1', name: 'John Smith', status: 'PHONE ISSUED', statusType: 'pending_platform', statusColor: 'text-success', agentId: 'user-agent-1', agentName: 'Marcus Rivera',
+    days: 9, daysLabel: '9d', canApprove: false, canAssignPhone: false, subStage: 'step-3',
+    executionDeadline: null, deadlineExtensions: 0, pendingExtensionRequest: null,
+    platformProgress: { verified: 0, total: 0 }, exceptionStates: [], rejectedPlatforms: [],
+    activeAssignmentId: 'mock-assignment-1',
+  },
+  {
+    id: 'client-8', name: 'Lisa Anderson', status: '', statusType: 'pending_platform', statusColor: '', agentId: 'user-agent-1', agentName: 'Marcus Rivera',
+    days: 7, daysLabel: '7d', canApprove: false, canAssignPhone: true, subStage: 'step-3',
+    executionDeadline: null, deadlineExtensions: 0, pendingExtensionRequest: null,
+    platformProgress: { verified: 0, total: 0 }, exceptionStates: [], rejectedPlatforms: [],
+  },
+  {
+    id: 'client-5', name: 'James Brown', status: 'PHONE RETURNED', statusType: 'ready', statusColor: 'text-primary', agentId: 'user-agent-1', agentName: 'Marcus Rivera',
+    days: 22, daysLabel: '22d', canApprove: false, canAssignPhone: false, subStage: 'step-4',
+    executionDeadline: null, deadlineExtensions: 0, pendingExtensionRequest: null,
+    platformProgress: { verified: 0, total: 0 }, exceptionStates: [], rejectedPlatforms: [],
+  },
+  {
+    id: 'client-3', name: 'David Lee', status: '', statusType: 'pending_platform', statusColor: '', agentId: 'user-agent-1', agentName: 'Marcus Rivera',
     days: 11, daysLabel: '11d', canApprove: false, canAssignPhone: false, subStage: 'verification-needed',
-    executionDeadline: new Date('2026-02-22'), deadlineExtensions: 0, pendingExtensionRequest: null,
-    platformProgress: { verified: 1, total: 11 }, exceptionStates: [{ type: 'needs-more-info', label: 'Needs additional ID' }], rejectedPlatforms: [],
+    executionDeadline: null, deadlineExtensions: 0, pendingExtensionRequest: null,
+    platformProgress: { verified: 0, total: 0 }, exceptionStates: [], rejectedPlatforms: [],
   },
 ]
 
