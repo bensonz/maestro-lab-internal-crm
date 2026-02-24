@@ -22,10 +22,10 @@ function formatDaysSinceActive(dateStr: string): string {
   const now = new Date()
   const diffMs = now.getTime() - start.getTime()
   const totalDays = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)))
-  const months = Math.floor(totalDays / 30)
-  const days = totalDays % 30
-  if (months === 0) return `${days}D`
-  return `${months}M${days}D`
+  const weeks = Math.floor(totalDays / 7)
+  const days = totalDays % 7
+  if (weeks === 0) return `${days}D`
+  return `${weeks}W${days}D`
 }
 
 function formatIntakeStatus(status: string): string {
@@ -67,7 +67,7 @@ export function ClientList({
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          placeholder="Search clients..."
+          placeholder="Search clients or agents..."
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           className="bg-background/50 pl-10"
@@ -87,11 +87,11 @@ export function ClientList({
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/30 text-xs text-muted-foreground">
-                  <th className="px-3 py-2 text-left font-medium">Name</th>
-                  <th className="px-3 py-2 text-left font-medium">Phone</th>
-                  <th className="px-3 py-2 text-left font-medium">Co.Email</th>
-                  <th className="px-3 py-2 text-left font-medium">Active</th>
-                  <th className="px-3 py-2 text-right font-medium">Funds</th>
+                  <th className="w-[120px] px-3 py-2 text-left font-medium">Name</th>
+                  <th className="whitespace-nowrap px-3 py-2 text-left font-medium">Phone</th>
+                  <th className="w-[140px] px-3 py-2 text-left font-medium">Co.Email</th>
+                  <th className="w-[100px] px-3 py-2 text-left font-medium">Active</th>
+                  <th className="w-[70px] px-3 py-2 text-right font-medium">Funds</th>
                   <th className="px-3 py-2 text-left font-medium">
                     <span className="text-success">Active</span>
                   </th>
@@ -101,7 +101,7 @@ export function ClientList({
                   <th className="px-3 py-2 text-left font-medium">
                     <span className="text-primary">Pipeline</span>
                   </th>
-                  <th className="px-3 py-2 text-right font-medium" />
+                  <th className="w-[32px] px-3 py-2 text-right font-medium" />
                 </tr>
               </thead>
               <tbody>
@@ -167,7 +167,7 @@ export function ClientList({
                         </td>
 
                         {/* Phone */}
-                        <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
+                        <td className="whitespace-nowrap px-3 py-2 font-mono text-xs text-muted-foreground">
                           {client.companyPhone}
                         </td>
 
@@ -178,9 +178,9 @@ export function ClientList({
                           </span>
                         </td>
 
-                        {/* Days Since Active */}
+                        {/* Days Since Active + Paid */}
                         <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
-                          {formatDaysSinceActive(client.startDate)}
+                          {formatDaysSinceActive(client.startDate)} ${client.totalPaid.toLocaleString()}
                         </td>
 
                         {/* Funds */}
@@ -190,7 +190,7 @@ export function ClientList({
 
                         {/* Active Platforms */}
                         <td className="px-3 py-2">
-                          <div className="flex gap-0.5">
+                          <div className="flex flex-wrap gap-0.5">
                             {activePlatforms.map((platform) => (
                               <Tooltip key={platform.id}>
                                 <TooltipTrigger asChild>
@@ -235,7 +235,7 @@ export function ClientList({
 
                         {/* Limited Platforms */}
                         <td className="px-3 py-2">
-                          <div className="flex gap-0.5">
+                          <div className="flex flex-wrap gap-0.5">
                             {limitedPlatforms.map((platform) => {
                               const pnl =
                                 (platform.deposits || 0) -
@@ -308,7 +308,7 @@ export function ClientList({
 
                         {/* Pipeline Platforms */}
                         <td className="px-3 py-2">
-                          <div className="flex gap-0.5">
+                          <div className="flex flex-wrap gap-0.5">
                             {pipelinePlatforms.map((platform) => (
                               <span
                                 key={platform.id}

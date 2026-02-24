@@ -77,7 +77,9 @@ export function ClientManagementPage({
           client.companyPhone.includes(searchQuery) ||
           client.companyEmail
             .toLowerCase()
-            .includes(searchQuery.toLowerCase())
+            .includes(searchQuery.toLowerCase()) ||
+          (client.agent &&
+            client.agent.toLowerCase().includes(searchQuery.toLowerCase()))
 
         if (!matchesSearch) return false
 
