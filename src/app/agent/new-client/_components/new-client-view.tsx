@@ -107,6 +107,7 @@ export function NewClientView({ drafts, selectedDraft, activeAssignment }: NewCl
     idExpiryDaysRemaining: null as number | null,
     paypalPreviouslyUsed: selectedDraft?.paypalPreviouslyUsed ?? false,
     multipleAddresses: selectedDraft?.addressMismatch ?? false,
+    betmgmEmailMismatch: false,
     debankedHistory: selectedDraft?.debankedHistory ?? false,
     criminalRecord: selectedDraft?.hasCriminalRecord ?? false,
     missingIdCount: (selectedDraft?.missingIdType?.split(',').filter(Boolean).length) ?? 0,

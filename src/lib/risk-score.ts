@@ -10,6 +10,7 @@ interface RiskFlags {
   householdAwareness?: string
   familyTechSupport?: string
   financialAutonomy?: string
+  betmgmEmailMismatch?: boolean
   bankPinOverride?: boolean
   bankNameOverride?: boolean
   bankPhoneEmailNotConfirmed?: boolean
@@ -67,6 +68,7 @@ export function calculateRiskScore(flags: RiskFlags): RiskAssessment {
   const householdAwareness = flags.householdAwareness ?? ''
   const familyTechSupport = flags.familyTechSupport ?? ''
   const financialAutonomy = flags.financialAutonomy ?? ''
+  const betmgmEmailMismatch = flags.betmgmEmailMismatch ?? false
   const bankPinOverride = flags.bankPinOverride ?? false
   const bankNameOverride = flags.bankNameOverride ?? false
   const bankPhoneEmailNotConfirmed = flags.bankPhoneEmailNotConfirmed ?? false
@@ -117,6 +119,7 @@ export function calculateRiskScore(flags: RiskFlags): RiskAssessment {
       idExpiryRisk,
       paypalPreviouslyUsed,
       multipleAddresses,
+      betmgmEmailMismatch,
       debankedHistory,
       criminalRecord,
       missingIdCount,
