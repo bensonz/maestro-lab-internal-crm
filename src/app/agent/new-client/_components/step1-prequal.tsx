@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { Input } from '@/components/ui/input'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { UploadDropzone, ScreenshotThumbnail } from '@/components/upload-dropzone'
@@ -23,8 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { ScanLine, HelpCircle, Loader2, ChevronDown } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { ScanLine, HelpCircle, Loader2, ChevronDown, Shuffle } from 'lucide-react'
 import { IdDetectionModal } from './id-detection-modal'
 import { GmailDetectionModal } from './gmail-detection-modal'
 import { BetmgmDetectionModal } from './betmgm-detection-modal'
@@ -73,6 +72,88 @@ function computeAge(dobStr: string): number | null {
     age--
   }
   return age
+}
+
+function pad2(n: number): string {
+  return String(n).padStart(2, '0')
+}
+
+const GMAIL_PATTERNS = [
+  // (f, l, bm, bd, tm, td) => email local part
+  (f: string, l: string, bm: string, bd: string, _tm: string, td: string) => `${f}${l}${bm}${td}`,
+  (f: string, l: string, _bm: string, bd: string, tm: string, _td: string) => `${l}${f}${tm}${bd}`,
+  (f: string, l: string, bm: string, bd: string, _tm: string, _td: string) => `${f[0]}${l}${bm}${bd}`,
+  (f: string, l: string, _bm: string, _bd: string, tm: string, td: string) => `${l}${f[0]}${tm}${td}`,
+  (f: string, l: string, bm: string, _bd: string, _tm: string, td: string) => `${f}${l[0]}${bm}${td}`,
+] as const
+
+/** Generate 1 randomized Gmail address suggestion from client name + DOB */
+function generateGmailSuggestion(firstName: string, lastName: string, dob: string, seed: number): string {
+  if (!firstName || !lastName) return ''
+  const f = firstName.toLowerCase().replace(/[^a-z]/g, '')
+  const l = lastName.toLowerCase().replace(/[^a-z]/g, '')
+  if (!f || !l) return ''
+
+  const now = new Date()
+  const todayMonth = pad2(now.getMonth() + 1)
+  const todayDay = pad2(now.getDate())
+
+  const dobDate = dob ? new Date(dob) : null
+  const birthMonth = dobDate ? pad2(dobDate.getMonth() + 1) : todayMonth
+  const birthDay = dobDate ? pad2(dobDate.getDate()) : todayDay
+
+  const idx = ((seed % GMAIL_PATTERNS.length) + GMAIL_PATTERNS.length) % GMAIL_PATTERNS.length
+  const local = GMAIL_PATTERNS[idx](f, l, birthMonth, birthDay, todayMonth, todayDay)
+  return `${local}@gmail.com`
+}
+
+const GMAIL_PW_PHRASES = [
+  'Welcome',
+  'Hello',
+  'MyMail',
+  'Access',
+  'Login',
+] as const
+
+/** Generate 1 randomized Gmail password suggestion from DOB */
+function generateGmailPassword(dob: string, seed: number): string {
+  if (!dob) return ''
+  const dobDate = new Date(dob)
+  if (isNaN(dobDate.getTime())) return ''
+  const bm = pad2(dobDate.getMonth() + 1)
+  const bd = pad2(dobDate.getDate())
+  const by = String(dobDate.getFullYear()).slice(-2)
+  const idx = ((seed % GMAIL_PW_PHRASES.length) + GMAIL_PW_PHRASES.length) % GMAIL_PW_PHRASES.length
+  const suffixes = [`${bm}${bd}!`, `${bd}${bm}#`, `${bm}${by}!`]
+  const sIdx = ((seed % suffixes.length) + suffixes.length) % suffixes.length
+  return `${GMAIL_PW_PHRASES[idx]}${suffixes[sIdx]}`
+}
+
+const BETMGM_PHRASES = [
+  'ihopeitwillwork',
+  'letmewin',
+  'luckyday',
+  'gametime',
+  'bigwin',
+] as const
+
+const BETMGM_SUFFIXES = [
+  (bm: string, bd: string, _by: string) => `${bm}${bd}`,
+  (bm: string, bd: string, _by: string) => `${bd}${bm}`,
+  (bm: string, _bd: string, by: string) => `${bm}${by}`,
+] as const
+
+/** Generate 1 randomized BetMGM password suggestion from DOB */
+function generateBetmgmPassword(dob: string, seed: number): string {
+  if (!dob) return ''
+  const dobDate = new Date(dob)
+  if (isNaN(dobDate.getTime())) return ''
+  const bm = pad2(dobDate.getMonth() + 1)
+  const bd = pad2(dobDate.getDate())
+  const by = String(dobDate.getFullYear()).slice(-2)
+  const pIdx = ((seed % BETMGM_PHRASES.length) + BETMGM_PHRASES.length) % BETMGM_PHRASES.length
+  const sIdx = ((seed % BETMGM_SUFFIXES.length) + BETMGM_SUFFIXES.length) % BETMGM_SUFFIXES.length
+  return `${BETMGM_PHRASES[pIdx]}${BETMGM_SUFFIXES[sIdx](bm, bd, by)}`
 }
 
 function UploadTooltip({ tip }: { tip: { what: string; not: string } }) {
@@ -146,6 +227,31 @@ export function Step1PreQual({ formData, onChange, onRiskFlagsChange }: Step1Pro
   const [betmgmDetectionData, setBetmgmDetectionData] = useState<BetmgmExtractionResult | null>(null)
   const [betmgmDetectionType, setBetmgmDetectionType] = useState<'registration' | 'login'>('login')
   const [showBetmgmModal, setShowBetmgmModal] = useState(false)
+
+  // Suggestion generation — each field has its own seed for independent cycling
+  const [gmailSeed, setGmailSeed] = useState(0)
+  const [gmailPwSeed, setGmailPwSeed] = useState(0)
+  const [betmgmPwSeed, setBetmgmPwSeed] = useState(0)
+  const suggestedGmail = useMemo(
+    () => generateGmailSuggestion(
+      (formData.firstName as string) || '',
+      (formData.lastName as string) || '',
+      (formData.dateOfBirth as string) || '',
+      gmailSeed,
+    ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [formData.firstName, formData.lastName, formData.dateOfBirth, gmailSeed],
+  )
+  const suggestedGmailPassword = useMemo(
+    () => generateGmailPassword((formData.dateOfBirth as string) || '', gmailPwSeed),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [formData.dateOfBirth, gmailPwSeed],
+  )
+  const suggestedBetmgmPassword = useMemo(
+    () => generateBetmgmPassword((formData.dateOfBirth as string) || '', betmgmPwSeed),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [formData.dateOfBirth, betmgmPwSeed],
+  )
 
   function handleIdExpiryChange(value: string) {
     onChange('idExpiry', value)
@@ -515,14 +621,22 @@ export function Step1PreQual({ formData, onChange, onRiskFlagsChange }: Step1Pro
                 Gmail Address
                 {autoFilledFields.has('assignedGmail') && <AutoFilledBadge />}
               </FieldLabel>
-              <Input
-                id="assignedGmail"
-                type="email"
-                value={(formData.assignedGmail as string) || ''}
-                onChange={(e) => onChange('assignedGmail', e.target.value)}
-                placeholder="assigned@gmail.com"
-                data-testid="client-assigned-gmail"
-              />
+              <div className="relative">
+                {suggestedGmail && (
+                  <p className="absolute -top-3.5 left-0 flex items-center gap-1 text-[10px] text-muted-foreground whitespace-nowrap">
+                    <button type="button" onClick={() => onChange('assignedGmail', suggestedGmail)} className="hover:text-foreground transition-colors truncate max-w-[220px]" data-testid="gmail-suggestion">{suggestedGmail}</button>
+                    <button type="button" onClick={() => setGmailSeed((p) => p + 1)} className="hover:text-foreground transition-colors shrink-0" title="Next suggestion" data-testid="gmail-regenerate"><Shuffle className="h-2.5 w-2.5" /></button>
+                  </p>
+                )}
+                <Input
+                  id="assignedGmail"
+                  type="email"
+                  value={(formData.assignedGmail as string) || ''}
+                  onChange={(e) => onChange('assignedGmail', e.target.value)}
+                  placeholder="assigned@gmail.com"
+                  data-testid="client-assigned-gmail"
+                />
+              </div>
             </Field>
 
             <Field>
@@ -530,13 +644,21 @@ export function Step1PreQual({ formData, onChange, onRiskFlagsChange }: Step1Pro
                 Gmail Password
                 {autoFilledFields.has('gmailPassword') && <AutoFilledBadge />}
               </FieldLabel>
-              <Input
-                id="gmailPassword"
-                value={(formData.gmailPassword as string) || ''}
-                onChange={(e) => onChange('gmailPassword', e.target.value)}
-                placeholder="Password"
-                data-testid="client-gmail-password"
-              />
+              <div className="relative">
+                {suggestedGmailPassword && (
+                  <p className="absolute -top-3.5 left-0 flex items-center gap-1 text-[10px] text-muted-foreground whitespace-nowrap">
+                    <button type="button" onClick={() => onChange('gmailPassword', suggestedGmailPassword)} className="hover:text-foreground transition-colors" data-testid="gmail-pw-suggestion">{suggestedGmailPassword}</button>
+                    <button type="button" onClick={() => setGmailPwSeed((p) => p + 1)} className="hover:text-foreground transition-colors shrink-0" title="Next suggestion" data-testid="gmail-pw-regenerate"><Shuffle className="h-2.5 w-2.5" /></button>
+                  </p>
+                )}
+                <Input
+                  id="gmailPassword"
+                  value={(formData.gmailPassword as string) || ''}
+                  onChange={(e) => onChange('gmailPassword', e.target.value)}
+                  placeholder="Password"
+                  data-testid="client-gmail-password"
+                />
+              </div>
             </Field>
           </div>
 
@@ -590,13 +712,21 @@ export function Step1PreQual({ formData, onChange, onRiskFlagsChange }: Step1Pro
                 BetMGM Password
                 {autoFilledFields.has('betmgmPassword') && <AutoFilledBadge />}
               </FieldLabel>
-              <Input
-                id="betmgmPassword"
-                value={(formData.betmgmPassword as string) || ''}
-                onChange={(e) => onChange('betmgmPassword', e.target.value)}
-                placeholder="Password"
-                data-testid="client-betmgm-password"
-              />
+              <div className="relative">
+                {suggestedBetmgmPassword && (
+                  <p className="absolute -top-3.5 left-0 flex items-center gap-1 text-[10px] text-muted-foreground whitespace-nowrap">
+                    <button type="button" onClick={() => onChange('betmgmPassword', suggestedBetmgmPassword)} className="hover:text-foreground transition-colors" data-testid="betmgm-pw-suggestion">{suggestedBetmgmPassword}</button>
+                    <button type="button" onClick={() => setBetmgmPwSeed((p) => p + 1)} className="hover:text-foreground transition-colors shrink-0" title="Next suggestion" data-testid="betmgm-pw-regenerate"><Shuffle className="h-2.5 w-2.5" /></button>
+                  </p>
+                )}
+                <Input
+                  id="betmgmPassword"
+                  value={(formData.betmgmPassword as string) || ''}
+                  onChange={(e) => onChange('betmgmPassword', e.target.value)}
+                  placeholder="Password"
+                  data-testid="client-betmgm-password"
+                />
+              </div>
             </Field>
           </div>
 
