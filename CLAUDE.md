@@ -25,7 +25,7 @@ The backend has a fully functional **commission system** with real DB queries wi
 - **Agent Clients page** — real clients from DB if available, falls back to mock
 - **Agent Detail page** (backoffice) — real agent profile, earnings, hierarchy from DB; inline-editable fields with audit trail (activity timeline from EventLog). Agent name in header is plain text (no hover card — hover card lives on the Agent Management list page instead).
 - **Agent New Client page** — 4-step intake form with drafts panel, risk assessment, auto-save, and submission to real Client record
-- **Client draft** server actions (create, save, submit, delete) — auth-guarded, ownership-checked
+- **Client draft** server actions (create, save, submit, delete) — auth-guarded, ownership-checked. Deletion blocked once ID document is uploaded (server-side + UI hides trash icon)
 - **Phone assignment** server actions (assign & sign out device, return device, re-issue device) — ADMIN/BACKOFFICE only, with EventLog audit trail
 - **Search API** (simplified — searches Users only)
 - **NextAuth v5** credentials-based authentication with JWT sessions
@@ -264,7 +264,7 @@ Agents create new clients through a 4-step intake form at `/agent/new-client`.
 **Key files:**
 - `src/app/agent/new-client/page.tsx` — Server component: auth, load drafts + selected draft
 - `src/app/agent/new-client/_components/new-client-view.tsx` — Client: 3-panel layout orchestrator
-- `src/app/agent/new-client/_components/drafts-panel.tsx` — Left panel: draft list + create/delete (no title/subtitle, no file icons, sidebar conventions matched with other pages)
+- `src/app/agent/new-client/_components/drafts-panel.tsx` — Left panel: draft list + create/delete (no title/subtitle, no file icons, sidebar conventions matched with other pages). Delete button hidden once ID document is uploaded
 - `src/app/agent/new-client/_components/step-indicator.tsx` — 4-step progress indicator
 - `src/app/agent/new-client/_components/client-form.tsx` — Form state, auto-save, step navigation
 - `src/app/agent/new-client/_components/step1-prequal.tsx` — Step 1 fields (3 collapsible SectionCards: ID, Gmail, BetMGM, with uploads + OCR detection + different-address flow)
@@ -423,7 +423,7 @@ vi.mock('@/backend/auth', () => ({ auth: mockAuth }))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 ```
 
-### Existing Tests (15 files, 216 tests)
+### Existing Tests (15 files, 217 tests)
 
 **Phase 1 — Agent Application (5 files, 57 tests):**
 - `src/test/backend/actions/agent-application.test.ts` — Validation, email uniqueness, happy path, addressDocument
@@ -441,8 +441,8 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 - `src/test/backend/actions/commission.test.ts` — Mark paid, bulk mark paid, auth guards
 - `src/test/backend/actions/leadership.test.ts` — Promote, quarterly settlement, approve/pay settlement
 
-**Client Draft (2 files, 54 tests):**
-- `src/test/backend/actions/client-drafts.test.ts` — CRUD actions, auth guards, ownership checks, submit validation, new Step 1 field allowlist
+**Client Draft (2 files, 55 tests):**
+- `src/test/backend/actions/client-drafts.test.ts` — CRUD actions, auth guards, ownership checks, submit validation, new Step 1 field allowlist, delete blocked after ID upload
 - `src/test/lib/risk-score.test.ts` — Negative scoring: missing ID bonus/penalty, 2-tier ID expiry boundaries, boolean flag weights, assessment question weights (household/family/autonomy/digital), multipleAddresses exclusion, max worst -158
 
 **Phone Assignment (1 file, 22 tests):**
