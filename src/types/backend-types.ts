@@ -344,6 +344,7 @@ export interface RiskAssessment {
     householdAwareness: string
     familyTechSupport: string
     financialAutonomy: string
+    betmgmEmailMismatch: boolean
     bankPinOverride: boolean
     bankNameOverride: boolean
     bankPhoneEmailNotConfirmed: boolean
