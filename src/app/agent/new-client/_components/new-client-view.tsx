@@ -23,6 +23,7 @@ interface DraftSummary {
   step: number
   updatedAt: string
   status: string
+  idDocument: string | null
 }
 
 export interface SerializedDraft {
