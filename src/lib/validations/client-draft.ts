@@ -36,6 +36,7 @@ export const clientStep2Schema = z.object({
   hasCriminalRecord: z.boolean(),
   criminalRecordNotes: z.string().max(1000).optional().or(z.literal('')),
   bankingHistory: z.string().max(500).optional().or(z.literal('')),
+  bankNegativeBalance: z.boolean().optional(),
   paypalHistory: z.string().max(500).optional().or(z.literal('')),
   paypalSsnLinked: z.boolean().optional(),
   paypalBrowserVerified: z.boolean().optional(),

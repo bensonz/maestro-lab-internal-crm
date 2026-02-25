@@ -82,6 +82,7 @@ export async function saveClientDraft(
     'hasCriminalRecord',
     'criminalRecordNotes',
     'bankingHistory',
+    'bankNegativeBalance',
     'paypalHistory',
     'paypalSsnLinked',
     'paypalBrowserVerified',

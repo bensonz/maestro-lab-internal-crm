@@ -257,6 +257,7 @@ model ClientDraft {
   hasCriminalRecord  Boolean?
   criminalRecordNotes String?
   bankingHistory     String?
+  bankNegativeBalance Boolean?
   paypalHistory         String?
   paypalSsnLinked       Boolean  @default(false)
   paypalBrowserVerified Boolean  @default(false)
