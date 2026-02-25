@@ -58,3 +58,19 @@ export async function getActivePhoneAssignments() {
     },
   })
 }
+
+/**
+ * Fetch the most recent RETURNED PhoneAssignment per draft.
+ * Used to show Undo/Re-issue button on step-4 rows.
+ */
+export async function getReturnedPhoneAssignments() {
+  return prisma.phoneAssignment.findMany({
+    where: { status: 'RETURNED' },
+    orderBy: { returnedAt: 'desc' },
+    select: {
+      id: true,
+      clientDraftId: true,
+      phoneNumber: true,
+    },
+  })
+}

@@ -39,16 +39,25 @@ export function ClientForm({
   const [submitting, setSubmitting] = useState(false)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastSavedRef = useRef<string>(JSON.stringify(buildFormDataFromDraft(draft)))
+  // Track the highest step ever reached so the drafts panel always shows max progress
+  const highestStepRef = useRef<number>(draft.step)
+
+  // Device gate: agent must request device, then wait for backoffice to assign
+  // Once a device has EVER been assigned (any status), the gate is cleared permanently
+  const deviceEverAssigned = !!activeAssignment
+  const hasActiveDevice = activeAssignment?.status === 'SIGNED_OUT'
+  const deviceRequested = !!(draft.deviceReservationDate)
 
   // Reset form data when draft changes
   useEffect(() => {
     const newData = buildFormDataFromDraft(draft)
     setFormData(newData)
     lastSavedRef.current = JSON.stringify(newData)
+    highestStepRef.current = draft.step
     onStepChange(draft.step)
   }, [draft.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-save debounced
+  // Auto-save debounced — always persists the highest step ever reached
   const doSave = useCallback(
     async (data: Record<string, unknown>) => {
       const serialized = JSON.stringify(data)
@@ -58,7 +67,7 @@ export function ClientForm({
       try {
         const result = await saveClientDraft(draft.id, {
           ...data,
-          step: currentStep,
+          step: highestStepRef.current,
         })
         if (result.success) {
           lastSavedRef.current = serialized
@@ -70,7 +79,7 @@ export function ClientForm({
         setSaveStatus('idle')
       }
     },
-    [draft.id, currentStep],
+    [draft.id],
   )
 
   const scheduleAutoSave = useCallback(
@@ -99,12 +108,31 @@ export function ClientForm({
   // Flush save before step change
   async function handleStepChange(newStep: number) {
     if (newStep < 1 || newStep > 4) return
+    // Block advancing to step 3+ if device requested but never assigned
+    if (newStep >= 3 && deviceRequested && !deviceEverAssigned) {
+      toast.error('Waiting for backoffice to assign device')
+      return
+    }
+    // Track highest step ever reached (going back doesn't lower it)
+    highestStepRef.current = Math.max(highestStepRef.current, newStep)
     if (saveTimerRef.current) {
       clearTimeout(saveTimerRef.current)
       saveTimerRef.current = null
     }
     await doSave({ ...formData, step: newStep })
     onStepChange(newStep)
+    router.refresh()
+  }
+
+  // Request device — saves reservation date, stays on step 2 (does NOT advance)
+  async function handleRequestDevice() {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current)
+      saveTimerRef.current = null
+    }
+    await doSave(formData)
+    toast.success('Device requested — waiting for backoffice to assign')
+    router.refresh()
   }
 
   // Expose handleStepChange to parent (for step indicator clicks)
@@ -167,7 +195,7 @@ export function ClientForm({
         />
       )}
       {currentStep === 3 && (
-        <Step3Platforms formData={formData} onChange={handleFieldChange} activeAssignment={activeAssignment} />
+        <Step3Platforms formData={formData} onChange={handleFieldChange} onRiskFlagsChange={onRiskFlagsChange} activeAssignment={activeAssignment} />
       )}
       {currentStep === 4 && (
         <Step4Contract formData={formData} onChange={handleFieldChange} />
@@ -214,6 +242,19 @@ export function ClientForm({
         </div>
       )}
 
+      {/* Waiting for device — shown on Step 2 after requesting, before first assignment */}
+      {currentStep === 2 && !!(formData.deviceReservationDate as string) && deviceRequested && !deviceEverAssigned && (
+        <div className="mt-6 rounded-md border border-primary/30 bg-primary/5 p-4 flex items-start gap-2" data-testid="waiting-for-device">
+          <Loader2 className="h-4 w-4 text-primary mt-0.5 shrink-0 animate-spin" />
+          <div className="space-y-1">
+            <p className="text-sm font-medium">Device Requested</p>
+            <p className="text-xs text-muted-foreground">
+              Waiting for backoffice to assign a device. You will be able to proceed to Step 3 once the device is issued.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Navigation */}
       <div className="mt-8 flex items-center justify-between">
         <Button
@@ -229,15 +270,35 @@ export function ClientForm({
 
         {currentStep < 4 ? (
           currentStep === 2 ? (
-            <Button
-              size="sm"
-              onClick={() => handleStepChange(currentStep + 1)}
-              disabled={!(formData.deviceReservationDate as string)}
-              data-testid="next-step-button"
-            >
-              <Smartphone className="mr-1.5 h-4 w-4" />
-              Request for Device
-            </Button>
+            deviceEverAssigned ? (
+              <Button
+                size="sm"
+                onClick={() => handleStepChange(currentStep + 1)}
+                data-testid="next-step-button"
+              >
+                Next
+                <ChevronRight className="ml-1 h-4 w-4" />
+              </Button>
+            ) : deviceRequested ? (
+              <Button
+                size="sm"
+                disabled
+                data-testid="next-step-button"
+              >
+                <Smartphone className="mr-1.5 h-4 w-4" />
+                Awaiting Device...
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                onClick={handleRequestDevice}
+                disabled={!(formData.deviceReservationDate as string)}
+                data-testid="next-step-button"
+              >
+                <Smartphone className="mr-1.5 h-4 w-4" />
+                Request for Device
+              </Button>
+            )
           ) : (
             <Button
               size="sm"

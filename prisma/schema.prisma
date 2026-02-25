@@ -87,6 +87,7 @@ enum EventType {
   CLIENT_DRAFT_SUBMITTED
   DEVICE_SIGNED_OUT
   DEVICE_RETURNED
+  DEVICE_REISSUED
 }
 
 // ─── User ────────────────────────────────────────────────

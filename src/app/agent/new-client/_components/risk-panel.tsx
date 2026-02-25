@@ -49,6 +49,9 @@ const FLAG_ENTRIES: FlagEntry[] = [
   { key: 'householdAwareness', label: 'Household Awareness', weight: '0 to −8', type: 'assessment', labels: HOUSEHOLD_LABELS },
   { key: 'familyTechSupport', label: 'Family Support', weight: '0 to −15', type: 'assessment', labels: FAMILY_SUPPORT_LABELS },
   { key: 'financialAutonomy', label: 'Financial Autonomy', weight: '0 to −15', type: 'assessment', labels: AUTONOMY_LABELS },
+  { key: 'bankPinOverride', label: 'PIN Changed', weight: 'info only', type: 'boolean' },
+  { key: 'bankNameOverride', label: 'Bank Changed', weight: 'info only', type: 'boolean' },
+  { key: 'bankPhoneEmailNotConfirmed', label: 'Bank Phone/Email Unverified', weight: 'info only', type: 'boolean' },
 ]
 
 export function RiskPanel({ assessment, draftSelected, idExpiryDaysRemaining }: RiskPanelProps) {

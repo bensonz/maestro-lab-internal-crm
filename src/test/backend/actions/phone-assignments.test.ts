@@ -12,6 +12,7 @@ const { mockPrisma } = vi.hoisted(() => ({
   mockPrisma: {
     clientDraft: {
       findUnique: vi.fn(),
+      update: vi.fn(),
     },
     phoneAssignment: {
       findFirst: vi.fn(),
@@ -29,6 +30,7 @@ vi.mock('@/backend/prisma/client', () => ({ default: mockPrisma }))
 import {
   assignAndSignOutDevice,
   returnDevice,
+  reissueDevice,
 } from '@/app/actions/phone-assignments'
 
 describe('assignAndSignOutDevice', () => {
@@ -113,6 +115,7 @@ describe('assignAndSignOutDevice', () => {
     })
     mockPrisma.phoneAssignment.findFirst.mockResolvedValue(null)
     mockPrisma.phoneAssignment.create.mockResolvedValue({ id: 'pa-new' })
+    mockPrisma.clientDraft.update.mockResolvedValue({})
 
     const result = await assignAndSignOutDevice('draft-1', '(555) 123-4567', 'T-Mobile', 'IMEI-123')
 
@@ -136,6 +139,12 @@ describe('assignAndSignOutDevice', () => {
     expect(diffHours).toBeGreaterThan(71) // close to 72 hours
     expect(diffHours).toBeLessThan(73)
 
+    // Verify draft auto-advanced to step 3
+    expect(mockPrisma.clientDraft.update).toHaveBeenCalledWith({
+      where: { id: 'draft-1' },
+      data: { step: 3 },
+    })
+
     // Verify event log
     expect(mockPrisma.eventLog.create).toHaveBeenCalledTimes(1)
     const logCall = mockPrisma.eventLog.create.mock.calls[0][0]
@@ -154,6 +163,7 @@ describe('assignAndSignOutDevice', () => {
     })
     mockPrisma.phoneAssignment.findFirst.mockResolvedValue(null)
     mockPrisma.phoneAssignment.create.mockResolvedValue({ id: 'pa-new' })
+    mockPrisma.clientDraft.update.mockResolvedValue({})
 
     const result = await assignAndSignOutDevice('draft-1', '555-9999')
     expect(result.success).toBe(true)
@@ -238,5 +248,104 @@ describe('returnDevice', () => {
     expect(logCall.data.eventType).toBe('DEVICE_RETURNED')
     expect(logCall.data.userId).toBe('bo-1')
     expect(logCall.data.description).toContain('Sarah Martinez')
+  })
+})
+
+describe('reissueDevice', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockPrisma.eventLog.create.mockResolvedValue({})
+    mockPrisma.phoneAssignment.update.mockResolvedValue({})
+  })
+
+  it('rejects unauthenticated users', async () => {
+    mockAuth.mockResolvedValue(null)
+    const result = await reissueDevice('pa-1')
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('Not authenticated')
+  })
+
+  it('rejects AGENT role', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'AGENT' } })
+    const result = await reissueDevice('pa-1')
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('Unauthorized')
+  })
+
+  it('rejects FINANCE role', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'FINANCE' } })
+    const result = await reissueDevice('pa-1')
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('Unauthorized')
+  })
+
+  it('returns error if assignment not found', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } })
+    mockPrisma.phoneAssignment.findUnique.mockResolvedValue(null)
+    const result = await reissueDevice('pa-999')
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('Assignment not found')
+  })
+
+  it('returns error if device is not RETURNED', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } })
+    mockPrisma.phoneAssignment.findUnique.mockResolvedValue({
+      id: 'pa-1',
+      status: 'SIGNED_OUT',
+      phoneNumber: '555-1234',
+      clientDraftId: 'draft-1',
+      agentId: 'agent-1',
+      clientDraft: { firstName: 'Test', lastName: 'User' },
+    })
+    const result = await reissueDevice('pa-1')
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('Device is not in RETURNED status')
+  })
+
+  it('sets assignment back to SIGNED_OUT, clears returnedAt, preserves original dueBackAt, and logs event', async () => {
+    const originalDueBack = new Date('2026-02-27T12:00:00Z')
+    mockAuth.mockResolvedValue({ user: { id: 'bo-1', role: 'BACKOFFICE' } })
+    mockPrisma.phoneAssignment.findUnique.mockResolvedValue({
+      id: 'pa-1',
+      status: 'RETURNED',
+      phoneNumber: '(555) 123-4567',
+      clientDraftId: 'draft-1',
+      agentId: 'agent-1',
+      dueBackAt: originalDueBack,
+      clientDraft: { firstName: 'Sarah', lastName: 'Martinez' },
+    })
+
+    const result = await reissueDevice('pa-1')
+
+    expect(result.success).toBe(true)
+
+    // Verify update call — status restored, returnedAt cleared, dueBackAt NOT changed
+    const updateCall = mockPrisma.phoneAssignment.update.mock.calls[0][0]
+    expect(updateCall.where.id).toBe('pa-1')
+    expect(updateCall.data.status).toBe('SIGNED_OUT')
+    expect(updateCall.data.returnedAt).toBeNull()
+    expect(updateCall.data.dueBackAt).toBeUndefined()
+
+    // Verify event log
+    expect(mockPrisma.eventLog.create).toHaveBeenCalledTimes(1)
+    const logCall = mockPrisma.eventLog.create.mock.calls[0][0]
+    expect(logCall.data.eventType).toBe('DEVICE_REISSUED')
+    expect(logCall.data.userId).toBe('bo-1')
+    expect(logCall.data.description).toContain('Sarah Martinez')
+  })
+
+  it('works for ADMIN role', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } })
+    mockPrisma.phoneAssignment.findUnique.mockResolvedValue({
+      id: 'pa-1',
+      status: 'RETURNED',
+      phoneNumber: '555-9999',
+      clientDraftId: 'draft-1',
+      agentId: 'agent-1',
+      clientDraft: { firstName: 'Test', lastName: 'User' },
+    })
+
+    const result = await reissueDevice('pa-1')
+    expect(result.success).toBe(true)
   })
 })

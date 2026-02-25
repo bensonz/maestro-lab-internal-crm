@@ -5,8 +5,14 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Check, Clock, Eye, Loader2, Phone, Undo2 } from 'lucide-react'
-import { returnDevice } from '@/app/actions/phone-assignments'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import { Check, Clock, Eye, Loader2, Phone, RotateCcw, Undo2 } from 'lucide-react'
+import { returnDevice, reissueDevice } from '@/app/actions/phone-assignments'
 import { toast } from 'sonner'
 import type { IntakeClient } from '@/types/backend-types'
 import { cn } from '@/lib/utils'
@@ -41,6 +47,18 @@ export function ClientIntakeList({
     })
   }
 
+  const handleReissue = (assignmentId: string, clientName: string) => {
+    startTransition(async () => {
+      const result = await reissueDevice(assignmentId)
+      if (result.success) {
+        toast.success(`Device re-issued for ${clientName}`)
+        router.refresh()
+      } else {
+        toast.error(result.error || 'Failed to re-issue device')
+      }
+    })
+  }
+
   if (clients.length === 0) {
     return (
       <p className="py-4 text-center text-xs text-muted-foreground">
@@ -54,14 +72,17 @@ export function ClientIntakeList({
   return (
     <div className="divide-y divide-border/20">
       {clients.map((client) => {
-        // Status badge: only PHONE ISSUED (step-3) or PHONE RETURNED (step-4)
+        // Status badge: based on device activity, not step
         const showStatus = client.status === 'PHONE ISSUED' || client.status === 'PHONE RETURNED'
 
-        // Assign Device — only step-3 when no device assigned yet
-        const showAssignDevice = client.subStage === 'step-3' && client.canAssignPhone
+        // Assign Device — step-2 or step-3 when device requested but not yet assigned
+        const showAssignDevice = client.canAssignPhone
 
-        // Mark Returned — step-3 with active device (PHONE ISSUED)
+        // Mark Returned — active device (PHONE ISSUED), any step
         const showMarkReturned = client.status === 'PHONE ISSUED' && !!client.activeAssignmentId
+
+        // Undo/Re-issue — PHONE RETURNED with a returned assignment, any step
+        const showReissue = client.status === 'PHONE RETURNED' && !!client.returnedAssignmentId
 
         // Approve — only step-4 submitted drafts
         const showApprove = client.subStage === 'step-4' && !!client.resultClientId
@@ -69,7 +90,7 @@ export function ClientIntakeList({
         return (
           <div
             key={client.id}
-            className="grid grid-cols-[1fr_48px_auto] items-center gap-3 px-5 py-2 transition-colors hover:bg-muted/30"
+            className="grid grid-cols-[1fr_auto_48px_auto] items-center gap-3 px-5 py-2 transition-colors hover:bg-muted/30"
             data-testid={`intake-row-${client.id}`}
           >
             {/* Left: Name + agent + status badge */}
@@ -82,7 +103,6 @@ export function ClientIntakeList({
               >
                 {client.name}
               </button>
-              <span className="text-[10px] text-muted-foreground/60">&bull;</span>
               <Link
                 href={`/backoffice/agent-management/${client.agentId}`}
                 className="shrink-0 text-[11px] text-muted-foreground hover:text-primary"
@@ -90,36 +110,35 @@ export function ClientIntakeList({
                 {client.agentName}
               </Link>
               {showStatus && (
-                <Badge
-                  variant="outline"
-                  className={cn('ml-auto shrink-0 text-[10px]', client.statusColor)}
-                >
-                  {client.status}
-                </Badge>
+                client.assignedPhone ? (
+                  <TooltipProvider delayDuration={200}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge
+                          variant="outline"
+                          className={cn('ml-auto shrink-0 cursor-default text-[10px]', client.statusColor)}
+                        >
+                          {client.status}
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="text-xs">
+                        {client.assignedPhone}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : (
+                  <Badge
+                    variant="outline"
+                    className={cn('ml-auto shrink-0 text-[10px]', client.statusColor)}
+                  >
+                    {client.status}
+                  </Badge>
+                )
               )}
             </div>
 
-            {/* Days since update — fixed width column for alignment */}
-            <div className="flex items-center justify-end gap-1 text-[11px] text-muted-foreground">
-              <Clock className="h-3 w-3" />
-              {client.daysLabel}
-            </div>
-
-            {/* Action buttons */}
+            {/* Inner: Action buttons (Assign Device / Mark Returned / Approve) */}
             <div className="flex items-center justify-end gap-1.5">
-              {/* Review — always visible */}
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 cursor-pointer gap-1 px-2 text-xs"
-                onClick={() => onReviewDraft?.(client.id, client.name, client.resultClientId)}
-                data-testid={`review-draft-${client.id}`}
-              >
-                <Eye className="h-3 w-3" />
-                Review
-              </Button>
-
-              {/* Assign Device — step-3, no device yet */}
               {showAssignDevice && (
                 <Button
                   size="sm"
@@ -133,7 +152,6 @@ export function ClientIntakeList({
                 </Button>
               )}
 
-              {/* Mark Returned — step-3 with active device (PHONE ISSUED) */}
               {showMarkReturned && (
                 <Button
                   size="sm"
@@ -152,7 +170,24 @@ export function ClientIntakeList({
                 </Button>
               )}
 
-              {/* Approve — only step-4 submitted drafts */}
+              {showReissue && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 gap-1 px-2.5 text-xs"
+                  onClick={() => handleReissue(client.returnedAssignmentId!, client.name)}
+                  disabled={isPending}
+                  data-testid={`reissue-device-${client.id}`}
+                >
+                  {isPending ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <RotateCcw className="h-3 w-3" />
+                  )}
+                  Re-issue
+                </Button>
+              )}
+
               {showApprove && (
                 <Button
                   size="sm"
@@ -166,6 +201,24 @@ export function ClientIntakeList({
                 </Button>
               )}
             </div>
+
+            {/* Far right: Days since update */}
+            <div className="flex items-center justify-end gap-1 text-[11px] text-muted-foreground">
+              <Clock className="h-3 w-3" />
+              {client.daysLabel}
+            </div>
+
+            {/* Far right: Review — always visible */}
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 cursor-pointer gap-1 px-2 text-xs"
+              onClick={() => onReviewDraft?.(client.id, client.name, client.resultClientId)}
+              data-testid={`review-draft-${client.id}`}
+            >
+              <Eye className="h-3 w-3" />
+              Review
+            </Button>
           </div>
         )
       })}
