@@ -576,6 +576,41 @@ export function Step2Background({ formData, onChange, onRiskFlagsChange }: Step2
             </Field>
             <Field>
               <FieldLabel className="flex items-center gap-1.5">
+                Owes Bank / Negative Balance
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button type="button" className="inline-flex text-muted-foreground hover:text-foreground transition-colors">
+                      <HelpCircle className="h-3.5 w-3.5" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs text-left">
+                    Has the client owed money to or held a negative balance at any of the 3 banks? This is acceptable as long as the client agrees to settle the outstanding balance before reopening the account.
+                  </TooltipContent>
+                </Tooltip>
+              </FieldLabel>
+              <div className="flex items-center gap-4 mt-1">
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <Checkbox
+                    checked={formData.bankNegativeBalance === true}
+                    onCheckedChange={() => onChange('bankNegativeBalance', true)}
+                    className="rounded-full"
+                    data-testid="bank-negative-balance-yes"
+                  />
+                  Yes
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <Checkbox
+                    checked={formData.bankNegativeBalance === false}
+                    onCheckedChange={() => onChange('bankNegativeBalance', false)}
+                    className="rounded-full"
+                    data-testid="bank-negative-balance-no"
+                  />
+                  No
+                </label>
+              </div>
+            </Field>
+            <Field>
+              <FieldLabel className="flex items-center gap-1.5">
                 Banks De-banked
                 <Tooltip>
                   <TooltipTrigger asChild>
