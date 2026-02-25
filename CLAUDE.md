@@ -221,8 +221,8 @@ Agents create new clients through a 4-step intake form at `/agent/new-client`.
 **Steps (all use `card-terminal` SectionCard pattern — collapsible cards, collapsed by default):**
 1. **Pre-Qual** — 3 collapsible SectionCards:
    - **ID Document**: Upload dropzone with OCR auto-detection modal (mock), auto-fills first/last name, DOB, address, ID expiry. Fields: first/last name*, DOB (with computed age), ID expiry, address, ID number. **Different-address flow**: checkbox "Client currently lives at a different address" → reveals sub-section with Current Living Address, Duration, Proof selects; also auto-sets `multipleAddresses` risk flag and DB `addressMismatch` field
-   - **Company Gmail**: Gmail address, Gmail password (type=password), Gmail registration screenshot upload with OCR detection (detects email address, auto-fills Gmail field)
-   - **BetMGM Verification**: BetMGM login email + password input fields, Registration screenshot (OCR detects "deposit" word to confirm registration), Login credentials screenshot (OCR detects credentials + deposit options), Phone number
+   - **Company Gmail**: Gmail address, Gmail password — both auto-filled with deterministic suggestions (one stable suggestion per client, based on `stableHash(name+DOB)`). Suggestion text shown on right side of label, clickable to fill. Gmail registration screenshot upload with OCR detection (detects email address, auto-fills Gmail field)
+   - **BetMGM Verification**: BetMGM login email (auto-fills from assigned Gmail) + password (deterministic suggestion like Gmail). Registration screenshot (OCR detects "deposit" word to confirm registration), Login credentials screenshot (OCR detects credentials + deposit options — flags `betmgmEmailMismatch` risk flag if detected email differs from assigned Gmail), Phone number
    - All upload areas have hover tooltips (what to upload / what NOT to upload)
    - All 3 screenshot uploads (Gmail, BetMGM reg, BetMGM login) trigger OCR detection with modals
    - BetMGM detection auto-fills credential fields and sets `betmgmCheckPassed` when deposit detected
@@ -244,6 +244,7 @@ Agents create new clients through a 4-step intake form at `/agent/new-client`.
 - **ID expiry** 2-tier: <75 days → -20, 75-99 days → -10, >=100 or null → 0
 - **Boolean flags**: PayPal previously used: -10, De-banked: -30, Criminal record: -30
 - **Multiple addresses**: informational only (0 points) — auto-set when `livesAtDifferentAddress` is true in Step 1
+- **BetMGM email mismatch**: informational only (0 points) — auto-set when OCR-detected BetMGM email differs from assigned Gmail
 - **Risk Assessment Questions** (scored via lookup tables):
   - Household Awareness: supportive=0, neutral=-3, not_aware=-8, n/a=0
   - Family Tech Support: willing=0, uninvolved=-5, no=-10, prefer_not=-15
@@ -256,6 +257,7 @@ Agents create new clients through a 4-step intake form at `/agent/new-client`.
 - **Thresholds**: 0 to +10 = low (green), -1 to -29 = medium (amber), -30 or below = high (red)
 - **Score range**: Best possible = +10 (all IDs present, no flags), Worst possible = -158 (all flags active)
 - Risk panel displays days remaining for ID expiry (e.g., "ID Expiring in 45D"), assessment question values, and bank info flags
+- **Risk panel order**: Missing IDs → ID Expiring → Multiple Addresses → BetMGM Email Mismatch → PayPal → De-banked → Criminal Record → Household Awareness → Family Support → Financial Autonomy → Bank info flags
 
 **Inner-Step Progress (Step 1):** 5 items — ID document uploaded, Gmail filled, Gmail screenshot uploaded, at least one BetMGM screenshot uploaded, BetMGM check passed
 
@@ -276,7 +278,7 @@ Agents create new clients through a 4-step intake form at `/agent/new-client`.
 - `src/app/agent/new-client/_components/address-detection-modal.tsx` — Address proof detection confirmation dialog
 - `src/app/agent/new-client/_components/step2-background.tsx` — Step 2: 3 SectionCards (Identity & Document with SSN/address proof/missing ID/criminal record, Platforms History with bank/de-banked multi-check + PayPal conditional + sportsbook multi-select with per-book status, Client Background with demographics + 4 risk assessment questions) with upload + OCR detection
 - `src/app/agent/new-client/_components/step3-platforms.tsx` — Step 3: Device Info Banner (phone, Gmail, countdown) + 2 SectionCards (Financial Platforms with flex-column layout, Sportsbook Platforms with grid). Fires bank-related risk flags (PIN override, bank name override, phone/email confirmation) via `onRiskFlagsChange`
-- `src/app/agent/new-client/_components/step3-platform-card.tsx` — Compact platform card: placeholder-only inputs (Username, Password), inline screenshot upload with `ScreenshotThumbnail size="sm"`. Bank-specific: 2-row layout with bank dropdown (OCR auto-detect from screenshot), PIN field (default 2580), reminder text, phone/email confirmation checkbox
+- `src/app/agent/new-client/_components/step3-platform-card.tsx` — Compact platform card: equal-width Username + Password inputs (`flex-1`), inline screenshot upload with `ScreenshotThumbnail size="sm"`, password suggestion text on label (clickable). Bank-specific: 2-row layout with bank dropdown (OCR auto-detect from screenshot), PIN field (default 2580), reminder text, phone/email confirmation checkbox. OCR mismatch warning shown when detected credentials differ from suggestions
 - `src/app/agent/new-client/_components/step4-contract.tsx` — Step 4: 2 SectionCards (Contract Document, Submission Checklist)
 - `src/app/agent/new-client/_components/risk-panel.tsx` — Right panel: risk score + flags
 - `src/app/actions/client-drafts.ts` — CRUD server actions (create, save, submit, delete, getFullDraft with role-based auth)
@@ -287,7 +289,7 @@ Agents create new clients through a 4-step intake form at `/agent/new-client`.
 - `src/backend/data/phone-assignments.ts` — Queries: getPendingDeviceRequests (drafts with reservation date + no active assignment), getActivePhoneAssignments (SIGNED_OUT), getReturnedPhoneAssignments (RETURNED), getAssignmentForDraft (most recent assignment for draft, any status — powers Step 3 device info banner)
 - `src/app/actions/phone-assignments.ts` — Server actions: assignAndSignOutDevice (creates assignment + auto-advances draft to step 3), returnDevice, reissueDevice (preserves original dueBackAt). All ADMIN/BACKOFFICE only, with EventLog audit
 - `src/lib/validations/client-draft.ts` — Zod per-step + submit schemas
-- `src/lib/risk-score.ts` — Pure negative risk score calculation (missing IDs, ID expiry, boolean flags, assessment question weights, bank info flags)
+- `src/lib/risk-score.ts` — Pure negative risk score calculation (missing IDs, ID expiry, boolean flags, BetMGM email mismatch, assessment question weights, bank info flags)
 
 ### Bonus & Commission System
 
@@ -337,7 +339,7 @@ Rookie (0★) → 1★ → 2★ → 3★ → 4★ → ED → SED → MD → CMO
 - `src/app/actions/commission.ts` — Mark allocation paid, bulk mark paid
 - `src/app/actions/leadership.ts` — Check+promote leadership, quarterly settlement CRUD
 - `src/types/index.ts` — Commission enums (ClientStatus, BonusPoolStatus, AllocationType, etc.)
-- `src/types/backend-types.ts` — Commission data interfaces (CommissionOverviewData, AgentEarningsData, etc.), IntakeClient (includes `resultClientId` for submitted drafts), PlatformEntry (username, accountId, screenshot, status, pin?, bank?, bankAutoDetected?, bankPhoneEmailConfirmed?), RiskAssessment (includes bankPinOverride, bankNameOverride, bankPhoneEmailNotConfirmed flags)
+- `src/types/backend-types.ts` — Commission data interfaces (CommissionOverviewData, AgentEarningsData, etc.), IntakeClient (includes `resultClientId` for submitted drafts), PlatformEntry (username, accountId, screenshot, status, pin?, bank?, bankAutoDetected?, bankPhoneEmailConfirmed?), RiskAssessment (includes betmgmEmailMismatch, bankPinOverride, bankNameOverride, bankPhoneEmailNotConfirmed flags)
 
 ### Key Patterns
 
