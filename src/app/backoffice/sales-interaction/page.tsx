@@ -7,7 +7,7 @@ import {
 } from '@/lib/mock-data'
 import { SalesInteractionView } from './_components/sales-interaction-view'
 import { getAllDraftsForBackoffice } from '@/backend/data/client-drafts'
-import { getActivePhoneAssignments } from '@/backend/data/phone-assignments'
+import { getActivePhoneAssignments, getReturnedPhoneAssignments } from '@/backend/data/phone-assignments'
 import { getAgentsForHierarchy } from '@/backend/data/users'
 import { getAgentDisplayTier, LEADERSHIP_TIERS, STAR_THRESHOLDS } from '@/lib/commission-constants'
 import type { IntakeClient, InProgressSubStage } from '@/types/backend-types'
@@ -66,35 +66,48 @@ export default async function SalesInteractionPage() {
   let draftIntake: IntakeClient[] = []
 
   try {
-    const [drafts, activeAssignments] = await Promise.all([
+    const [drafts, activeAssignments, returnedAssignments] = await Promise.all([
       getAllDraftsForBackoffice(),
       getActivePhoneAssignments(),
+      getReturnedPhoneAssignments(),
     ])
 
-    // Map draft ID → active assignment ID
+    // Map draft ID → active assignment ID + phone number
     const draftToAssignmentId = new Map<string, string>()
+    const draftToPhoneNumber = new Map<string, string>()
     for (const a of activeAssignments) {
       draftToAssignmentId.set(a.clientDraftId, a.id)
+      draftToPhoneNumber.set(a.clientDraftId, a.phoneNumber)
+    }
+
+    // Map draft ID → returned assignment ID + phone number (most recent return per draft)
+    const draftToReturnedId = new Map<string, string>()
+    for (const a of returnedAssignments) {
+      if (!draftToReturnedId.has(a.clientDraftId)) {
+        draftToReturnedId.set(a.clientDraftId, a.id)
+        draftToPhoneNumber.set(a.clientDraftId, a.phoneNumber)
+      }
     }
 
     draftIntake = drafts.map((d) => {
       const isSubmitted = d.status === 'SUBMITTED'
       const subStage = stepToSubStage(d.step)
       const activeAssignmentId = draftToAssignmentId.get(d.id) ?? null
+      const returnedAssignmentId = draftToReturnedId.get(d.id) ?? null
 
-      // Status: PHONE ISSUED (step-3 with active device), PHONE RETURNED (step-4), empty otherwise
+      // Status based on actual device activity, not step
       let status = ''
       let statusColor = ''
-      if (subStage === 'step-3' && activeAssignmentId) {
+      if (activeAssignmentId) {
         status = 'PHONE ISSUED'
         statusColor = 'text-success'
-      } else if (subStage === 'step-4') {
+      } else if (returnedAssignmentId) {
         status = 'PHONE RETURNED'
         statusColor = 'text-primary'
       }
 
-      // Assign Device only on step-3 when device reservation exists but no active assignment yet
-      const canAssignPhone = subStage === 'step-3' && !!(d.deviceReservationDate) && !activeAssignmentId
+      // Assign Device: step-2 or step-3 when device reservation exists but no active or returned assignment
+      const canAssignPhone = (subStage === 'step-2' || subStage === 'step-3') && !!(d.deviceReservationDate) && !activeAssignmentId && !returnedAssignmentId
 
       const daysSince = Math.floor(
         (Date.now() - new Date(d.updatedAt).getTime()) / (1000 * 60 * 60 * 24),
@@ -123,6 +136,8 @@ export default async function SalesInteractionPage() {
         rejectedPlatforms: [],
         resultClientId: d.resultClientId,
         activeAssignmentId,
+        returnedAssignmentId,
+        assignedPhone: draftToPhoneNumber.get(d.id) ?? null,
       }
     })
   } catch (e) {

@@ -97,6 +97,29 @@ export async function mockExtractFromAddressProof(_file: File): Promise<AddressP
   }
 }
 
+export interface BankExtractionResult {
+  bankName: 'chase' | 'citi' | 'bofa'
+  username: string
+  password: string
+  confidence: number
+}
+
+/**
+ * Mock OCR extraction from a bank screenshot.
+ * Detects bank name, username, password, and PIN from the uploaded screenshot.
+ * Replace with real OCR/AI service in production.
+ */
+export async function mockExtractFromBank(_file: File): Promise<BankExtractionResult> {
+  await new Promise((resolve) => setTimeout(resolve, 800))
+
+  return {
+    bankName: 'chase',
+    username: 'john.smith2026',
+    password: 'Ch@se_2026!',
+    confidence: 0.91,
+  }
+}
+
 export async function mockExtractFromBetmgm(
   _file: File,
   type: 'registration' | 'login',

@@ -10,6 +10,9 @@ interface RiskFlags {
   householdAwareness?: string
   familyTechSupport?: string
   financialAutonomy?: string
+  bankPinOverride?: boolean
+  bankNameOverride?: boolean
+  bankPhoneEmailNotConfirmed?: boolean
 }
 
 const HOUSEHOLD_AWARENESS_SCORES: Record<string, number> = {
@@ -64,6 +67,9 @@ export function calculateRiskScore(flags: RiskFlags): RiskAssessment {
   const householdAwareness = flags.householdAwareness ?? ''
   const familyTechSupport = flags.familyTechSupport ?? ''
   const financialAutonomy = flags.financialAutonomy ?? ''
+  const bankPinOverride = flags.bankPinOverride ?? false
+  const bankNameOverride = flags.bankNameOverride ?? false
+  const bankPhoneEmailNotConfirmed = flags.bankPhoneEmailNotConfirmed ?? false
 
   // Missing IDs: 0 missing = +10 bonus, each missing type = -10
   if (missingIdCount === 0) {
@@ -117,6 +123,9 @@ export function calculateRiskScore(flags: RiskFlags): RiskAssessment {
       householdAwareness,
       familyTechSupport,
       financialAutonomy,
+      bankPinOverride,
+      bankNameOverride,
+      bankPhoneEmailNotConfirmed,
     },
   }
 }

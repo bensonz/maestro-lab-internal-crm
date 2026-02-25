@@ -51,6 +51,7 @@ export const EventType = {
   CLIENT_DRAFT_SUBMITTED: 'CLIENT_DRAFT_SUBMITTED',
   DEVICE_SIGNED_OUT: 'DEVICE_SIGNED_OUT',
   DEVICE_RETURNED: 'DEVICE_RETURNED',
+  DEVICE_REISSUED: 'DEVICE_REISSUED',
 } as const
 export type EventType = (typeof EventType)[keyof typeof EventType]
 

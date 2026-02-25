@@ -533,10 +533,11 @@ export const MOCK_INTAKE_CLIENTS: IntakeClient[] = [
     executionDeadline: null, deadlineExtensions: 0, pendingExtensionRequest: null,
     platformProgress: { verified: 0, total: 0 }, exceptionStates: [], rejectedPlatforms: [],
     activeAssignmentId: 'mock-assignment-1',
+    assignedPhone: '(555) 777-0001',
   },
   {
     id: 'client-8', name: 'Lisa Anderson', status: '', statusType: 'pending_platform', statusColor: '', agentId: 'user-agent-1', agentName: 'Marcus Rivera',
-    days: 7, daysLabel: '7d', canApprove: false, canAssignPhone: true, subStage: 'step-3',
+    days: 7, daysLabel: '7d', canApprove: false, canAssignPhone: true, subStage: 'step-2',
     executionDeadline: null, deadlineExtensions: 0, pendingExtensionRequest: null,
     platformProgress: { verified: 0, total: 0 }, exceptionStates: [], rejectedPlatforms: [],
   },
@@ -545,6 +546,8 @@ export const MOCK_INTAKE_CLIENTS: IntakeClient[] = [
     days: 22, daysLabel: '22d', canApprove: false, canAssignPhone: false, subStage: 'step-4',
     executionDeadline: null, deadlineExtensions: 0, pendingExtensionRequest: null,
     platformProgress: { verified: 0, total: 0 }, exceptionStates: [], rejectedPlatforms: [],
+    returnedAssignmentId: 'mock-returned-1',
+    assignedPhone: '(555) 777-0002',
   },
   {
     id: 'client-3', name: 'David Lee', status: '', statusType: 'pending_platform', statusColor: '', agentId: 'user-agent-1', agentName: 'Marcus Rivera',

@@ -67,6 +67,12 @@ export async function assignAndSignOutDevice(
     },
   })
 
+  // Auto-advance draft to step 3 — device assignment unlocks platform registration
+  await prisma.clientDraft.update({
+    where: { id: draftId },
+    data: { step: 3 },
+  })
+
   await prisma.eventLog.create({
     data: {
       eventType: 'DEVICE_SIGNED_OUT',
@@ -84,6 +90,7 @@ export async function assignAndSignOutDevice(
 
   revalidatePath('/backoffice/sales-interaction')
   revalidatePath('/backoffice/phone-tracking')
+  revalidatePath('/agent/new-client')
 
   return { success: true, assignmentId: assignment.id }
 }
@@ -128,6 +135,62 @@ export async function returnDevice(assignmentId: string) {
     data: {
       eventType: 'DEVICE_RETURNED',
       description: `Device returned for ${assignment.clientDraft.firstName} ${assignment.clientDraft.lastName}: ${assignment.phoneNumber}`,
+      userId: session.user.id,
+      metadata: {
+        assignmentId,
+        draftId: assignment.clientDraftId,
+        agentId: assignment.agentId,
+        phoneNumber: assignment.phoneNumber,
+      },
+    },
+  })
+
+  revalidatePath('/backoffice/sales-interaction')
+  revalidatePath('/backoffice/phone-tracking')
+
+  return { success: true }
+}
+
+export async function reissueDevice(assignmentId: string) {
+  const session = await auth()
+  if (!session?.user) return { success: false, error: 'Not authenticated' }
+
+  const role = session.user.role
+  if (role !== 'ADMIN' && role !== 'BACKOFFICE') {
+    return { success: false, error: 'Unauthorized' }
+  }
+
+  const assignment = await prisma.phoneAssignment.findUnique({
+    where: { id: assignmentId },
+    select: {
+      id: true,
+      status: true,
+      phoneNumber: true,
+      clientDraftId: true,
+      agentId: true,
+      dueBackAt: true,
+      clientDraft: { select: { firstName: true, lastName: true } },
+    },
+  })
+
+  if (!assignment) return { success: false, error: 'Assignment not found' }
+  if (assignment.status !== 'RETURNED') {
+    return { success: false, error: 'Device is not in RETURNED status' }
+  }
+
+  // Restore to SIGNED_OUT — keep original dueBackAt (clock never stopped)
+  await prisma.phoneAssignment.update({
+    where: { id: assignmentId },
+    data: {
+      status: 'SIGNED_OUT',
+      returnedAt: null,
+    },
+  })
+
+  await prisma.eventLog.create({
+    data: {
+      eventType: 'DEVICE_REISSUED',
+      description: `Device re-issued for ${assignment.clientDraft.firstName} ${assignment.clientDraft.lastName}: ${assignment.phoneNumber}`,
       userId: session.user.id,
       metadata: {
         assignmentId,

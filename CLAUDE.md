@@ -26,7 +26,7 @@ The backend has a fully functional **commission system** with real DB queries wi
 - **Agent Detail page** (backoffice) — real agent profile, earnings, hierarchy from DB; inline-editable fields with audit trail (activity timeline from EventLog). Agent name in header is plain text (no hover card — hover card lives on the Agent Management list page instead).
 - **Agent New Client page** — 4-step intake form with drafts panel, risk assessment, auto-save, and submission to real Client record
 - **Client draft** server actions (create, save, submit, delete) — auth-guarded, ownership-checked
-- **Phone assignment** server actions (assign & sign out device, return device) — ADMIN/BACKOFFICE only, with EventLog audit trail
+- **Phone assignment** server actions (assign & sign out device, return device, re-issue device) — ADMIN/BACKOFFICE only, with EventLog audit trail
 - **Search API** (simplified — searches Users only)
 - **NextAuth v5** credentials-based authentication with JWT sessions
 
@@ -53,8 +53,8 @@ ClientDraft (DRAFT) → Agent submits → ClientDraft (SUBMITTED) + Client (PEND
 - **Backoffice "Sales Interaction" page** — In Progress section shows real DB drafts combined with mock data in 4 step-based sub-stages. Each row has a consistent layout:
   - **Left:** Client name (clickable) + Agent name (link) + status badge (only `PHONE ISSUED` or `PHONE RETURNED`)
   - **Center:** Days since update (aligned column)
-  - **Right:** Action buttons — **Review** (always visible), plus step-specific: **Assign Device** (step-3, no device yet), **Mark Returned** (step-3, device active), **Approve** (step-4, submitted)
-  - **Device lifecycle integrated into rows** — no separate Device Requests section. Step 1-2: no device buttons. Step 3: Assign Device → PHONE ISSUED + Mark Returned. Step 4: PHONE RETURNED + Approve.
+  - **Right:** Action buttons — **Review** (always visible), plus activity-based: **Assign Device** (reservation exists, no device yet), **Mark Returned** (device active), **Re-issue** (device returned), **Approve** (step-4, submitted)
+  - **Device lifecycle integrated into rows** — based on actual device activity, not step. Assign Device available on step-2 or step-3 (when reservation exists, no active/returned assignment). Agent stays blocked on Step 2 until backoffice assigns device; assigning auto-advances draft to step 3 in DB. PHONE ISSUED / PHONE RETURNED badges show assigned phone number on hover (Tooltip). PHONE ISSUED badge + Mark Returned button appear whenever a device is actively signed out (any step). PHONE RETURNED badge + Re-issue button appear whenever a device has been returned (any step). Re-issue sets assignment back to SIGNED_OUT, clears returnedAt (preserves original dueBackAt — clock never stops), and logs `DEVICE_REISSUED` event. Approve button on step-4 for submitted drafts.
   - **Review dialog**: 4-step read-only with Approve Client on Step 4 for submitted drafts.
   - Real DB drafts always shown alongside mock data (mock kept for UI development).
 - **Backoffice "Client Management" page** — Intended to show only APPROVED clients (currently mock). Client detail view has: Contact column (Gmail label, Gmail Password field, Personal Phone), sportsbook platform credentials (Login/Password from DB), risk factor badges in header (De-banked, Criminal Record, Address Mismatch, PayPal Used, ID Expiring, PIN Issue).
@@ -118,7 +118,7 @@ This is a CRM for managing client onboarding across multiple sports betting plat
 - **PromotionLog** — Immutable audit of star level and leadership tier changes.
 - **QuarterlySettlement** — Leadership P&L commission. Status: DRAFT → APPROVED → PAID. Unique per [leaderId, year, quarter].
 - **PhoneAssignment** — Device sign-out tracking. Links to ClientDraft, agent (User), and signedOutBy (User). Status: SIGNED_OUT → RETURNED. Tracks phoneNumber, carrier, deviceId, signedOutAt, dueBackAt (3-day window), returnedAt. OVERDUE is computed at view time, not stored.
-- **EventLog** — Append-only audit trail. EventType enum covers login, application, user management, commission, leadership, client draft, and device sign-out/return events.
+- **EventLog** — Append-only audit trail. EventType enum covers login, application, user management, commission, leadership, client draft, and device sign-out/return/re-issue events.
 
 ### User Roles
 
@@ -231,13 +231,13 @@ Agents create new clients through a 4-step intake form at `/agent/new-client`.
    - **Identity & Document**: SSN upload + OCR detection, SSN Number field, Citizenship dropdown, Missing ID Type (multi-select: Passport, State ID, Driver's License), Secondary Address Proof (conditional on `livesAtDifferentAddress`), Criminal Record — separated by `border-t`
    - **Platforms History**: Banks Opened/De-banked multi-check dropdowns (de-banked has tooltip definition), PayPal conditional flow (Yes → SSN linked? → browser verified? → guidance; No → create new account guidance), Sportsbook History (Yes/No → multi-select 8 sportsbooks → per-sportsbook status: Lost money/Won money/IDK)
    - **Client Background**: Demographics (occupation, annual income, employment status, marital status, credit score, dependents, education level) + 4 Risk Assessment Questions (Household Awareness & Support, Family Available for Account Setup, Financial Decision Autonomy, Online Account Management Comfort)
-   - **Device Reservation Gate**: After Step 2, "Next" button becomes "Request for Device" (disabled until reservation date selected). Warning box explains the 3-day device return window.
-3. **Platforms** — Device Info Banner (if phone assigned: phone number, company Gmail, 3-day countdown via `DeadlineCountdown`) + 2 SectionCards: Financial Platforms, Sportsbook Platforms (platform-by-platform registration for all 11 platforms)
+   - **Device Reservation Gate**: After Step 2, "Next" button becomes "Request for Device" (disabled until reservation date selected). Warning box explains the 3-day device return window. Clicking "Request for Device" saves the reservation but does **NOT** advance to Step 3 — agent stays on Step 2 with "Awaiting Device..." state until backoffice assigns a device. Once device is assigned (PHONE ISSUED), Step 3 unlocks automatically on page refresh. Step indicator clicks to Step 3/4 are also blocked while waiting.
+3. **Platforms** — Device Info Banner (if phone assigned: phone number, company Gmail, 3-day countdown via `DeadlineCountdown`) + 2 SectionCards: Financial Platforms, Sportsbook Platforms (platform-by-platform registration for all 11 platforms). Compact inline platform cards with placeholder-only inputs (no field labels). **Online Banking card** has special layout: 2 rows — Row 1: bank dropdown (Chase/Citi/BofA, auto-detected from screenshot OCR) + screenshot upload; Row 2: username + password + PIN (default 2580). Includes reminder text ("Bring: SSN, Address Proof, ID · Reserve now") and confirmation checkbox ("Client used our phone number and email at the bank"). Financial section uses flex columns layout so Bank card height doesn't affect PayPal/EdgeBoost. Platform order: PayPal, Online Banking, EdgeBoost.
 4. **Contract** — 2 SectionCards: Contract Document, Submission Checklist
 
 **Layout:** 3-panel — left drafts panel (w-56), center form (full-width, no max-w constraint), right risk assessment panel (w-56). Step indicator is centered at `max-w-2xl` while form content stretches full width.
 
-**Auto-save:** 500ms debounced save on field changes. Flushes before step navigation or submission.
+**Auto-save:** 500ms debounced save on field changes. Flushes before step navigation or submission. The `step` field saved to DB always reflects the **highest step ever reached** (not the current navigation step), so navigating back from step 4 to step 1 still shows step 4 in the drafts panel. Tracked via `highestStepRef` in `client-form.tsx`.
 
 **Risk Assessment:** Pure function `calculateRiskScore()` uses **negative scoring** (deductions from 0):
 - **Missing IDs**: 0 missing = +10 bonus, each missing type = -10 (max -30 for 3 missing)
@@ -249,9 +249,13 @@ Agents create new clients through a 4-step intake form at `/agent/new-client`.
   - Family Tech Support: willing=0, uninvolved=-5, no=-10, prefer_not=-15
   - Financial Autonomy: independent=0, shared=-5, dependent=-15
   - Digital Comfort: all values=0 (informational only)
+- **Bank info flags** (all informational only, 0 points):
+  - PIN Changed: bank PIN differs from default 2580
+  - Bank Changed: agent overrode OCR-detected bank name
+  - Bank Phone/Email Unverified: bank card touched but "Client used our phone number and email" checkbox unchecked
 - **Thresholds**: 0 to +10 = low (green), -1 to -29 = medium (amber), -30 or below = high (red)
 - **Score range**: Best possible = +10 (all IDs present, no flags), Worst possible = -158 (all flags active)
-- Risk panel displays days remaining for ID expiry (e.g., "ID Expiring in 45D") and assessment question values
+- Risk panel displays days remaining for ID expiry (e.g., "ID Expiring in 45D"), assessment question values, and bank info flags
 
 **Inner-Step Progress (Step 1):** 5 items — ID document uploaded, Gmail filled, Gmail screenshot uploaded, at least one BetMGM screenshot uploaded, BetMGM check passed
 
@@ -264,26 +268,26 @@ Agents create new clients through a 4-step intake form at `/agent/new-client`.
 - `src/app/agent/new-client/_components/step-indicator.tsx` — 4-step progress indicator
 - `src/app/agent/new-client/_components/client-form.tsx` — Form state, auto-save, step navigation
 - `src/app/agent/new-client/_components/step1-prequal.tsx` — Step 1 fields (3 collapsible SectionCards: ID, Gmail, BetMGM, with uploads + OCR detection + different-address flow)
-- `src/app/agent/new-client/_components/mock-extract-id.ts` — Mock OCR extraction for ID, Gmail, BetMGM screenshots, SSN documents, and address proof
+- `src/app/agent/new-client/_components/mock-extract-id.ts` — Mock OCR extraction for ID, Gmail, BetMGM screenshots, SSN documents, address proof, and bank screenshots (detects bank name, username, password, PIN)
 - `src/app/agent/new-client/_components/id-detection-modal.tsx` — ID field confirmation dialog with checkboxes
 - `src/app/agent/new-client/_components/gmail-detection-modal.tsx` — Gmail email detection dialog
 - `src/app/agent/new-client/_components/betmgm-detection-modal.tsx` — BetMGM detection dialog (credentials + deposit detection)
 - `src/app/agent/new-client/_components/ssn-detection-modal.tsx` — SSN number detection confirmation dialog
 - `src/app/agent/new-client/_components/address-detection-modal.tsx` — Address proof detection confirmation dialog
 - `src/app/agent/new-client/_components/step2-background.tsx` — Step 2: 3 SectionCards (Identity & Document with SSN/address proof/missing ID/criminal record, Platforms History with bank/de-banked multi-check + PayPal conditional + sportsbook multi-select with per-book status, Client Background with demographics + 4 risk assessment questions) with upload + OCR detection
-- `src/app/agent/new-client/_components/step3-platforms.tsx` — Step 3: Device Info Banner (phone, Gmail, countdown) + 2 SectionCards (Financial Platforms, Sportsbook Platforms)
-- `src/app/agent/new-client/_components/step3-platform-card.tsx` — Individual platform card
+- `src/app/agent/new-client/_components/step3-platforms.tsx` — Step 3: Device Info Banner (phone, Gmail, countdown) + 2 SectionCards (Financial Platforms with flex-column layout, Sportsbook Platforms with grid). Fires bank-related risk flags (PIN override, bank name override, phone/email confirmation) via `onRiskFlagsChange`
+- `src/app/agent/new-client/_components/step3-platform-card.tsx` — Compact platform card: placeholder-only inputs (Username, Password), inline screenshot upload with `ScreenshotThumbnail size="sm"`. Bank-specific: 2-row layout with bank dropdown (OCR auto-detect from screenshot), PIN field (default 2580), reminder text, phone/email confirmation checkbox
 - `src/app/agent/new-client/_components/step4-contract.tsx` — Step 4: 2 SectionCards (Contract Document, Submission Checklist)
 - `src/app/agent/new-client/_components/risk-panel.tsx` — Right panel: risk score + flags
 - `src/app/actions/client-drafts.ts` — CRUD server actions (create, save, submit, delete, getFullDraft with role-based auth)
 - `src/app/backoffice/sales-interaction/_components/draft-review-dialog.tsx` — 4-step read-only review dialog with Approve Client button for submitted drafts (uses `useReducer` for state, calls `approveClient`)
-- `src/app/backoffice/sales-interaction/_components/client-intake-list.tsx` — Intake row list with consistent layout: Review (always), Assign Device (step-3 no device), Mark Returned (step-3 PHONE ISSUED), Approve (step-4 submitted). Status badges: only PHONE ISSUED / PHONE RETURNED
+- `src/app/backoffice/sales-interaction/_components/client-intake-list.tsx` — Intake row list with consistent layout: Review (always), Assign Device (step-2/3, device reservation exists, no active/returned assignment), Mark Returned (PHONE ISSUED, any step), Re-issue (PHONE RETURNED, any step), Approve (step-4 submitted). Status badges: only PHONE ISSUED / PHONE RETURNED with phone number Tooltip on hover
 - `src/app/backoffice/sales-interaction/_components/device-assign-dialog.tsx` — Phone/carrier/deviceId assignment dialog
 - `src/backend/data/client-drafts.ts` — Draft queries (by closer, by ID, ownership check, getAllDrafts, getAllDraftsForBackoffice — fetches DRAFT + SUBMITTED with PENDING client)
-- `src/backend/data/phone-assignments.ts` — Queries: getPendingDeviceRequests (drafts with reservation date + no active assignment), getActivePhoneAssignments (SIGNED_OUT), getAssignmentForDraft (most recent assignment for draft, any status — powers Step 3 device info banner)
-- `src/app/actions/phone-assignments.ts` — Server actions: assignAndSignOutDevice, returnDevice (ADMIN/BACKOFFICE only, with EventLog audit)
+- `src/backend/data/phone-assignments.ts` — Queries: getPendingDeviceRequests (drafts with reservation date + no active assignment), getActivePhoneAssignments (SIGNED_OUT), getReturnedPhoneAssignments (RETURNED), getAssignmentForDraft (most recent assignment for draft, any status — powers Step 3 device info banner)
+- `src/app/actions/phone-assignments.ts` — Server actions: assignAndSignOutDevice (creates assignment + auto-advances draft to step 3), returnDevice, reissueDevice (preserves original dueBackAt). All ADMIN/BACKOFFICE only, with EventLog audit
 - `src/lib/validations/client-draft.ts` — Zod per-step + submit schemas
-- `src/lib/risk-score.ts` — Pure negative risk score calculation (missing IDs, ID expiry, boolean flags, assessment question weights)
+- `src/lib/risk-score.ts` — Pure negative risk score calculation (missing IDs, ID expiry, boolean flags, assessment question weights, bank info flags)
 
 ### Bonus & Commission System
 
@@ -333,7 +337,7 @@ Rookie (0★) → 1★ → 2★ → 3★ → 4★ → ED → SED → MD → CMO
 - `src/app/actions/commission.ts` — Mark allocation paid, bulk mark paid
 - `src/app/actions/leadership.ts` — Check+promote leadership, quarterly settlement CRUD
 - `src/types/index.ts` — Commission enums (ClientStatus, BonusPoolStatus, AllocationType, etc.)
-- `src/types/backend-types.ts` — Commission data interfaces (CommissionOverviewData, AgentEarningsData, etc.), IntakeClient (includes `resultClientId` for submitted drafts)
+- `src/types/backend-types.ts` — Commission data interfaces (CommissionOverviewData, AgentEarningsData, etc.), IntakeClient (includes `resultClientId` for submitted drafts), PlatformEntry (username, accountId, screenshot, status, pin?, bank?, bankAutoDetected?, bankPhoneEmailConfirmed?), RiskAssessment (includes bankPinOverride, bankNameOverride, bankPhoneEmailNotConfirmed flags)
 
 ### Key Patterns
 
@@ -348,7 +352,9 @@ if (!session?.user) return { success: false, error: 'Not authenticated' }
 
 **Type Exports**: Use `@/types` for Prisma model types and enums. Use `@/types/backend-types` for complex types used by UI components.
 
-**Platform Utilities**: `@/lib/platforms` provides metadata for the 11 supported platforms.
+**Platform Utilities**: `@/lib/platforms` provides metadata for the 11 supported platforms. Financial platform order: PayPal, Online Banking (was "Bank"), EdgeBoost.
+
+**Upload Components**: `@/components/upload-dropzone` exports `UploadDropzone` (drag-and-drop area) and `ScreenshotThumbnail` (image preview with delete button, supports `size` prop: `'sm'` for 32px inline or `'md'` default 64px).
 
 **UI Components**: shadcn/ui (new-york style) in `@/components/ui/`. Icons from `lucide-react`.
 
@@ -417,7 +423,7 @@ vi.mock('@/backend/auth', () => ({ auth: mockAuth }))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 ```
 
-### Existing Tests (16 files, 209 tests)
+### Existing Tests (15 files, 216 tests)
 
 **Phase 1 — Agent Application (5 files, 57 tests):**
 - `src/test/backend/actions/agent-application.test.ts` — Validation, email uniqueness, happy path, addressDocument
@@ -439,8 +445,8 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 - `src/test/backend/actions/client-drafts.test.ts` — CRUD actions, auth guards, ownership checks, submit validation, new Step 1 field allowlist
 - `src/test/lib/risk-score.test.ts` — Negative scoring: missing ID bonus/penalty, 2-tier ID expiry boundaries, boolean flag weights, assessment question weights (household/family/autonomy/digital), multipleAddresses exclusion, max worst -158
 
-**Phone Assignment (1 file, 15 tests):**
-- `src/test/backend/actions/phone-assignments.test.ts` — assignAndSignOutDevice (auth guards, validation, happy path with dueBackAt +3d), returnDevice (auth guards, already-returned check, happy path with RETURNED status + EventLog)
+**Phone Assignment (1 file, 22 tests):**
+- `src/test/backend/actions/phone-assignments.test.ts` — assignAndSignOutDevice (auth guards, validation, happy path with dueBackAt +3d + auto-advance to step 3), returnDevice (auth guards, already-returned check, happy path with RETURNED status + EventLog), reissueDevice (auth guards, not-RETURNED check, happy path reverting to SIGNED_OUT with original dueBackAt preserved + EventLog)
 
 ---
 
@@ -475,7 +481,7 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 | `/backoffice/phone-tracking` | page.tsx | Mock — phones (can wire to PhoneAssignment model in future) |
 | `/backoffice/profit-sharing` | page.tsx | Mock — profit sharing |
 | `/backoffice/reports` | page.tsx | Mock — reports |
-| `/backoffice/sales-interaction` | page.tsx | **Real DB + Mock combined** — Team directory (agents by tier) + ClientDraft (real DB drafts + mock data, 4 steps) with integrated device lifecycle (assign/return in rows) + Review dialog with Approve; Mock — verification, post-approval |
+| `/backoffice/sales-interaction` | page.tsx | **Real DB + Mock combined** — Team directory (agents by tier) + ClientDraft (real DB drafts + mock data, 4 steps) with integrated device lifecycle (assign/return/re-issue in rows) + Review dialog with Approve; Mock — verification, post-approval |
 | `/backoffice/todo-list` | page.tsx | Mock — action hub |
 
 ### Auth

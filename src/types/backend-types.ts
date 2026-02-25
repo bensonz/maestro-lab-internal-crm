@@ -72,6 +72,10 @@ export interface IntakeClient {
   resultClientId?: string | null
   /** For step-3 clients with active device sign-out: the PhoneAssignment ID */
   activeAssignmentId?: string | null
+  /** For step-4 clients with returned device: the RETURNED PhoneAssignment ID (for undo/re-issue) */
+  returnedAssignmentId?: string | null
+  /** Phone number assigned to this client (for badge hover) */
+  assignedPhone?: string | null
 }
 
 export interface PostApprovalClient {
@@ -340,6 +344,9 @@ export interface RiskAssessment {
     householdAwareness: string
     familyTechSupport: string
     financialAutonomy: string
+    bankPinOverride: boolean
+    bankNameOverride: boolean
+    bankPhoneEmailNotConfirmed: boolean
   }
 }
 
@@ -349,6 +356,12 @@ export interface PlatformEntry {
   accountId: string
   screenshot: string
   status: string
+  pin?: string
+  pinSuggested?: string
+  pinSuggested6?: string
+  bank?: string
+  bankAutoDetected?: string
+  bankPhoneEmailConfirmed?: boolean
 }
 
 // --- Commission System Types ---
