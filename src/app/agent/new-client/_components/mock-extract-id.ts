@@ -139,6 +139,31 @@ export async function mockExtractFromPaypal(_file: File): Promise<PayPalExtracti
   }
 }
 
+export interface PlatformExtractionResult {
+  detectedUsername: string
+  detectedPassword: string
+  confidence: number
+}
+
+/**
+ * Mock OCR extraction from a platform registration/login screenshot.
+ * Detects the username and password shown in the screenshot.
+ * In production: replace with real OCR/AI service that reads the actual image.
+ * Returns the suggested values (no mismatch) in this mock.
+ */
+export async function mockExtractFromPlatform(
+  _file: File,
+  suggestedUsername: string,
+  suggestedPassword: string,
+): Promise<PlatformExtractionResult> {
+  await new Promise((resolve) => setTimeout(resolve, 600))
+  return {
+    detectedUsername: suggestedUsername,
+    detectedPassword: suggestedPassword,
+    confidence: 0.85,
+  }
+}
+
 export async function mockExtractFromBetmgm(
   _file: File,
   type: 'registration' | 'login',
