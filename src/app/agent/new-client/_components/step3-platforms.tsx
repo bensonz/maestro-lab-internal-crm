@@ -3,6 +3,7 @@
 import { useCallback, useMemo } from 'react'
 import { PLATFORM_INFO, FINANCIAL_PLATFORMS, SPORTS_PLATFORMS } from '@/lib/platforms'
 import { PlatformCard } from './step3-platform-card'
+import { PayPalCard } from './step3-paypal-card'
 import {
   Collapsible,
   CollapsibleContent,
@@ -147,6 +148,16 @@ export function Step3Platforms({ formData, onChange, onRiskFlagsChange, activeAs
           {/* Left column */}
           <div className="flex flex-1 flex-col gap-2">
             {FINANCIAL_PLATFORMS.filter((p) => p !== 'BANK').map((platform) => {
+              if (platform === 'PAYPAL') {
+                return (
+                  <PayPalCard
+                    key="PAYPAL"
+                    entry={getEntryForPlatform(platformData, 'PAYPAL')}
+                    onChange={handlePlatformChange}
+                    paypalPreviouslyUsed={formData.paypalPreviouslyUsed as boolean | null | undefined}
+                  />
+                )
+              }
               const info = PLATFORM_INFO[platform as PlatformType]
               return (
                 <PlatformCard
