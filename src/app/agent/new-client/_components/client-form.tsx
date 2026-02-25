@@ -166,15 +166,14 @@ export function ClientForm({
 
   return (
     <div data-testid="client-form">
-      {/* Save status indicator */}
-      <div className="mb-4 flex items-center justify-end text-xs text-muted-foreground">
-        {saveStatus === 'saving' && (
+      {/* Save status indicator — always visible */}
+      <div className="mb-4 flex h-4 items-center justify-end text-xs text-muted-foreground">
+        {saveStatus === 'saving' ? (
           <span className="flex items-center gap-1" data-testid="save-status-saving">
             <Loader2 className="h-3 w-3 animate-spin" />
             Saving...
           </span>
-        )}
-        {saveStatus === 'saved' && (
+        ) : (
           <span data-testid="save-status-saved">Saved</span>
         )}
       </div>
