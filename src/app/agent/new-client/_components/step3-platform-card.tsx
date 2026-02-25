@@ -11,8 +11,8 @@ import {
 } from '@/components/ui/select'
 import { ScreenshotThumbnail } from '@/components/upload-dropzone'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Upload, Loader2, ScanLine } from 'lucide-react'
-import { mockExtractFromBank } from './mock-extract-id'
+import { Upload, Loader2, ScanLine, AlertTriangle } from 'lucide-react'
+import { mockExtractFromBank, mockExtractFromPlatform } from './mock-extract-id'
 import type { PlatformEntry } from '@/types/backend-types'
 
 const BANK_OPTIONS = [
@@ -26,6 +26,8 @@ interface PlatformCardProps {
   displayName: string
   entry: PlatformEntry
   onChange: (updated: PlatformEntry) => void
+  suggestedUsername?: string
+  suggestedPassword?: string
 }
 
 export function PlatformCard({
@@ -33,10 +35,13 @@ export function PlatformCard({
   displayName,
   entry,
   onChange,
+  suggestedUsername,
+  suggestedPassword,
 }: PlatformCardProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [isDetecting, setIsDetecting] = useState(false)
+  const [mismatch, setMismatch] = useState<{ username: boolean; password: boolean } | null>(null)
 
   function handleChange(field: keyof PlatformEntry, value: string) {
     onChange({ ...entry, [field]: value })
@@ -53,18 +58,25 @@ export function PlatformCard({
         if (res.ok) {
           const updated = { ...entry, screenshot: data.path }
 
-          // Auto-detect bank details from screenshot
-          if (platform === 'BANK') {
-            setIsDetecting(true)
-            try {
+          setIsDetecting(true)
+          try {
+            if (platform === 'BANK') {
               const result = await mockExtractFromBank(file)
               updated.bank = result.bankName
               updated.bankAutoDetected = result.bankName
               updated.username = result.username
               updated.accountId = result.password
-            } finally {
-              setIsDetecting(false)
+              const userMismatch = !!suggestedUsername && result.username !== suggestedUsername
+              const passMismatch = !!suggestedPassword && result.password !== suggestedPassword
+              setMismatch(userMismatch || passMismatch ? { username: userMismatch, password: passMismatch } : null)
+            } else {
+              const result = await mockExtractFromPlatform(file, suggestedUsername ?? '', suggestedPassword ?? '')
+              const userMismatch = !!suggestedUsername && result.detectedUsername !== suggestedUsername
+              const passMismatch = !!suggestedPassword && result.detectedPassword !== suggestedPassword
+              setMismatch(userMismatch || passMismatch ? { username: userMismatch, password: passMismatch } : null)
             }
+          } finally {
+            setIsDetecting(false)
           }
 
           onChange(updated)
@@ -75,7 +87,7 @@ export function PlatformCard({
         setIsUploading(false)
       }
     },
-    [entry, onChange, platform],
+    [entry, onChange, platform, suggestedUsername, suggestedPassword],
   )
 
   const handleFileChange = useCallback(
@@ -88,6 +100,7 @@ export function PlatformCard({
   )
 
   const handleDeleteScreenshot = useCallback(() => {
+    setMismatch(null)
     const updated = { ...entry, screenshot: '' }
     if (platform === 'BANK') {
       updated.bank = ''
@@ -186,23 +199,35 @@ export function PlatformCard({
             )}
           </div>
           {/* Row 2: Username + Password + PIN */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 mt-3">
             <Input
               id={`${platform}-username`}
-              placeholder="Username"
+              placeholder={suggestedUsername || 'Username'}
               value={entry.username || ''}
               onChange={(e) => handleChange('username', e.target.value)}
-              className="h-8 text-sm"
+              className="h-8 flex-1 text-sm"
               data-testid={`platform-username-${platform}`}
             />
-            <Input
-              id={`${platform}-accountId`}
-              placeholder="Password"
-              value={entry.accountId || ''}
-              onChange={(e) => handleChange('accountId', e.target.value)}
-              className="h-8 text-sm"
-              data-testid={`platform-account-id-${platform}`}
-            />
+            <div className="relative flex-1">
+              {suggestedPassword && (
+                <button
+                  type="button"
+                  onClick={() => handleChange('accountId', suggestedPassword)}
+                  className="absolute -top-3.5 right-0 text-[10px] text-muted-foreground hover:text-foreground whitespace-nowrap transition-colors"
+                  tabIndex={-1}
+                >
+                  {suggestedPassword}
+                </button>
+              )}
+              <Input
+                id={`${platform}-accountId`}
+                placeholder="Password"
+                value={entry.accountId || ''}
+                onChange={(e) => handleChange('accountId', e.target.value)}
+                className="h-8 text-sm"
+                data-testid={`platform-account-id-${platform}`}
+              />
+            </div>
             <div className="relative shrink-0">
               {entry.pinSuggested && (
                 <p className="absolute -top-3.5 left-0 text-[10px] text-muted-foreground whitespace-nowrap">
@@ -222,23 +247,35 @@ export function PlatformCard({
           </div>
         </>
       ) : (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 mt-3">
           <Input
             id={`${platform}-username`}
-            placeholder="Username"
+            placeholder={suggestedUsername || 'Username'}
             value={entry.username || ''}
             onChange={(e) => handleChange('username', e.target.value)}
-            className="h-8 text-sm"
+            className="h-8 flex-1 text-sm"
             data-testid={`platform-username-${platform}`}
           />
-          <Input
-            id={`${platform}-accountId`}
-            placeholder="Password"
-            value={entry.accountId || ''}
-            onChange={(e) => handleChange('accountId', e.target.value)}
-            className="h-8 text-sm"
-            data-testid={`platform-account-id-${platform}`}
-          />
+          <div className="relative flex-1">
+            {suggestedPassword && (
+              <button
+                type="button"
+                onClick={() => handleChange('accountId', suggestedPassword)}
+                className="absolute -top-3.5 right-0 text-[10px] text-muted-foreground hover:text-foreground whitespace-nowrap transition-colors"
+                tabIndex={-1}
+              >
+                {suggestedPassword}
+              </button>
+            )}
+            <Input
+              id={`${platform}-accountId`}
+              placeholder="Password"
+              value={entry.accountId || ''}
+              onChange={(e) => handleChange('accountId', e.target.value)}
+              className="h-8 text-sm"
+              data-testid={`platform-account-id-${platform}`}
+            />
+          </div>
           <input
             ref={inputRef}
             type="file"
@@ -268,6 +305,17 @@ export function PlatformCard({
             </button>
           )}
         </div>
+      )}
+
+      {/* Mismatch warning — shown after screenshot OCR detects a discrepancy */}
+      {mismatch && (
+        <p className="flex items-center gap-1 text-xs text-destructive" data-testid={`platform-mismatch-${platform}`}>
+          <AlertTriangle className="h-3 w-3 shrink-0" />
+          {[mismatch.username && 'username', mismatch.password && 'password']
+            .filter(Boolean)
+            .join(' & ')}{' '}
+          {mismatch.username && mismatch.password ? 'do' : 'does'} not match suggestion
+        </p>
       )}
     </div>
   )
