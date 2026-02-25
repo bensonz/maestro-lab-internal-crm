@@ -52,10 +52,32 @@ function generatePinPair(): { pin4: string; pin6: string } {
   return { pin4: base, pin6: base + suffix }
 }
 
+// ── Password generation ─────────────────────────────────────────────────────
+// Rules: BetMGM, PayPal, EdgeBoost, Bank each get a unique password.
+// The 7 remaining sportsbooks share one password. Simple but random per session.
+
+const PWD_WORDS = [
+  'Swift', 'Cedar', 'Maple', 'Tiger', 'River', 'Storm', 'Blade', 'Frost',
+  'Ember', 'Ridge', 'Drake', 'Flare', 'Prism', 'Coral', 'Haven', 'Lunar',
+  'Orbit', 'Cobalt', 'Dune', 'Finch', 'Grove', 'Hawk', 'Ivory', 'Jade',
+  'Knoll', 'Lance', 'Mesa', 'Nova', 'Onyx', 'Pines',
+]
+const PWD_SPECIALS = ['!', '@', '#', '$']
+
+function genPwd(): string {
+  const word = PWD_WORDS[Math.floor(Math.random() * PWD_WORDS.length)]
+  const digits = String(Math.floor(1000 + Math.random() * 9000))
+  const special = PWD_SPECIALS[Math.floor(Math.random() * PWD_SPECIALS.length)]
+  return `${word}${digits}${special}`
+}
+
+// ── Entry helpers ───────────────────────────────────────────────────────────
+
 function getEntryForPlatform(
   platformData: PlatformEntry[],
   platform: string,
   pinPair?: { pin4: string; pin6: string },
+  defaultUsername?: string,
 ): PlatformEntry {
   const existing = platformData.find((e) => e.platform === platform)
   if (existing) {
@@ -67,7 +89,13 @@ function getEntryForPlatform(
     }
     return existing
   }
-  const base: PlatformEntry = { platform, username: '', accountId: '', screenshot: '', status: '' }
+  const base: PlatformEntry = {
+    platform,
+    username: defaultUsername || '',
+    accountId: '',
+    screenshot: '',
+    status: '',
+  }
   if (platform === 'BANK' && pinPair) {
     base.pin = pinPair.pin4
     base.pinSuggested = pinPair.pin4
@@ -78,8 +106,27 @@ function getEntryForPlatform(
 
 export function Step3Platforms({ formData, onChange, onRiskFlagsChange, activeAssignment }: Step3Props) {
   const platformData = (formData.platformData as PlatformEntry[]) || []
-  // Stable suggested PIN pair — generated once per mount, used only if no existing bank entry
+
+  // Stable suggested PIN pair — generated once per mount
   const pinPair = useMemo(() => generatePinPair(), []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Stable passwords — generated once per mount, never repeated across re-renders
+  const passwords = useMemo(() => ({
+    sportsbook: genPwd(), // shared across 7 non-BetMGM sportsbooks
+    BETMGM:     genPwd(),
+    PAYPAL:     genPwd(),
+    EDGEBOOST:  genPwd(),
+    BANK:       genPwd(),
+  }), []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Username rules:
+  //   Bank — use gmail prefix (online banking rejects email format)
+  //   All others — use full company gmail
+  const assignedGmail = (formData.assignedGmail as string) || ''
+  const gmailPrefix = useMemo(
+    () => (assignedGmail ? assignedGmail.replace(/@gmail\.com$/i, '') : ''),
+    [assignedGmail],
+  )
 
   const handlePlatformChange = useCallback(
     (updated: PlatformEntry) => {
@@ -118,12 +165,12 @@ export function Step3Platforms({ formData, onChange, onRiskFlagsChange, activeAs
               <Phone className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="font-medium">{activeAssignment.phoneNumber}</span>
             </div>
-            {(formData.assignedGmail as string) ? (
+            {assignedGmail ? (
               <>
                 <span className="text-muted-foreground/40">&middot;</span>
                 <div className="flex items-center gap-1.5">
                   <Mail className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="font-medium">{formData.assignedGmail as string}</span>
+                  <span className="font-medium">{assignedGmail}</span>
                 </div>
               </>
             ) : null}
@@ -145,16 +192,19 @@ export function Step3Platforms({ formData, onChange, onRiskFlagsChange, activeAs
       {/* Financial Platforms */}
       <SectionCard title="Financial Platforms">
         <div className="flex flex-col gap-2 sm:flex-row">
-          {/* Left column */}
+          {/* Left column: PayPal + EdgeBoost */}
           <div className="flex flex-1 flex-col gap-2">
             {FINANCIAL_PLATFORMS.filter((p) => p !== 'BANK').map((platform) => {
               if (platform === 'PAYPAL') {
                 return (
                   <PayPalCard
                     key="PAYPAL"
-                    entry={getEntryForPlatform(platformData, 'PAYPAL')}
+                    entry={getEntryForPlatform(platformData, 'PAYPAL', undefined, assignedGmail)}
                     onChange={handlePlatformChange}
                     paypalPreviouslyUsed={formData.paypalPreviouslyUsed as boolean | null | undefined}
+                    paypalSsnLinked={formData.paypalSsnLinked as boolean | null | undefined}
+                    assignedGmail={assignedGmail}
+                    suggestedPassword={passwords.PAYPAL}
                   />
                 )
               }
@@ -164,19 +214,23 @@ export function Step3Platforms({ formData, onChange, onRiskFlagsChange, activeAs
                   key={platform}
                   platform={platform}
                   displayName={info.name}
-                  entry={getEntryForPlatform(platformData, platform)}
+                  entry={getEntryForPlatform(platformData, platform, undefined, assignedGmail)}
                   onChange={handlePlatformChange}
+                  suggestedUsername={assignedGmail}
+                  suggestedPassword={passwords.EDGEBOOST}
                 />
               )
             })}
           </div>
-          {/* Right column */}
+          {/* Right column: Bank */}
           <div className="flex-1">
             <PlatformCard
               platform="BANK"
               displayName={PLATFORM_INFO['BANK' as PlatformType].name}
-              entry={getEntryForPlatform(platformData, 'BANK', pinPair)}
+              entry={getEntryForPlatform(platformData, 'BANK', pinPair, gmailPrefix)}
               onChange={handlePlatformChange}
+              suggestedUsername={gmailPrefix}
+              suggestedPassword={passwords.BANK}
             />
           </div>
         </div>
@@ -187,14 +241,17 @@ export function Step3Platforms({ formData, onChange, onRiskFlagsChange, activeAs
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {SPORTS_PLATFORMS.map((platform) => {
             const info = PLATFORM_INFO[platform as PlatformType]
+            // BetMGM gets its own unique password; the other 7 share one password
+            const suggestedPassword = platform === 'BETMGM' ? passwords.BETMGM : passwords.sportsbook
             return (
               <PlatformCard
                 key={platform}
                 platform={platform}
                 displayName={info.name}
-
-                entry={getEntryForPlatform(platformData, platform)}
+                entry={getEntryForPlatform(platformData, platform, undefined, assignedGmail)}
                 onChange={handlePlatformChange}
+                suggestedUsername={assignedGmail}
+                suggestedPassword={suggestedPassword}
               />
             )
           })}
