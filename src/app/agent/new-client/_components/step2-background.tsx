@@ -94,6 +94,7 @@ const BANK_OPTIONS = [
 ] as const
 
 const MISSING_ID_OPTIONS = [
+  { value: 'ssn', label: 'SSN' },
   { value: 'passport', label: 'Passport' },
   { value: 'state_id', label: 'State ID' },
   { value: 'drivers_license', label: "Driver's License" },
