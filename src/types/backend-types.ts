@@ -363,6 +363,8 @@ export interface PlatformEntry {
   bank?: string
   bankAutoDetected?: string
   bankPhoneEmailConfirmed?: boolean
+  screenshot2?: string
+  paypalBalanceDetected?: boolean
 }
 
 // --- Commission System Types ---

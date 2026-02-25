@@ -120,6 +120,25 @@ export async function mockExtractFromBank(_file: File): Promise<BankExtractionRe
   }
 }
 
+export interface PayPalExtractionResult {
+  balanceWordDetected: boolean
+  confidence: number
+}
+
+/**
+ * Mock OCR extraction from a PayPal balance page screenshot.
+ * Detects the word "balance" to confirm the account home page is visible.
+ * Replace with real OCR/AI service in production.
+ */
+export async function mockExtractFromPaypal(_file: File): Promise<PayPalExtractionResult> {
+  await new Promise((resolve) => setTimeout(resolve, 800))
+
+  return {
+    balanceWordDetected: true,
+    confidence: 0.89,
+  }
+}
+
 export async function mockExtractFromBetmgm(
   _file: File,
   type: 'registration' | 'login',
