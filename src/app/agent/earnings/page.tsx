@@ -27,10 +27,19 @@ export default async function EarningsPage() {
       }))
     : []
 
+  // Compute this month's earnings from allocations created in current month
+  const now = new Date()
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+  const thisMonth = earningsData
+    ? earningsData.allocations
+        .filter((a) => new Date(a.createdAt) >= startOfMonth)
+        .reduce((sum, a) => sum + a.amount, 0)
+    : 0
+
   const earnings = {
     totalEarnings: earningsData?.totalEarned ?? 0,
     pendingPayout: earningsData?.pendingAmount ?? 0,
-    thisMonth: 0,
+    thisMonth,
     recentTransactions: transactions,
   }
 

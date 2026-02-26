@@ -1,16 +1,16 @@
 import {
-  MOCK_TODO_DATA,
   MOCK_AGENT_CLIENTS,
   MOCK_EARNINGS,
   MOCK_TEAM_MEMBERS,
-  MOCK_SESSION,
 } from '@/lib/mock-data'
 import { TodoPageClient } from './_components/todo-page-client'
-import { auth } from '@/backend/auth'
+import { requireAgent } from '../_require-agent'
 import { getTodosByAgent } from '@/backend/data/todos'
 
 export default async function TodoListPage() {
-  // Map client data to the shape expected by TodoPageClient
+  const agent = await requireAgent()
+
+  // Map client data to the shape expected by TodoPageClient (still mock for now)
   const clientData = MOCK_AGENT_CLIENTS.map((c) => ({
     id: c.id,
     name: c.name,
@@ -21,63 +21,65 @@ export default async function TodoListPage() {
     deadline: c.deadline,
   }))
 
-  // Merge real DB todos into mock todo data
-  let todoData = { ...MOCK_TODO_DATA }
-  let agentName = MOCK_SESSION.user.name || 'Agent'
-  let agentStarLevel = 2
+  // Fetch real todos from DB
+  let pendingTasks: Array<{
+    id: string; task: string; description: string; client: string;
+    clientId: string; due: string; dueDate: string; overdue: boolean;
+    stepNumber: number; createdAt: string; extensionsUsed: number;
+    maxExtensions: number; createdByName: string; metadata: null;
+  }> = []
 
   try {
-    const session = await auth()
-    if (session?.user) {
-      agentName = session.user.name || agentName
-      agentStarLevel = (session.user as { starLevel?: number }).starLevel ?? agentStarLevel
-
-      const realTodos = await getTodosByAgent(session.user.id)
-      if (realTodos.length > 0) {
-        const realPendingTasks = realTodos.map((t) => {
-          const clientName = [t.clientDraft.firstName, t.clientDraft.lastName]
-            .filter(Boolean)
-            .join(' ') || 'Unknown'
-          const daysUntil = Math.floor(
-            (t.dueDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
-          )
-          return {
-            id: t.id,
-            task: t.title,
-            description: t.description || `${t.issueCategory} — ${clientName}`,
-            client: clientName,
-            clientId: t.clientDraftId,
-            due: daysUntil < 0 ? `${Math.abs(daysUntil)}d overdue` : `${daysUntil}d`,
-            dueDate: t.dueDate.toISOString(),
-            overdue: daysUntil < 0,
-            stepNumber: t.clientDraft.step,
-            createdAt: t.createdAt.toISOString(),
-            extensionsUsed: 0,
-            maxExtensions: 2,
-            createdByName: t.createdBy.name,
-            metadata: null,
-          }
-        })
-
-        todoData = {
-          ...todoData,
-          pendingTasks: [...realPendingTasks, ...todoData.pendingTasks],
-          todaysTasks: todoData.todaysTasks + realPendingTasks.length,
-          thisWeek: todoData.thisWeek + realPendingTasks.length,
-          overdue: todoData.overdue + realPendingTasks.filter((t) => t.overdue).length,
-        }
+    const realTodos = await getTodosByAgent(agent.id)
+    const now = Date.now()
+    pendingTasks = realTodos.map((t) => {
+      const clientName = [t.clientDraft.firstName, t.clientDraft.lastName]
+        .filter(Boolean)
+        .join(' ') || 'Unknown'
+      const daysUntil = Math.floor(
+        (t.dueDate.getTime() - now) / (1000 * 60 * 60 * 24),
+      )
+      return {
+        id: t.id,
+        task: t.title,
+        description: t.description || `${t.issueCategory} — ${clientName}`,
+        client: clientName,
+        clientId: t.clientDraftId,
+        due: daysUntil < 0 ? `${Math.abs(daysUntil)}d overdue` : `${daysUntil}d`,
+        dueDate: t.dueDate.toISOString(),
+        overdue: daysUntil < 0,
+        stepNumber: t.clientDraft.step,
+        createdAt: t.createdAt.toISOString(),
+        extensionsUsed: 0,
+        maxExtensions: 2,
+        createdByName: t.createdBy.name,
+        metadata: null,
       }
-    }
+    })
   } catch (e) {
     console.error('[todo-list] todos fetch error:', e)
+  }
+
+  const now = Date.now()
+  const startOfDay = new Date()
+  startOfDay.setHours(0, 0, 0, 0)
+  const endOfWeek = new Date(startOfDay)
+  endOfWeek.setDate(endOfWeek.getDate() + 7)
+
+  const todoData = {
+    todaysTasks: pendingTasks.filter((t) => new Date(t.dueDate) <= new Date(startOfDay.getTime() + 86400000)).length,
+    thisWeek: pendingTasks.filter((t) => new Date(t.dueDate) <= endOfWeek).length,
+    overdue: pendingTasks.filter((t) => t.overdue).length,
+    completedToday: 0,
+    pendingTasks,
   }
 
   return (
     <TodoPageClient
       todoData={todoData}
       clients={clientData}
-      agentName={agentName}
-      agentStarLevel={agentStarLevel}
+      agentName={agent.name ?? 'Agent'}
+      agentStarLevel={(agent as { starLevel?: number }).starLevel ?? 0}
       earningsData={MOCK_EARNINGS}
       teamMembers={MOCK_TEAM_MEMBERS}
     />

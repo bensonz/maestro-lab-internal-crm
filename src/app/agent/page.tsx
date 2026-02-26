@@ -36,6 +36,15 @@ export default async function AgentDashboard() {
   const nextThreshold = STAR_THRESHOLDS[Math.min(starLevel + 1, 4)]
   const clientsToNextTier = starLevel >= 4 ? null : Math.max(0, nextThreshold.min - approvedCount)
 
+  // Compute this month's earnings from allocations
+  const now = new Date()
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+  const thisMonthEarnings = earningsData
+    ? earningsData.allocations
+        .filter((a) => new Date(a.createdAt) >= startOfMonth)
+        .reduce((sum, a) => sum + a.amount, 0)
+    : 0
+
   // Use real data for earnings, mock for everything else
   const clientStats = MOCK_CLIENT_STATS
   const priorityActions = MOCK_PRIORITY_ACTIONS
@@ -48,7 +57,7 @@ export default async function AgentDashboard() {
       <HeroBanner
         totalEarnings={earningsData?.totalEarned ?? 0}
         pendingPayout={earningsData?.pendingAmount ?? 0}
-        thisMonthEarnings={0}
+        thisMonthEarnings={thisMonthEarnings}
         earningsChange={0}
         starLevel={starLevel}
         approvedClients={approvedCount}

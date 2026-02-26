@@ -46,6 +46,7 @@ export async function getCommissionOverview(): Promise<CommissionOverviewData> {
         amount: a.amount,
         status: a.status,
         paidAt: a.paidAt,
+        createdAt: a.createdAt,
       }),
     ),
   }))
@@ -102,6 +103,7 @@ export async function getAgentEarnings(
     amount: a.amount,
     status: a.status,
     paidAt: a.paidAt,
+    createdAt: a.createdAt,
   }))
 
   const totalEarned = lines.reduce((s, a) => s + a.amount, 0)
