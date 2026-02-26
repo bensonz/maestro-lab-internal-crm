@@ -1,4 +1,5 @@
 import prisma from '@/backend/prisma/client'
+import { format } from 'date-fns'
 
 /**
  * Fetch PENDING todos assigned to a specific agent.
@@ -61,4 +62,86 @@ export async function getPendingTodosForBackoffice() {
     },
     orderBy: { dueDate: 'asc' },
   })
+}
+
+/**
+ * Fetch COMPLETED todos for the backoffice Review tab.
+ */
+export async function getCompletedTodosForBackoffice() {
+  return prisma.todo.findMany({
+    where: {
+      status: 'COMPLETED',
+    },
+    include: {
+      clientDraft: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          step: true,
+        },
+      },
+      assignedTo: {
+        select: { id: true, name: true },
+      },
+      createdBy: {
+        select: { id: true, name: true },
+      },
+    },
+    orderBy: { completedAt: 'desc' },
+    take: 100,
+  })
+}
+
+/**
+ * Fetch todo + device EventLog entries for the activity timeline.
+ */
+export async function getTodoTimeline() {
+  const events = await prisma.eventLog.findMany({
+    where: {
+      eventType: {
+        in: [
+          'TODO_ASSIGNED',
+          'TODO_COMPLETED',
+          'TODO_REVERTED',
+          'DEVICE_SIGNED_OUT',
+          'DEVICE_RETURNED',
+          'DEVICE_REISSUED',
+        ],
+      },
+    },
+    include: {
+      user: { select: { name: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 100,
+  })
+
+  const actionMap: Record<string, 'assigned' | 'completed' | 'reverted' | 'device_out' | 'device_returned' | 'device_reissued'> = {
+    TODO_ASSIGNED: 'assigned',
+    TODO_COMPLETED: 'completed',
+    TODO_REVERTED: 'reverted',
+    DEVICE_SIGNED_OUT: 'device_out',
+    DEVICE_RETURNED: 'device_returned',
+    DEVICE_REISSUED: 'device_reissued',
+  }
+
+  const typeMap: Record<string, 'info' | 'success' | 'warning'> = {
+    TODO_ASSIGNED: 'info',
+    TODO_COMPLETED: 'success',
+    TODO_REVERTED: 'warning',
+    DEVICE_SIGNED_OUT: 'info',
+    DEVICE_RETURNED: 'success',
+    DEVICE_REISSUED: 'warning',
+  }
+
+  return events.map((e) => ({
+    id: e.id,
+    date: format(e.createdAt, 'MMM d, yyyy'),
+    time: format(e.createdAt, 'h:mm a'),
+    event: e.description,
+    type: typeMap[e.eventType] ?? ('info' as const),
+    actor: e.user?.name ?? null,
+    action: actionMap[e.eventType] ?? ('assigned' as const),
+  }))
 }

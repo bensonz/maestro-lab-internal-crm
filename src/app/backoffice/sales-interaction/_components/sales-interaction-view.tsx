@@ -1,10 +1,12 @@
 'use client'
 
 import { useState, useMemo, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   Search,
   ChevronDown,
   ChevronRight,
+  ChevronUp,
   Plus,
   Clock,
   Users,
@@ -13,6 +15,8 @@ import {
   Hourglass,
   FileText,
   Shield,
+  Undo2,
+  Loader2,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -33,6 +37,8 @@ import {
 } from '@/components/ui/collapsible'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { formatDistanceToNow } from 'date-fns'
+import { completeTodo, revertTodo } from '@/app/actions/todos'
 import { ClientIntakeList } from './client-intake-list'
 import { DraftReviewDialog } from './draft-review-dialog'
 import { DeviceAssignDialog } from './device-assign-dialog'
@@ -41,7 +47,7 @@ import { VerificationTasksTable } from './verification-tasks-table'
 import { ClientDetail } from '../../client-management/_components/client-detail'
 import { mapServerClientToClient } from '../../client-management/_components/map-client'
 import type { Client, ServerClientData } from '../../client-management/_components/types'
-import type { IntakeClient, VerificationTask, InProgressSubStage } from '@/types/backend-types'
+import type { IntakeClient, VerificationTask, InProgressSubStage, CompletedTodoEntry, TodoTimelineEntry } from '@/types/backend-types'
 
 // ── Types ───────────────────────────────────────────
 interface AgentInHierarchy {
@@ -69,6 +75,8 @@ interface SalesInteractionViewProps {
   agentHierarchy: HierarchyGroup[]
   clientIntake: IntakeClient[]
   verificationTasks: VerificationTask[]
+  completedTodos: CompletedTodoEntry[]
+  todoTimeline: TodoTimelineEntry[]
   lifecycleClients: ServerClientData[]
 }
 
@@ -154,8 +162,11 @@ export function SalesInteractionView({
   agentHierarchy,
   clientIntake,
   verificationTasks,
+  completedTodos,
+  todoTimeline,
   lifecycleClients,
 }: SalesInteractionViewProps) {
+  const router = useRouter()
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null)
   const [agentSearch, setAgentSearch] = useState('')
   const [clientSearch, setClientSearch] = useState('')
@@ -165,6 +176,44 @@ export function SalesInteractionView({
   const [reviewingDraftId, setReviewingDraftId] = useState<string | null>(null)
   const [reviewingDraftName, setReviewingDraftName] = useState('')
   const [reviewingResultClientId, setReviewingResultClientId] = useState<string | null>(null)
+
+  // Reviewed section + timeline state
+  const [reviewedOpen, setReviewedOpen] = useState(false)
+  const [timelineOpen, setTimelineOpen] = useState(false)
+
+  // Revert todo state
+  const [revertingTodoId, setRevertingTodoId] = useState<string | null>(null)
+
+  const handleCompleteTodo = useCallback(async (todoId: string, clientName: string) => {
+    try {
+      const result = await completeTodo(todoId)
+      if (result.success) {
+        toast.success(`To-do completed for ${clientName}`)
+        router.refresh()
+      } else {
+        toast.error(result.error || 'Failed to complete to-do')
+      }
+    } catch {
+      toast.error('Something went wrong')
+    }
+  }, [router])
+
+  const handleRevertTodo = useCallback(async (todoId: string, clientName: string) => {
+    setRevertingTodoId(todoId)
+    try {
+      const result = await revertTodo(todoId)
+      if (result.success) {
+        toast.success(`To-do reverted for ${clientName}`)
+        router.refresh()
+      } else {
+        toast.error(result.error || 'Failed to revert to-do')
+      }
+    } catch {
+      toast.error('Something went wrong')
+    } finally {
+      setRevertingTodoId(null)
+    }
+  }, [router])
 
   // Assign To-Do dialog state
   const [todoDialogOpen, setTodoDialogOpen] = useState(false)
@@ -262,6 +311,23 @@ export function SalesInteractionView({
     }
     return result
   }, [verificationTasks, selectedAgentId, clientSearch])
+
+  // Filter completed todos by agent and search
+  const filteredCompletedTodos = useMemo(() => {
+    let result = selectedAgentId
+      ? completedTodos.filter((t) => t.agentId === selectedAgentId)
+      : completedTodos
+    if (clientSearch) {
+      const q = clientSearch.toLowerCase()
+      result = result.filter(
+        (t) =>
+          t.clientName.toLowerCase().includes(q) ||
+          t.agentName.toLowerCase().includes(q) ||
+          t.issueCategory.toLowerCase().includes(q),
+      )
+    }
+    return result
+  }, [completedTodos, selectedAgentId, clientSearch])
 
   // Separate intake clients into "In Progress" and "Verification Needed"
   const inProgressClients = useMemo(
@@ -677,6 +743,7 @@ export function SalesInteractionView({
                             selectedAgentId={selectedAgentId}
                             onSelectClient={handleSelectClient}
                             onAssignDevice={handleAssignDevice}
+                            onCompleteTodo={handleCompleteTodo}
                           />
                         )}
                       </div>
@@ -684,6 +751,154 @@ export function SalesInteractionView({
                   </div>
                 </CollapsibleContent>
               </Collapsible>
+            )}
+
+            {/* ── Reviewed Section (completed todos) ── */}
+            {showVerification && (
+              <div data-testid="section-reviewed">
+                <button
+                  type="button"
+                  onClick={() => setReviewedOpen(!reviewedOpen)}
+                  className="flex w-full cursor-pointer items-center gap-2 rounded-lg border border-border bg-muted/30 px-4 py-2.5 text-left transition-colors hover:bg-muted/50"
+                  data-testid="toggle-reviewed"
+                >
+                  <span className="flex-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Reviewed ({filteredCompletedTodos.length})
+                  </span>
+                  {reviewedOpen ? (
+                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </button>
+                {reviewedOpen && (
+                  <div className="mt-1 overflow-hidden rounded-lg border border-border">
+                    {filteredCompletedTodos.length === 0 ? (
+                      <p className="py-6 text-center text-sm text-muted-foreground">
+                        No completed to-dos yet
+                      </p>
+                    ) : (
+                    <div className="divide-y divide-border">
+                    {filteredCompletedTodos.map((todo) => (
+                      <div
+                        key={todo.id}
+                        className="flex items-start gap-3 px-4 py-2"
+                        data-testid={`reviewed-todo-${todo.id}`}
+                      >
+                        <Badge
+                          className="mt-0.5 shrink-0 border-success/30 bg-success/20 px-1.5 py-0 text-[10px] text-success"
+                        >
+                          {todo.issueCategory}
+                        </Badge>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="truncate text-xs font-medium">
+                              {todo.clientName}
+                            </span>
+                            <span className="truncate text-[10px] text-muted-foreground">
+                              {todo.agentName}
+                            </span>
+                          </div>
+                          <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
+                            <span>by {todo.completedByName}</span>
+                            <span className="opacity-50">&middot;</span>
+                            <span>assigned by {todo.createdByName}</span>
+                          </div>
+                        </div>
+                        <span className="mt-0.5 shrink-0 whitespace-nowrap text-[10px] text-muted-foreground">
+                          {formatDistanceToNow(new Date(todo.completedAt), { addSuffix: true })}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 shrink-0 gap-1 px-2 text-[10px] text-muted-foreground hover:text-foreground"
+                          onClick={() => handleRevertTodo(todo.id, todo.clientName)}
+                          disabled={revertingTodoId === todo.id}
+                          data-testid={`revert-todo-${todo.id}`}
+                        >
+                          {revertingTodoId === todo.id ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Undo2 className="h-3 w-3" />
+                          )}
+                          Revert
+                        </Button>
+                      </div>
+                    ))}
+                    </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Activity Timeline ── */}
+            {showVerification && (
+              <div data-testid="todo-activity-timeline">
+                <div className="border-t border-border" />
+                <div className="pt-3">
+                  {timelineOpen && (
+                    <div className="mb-1 max-h-64 overflow-hidden overflow-y-auto rounded-lg border border-border">
+                      {todoTimeline.length === 0 ? (
+                        <p className="py-6 text-center text-sm text-muted-foreground">
+                          No activity yet
+                        </p>
+                      ) : (
+                      <div className="divide-y divide-border">
+                      {todoTimeline.map((entry) => {
+                        const actionConfigs: Record<string, { label: string; badgeClass: string }> = {
+                          assigned: { label: 'Assigned', badgeClass: 'bg-primary/20 text-primary border-primary/30' },
+                          completed: { label: 'Completed', badgeClass: 'bg-success/20 text-success border-success/30' },
+                          reverted: { label: 'Reverted', badgeClass: 'bg-warning/20 text-warning border-warning/30' },
+                          device_out: { label: 'Device Out', badgeClass: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' },
+                          device_returned: { label: 'Returned', badgeClass: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
+                          device_reissued: { label: 'Re-issued', badgeClass: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
+                        }
+                        const actionConfig = actionConfigs[entry.action] ?? actionConfigs.assigned
+                        return (
+                          <div
+                            key={entry.id}
+                            className="flex items-center gap-2 px-3 py-1"
+                            data-testid={`todo-timeline-${entry.id}`}
+                          >
+                            <Badge className={`shrink-0 px-1.5 py-0 text-[9px] ${actionConfig.badgeClass}`}>
+                              {actionConfig.label}
+                            </Badge>
+                            <span className="truncate text-[11px] text-foreground">
+                              {entry.event}
+                            </span>
+                            <span className="ml-auto shrink-0 whitespace-nowrap text-[9px] text-muted-foreground">
+                              {entry.date} {entry.time}
+                            </span>
+                            {entry.actor && (
+                              <span className="shrink-0 whitespace-nowrap text-[9px] text-muted-foreground">
+                                by {entry.actor}
+                              </span>
+                            )}
+                          </div>
+                        )
+                      })}
+                      </div>
+                      )}
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setTimelineOpen(!timelineOpen)}
+                    className="flex w-full cursor-pointer items-center gap-2 rounded-lg border border-border bg-muted/30 px-4 py-2 text-left transition-colors hover:bg-muted/50"
+                    data-testid="toggle-todo-timeline"
+                  >
+                    <span className="flex-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                      Activity Timeline ({todoTimeline.length})
+                    </span>
+                    {timelineOpen ? (
+                      <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                    ) : (
+                      <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+                    )}
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </ScrollArea>

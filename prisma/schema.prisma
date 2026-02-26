@@ -95,6 +95,8 @@ enum EventType {
   DEVICE_RETURNED
   DEVICE_REISSUED
   TODO_ASSIGNED
+  TODO_COMPLETED
+  TODO_REVERTED
 }
 
 // ─── User ────────────────────────────────────────────────

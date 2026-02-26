@@ -375,6 +375,31 @@ export interface PlatformEntry {
   paypalBalanceDetected?: boolean
 }
 
+// --- Todo Review Types ---
+
+export interface CompletedTodoEntry {
+  id: string
+  clientName: string
+  agentId: string
+  agentName: string
+  issueCategory: string
+  title: string
+  completedAt: Date
+  completedByName: string
+  draftId: string
+  createdByName: string
+}
+
+export interface TodoTimelineEntry {
+  id: string
+  date: string
+  time: string
+  event: string
+  type: 'info' | 'success' | 'warning'
+  actor: string | null
+  action: 'assigned' | 'completed' | 'reverted' | 'device_out' | 'device_returned' | 'device_reissued'
+}
+
 // --- Commission System Types ---
 
 export interface AllocationLine {

@@ -95,3 +95,126 @@ export async function assignTodo(
 
   return { success: true, todoId: todo.id }
 }
+
+export async function completeTodo(todoId: string) {
+  const session = await auth()
+  if (!session?.user) return { success: false, error: 'Not authenticated' }
+
+  const role = session.user.role
+  if (role !== 'ADMIN' && role !== 'BACKOFFICE') {
+    return { success: false, error: 'Unauthorized' }
+  }
+
+  if (!todoId?.trim()) {
+    return { success: false, error: 'Todo ID is required' }
+  }
+
+  const todo = await prisma.todo.findUnique({
+    where: { id: todoId },
+    include: {
+      clientDraft: { select: { firstName: true, lastName: true } },
+      assignedTo: { select: { id: true, name: true } },
+      createdBy: { select: { name: true } },
+    },
+  })
+
+  if (!todo) return { success: false, error: 'Todo not found' }
+  if (todo.status !== 'PENDING') return { success: false, error: 'Todo is not pending' }
+
+  const clientName = [todo.clientDraft.firstName, todo.clientDraft.lastName].filter(Boolean).join(' ') || 'Unknown'
+
+  await prisma.todo.update({
+    where: { id: todoId },
+    data: {
+      status: 'COMPLETED',
+      completedAt: new Date(),
+      metadata: {
+        ...(todo.metadata && typeof todo.metadata === 'object' ? todo.metadata as Record<string, unknown> : {}),
+        completedById: session.user.id,
+      },
+    },
+  })
+
+  await prisma.eventLog.create({
+    data: {
+      eventType: 'TODO_COMPLETED',
+      description: `To-do completed: "${todo.issueCategory}" for ${clientName} (agent: ${todo.assignedTo.name})`,
+      userId: session.user.id,
+      metadata: {
+        todoId: todo.id,
+        clientDraftId: todo.clientDraftId,
+        clientName,
+        agentId: todo.assignedTo.id,
+        agentName: todo.assignedTo.name,
+        issueCategory: todo.issueCategory,
+      },
+    },
+  })
+
+  revalidatePath('/backoffice/sales-interaction')
+  revalidatePath('/agent/todo-list')
+
+  return { success: true }
+}
+
+export async function revertTodo(todoId: string) {
+  const session = await auth()
+  if (!session?.user) return { success: false, error: 'Not authenticated' }
+
+  const role = session.user.role
+  if (role !== 'ADMIN' && role !== 'BACKOFFICE') {
+    return { success: false, error: 'Unauthorized' }
+  }
+
+  if (!todoId?.trim()) {
+    return { success: false, error: 'Todo ID is required' }
+  }
+
+  const todo = await prisma.todo.findUnique({
+    where: { id: todoId },
+    include: {
+      clientDraft: { select: { firstName: true, lastName: true } },
+      assignedTo: { select: { id: true, name: true } },
+    },
+  })
+
+  if (!todo) return { success: false, error: 'Todo not found' }
+  if (todo.status !== 'COMPLETED') return { success: false, error: 'Todo is not completed' }
+
+  const clientName = [todo.clientDraft.firstName, todo.clientDraft.lastName].filter(Boolean).join(' ') || 'Unknown'
+
+  await prisma.todo.update({
+    where: { id: todoId },
+    data: {
+      status: 'PENDING',
+      completedAt: null,
+      metadata: {
+        ...(todo.metadata && typeof todo.metadata === 'object' ? todo.metadata as Record<string, unknown> : {}),
+        revertedById: session.user.id,
+        revertedAt: new Date().toISOString(),
+      },
+    },
+  })
+
+  await prisma.eventLog.create({
+    data: {
+      eventType: 'TODO_REVERTED',
+      description: `To-do reverted to pending: "${todo.issueCategory}" for ${clientName} (agent: ${todo.assignedTo.name})`,
+      userId: session.user.id,
+      metadata: {
+        todoId: todo.id,
+        clientDraftId: todo.clientDraftId,
+        clientName,
+        agentId: todo.assignedTo.id,
+        agentName: todo.assignedTo.name,
+        issueCategory: todo.issueCategory,
+        action: 'revert_to_pending',
+      },
+    },
+  })
+
+  revalidatePath('/backoffice/sales-interaction')
+  revalidatePath('/agent/todo-list')
+
+  return { success: true }
+}
