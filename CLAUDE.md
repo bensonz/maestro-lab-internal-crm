@@ -8,7 +8,7 @@ The backend has a fully functional **commission system** with real DB queries wi
 
 ### What's Live (backed by database)
 
-- **Prisma schema** with 10 models: `User`, `AgentApplication`, `EventLog`, `Client`, `ClientDraft`, `BonusPool`, `BonusAllocation`, `PromotionLog`, `QuarterlySettlement`, `PhoneAssignment`
+- **Prisma schema** with 11 models: `User`, `AgentApplication`, `EventLog`, `Client`, `ClientDraft`, `BonusPool`, `BonusAllocation`, `PromotionLog`, `QuarterlySettlement`, `PhoneAssignment`, `Todo`
 - **Agent Application form** on login page ("Apply as Agent" tab) — uploads both ID + Address Proof documents
 - **Application review** in backoffice Agent Management ("Pending Applications" tab) — shows both documents
 - **Agent Directory** in backoffice Agent Management ("Agent Directory" tab) — queries real User table, star-level-based filter, toggleable table/tree view (tree shows upline→subordinate hierarchy with expand/collapse, ancestor-preserving search). Agent names have **HoverCard** showing Zelle, state, and performance snapshot (total earned, this month, new clients this month) from real DB data.
@@ -36,7 +36,8 @@ These pages fetch real commission/earnings data from DB but still use mock data 
 - Agent dashboard — earnings/star level real, pipeline stats mock
 - Agent earnings — transaction history real, KPIs/hierarchy mock
 - Agent clients — DB clients + drafts from real DB, falls back to mock if empty
-- Backoffice sales interaction — Team directory sidebar uses real agents from DB (grouped by display tier); In Progress section uses real ClientDraft records combined with mock data (DRAFT + SUBMITTED with PENDING client, 4 steps); device assign/return actions merged into In Progress rows (no separate Device Requests section); verification/post-approval still mock
+- Backoffice sales interaction — Team directory sidebar uses real agents from DB (grouped by display tier); In Progress section uses real ClientDraft records combined with mock data (DRAFT + SUBMITTED with PENDING client, 4 steps); device assign/return actions merged into In Progress rows (no separate Device Requests section); Verification Needed section merges real Todo records with mock verification tasks; "+ Assign To-Do" button opens dialog to create real Todo records; post-approval still mock
+- Agent Action Hub (`/agent/todo-list`) — Merges real DB todos (assigned via backoffice) into mock pending tasks; uses session auth to fetch agent-specific todos
 
 ### Draft/Client Lifecycle & Separation
 
@@ -55,7 +56,7 @@ ClientDraft (DRAFT) → Agent submits → ClientDraft (SUBMITTED) + Client (PEND
   - **Center:** Days since update (aligned column)
   - **Right:** Action buttons — **Review** (always visible), plus activity-based: **Assign Device** (reservation exists, no device yet), **Mark Returned** (device active), **Re-issue** (device returned), **Approve** (step-4, submitted)
   - **Device lifecycle integrated into rows** — based on actual device activity, not step. Assign Device available on step-2 or step-3 (when reservation exists, no active/returned assignment). Agent stays blocked on Step 2 until backoffice assigns device; assigning auto-advances draft to step 3 in DB. PHONE ISSUED / PHONE RETURNED badges show assigned phone number on hover (Tooltip). PHONE ISSUED badge + Mark Returned button appear whenever a device is actively signed out (any step). PHONE RETURNED badge + Re-issue button appear whenever a device has been returned (any step). Re-issue sets assignment back to SIGNED_OUT, clears returnedAt (preserves original dueBackAt — clock never stops), and logs `DEVICE_REISSUED` event. Approve button on step-4 for submitted drafts.
-  - **Review dialog**: 4-step read-only with Approve Client on Step 4 for submitted drafts.
+  - **Review dialog**: 4-step read-only with Approve Client on Step 4 for submitted drafts. Step 3 includes Credentials summary showing fill status for Gmail, BetMGM (from Step 1 fields) and all Step 3 platforms with data (green = both filled, amber = partial, dim = empty).
   - Real DB drafts always shown alongside mock data (mock kept for UI development).
 - **Backoffice "Client Management" page** — Intended to show only APPROVED clients (currently mock). Client detail view has: Contact column (Gmail label, Gmail Password field, Personal Phone), sportsbook platform credentials (Login/Password from DB), risk factor badges in header (De-banked, Criminal Record, Address Mismatch, PayPal Used, ID Expiring, PIN Issue).
 
@@ -107,18 +108,19 @@ This is a CRM for managing client onboarding across multiple sports betting plat
 
 ### Database Schema (Phase 2)
 
-10 models in `prisma/schema.prisma`:
+11 models in `prisma/schema.prisma`:
 
 - **User** — All staff accounts (agents, admins, backoffice, finance). Includes hierarchy (supervisorId self-relation), profile fields, star level/tier, leadershipTier (NONE/ED/SED/MD/CMO).
 - **AgentApplication** — Public application form submissions. Status: PENDING → APPROVED/REJECTED. Links to reviewer (User) and created user on approval. Stores `idDocument` and `addressDocument` upload paths.
 - **Client** — Minimal client record. Status: PENDING → APPROVED. Links to closer (User via closerId). One optional BonusPool. Optional `fromDraft` back-link.
-- **ClientDraft** — Agent-owned draft for new client intake. Status: DRAFT → SUBMITTED. 4-step form data (pre-qual, background, platforms, contract). Links to closer (User via closerId) and optional resultClient (Client). Stores risk flags, platform data (Json), document paths, Step 1 extras (dateOfBirth, address, gmailPassword, gmailScreenshot, betmgmLogin, betmgmPassword, betmgmRegScreenshot, betmgmLoginScreenshot), different-address fields (livesAtDifferentAddress, currentAddress, differentAddressDuration, differentAddressProof), Step 2 extras (ssnNumber, citizenship, missingIdType, secondAddressProof, paypalSsnLinked, paypalBrowserVerified, occupation, annualIncome, employmentStatus, maritalStatus, creditScoreRange, dependents, educationLevel, householdAwareness, familyTechSupport, financialAutonomy, digitalComfort, deviceReservationDate, sportsbookUsedBefore, sportsbookUsedList, sportsbookStatuses).
+- **ClientDraft** — Agent-owned draft for new client intake. Status: DRAFT → SUBMITTED. 4-step form data (pre-qual, background, platforms, contract). Links to closer (User via closerId) and optional resultClient (Client). Stores risk flags, platform data (Json), `generatedCredentials` (Json — persisted credential suggestions, see below), document paths, Step 1 extras (dateOfBirth, address, gmailPassword, gmailScreenshot, betmgmLogin, betmgmPassword, betmgmRegScreenshot, betmgmLoginScreenshot), different-address fields (livesAtDifferentAddress, currentAddress, differentAddressDuration, differentAddressProof), Step 2 extras (ssnNumber, citizenship, missingIdType, secondAddressProof, paypalSsnLinked, paypalBrowserVerified, occupation, annualIncome, employmentStatus, maritalStatus, creditScoreRange, dependents, educationLevel, householdAwareness, familyTechSupport, financialAutonomy, digitalComfort, deviceReservationDate, sportsbookUsedBefore, sportsbookUsedList, sportsbookStatuses).
 - **BonusPool** — One per approved client ($400 fixed). Tracks closer snapshot, distribution stats, has many BonusAllocation[].
 - **BonusAllocation** — Individual payout line. Type: DIRECT ($200 to closer), STAR_SLICE (star pool walk), BACKFILL (remaining to highest supervisor). Status: PENDING → PAID.
 - **PromotionLog** — Immutable audit of star level and leadership tier changes.
 - **QuarterlySettlement** — Leadership P&L commission. Status: DRAFT → APPROVED → PAID. Unique per [leaderId, year, quarter].
 - **PhoneAssignment** — Device sign-out tracking. Links to ClientDraft, agent (User), and signedOutBy (User). Status: SIGNED_OUT → RETURNED. Tracks phoneNumber, carrier, deviceId, signedOutAt, dueBackAt (3-day window), returnedAt. OVERDUE is computed at view time, not stored.
-- **EventLog** — Append-only audit trail. EventType enum covers login, application, user management, commission, leadership, client draft, and device sign-out/return/re-issue events.
+- **Todo** — Backoffice-assigned tasks for agents. Links to ClientDraft, assignedTo (User), and createdBy (User). Status: PENDING → COMPLETED/CANCELLED. Stores issueCategory (predefined: "Re-Open Bank Account / Schedule with Client", "Contact Bank", "Contact PayPal", "Platforms Verification"), dueDate (default 3 days from creation), metadata (Json). Created via `assignTodo()` server action. Appears in both backoffice Verification Needed section and agent Action Hub.
+- **EventLog** — Append-only audit trail. EventType enum covers login, application, user management, commission, leadership, client draft, device sign-out/return/re-issue, and todo assignment events.
 
 ### User Roles
 
@@ -239,6 +241,21 @@ Agents create new clients through a 4-step intake form at `/agent/new-client`.
 
 **Auto-save:** 500ms debounced save on field changes. Flushes before step navigation or submission. The `step` field saved to DB always reflects the **highest step ever reached** (not the current navigation step), so navigating back from step 4 to step 1 still shows step 4 in the drafts panel. Tracked via `highestStepRef` in `client-form.tsx`.
 
+**Generated Credentials (Persisted):** Credential suggestions (Gmail address, Gmail password, BetMGM password, platform passwords, bank PINs) are generated once and stored in the `generatedCredentials` Json field on `ClientDraft`. Schema shape:
+```json
+{
+  "gmailSuggestion": "johnsmith0225@gmail.com",
+  "gmailPassword": "Welcome0225!",
+  "betmgmPassword": "luckyday0225",
+  "platformPasswords": { "sportsbook": "...", "BETMGM": "...", "PAYPAL": "...", "EDGEBOOST": "...", "BANK": "..." },
+  "bankPin4": "2580",
+  "bankPin6": "258034"
+}
+```
+**Architecture:** Generation happens at form init in `client-form.tsx` (via `buildFormDataFromDraft` → `ensureStep3Credentials`), NOT in step components. Step 3 passwords + bank PINs are generated eagerly when the form loads (even before visiting Step 3). Step 1 credentials (Gmail, BetMGM) are generated when name+DOB become available (via `useEffect` in `step1-prequal.tsx`). A separate `useEffect` in `client-form.tsx` immediately saves freshly generated credentials to DB (bypassing the 500ms debounce) so they survive page refreshes. Step components (`step1-prequal.tsx`, `step3-platforms.tsx`) only read from `formData.generatedCredentials` — they never generate.
+**Key file:** `credential-generators.ts` — deterministic generator functions (Gmail, Gmail password, BetMGM password) using `stableHash(name+DOB)`.
+**formDataRef pattern:** `client-form.tsx` uses a `formDataRef` that always holds the latest formData, used by `handleStepChange`/`handleSubmit` to flush saves with up-to-date data (avoids stale closure issues with `setFormData`).
+
 **Risk Assessment:** Pure function `calculateRiskScore()` uses **negative scoring** (deductions from 0):
 - **Missing IDs**: 0 missing = +10 bonus, each missing type = -10 (max -30 for 3 missing)
 - **ID expiry** 2-tier: <75 days → -20, 75-99 days → -10, >=100 or null → 0
@@ -258,6 +275,7 @@ Agents create new clients through a 4-step intake form at `/agent/new-client`.
 - **Score range**: Best possible = +10 (all IDs present, no flags), Worst possible = -158 (all flags active)
 - Risk panel displays days remaining for ID expiry (e.g., "ID Expiring in 45D"), assessment question values, and bank info flags
 - **Risk panel order**: Missing IDs → ID Expiring → Multiple Addresses → BetMGM Email Mismatch → PayPal → De-banked → Criminal Record → Household Awareness → Family Support → Financial Autonomy → Bank info flags
+- **Credentials section** (between Risk Factors and Thresholds): Always visible when a draft is selected. Shows per-platform credential match/mismatch status. Before any OCR checks, shows "No platforms checked yet" placeholder. Green dot = match, red dot = mismatch with detail (email/password). Tracks mismatches from Step 1 (Gmail email/password vs suggestion, BetMGM email/password vs suggestion) and Step 3 (all platform cards via `onMismatchChange` callback). Data stored in `credentialMismatches: Record<string, { username: boolean; password: boolean }>` in `RiskAssessment.flags`. Informational only (0 score impact).
 
 **Inner-Step Progress (Step 1):** 5 items — ID document uploaded, Gmail filled, Gmail screenshot uploaded, at least one BetMGM screenshot uploaded, BetMGM check passed
 
@@ -269,6 +287,7 @@ Agents create new clients through a 4-step intake form at `/agent/new-client`.
 - `src/app/agent/new-client/_components/drafts-panel.tsx` — Left panel: draft list + create/delete (no title/subtitle, no file icons, sidebar conventions matched with other pages). Delete button hidden once ID document is uploaded
 - `src/app/agent/new-client/_components/step-indicator.tsx` — 4-step progress indicator
 - `src/app/agent/new-client/_components/client-form.tsx` — Form state, auto-save, step navigation
+- `src/app/agent/new-client/_components/credential-generators.ts` — Deterministic credential generators (Gmail suggestion, Gmail password, BetMGM password) using stableHash(name+DOB)
 - `src/app/agent/new-client/_components/step1-prequal.tsx` — Step 1 fields (3 collapsible SectionCards: ID, Gmail, BetMGM, with uploads + OCR detection + different-address flow)
 - `src/app/agent/new-client/_components/mock-extract-id.ts` — Mock OCR extraction for ID, Gmail, BetMGM screenshots, SSN documents, address proof, and bank screenshots (detects bank name, username, password, PIN)
 - `src/app/agent/new-client/_components/id-detection-modal.tsx` — ID field confirmation dialog with checkboxes
@@ -282,12 +301,15 @@ Agents create new clients through a 4-step intake form at `/agent/new-client`.
 - `src/app/agent/new-client/_components/step4-contract.tsx` — Step 4: 2 SectionCards (Contract Document, Submission Checklist)
 - `src/app/agent/new-client/_components/risk-panel.tsx` — Right panel: risk score + flags
 - `src/app/actions/client-drafts.ts` — CRUD server actions (create, save, submit, delete, getFullDraft with role-based auth)
-- `src/app/backoffice/sales-interaction/_components/draft-review-dialog.tsx` — 4-step read-only review dialog with Approve Client button for submitted drafts (uses `useReducer` for state, calls `approveClient`)
+- `src/app/backoffice/sales-interaction/_components/draft-review-dialog.tsx` — 4-step read-only review dialog with Approve Client button for submitted drafts (uses `useReducer` for state, calls `approveClient`). Step 3 includes Credentials summary (Gmail + BetMGM from draft fields, Step 3 platforms from platformData)
 - `src/app/backoffice/sales-interaction/_components/client-intake-list.tsx` — Intake row list with consistent layout: Review (always), Assign Device (step-2/3, device reservation exists, no active/returned assignment), Mark Returned (PHONE ISSUED, any step), Re-issue (PHONE RETURNED, any step), Approve (step-4 submitted). Status badges: only PHONE ISSUED / PHONE RETURNED with phone number Tooltip on hover
 - `src/app/backoffice/sales-interaction/_components/device-assign-dialog.tsx` — Phone/carrier/deviceId assignment dialog
 - `src/backend/data/client-drafts.ts` — Draft queries (by closer, by ID, ownership check, getAllDrafts, getAllDraftsForBackoffice — fetches DRAFT + SUBMITTED with PENDING client)
 - `src/backend/data/phone-assignments.ts` — Queries: getPendingDeviceRequests (drafts with reservation date + no active assignment), getActivePhoneAssignments (SIGNED_OUT), getReturnedPhoneAssignments (RETURNED), getAssignmentForDraft (most recent assignment for draft, any status — powers Step 3 device info banner)
 - `src/app/actions/phone-assignments.ts` — Server actions: assignAndSignOutDevice (creates assignment + auto-advances draft to step 3), returnDevice, reissueDevice (preserves original dueBackAt). All ADMIN/BACKOFFICE only, with EventLog audit
+- `src/app/actions/todos.ts` — Server action: assignTodo (creates Todo + EventLog, ADMIN/BACKOFFICE only, validates issue category against allowlist, revalidates sales-interaction + todo-list)
+- `src/backend/data/todos.ts` — Todo queries: getTodosByAgent (PENDING for specific agent), getPendingTodosForBackoffice (all PENDING with draft/agent/creator info)
+- `src/app/backoffice/sales-interaction/_components/assign-todo-dialog.tsx` — Assign To-Do dialog: client picker (with search, filters out mock IDs), issue category select (4 categories), due date (default 3 days), info box showing selected agent + step
 - `src/lib/validations/client-draft.ts` — Zod per-step + submit schemas
 - `src/lib/risk-score.ts` — Pure negative risk score calculation (missing IDs, ID expiry, boolean flags, BetMGM email mismatch, assessment question weights, bank info flags)
 
@@ -339,7 +361,7 @@ Rookie (0★) → 1★ → 2★ → 3★ → 4★ → ED → SED → MD → CMO
 - `src/app/actions/commission.ts` — Mark allocation paid, bulk mark paid
 - `src/app/actions/leadership.ts` — Check+promote leadership, quarterly settlement CRUD
 - `src/types/index.ts` — Commission enums (ClientStatus, BonusPoolStatus, AllocationType, etc.)
-- `src/types/backend-types.ts` — Commission data interfaces (CommissionOverviewData, AgentEarningsData, etc.), IntakeClient (includes `resultClientId` for submitted drafts), PlatformEntry (username, accountId, screenshot, status, pin?, bank?, bankAutoDetected?, bankPhoneEmailConfirmed?), RiskAssessment (includes betmgmEmailMismatch, bankPinOverride, bankNameOverride, bankPhoneEmailNotConfirmed flags)
+- `src/types/backend-types.ts` — Commission data interfaces (CommissionOverviewData, AgentEarningsData, etc.), IntakeClient (includes `resultClientId` for submitted drafts), PlatformEntry (username, accountId, screenshot, status, pin?, bank?, bankAutoDetected?, bankPhoneEmailConfirmed?), RiskAssessment (includes betmgmEmailMismatch, bankPinOverride, bankNameOverride, bankPhoneEmailNotConfirmed, credentialMismatches flags)
 
 ### Key Patterns
 
@@ -464,7 +486,7 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 | `/agent/clients/[id]` | `src/app/agent/clients/[id]/page.tsx` | Mock — client detail |
 | `/agent/earnings` | `src/app/agent/earnings/page.tsx` | **Real DB** — allocations; Mock — KPIs/hierarchy |
 | `/agent/team` | `src/app/agent/team/page.tsx` | Mock — hierarchy tree |
-| `/agent/todo-list` | `src/app/agent/todo-list/page.tsx` | Mock — todo list |
+| `/agent/todo-list` | `src/app/agent/todo-list/page.tsx` | **Real DB** — agent todos merged with mock |
 | `/agent/settings` | `src/app/agent/settings/page.tsx` | Mock — user settings (full-width layout) |
 
 ### Back Office
@@ -481,9 +503,10 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 | `/backoffice/fund-allocation` | page.tsx | Mock — fund movements |
 | `/backoffice/partners` | page.tsx | Mock — partners |
 | `/backoffice/phone-tracking` | page.tsx | Mock — phones (can wire to PhoneAssignment model in future) |
+| `/backoffice/rules-registry` | page.tsx | Static — displays all computed todo rules from the rules registry, filterable by priority/owner/data source, with pages audit checklist |
 | `/backoffice/profit-sharing` | page.tsx | Mock — profit sharing |
 | `/backoffice/reports` | page.tsx | Mock — reports |
-| `/backoffice/sales-interaction` | page.tsx | **Real DB + Mock combined** — Team directory (agents by tier) + ClientDraft (real DB drafts + mock data, 4 steps) with integrated device lifecycle (assign/return/re-issue in rows) + Review dialog with Approve; Mock — verification, post-approval |
+| `/backoffice/sales-interaction` | page.tsx | **Real DB + Mock combined** — Team directory (agents by tier) + ClientDraft (real DB drafts + mock data, 4 steps) with integrated device lifecycle (assign/return/re-issue in rows) + Review dialog with Approve + Assign To-Do dialog (creates real Todo records) + Verification Needed section (real todos + mock); Mock — post-approval |
 | `/backoffice/todo-list` | page.tsx | Mock — action hub |
 
 ### Auth
@@ -631,6 +654,12 @@ Note: Leadership agents (ED/SED/MD/CMO) have `starLevel: 4` in DB (they passed t
 | Phone | Carrier | Draft Client | Agent | Status | Due Back | Signed Out By |
 |-------|---------|-------------|-------|--------|----------|---------------|
 | (555) 777-0001 | T-Mobile | Sarah Martinez | Marcus Rivera | SIGNED_OUT | Feb 25, 2026 | Nina Patel |
+
+### Sample Todos
+
+| Issue Category | Client | Agent | Status | Due Date | Created By |
+|---------------|--------|-------|--------|----------|------------|
+| Contact Bank | Sarah Martinez | Marcus Rivera | PENDING | 3 days from seed | Nina Patel |
 
 ---
 

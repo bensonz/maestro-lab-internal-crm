@@ -28,6 +28,7 @@ interface PlatformCardProps {
   onChange: (updated: PlatformEntry) => void
   suggestedUsername?: string
   suggestedPassword?: string
+  onMismatchChange?: (platform: string, mismatch: { username: boolean; password: boolean } | null) => void
 }
 
 export function PlatformCard({
@@ -37,6 +38,7 @@ export function PlatformCard({
   onChange,
   suggestedUsername,
   suggestedPassword,
+  onMismatchChange,
 }: PlatformCardProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [isUploading, setIsUploading] = useState(false)
@@ -68,12 +70,16 @@ export function PlatformCard({
               updated.accountId = result.password
               const userMismatch = !!suggestedUsername && result.username !== suggestedUsername
               const passMismatch = !!suggestedPassword && result.password !== suggestedPassword
-              setMismatch(userMismatch || passMismatch ? { username: userMismatch, password: passMismatch } : null)
+              const m = { username: userMismatch, password: passMismatch }
+              setMismatch(userMismatch || passMismatch ? m : null)
+              onMismatchChange?.(platform, m)
             } else {
               const result = await mockExtractFromPlatform(file, suggestedUsername ?? '', suggestedPassword ?? '')
               const userMismatch = !!suggestedUsername && result.detectedUsername !== suggestedUsername
               const passMismatch = !!suggestedPassword && result.detectedPassword !== suggestedPassword
-              setMismatch(userMismatch || passMismatch ? { username: userMismatch, password: passMismatch } : null)
+              const m = { username: userMismatch, password: passMismatch }
+              setMismatch(userMismatch || passMismatch ? m : null)
+              onMismatchChange?.(platform, m)
             }
           } finally {
             setIsDetecting(false)
@@ -87,7 +93,7 @@ export function PlatformCard({
         setIsUploading(false)
       }
     },
-    [entry, onChange, platform, suggestedUsername, suggestedPassword],
+    [entry, onChange, platform, suggestedUsername, suggestedPassword, onMismatchChange],
   )
 
   const handleFileChange = useCallback(
@@ -101,13 +107,14 @@ export function PlatformCard({
 
   const handleDeleteScreenshot = useCallback(() => {
     setMismatch(null)
+    onMismatchChange?.(platform, null)
     const updated = { ...entry, screenshot: '' }
     if (platform === 'BANK') {
       updated.bank = ''
       updated.bankAutoDetected = ''
     }
     onChange(updated)
-  }, [entry, onChange, platform])
+  }, [entry, onChange, platform, onMismatchChange])
 
   const isBank = platform === 'BANK'
   const bankOverridden = isBank && !!entry.bankAutoDetected && !!entry.bank && entry.bank !== entry.bankAutoDetected

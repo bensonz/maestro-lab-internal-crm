@@ -76,6 +76,8 @@ export interface IntakeClient {
   returnedAssignmentId?: string | null
   /** Phone number assigned to this client (for badge hover) */
   assignedPhone?: string | null
+  /** Carrier of assigned phone */
+  assignedCarrier?: string | null
 }
 
 export interface PostApprovalClient {
@@ -92,6 +94,7 @@ export interface PostApprovalClient {
 export interface VerificationTask {
   id: string
   clientId: string | null
+  draftId: string | null
   clientName: string
   platformType: PlatformType | null
   platformLabel: string
@@ -104,6 +107,10 @@ export interface VerificationTask {
   clientDeadline: Date | null
   status: 'Pending' | 'Done'
   screenshots: string[]
+  /** Previously assigned phone number (for re-assignment pre-fill) */
+  assignedPhone?: string | null
+  /** Previously assigned carrier (for re-assignment pre-fill) */
+  assignedCarrier?: string | null
 }
 
 export interface SettlementClient {
@@ -348,6 +355,7 @@ export interface RiskAssessment {
     bankPinOverride: boolean
     bankNameOverride: boolean
     bankPhoneEmailNotConfirmed: boolean
+    credentialMismatches: Record<string, { username: boolean; password: boolean }>
   }
 }
 

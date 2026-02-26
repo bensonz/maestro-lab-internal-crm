@@ -67,6 +67,12 @@ enum PhoneAssignmentStatus {
   RETURNED
 }
 
+enum TodoStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
 enum EventType {
   LOGIN
   LOGOUT
@@ -88,6 +94,7 @@ enum EventType {
   DEVICE_SIGNED_OUT
   DEVICE_RETURNED
   DEVICE_REISSUED
+  TODO_ASSIGNED
 }
 
 // ─── User ────────────────────────────────────────────────
@@ -142,6 +149,8 @@ model User {
   clientDrafts           ClientDraft[]      @relation("DraftCloser")
   phoneAssignmentsAsAgent  PhoneAssignment[] @relation("PhoneAgent")
   phoneAssignmentsAsIssuer PhoneAssignment[] @relation("PhoneSignedOutBy")
+  assignedTodos            Todo[]            @relation("TodoAssignedTo")
+  createdTodos             Todo[]            @relation("TodoCreatedBy")
 }
 
 // ─── Agent Application ───────────────────────────────────
@@ -279,7 +288,8 @@ model ClientDraft {
   sportsbookStatuses    String?
 
   // Step 3: Platforms
-  platformData Json?
+  platformData           Json?
+  generatedCredentials   Json?
 
   // Step 4: Contract
   contractDocument String?
@@ -297,6 +307,7 @@ model ClientDraft {
   resultClientId String? @unique
   resultClient   Client? @relation("DraftResult", fields: [resultClientId], references: [id])
   phoneAssignments PhoneAssignment[]
+  todos            Todo[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -421,6 +432,32 @@ model PhoneAssignment {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ─── Todo ───────────────────────────────────────────────
+
+model Todo {
+  id            String     @id @default(cuid())
+  title         String
+  description   String?
+  issueCategory String
+
+  clientDraftId String
+  clientDraft   ClientDraft @relation(fields: [clientDraftId], references: [id])
+
+  assignedToId  String
+  assignedTo    User   @relation("TodoAssignedTo", fields: [assignedToId], references: [id])
+
+  createdById   String
+  createdBy     User   @relation("TodoCreatedBy", fields: [createdById], references: [id])
+
+  dueDate       DateTime
+  completedAt   DateTime?
+  status        TodoStatus @default(PENDING)
+  metadata      Json?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 // ─── Event Log ───────────────────────────────────────────

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo, useEffect } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Input } from '@/components/ui/input'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { UploadDropzone, ScreenshotThumbnail } from '@/components/upload-dropzone'
@@ -74,81 +74,12 @@ function computeAge(dobStr: string): number | null {
   return age
 }
 
-function pad2(n: number): string {
-  return String(n).padStart(2, '0')
-}
-
-/** Simple deterministic hash from a string — same input always gives same output */
-function stableHash(str: string): number {
-  let h = 0
-  for (let i = 0; i < str.length; i++) {
-    h = ((h << 5) - h) + str.charCodeAt(i)
-    h |= 0
-  }
-  return Math.abs(h)
-}
-
-const GMAIL_PATTERNS = [
-  (f: string, l: string, bm: string, bd: string, _tm: string, td: string) => `${f}${l}${bm}${td}`,
-  (f: string, l: string, _bm: string, bd: string, tm: string, _td: string) => `${l}${f}${tm}${bd}`,
-  (f: string, l: string, bm: string, bd: string, _tm: string, _td: string) => `${f[0]}${l}${bm}${bd}`,
-  (f: string, l: string, _bm: string, _bd: string, tm: string, td: string) => `${l}${f[0]}${tm}${td}`,
-  (f: string, l: string, bm: string, _bd: string, _tm: string, td: string) => `${f}${l[0]}${bm}${td}`,
-] as const
-
-/** One stable Gmail suggestion per client (deterministic from name + DOB) */
-function generateGmailSuggestion(firstName: string, lastName: string, dob: string): string {
-  if (!firstName || !lastName) return ''
-  const f = firstName.toLowerCase().replace(/[^a-z]/g, '')
-  const l = lastName.toLowerCase().replace(/[^a-z]/g, '')
-  if (!f || !l) return ''
-
-  const now = new Date()
-  const todayMonth = pad2(now.getMonth() + 1)
-  const todayDay = pad2(now.getDate())
-  const dobDate = dob ? new Date(dob) : null
-  const birthMonth = dobDate ? pad2(dobDate.getMonth() + 1) : todayMonth
-  const birthDay = dobDate ? pad2(dobDate.getDate()) : todayDay
-
-  const idx = stableHash(f + l + dob) % GMAIL_PATTERNS.length
-  const local = GMAIL_PATTERNS[idx](f, l, birthMonth, birthDay, todayMonth, todayDay)
-  return `${local}@gmail.com`
-}
-
-const GMAIL_PW_PHRASES = ['Welcome', 'Hello', 'MyMail', 'Access', 'Login'] as const
-const GMAIL_PW_SUFFIXES = (bm: string, bd: string, by: string) => [`${bm}${bd}!`, `${bd}${bm}#`, `${bm}${by}!`]
-
-/** One stable Gmail password per client */
-function generateGmailPassword(firstName: string, lastName: string, dob: string): string {
-  if (!dob) return ''
-  const dobDate = new Date(dob)
-  if (isNaN(dobDate.getTime())) return ''
-  const bm = pad2(dobDate.getMonth() + 1)
-  const bd = pad2(dobDate.getDate())
-  const by = String(dobDate.getFullYear()).slice(-2)
-  const h = stableHash((firstName || '') + (lastName || '') + dob)
-  const phrase = GMAIL_PW_PHRASES[h % GMAIL_PW_PHRASES.length]
-  const suffixes = GMAIL_PW_SUFFIXES(bm, bd, by)
-  const suffix = suffixes[(h >> 3) % suffixes.length]
-  return `${phrase}${suffix}`
-}
-
-const BETMGM_PHRASES = ['ihopeitwillwork', 'letmewin', 'luckyday', 'gametime', 'bigwin'] as const
-
-/** One stable BetMGM password per client */
-function generateBetmgmPassword(firstName: string, lastName: string, dob: string): string {
-  if (!dob) return ''
-  const dobDate = new Date(dob)
-  if (isNaN(dobDate.getTime())) return ''
-  const bm = pad2(dobDate.getMonth() + 1)
-  const bd = pad2(dobDate.getDate())
-  const by = String(dobDate.getFullYear()).slice(-2)
-  const h = stableHash((firstName || '') + (lastName || '') + dob)
-  const phrase = BETMGM_PHRASES[h % BETMGM_PHRASES.length]
-  const suffixOptions = [`${bm}${bd}`, `${bd}${bm}`, `${bm}${by}`]
-  const suffix = suffixOptions[(h >> 3) % suffixOptions.length]
-  return `${phrase}${suffix}`
-}
+import {
+  generateGmailSuggestion,
+  generateGmailPassword,
+  generateBetmgmPassword,
+} from './credential-generators'
+import type { GeneratedCredentials } from './client-form'
 
 function UploadTooltip({ tip }: { tip: { what: string; not: string } }) {
   return (
@@ -222,31 +153,27 @@ export function Step1PreQual({ formData, onChange, onRiskFlagsChange }: Step1Pro
   const [betmgmDetectionType, setBetmgmDetectionType] = useState<'registration' | 'login'>('login')
   const [showBetmgmModal, setShowBetmgmModal] = useState(false)
 
-  // Deterministic suggestions — one stable suggestion per client (based on name + DOB)
-  const suggestedGmail = useMemo(
-    () => generateGmailSuggestion(
-      (formData.firstName as string) || '',
-      (formData.lastName as string) || '',
-      (formData.dateOfBirth as string) || '',
-    ),
-    [formData.firstName, formData.lastName, formData.dateOfBirth],
-  )
-  const suggestedGmailPassword = useMemo(
-    () => generateGmailPassword(
-      (formData.firstName as string) || '',
-      (formData.lastName as string) || '',
-      (formData.dateOfBirth as string) || '',
-    ),
-    [formData.firstName, formData.lastName, formData.dateOfBirth],
-  )
-  const suggestedBetmgmPassword = useMemo(
-    () => generateBetmgmPassword(
-      (formData.firstName as string) || '',
-      (formData.lastName as string) || '',
-      (formData.dateOfBirth as string) || '',
-    ),
-    [formData.firstName, formData.lastName, formData.dateOfBirth],
-  )
+  // ── Read persisted credentials (generated at form level in client-form.tsx) ──
+  const creds = (formData.generatedCredentials ?? {}) as GeneratedCredentials
+  const suggestedGmail = creds.gmailSuggestion || ''
+  const suggestedGmailPassword = creds.gmailPassword || ''
+  const suggestedBetmgmPassword = creds.betmgmPassword || ''
+
+  // When name+DOB change and credentials haven't been generated yet, generate now
+  useEffect(() => {
+    const firstName = (formData.firstName as string) || ''
+    const lastName = (formData.lastName as string) || ''
+    const dob = (formData.dateOfBirth as string) || ''
+    if (!firstName || !lastName) return
+    if (creds.gmailSuggestion) return // already generated
+    const updated: GeneratedCredentials = {
+      ...creds,
+      gmailSuggestion: generateGmailSuggestion(firstName, lastName, dob),
+      gmailPassword: generateGmailPassword(firstName, lastName, dob),
+      betmgmPassword: generateBetmgmPassword(firstName, lastName, dob),
+    }
+    onChange('generatedCredentials', updated)
+  }, [formData.firstName, formData.lastName, formData.dateOfBirth]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-fill fields when suggestion first becomes available (field empty)
   useEffect(() => {
@@ -382,6 +309,10 @@ export function Step1PreQual({ formData, onChange, onRiskFlagsChange }: Step1Pro
       onChange('gmailPassword', data.password)
       setAutoFilledFields((prev) => new Set([...prev, 'gmailPassword']))
     }
+    // Report credential check to risk panel (match or mismatch)
+    const emailMismatch = !!(data.emailAddress && suggestedGmail && data.emailAddress !== suggestedGmail)
+    const passwordMismatch = !!(data.password && suggestedGmailPassword && data.password !== suggestedGmailPassword)
+    onRiskFlagsChange({ credentialMismatches: { GMAIL: { username: emailMismatch, password: passwordMismatch } } })
   }
 
   function makeBetmgmUploadHandler(
@@ -418,17 +349,21 @@ export function Step1PreQual({ formData, onChange, onRiskFlagsChange }: Step1Pro
 
   function handleBetmgmDetectionConfirm(data: BetmgmExtractionResult) {
     // Auto-fill credential fields from detection
+    const emailMismatch = !!(data.loginEmail && (formData.assignedGmail as string) && data.loginEmail !== (formData.assignedGmail as string))
+    const passwordMismatch = !!(data.loginPassword && suggestedBetmgmPassword && data.loginPassword !== suggestedBetmgmPassword)
+
     if (data.loginEmail) {
       onChange('betmgmLogin', data.loginEmail)
       setAutoFilledFields((prev) => new Set([...prev, 'betmgmLogin']))
       // Flag mismatch in risk panel if detected email differs from assigned Gmail
-      const assignedGmail = (formData.assignedGmail as string) || ''
-      onRiskFlagsChange({ betmgmEmailMismatch: !!(assignedGmail && data.loginEmail !== assignedGmail) })
+      onRiskFlagsChange({ betmgmEmailMismatch: emailMismatch })
     }
     if (data.loginPassword) {
       onChange('betmgmPassword', data.loginPassword)
       setAutoFilledFields((prev) => new Set([...prev, 'betmgmPassword']))
     }
+    // Report credential check to risk panel (match or mismatch)
+    onRiskFlagsChange({ credentialMismatches: { BETMGM: { username: emailMismatch, password: passwordMismatch } } })
     // Auto-set betmgmCheckPassed if deposit word detected
     if (data.depositWordDetected) {
       onChange('betmgmCheckPassed', true)

@@ -1,6 +1,7 @@
 import { requireAgent } from '../_require-agent'
 import { getDraftsByCloser, getDraftByIdForAgent } from '@/backend/data/client-drafts'
 import { getAssignmentForDraft } from '@/backend/data/phone-assignments'
+import { ensureGeneratedCredentials } from '@/backend/services/credential-generator'
 import { NewClientView } from './_components/new-client-view'
 
 export default async function NewClientPage({
@@ -25,6 +26,15 @@ export default async function NewClientPage({
       selectedDraft = await getDraftByIdForAgent(params.draft, agent.id)
     } catch {
       // Draft not found or DB issue
+    }
+  }
+
+  // Ensure generated credentials exist (generate once, persist forever)
+  if (selectedDraft) {
+    try {
+      selectedDraft = await ensureGeneratedCredentials(selectedDraft)
+    } catch {
+      // Non-critical — form will work without persisted credentials
     }
   }
 

@@ -9,6 +9,7 @@ import {
   Loader2,
   CheckCircle2,
   Minus,
+  KeyRound,
 } from 'lucide-react'
 import {
   Dialog,
@@ -53,7 +54,7 @@ interface FullDraftData {
   bankingHistory: string | null
   paypalHistory: string | null
   sportsbookHistory: string | null
-  platformData: Record<string, { username?: string; accountId?: string; screenshot?: string }> | null
+  platformData: Record<string, { username?: string; accountId?: string; screenshot?: string; pin?: string; bank?: string; bankPhoneEmailConfirmed?: boolean }> | null
   contractDocument: string | null
   paypalPreviouslyUsed: boolean
   addressMismatch: boolean
@@ -200,7 +201,7 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, onClose 
     })
   }, [draftId, loadedDraftId])
 
-  const platformData = draft?.platformData as Record<string, { username?: string; accountId?: string; screenshot?: string }> | null
+  const platformData = draft?.platformData as Record<string, { username?: string; accountId?: string; screenshot?: string; pin?: string; bank?: string; bankPhoneEmailConfirmed?: boolean }> | null
 
   return (
     <Dialog open={!!draftId} onOpenChange={(open) => { if (!open) onClose() }}>
@@ -415,6 +416,56 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, onClose 
                       </div>
                     )
                   })}
+                </div>
+
+                {/* Credentials summary */}
+                <div className="space-y-1.5" data-testid="draft-review-credentials">
+                  <p className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                    <KeyRound className="h-3 w-3" />
+                    Credentials
+                  </p>
+                  <div className="space-y-1 text-xs">
+                    {/* Step 1 credentials: Gmail + BetMGM */}
+                    {[
+                      { key: 'Gmail', user: draft.assignedGmail, pass: draft.gmailPassword },
+                      { key: 'BetMGM', user: draft.betmgmLogin, pass: draft.betmgmPassword },
+                    ].map(({ key, user, pass }) => {
+                      const hasUser = !!user
+                      const hasPass = !!pass
+                      const filled = hasUser && hasPass
+                      return (
+                        <div key={key} className="flex items-center justify-between">
+                          <span className={cn('flex items-center gap-1', filled ? 'text-foreground' : 'text-muted-foreground')}>
+                            <span className={cn('inline-block h-1.5 w-1.5 rounded-full', filled ? 'bg-success' : hasUser || hasPass ? 'bg-warning' : 'bg-muted-foreground/30')} />
+                            {key}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground/60">
+                            {hasUser && hasPass ? 'filled' : hasUser ? 'email only' : hasPass ? 'password only' : '—'}
+                          </span>
+                        </div>
+                      )
+                    })}
+                    {/* Step 3 platform credentials */}
+                    {ALL_PLATFORMS.map((platform) => {
+                      const info = PLATFORM_INFO[platform]
+                      const data = platformData?.[platform as string]
+                      const hasUser = !!data?.username
+                      const hasPass = !!data?.accountId
+                      const filled = hasUser && hasPass
+                      if (!hasUser && !hasPass) return null
+                      return (
+                        <div key={platform} className="flex items-center justify-between">
+                          <span className={cn('flex items-center gap-1', filled ? 'text-foreground' : 'text-muted-foreground')}>
+                            <span className={cn('inline-block h-1.5 w-1.5 rounded-full', filled ? 'bg-success' : 'bg-warning')} />
+                            {info.name}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground/60">
+                            {hasUser && hasPass ? 'filled' : hasUser ? 'username only' : 'password only'}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               </div>
             )}

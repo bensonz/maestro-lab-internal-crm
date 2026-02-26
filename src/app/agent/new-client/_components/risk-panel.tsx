@@ -1,7 +1,7 @@
 'use client'
 
 import { cn } from '@/lib/utils'
-import { Shield, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react'
+import { Shield, AlertTriangle, CheckCircle2, XCircle, KeyRound } from 'lucide-react'
 import type { RiskAssessment } from '@/types/backend-types'
 
 interface RiskPanelProps {
@@ -29,6 +29,21 @@ const AUTONOMY_LABELS: Record<string, string> = {
   fully_independent: 'Independent',
   shared_with_spouse: 'Shared',
   dependent_on_others: 'Dependent',
+}
+
+const CREDENTIAL_DISPLAY_NAMES: Record<string, string> = {
+  GMAIL: 'Gmail',
+  BETMGM: 'BetMGM',
+  PAYPAL: 'PayPal',
+  BANK: 'Online Banking',
+  EDGEBOOST: 'EdgeBoost',
+  DRAFTKINGS: 'DraftKings',
+  FANDUEL: 'FanDuel',
+  CAESARS: 'Caesars',
+  FANATICS: 'Fanatics',
+  BALLYBET: 'Bally Bet',
+  BETRIVERS: 'BetRivers',
+  BET365: 'Bet365',
 }
 
 type FlagEntry = {
@@ -166,6 +181,44 @@ export function RiskPanel({ assessment, draftSelected, idExpiryDaysRemaining }: 
                   </div>
                 )
               })}
+            </div>
+
+            {/* Credentials section */}
+            <div className="space-y-2" data-testid="credentials-section">
+              <p className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                <KeyRound className="h-3 w-3" />
+                Credentials
+              </p>
+              {Object.keys(assessment.flags.credentialMismatches).length > 0 ? (
+                Object.entries(assessment.flags.credentialMismatches).map(([platform, m]) => {
+                  const name = CREDENTIAL_DISPLAY_NAMES[platform] || platform
+                  const hasMismatch = m.username || m.password
+                  const detail = hasMismatch
+                    ? [m.username && 'email', m.password && 'password'].filter(Boolean).join(', ')
+                    : null
+                  return (
+                    <div
+                      key={platform}
+                      className="flex items-center justify-between text-xs"
+                      data-testid={`credential-${platform}`}
+                    >
+                      <span className={cn('flex items-center gap-1', hasMismatch ? 'text-foreground' : 'text-success')}>
+                        <span className={cn('inline-block h-1.5 w-1.5 rounded-full', hasMismatch ? 'bg-destructive' : 'bg-success')} />
+                        {name}
+                      </span>
+                      {hasMismatch ? (
+                        <span className="text-destructive/70 text-[10px]">{detail}</span>
+                      ) : (
+                        <span className="text-success/70 text-[10px]">match</span>
+                      )}
+                    </div>
+                  )
+                })
+              ) : (
+                <p className="text-[10px] text-muted-foreground/60">
+                  No platforms checked yet
+                </p>
+              )}
             </div>
 
             {/* Threshold guide */}

@@ -103,6 +103,7 @@ export async function saveClientDraft(
     'sportsbookUsedList',
     'sportsbookStatuses',
     'platformData',
+    'generatedCredentials',
     'contractDocument',
     'paypalPreviouslyUsed',
     'addressMismatch',
@@ -234,6 +235,11 @@ export async function deleteClientDraft(draftId: string) {
   if (draft.idDocument) {
     return { success: false, error: 'Cannot delete draft after ID has been uploaded' }
   }
+
+  // Delete related phone assignments first (FK constraint)
+  await prisma.phoneAssignment.deleteMany({
+    where: { clientDraftId: draftId },
+  })
 
   await prisma.clientDraft.delete({
     where: { id: draftId },

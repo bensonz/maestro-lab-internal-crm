@@ -15,6 +15,7 @@ interface PayPalCardProps {
   paypalSsnLinked: boolean | null | undefined
   assignedGmail?: string
   suggestedPassword?: string
+  onMismatchChange?: (platform: string, mismatch: { username: boolean; password: boolean } | null) => void
 }
 
 export function PayPalCard({
@@ -24,6 +25,7 @@ export function PayPalCard({
   paypalSsnLinked,
   assignedGmail,
   suggestedPassword,
+  onMismatchChange,
 }: PayPalCardProps) {
   const credInputRef = useRef<HTMLInputElement>(null)
   const balInputRef = useRef<HTMLInputElement>(null)
@@ -57,9 +59,9 @@ export function PayPalCard({
               )
               const userMismatch = !!assignedGmail && result.detectedUsername !== assignedGmail
               const passMismatch = !!suggestedPassword && result.detectedPassword !== suggestedPassword
-              setCredMismatch(
-                userMismatch || passMismatch ? { username: userMismatch, password: passMismatch } : null,
-              )
+              const m = { username: userMismatch, password: passMismatch }
+              setCredMismatch(userMismatch || passMismatch ? m : null)
+              onMismatchChange?.('PAYPAL', m)
             } finally {
               setIsDetectingCred(false)
             }
@@ -149,7 +151,7 @@ export function PayPalCard({
           {entry.screenshot ? (
             <ScreenshotThumbnail
               src={entry.screenshot}
-              onDelete={() => { setCredMismatch(null); onChange({ ...entry, screenshot: '' }) }}
+              onDelete={() => { setCredMismatch(null); onMismatchChange?.('PAYPAL', null); onChange({ ...entry, screenshot: '' }) }}
               size="sm"
             />
           ) : (

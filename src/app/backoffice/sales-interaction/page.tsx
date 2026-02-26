@@ -2,15 +2,15 @@ import {
   MOCK_SALES_HIERARCHY,
   MOCK_INTAKE_CLIENTS,
   MOCK_VERIFICATION_TASKS,
-  MOCK_POST_APPROVAL_CLIENTS,
   MOCK_LIFECYCLE_CLIENTS,
 } from '@/lib/mock-data'
 import { SalesInteractionView } from './_components/sales-interaction-view'
 import { getAllDraftsForBackoffice } from '@/backend/data/client-drafts'
 import { getActivePhoneAssignments, getReturnedPhoneAssignments } from '@/backend/data/phone-assignments'
+import { getPendingTodosForBackoffice } from '@/backend/data/todos'
 import { getAgentsForHierarchy } from '@/backend/data/users'
 import { getAgentDisplayTier, LEADERSHIP_TIERS, STAR_THRESHOLDS } from '@/lib/commission-constants'
-import type { IntakeClient, InProgressSubStage } from '@/types/backend-types'
+import type { IntakeClient, InProgressSubStage, VerificationTask } from '@/types/backend-types'
 
 function stepToSubStage(step: number): InProgressSubStage {
   const map: Record<number, InProgressSubStage> = {
@@ -72,12 +72,14 @@ export default async function SalesInteractionPage() {
       getReturnedPhoneAssignments(),
     ])
 
-    // Map draft ID → active assignment ID + phone number
+    // Map draft ID → active assignment ID + phone number + carrier
     const draftToAssignmentId = new Map<string, string>()
     const draftToPhoneNumber = new Map<string, string>()
+    const draftToCarrier = new Map<string, string>()
     for (const a of activeAssignments) {
       draftToAssignmentId.set(a.clientDraftId, a.id)
       draftToPhoneNumber.set(a.clientDraftId, a.phoneNumber)
+      if (a.carrier) draftToCarrier.set(a.clientDraftId, a.carrier)
     }
 
     // Map draft ID → returned assignment ID + phone number (most recent return per draft)
@@ -86,6 +88,7 @@ export default async function SalesInteractionPage() {
       if (!draftToReturnedId.has(a.clientDraftId)) {
         draftToReturnedId.set(a.clientDraftId, a.id)
         draftToPhoneNumber.set(a.clientDraftId, a.phoneNumber)
+        if (a.carrier) draftToCarrier.set(a.clientDraftId, a.carrier)
       }
     }
 
@@ -138,6 +141,7 @@ export default async function SalesInteractionPage() {
         activeAssignmentId,
         returnedAssignmentId,
         assignedPhone: draftToPhoneNumber.get(d.id) ?? null,
+        assignedCarrier: draftToCarrier.get(d.id) ?? null,
       }
     })
   } catch (e) {
@@ -146,6 +150,40 @@ export default async function SalesInteractionPage() {
 
   // Combine real drafts + mock data (mock kept for UI development)
   const clientIntake = [...draftIntake, ...MOCK_INTAKE_CLIENTS]
+
+  // Fetch real todos from DB and map to VerificationTask format
+  let realTodoTasks: VerificationTask[] = []
+  try {
+    const todos = await getPendingTodosForBackoffice()
+    realTodoTasks = todos.map((t) => {
+      const clientName = [t.clientDraft.firstName, t.clientDraft.lastName].filter(Boolean).join(' ') || 'Unknown'
+      const daysUntil = Math.floor((t.dueDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+      const latestPhone = t.clientDraft.phoneAssignments?.[0] ?? null
+      return {
+        id: t.id,
+        clientId: null,
+        draftId: t.clientDraft.id,
+        clientName,
+        platformType: null,
+        platformLabel: t.issueCategory,
+        task: t.title,
+        agentId: t.assignedTo.id,
+        agentName: t.assignedTo.name,
+        deadline: t.dueDate,
+        daysUntilDue: daysUntil,
+        deadlineLabel: daysUntil < 0 ? `${Math.abs(daysUntil)}d overdue` : `${daysUntil}d`,
+        clientDeadline: t.dueDate,
+        status: 'Pending' as const,
+        screenshots: [],
+        assignedPhone: latestPhone?.phoneNumber ?? null,
+        assignedCarrier: latestPhone?.carrier ?? null,
+      }
+    })
+  } catch (e) {
+    console.error('[sales-interaction] todos fetch error:', e)
+  }
+
+  const verificationTasks = [...realTodoTasks, ...MOCK_VERIFICATION_TASKS]
 
   // Compute stats from combined data
   const stats = {
@@ -160,8 +198,7 @@ export default async function SalesInteractionPage() {
       stats={stats}
       agentHierarchy={agentHierarchy}
       clientIntake={clientIntake}
-      verificationTasks={MOCK_VERIFICATION_TASKS}
-      postApprovalClients={MOCK_POST_APPROVAL_CLIENTS}
+      verificationTasks={verificationTasks}
       lifecycleClients={MOCK_LIFECYCLE_CLIENTS}
     />
   )

@@ -28,6 +28,10 @@ interface DeviceAssignDialogProps {
   draftId: string | null
   clientName: string
   agentName: string
+  /** Pre-fill phone number (for verification re-assignments) */
+  initialPhone?: string | null
+  /** Pre-fill carrier (for verification re-assignments) */
+  initialCarrier?: string | null
   onClose: () => void
 }
 
@@ -35,14 +39,28 @@ export function DeviceAssignDialog({
   draftId,
   clientName,
   agentName,
+  initialPhone,
+  initialCarrier,
   onClose,
 }: DeviceAssignDialogProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const [phoneNumber, setPhoneNumber] = useState('')
-  const [carrier, setCarrier] = useState('')
+  const [phoneNumber, setPhoneNumber] = useState(initialPhone ?? '')
+  const [carrier, setCarrier] = useState(initialCarrier ?? '')
   const [deviceId, setDeviceId] = useState('')
   const [notes, setNotes] = useState('')
+
+  // Sync pre-fill values when dialog opens with new data
+  const prevDraftIdRef = useState<string | null>(null)
+  if (draftId !== prevDraftIdRef[0]) {
+    prevDraftIdRef[1](draftId)
+    if (draftId) {
+      setPhoneNumber(initialPhone ?? '')
+      setCarrier(initialCarrier ?? '')
+      setDeviceId('')
+      setNotes('')
+    }
+  }
 
   const handleClose = () => {
     setPhoneNumber('')
