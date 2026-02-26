@@ -58,7 +58,6 @@ const FLAG_ENTRIES: FlagEntry[] = [
   { key: 'missingIdCount', label: 'Missing IDs', weight: '0: +10 / each: −10', type: 'missingId' },
   { key: 'idExpiryRisk', label: 'ID Expiring Soon', weight: '−10 to −20', type: 'idExpiry' },
   { key: 'multipleAddresses', label: 'Multiple Addresses', weight: 'info only', type: 'boolean' },
-  { key: 'betmgmEmailMismatch', label: 'BetMGM Email Mismatch', weight: 'info only', type: 'boolean' },
   { key: 'paypalPreviouslyUsed', label: 'PayPal Previously Used', weight: '−10', type: 'boolean' },
   { key: 'debankedHistory', label: 'De-banked History', weight: '−30', type: 'boolean' },
   { key: 'criminalRecord', label: 'Criminal Record', weight: '−30', type: 'boolean' },
