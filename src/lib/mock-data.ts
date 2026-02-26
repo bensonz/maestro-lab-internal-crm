@@ -401,7 +401,11 @@ export const MOCK_SERVER_CLIENTS = [
     id: 'client-1', name: 'John Smith', phone: '(555) 123-4567', email: 'john.smith@email.com', start: 'Feb 10, 2026', funds: '$2,450', totalPaid: 1800,
     platforms: ['DK', 'FD', 'MGM', 'CZR', 'FAN', 'BB', 'BR', '365'], activePlatforms: ['FD', 'CZR'], intakeStatus: 'IN_EXECUTION',
     agent: 'Marcus Rivera', address: '123 Main St', city: 'Springfield', state: 'IL', zipCode: '62701', country: 'US',
-    idDocument: null, questionnaire: null,
+    idDocument: null, questionnaire: JSON.stringify({
+      dateOfBirth: '1990-05-15', gender: 'Male', citizenship: 'US Citizen', idExpiry: '2026-04-20',
+      gmailPassword: 'jsmith.gmail.2026', zellePhone: '(555) 123-4567',
+      paypalPreviouslyUsed: true,
+    }),
     platformDetails: [
       { platformType: 'DRAFTKINGS', status: 'PENDING_REVIEW', screenshots: [], username: 'jsmith_dk', reviewedBy: null, reviewedAt: null, reviewNotes: null },
       { platformType: 'FANDUEL', status: 'VERIFIED', screenshots: ['/uploads/fd-screenshot.png'], username: 'jsmith_fd', reviewedBy: 'Sarah Chen', reviewedAt: '2026-02-18', reviewNotes: 'Looks good' },
@@ -427,7 +431,10 @@ export const MOCK_SERVER_CLIENTS = [
     id: 'client-5', name: 'James Brown', phone: '(555) 123-4571', email: 'james.b@email.com', start: 'Jan 28, 2026', funds: '$5,200', totalPaid: 3200,
     platforms: ['DK', 'FD', 'MGM', 'CZR', 'FAN', 'BB', 'BR', '365'], activePlatforms: [], intakeStatus: 'READY_FOR_APPROVAL',
     agent: 'Marcus Rivera', address: '789 Pine Rd', city: 'Austin', state: 'TX', zipCode: '73301', country: 'US',
-    idDocument: null, questionnaire: null,
+    idDocument: null, questionnaire: JSON.stringify({
+      dateOfBirth: '1988-11-22', gender: 'Male', citizenship: 'US Citizen', idExpiry: '2028-09-15',
+      gmailPassword: 'jbrown.gmail.2026', zellePhone: '(555) 123-4571',
+    }),
     platformDetails: [
       { platformType: 'DRAFTKINGS', status: 'VERIFIED', screenshots: [], username: 'jbrown_dk', reviewedBy: 'Sarah Chen', reviewedAt: '2026-02-10', reviewNotes: null },
       { platformType: 'FANDUEL', status: 'VERIFIED', screenshots: [], username: 'jbrown_fd', reviewedBy: 'Sarah Chen', reviewedAt: '2026-02-10', reviewNotes: null },
@@ -447,7 +454,11 @@ export const MOCK_SERVER_CLIENTS = [
     id: 'client-6', name: 'Emily Davis', phone: '(555) 123-4572', email: 'emily.d@email.com', start: 'Jan 15, 2026', funds: '$8,100', totalPaid: 6500,
     platforms: ['DK', 'FD', 'MGM', 'CZR', 'FAN', 'BB', 'BR', '365'], activePlatforms: [], intakeStatus: 'APPROVED',
     agent: 'Marcus Rivera', address: '321 Elm St', city: 'Denver', state: 'CO', zipCode: '80201', country: 'US',
-    idDocument: null, questionnaire: null,
+    idDocument: null, questionnaire: JSON.stringify({
+      dateOfBirth: '1995-03-08', gender: 'Female', citizenship: 'US Citizen', idExpiry: '2027-12-01',
+      gmailPassword: 'edavis.gmail.2026', zellePhone: '(555) 123-4572',
+      debankedHistory: true, criminalRecord: true,
+    }),
     platformDetails: [
       { platformType: 'DRAFTKINGS', status: 'LIMITED', screenshots: [], username: 'edavis_dk', reviewedBy: 'Sarah Chen', reviewedAt: '2026-01-20', reviewNotes: 'Account limited' },
       { platformType: 'FANDUEL', status: 'LIMITED', screenshots: [], username: 'edavis_fd', reviewedBy: 'Sarah Chen', reviewedAt: '2026-01-22', reviewNotes: 'Geo restricted' },
@@ -505,55 +516,59 @@ export const MOCK_SALES_HIERARCHY = [
 
 export const MOCK_INTAKE_CLIENTS: IntakeClient[] = [
   {
-    id: 'client-7', name: 'Robert Taylor', status: 'PENDING', statusType: 'ready', statusColor: 'gray', agentId: 'user-agent-1', agentName: 'Marcus Rivera',
-    days: 4, daysLabel: '4d', canApprove: false, canAssignPhone: true, subStage: 'step-1',
+    id: 'client-7', name: 'Robert Taylor', status: '', statusType: 'pending_platform', statusColor: '', agentId: 'user-agent-1', agentName: 'Marcus Rivera',
+    days: 4, daysLabel: '4d', canApprove: false, canAssignPhone: false, subStage: 'step-1',
     executionDeadline: null, deadlineExtensions: 0, pendingExtensionRequest: null,
-    platformProgress: { verified: 0, total: 11 }, exceptionStates: [], rejectedPlatforms: [],
+    platformProgress: { verified: 0, total: 0 }, exceptionStates: [], rejectedPlatforms: [],
   },
   {
-    id: 'client-4', name: 'Sarah Wilson', status: 'PHONE_ISSUED', statusType: 'ready', statusColor: 'green', agentId: 'user-agent-1', agentName: 'Marcus Rivera',
+    id: 'client-4', name: 'Sarah Wilson', status: '', statusType: 'pending_platform', statusColor: '', agentId: 'user-agent-1', agentName: 'Marcus Rivera',
     days: 5, daysLabel: '5d', canApprove: false, canAssignPhone: false, subStage: 'step-2',
-    executionDeadline: new Date('2026-02-21'), deadlineExtensions: 0, pendingExtensionRequest: null,
-    platformProgress: { verified: 0, total: 11 }, exceptionStates: [{ type: 'deadline-approaching', label: 'Deadline in 2 days' }], rejectedPlatforms: [],
-  },
-  {
-    id: 'client-1', name: 'John Smith', status: 'IN_EXECUTION', statusType: 'pending_platform', statusColor: 'blue', agentId: 'user-agent-1', agentName: 'Marcus Rivera',
-    days: 9, daysLabel: '9d', canApprove: false, canAssignPhone: false, subStage: 'step-3',
-    executionDeadline: new Date('2026-02-25'), deadlineExtensions: 0, pendingExtensionRequest: null,
-    platformProgress: { verified: 2, total: 11 }, exceptionStates: [], rejectedPlatforms: [],
-  },
-  {
-    id: 'client-8', name: 'Lisa Anderson', status: 'IN_EXECUTION', statusType: 'pending_platform', statusColor: 'blue', agentId: 'user-agent-1', agentName: 'Marcus Rivera',
-    days: 7, daysLabel: '7d', canApprove: false, canAssignPhone: false, subStage: 'step-3',
-    executionDeadline: new Date('2026-02-26'), deadlineExtensions: 0, pendingExtensionRequest: null,
-    platformProgress: { verified: 7, total: 11 }, exceptionStates: [], rejectedPlatforms: [],
-  },
-  {
-    id: 'client-5', name: 'James Brown', status: 'READY_FOR_APPROVAL', statusType: 'ready', statusColor: 'purple', agentId: 'user-agent-1', agentName: 'Marcus Rivera',
-    days: 22, daysLabel: '22d', canApprove: true, canAssignPhone: false, subStage: 'step-4',
     executionDeadline: null, deadlineExtensions: 0, pendingExtensionRequest: null,
-    platformProgress: { verified: 11, total: 11 }, exceptionStates: [], rejectedPlatforms: [],
+    platformProgress: { verified: 0, total: 0 }, exceptionStates: [], rejectedPlatforms: [],
   },
   {
-    id: 'client-3', name: 'David Lee', status: 'NEEDS_MORE_INFO', statusType: 'needs_info', statusColor: 'yellow', agentId: 'user-agent-1', agentName: 'Marcus Rivera',
+    id: 'client-1', name: 'John Smith', status: 'PHONE ISSUED', statusType: 'pending_platform', statusColor: 'text-success', agentId: 'user-agent-1', agentName: 'Marcus Rivera',
+    days: 9, daysLabel: '9d', canApprove: false, canAssignPhone: false, subStage: 'step-3',
+    executionDeadline: null, deadlineExtensions: 0, pendingExtensionRequest: null,
+    platformProgress: { verified: 0, total: 0 }, exceptionStates: [], rejectedPlatforms: [],
+    activeAssignmentId: 'mock-assignment-1',
+    assignedPhone: '(555) 777-0001',
+  },
+  {
+    id: 'client-8', name: 'Lisa Anderson', status: '', statusType: 'pending_platform', statusColor: '', agentId: 'user-agent-1', agentName: 'Marcus Rivera',
+    days: 7, daysLabel: '7d', canApprove: false, canAssignPhone: true, subStage: 'step-2',
+    executionDeadline: null, deadlineExtensions: 0, pendingExtensionRequest: null,
+    platformProgress: { verified: 0, total: 0 }, exceptionStates: [], rejectedPlatforms: [],
+  },
+  {
+    id: 'client-5', name: 'James Brown', status: 'PHONE RETURNED', statusType: 'ready', statusColor: 'text-primary', agentId: 'user-agent-1', agentName: 'Marcus Rivera',
+    days: 22, daysLabel: '22d', canApprove: false, canAssignPhone: false, subStage: 'step-4',
+    executionDeadline: null, deadlineExtensions: 0, pendingExtensionRequest: null,
+    platformProgress: { verified: 0, total: 0 }, exceptionStates: [], rejectedPlatforms: [],
+    returnedAssignmentId: 'mock-returned-1',
+    assignedPhone: '(555) 777-0002',
+  },
+  {
+    id: 'client-3', name: 'David Lee', status: '', statusType: 'pending_platform', statusColor: '', agentId: 'user-agent-1', agentName: 'Marcus Rivera',
     days: 11, daysLabel: '11d', canApprove: false, canAssignPhone: false, subStage: 'verification-needed',
-    executionDeadline: new Date('2026-02-22'), deadlineExtensions: 0, pendingExtensionRequest: null,
-    platformProgress: { verified: 1, total: 11 }, exceptionStates: [{ type: 'needs-more-info', label: 'Needs additional ID' }], rejectedPlatforms: [],
+    executionDeadline: null, deadlineExtensions: 0, pendingExtensionRequest: null,
+    platformProgress: { verified: 0, total: 0 }, exceptionStates: [], rejectedPlatforms: [],
   },
 ]
 
 export const MOCK_VERIFICATION_TASKS: VerificationTask[] = [
   {
-    id: 'vt-1', clientId: 'client-3', clientName: 'David Lee', platformType: 'DRAFTKINGS' as const, platformLabel: 'DraftKings',
+    id: 'vt-1', clientId: 'client-3', draftId: null, clientName: 'David Lee', platformType: 'DRAFTKINGS' as const, platformLabel: 'DraftKings',
     task: 'Re-upload ID document', agentId: 'user-agent-1', agentName: 'Marcus Rivera',
     deadline: new Date('2026-02-22'), daysUntilDue: 3, deadlineLabel: 'In 3 days', clientDeadline: new Date('2026-02-22'),
-    status: 'Pending', screenshots: [],
+    status: 'Pending', screenshots: [], assignedPhone: '(555) 123-4567', assignedCarrier: 'T-Mobile',
   },
   {
-    id: 'vt-2', clientId: 'client-2', clientName: 'Maria Garcia', platformType: 'BETMGM' as const, platformLabel: 'BetMGM',
+    id: 'vt-2', clientId: 'client-2', draftId: null, clientName: 'Maria Garcia', platformType: 'BETMGM' as const, platformLabel: 'BetMGM',
     task: 'Upload verification screenshot', agentId: 'user-agent-1', agentName: 'Marcus Rivera',
     deadline: new Date('2026-02-20'), daysUntilDue: 1, deadlineLabel: 'Tomorrow', clientDeadline: new Date('2026-02-28'),
-    status: 'Pending', screenshots: [],
+    status: 'Pending', screenshots: [], assignedPhone: '(555) 987-6543', assignedCarrier: 'AT&T',
   },
 ]
 

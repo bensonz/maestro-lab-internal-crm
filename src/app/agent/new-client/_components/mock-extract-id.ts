@@ -59,6 +59,111 @@ export interface BetmgmExtractionResult {
  * For login screenshots: detects login credentials and deposit options.
  * Replace with real OCR/AI service in production.
  */
+export interface SsnExtractionResult {
+  ssnNumber: string
+  confidence: number
+}
+
+/**
+ * Mock OCR extraction from an SSN document image.
+ * Simulates a 1.2s processing delay and returns a fake SSN number.
+ * Replace with real OCR service in production.
+ */
+export async function mockExtractFromSsn(_file: File): Promise<SsnExtractionResult> {
+  await new Promise((resolve) => setTimeout(resolve, 1200))
+
+  return {
+    ssnNumber: '123-45-6789',
+    confidence: 0.93,
+  }
+}
+
+export interface AddressProofExtractionResult {
+  address: string
+  confidence: number
+}
+
+/**
+ * Mock OCR extraction from an address proof document (bank statement, utility bill, etc.).
+ * Simulates a 1s processing delay and returns a fake address.
+ * Replace with real OCR service in production.
+ */
+export async function mockExtractFromAddressProof(_file: File): Promise<AddressProofExtractionResult> {
+  await new Promise((resolve) => setTimeout(resolve, 1000))
+
+  return {
+    address: '456 Oak Avenue, Apt 2B, Brooklyn, NY 11201',
+    confidence: 0.88,
+  }
+}
+
+export interface BankExtractionResult {
+  bankName: 'chase' | 'citi' | 'bofa'
+  username: string
+  password: string
+  confidence: number
+}
+
+/**
+ * Mock OCR extraction from a bank screenshot.
+ * Detects bank name, username, password, and PIN from the uploaded screenshot.
+ * Replace with real OCR/AI service in production.
+ */
+export async function mockExtractFromBank(_file: File): Promise<BankExtractionResult> {
+  await new Promise((resolve) => setTimeout(resolve, 800))
+
+  return {
+    bankName: 'chase',
+    username: 'john.smith2026',
+    password: 'Ch@se_2026!',
+    confidence: 0.91,
+  }
+}
+
+export interface PayPalExtractionResult {
+  balanceWordDetected: boolean
+  confidence: number
+}
+
+/**
+ * Mock OCR extraction from a PayPal balance page screenshot.
+ * Detects the word "balance" to confirm the account home page is visible.
+ * Replace with real OCR/AI service in production.
+ */
+export async function mockExtractFromPaypal(_file: File): Promise<PayPalExtractionResult> {
+  await new Promise((resolve) => setTimeout(resolve, 800))
+
+  return {
+    balanceWordDetected: true,
+    confidence: 0.89,
+  }
+}
+
+export interface PlatformExtractionResult {
+  detectedUsername: string
+  detectedPassword: string
+  confidence: number
+}
+
+/**
+ * Mock OCR extraction from a platform registration/login screenshot.
+ * Detects the username and password shown in the screenshot.
+ * In production: replace with real OCR/AI service that reads the actual image.
+ * Returns the suggested values (no mismatch) in this mock.
+ */
+export async function mockExtractFromPlatform(
+  _file: File,
+  suggestedUsername: string,
+  suggestedPassword: string,
+): Promise<PlatformExtractionResult> {
+  await new Promise((resolve) => setTimeout(resolve, 600))
+  return {
+    detectedUsername: suggestedUsername,
+    detectedPassword: suggestedPassword,
+    confidence: 0.85,
+  }
+}
+
 export async function mockExtractFromBetmgm(
   _file: File,
   type: 'registration' | 'login',

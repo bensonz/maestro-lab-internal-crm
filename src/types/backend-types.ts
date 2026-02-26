@@ -70,6 +70,14 @@ export interface IntakeClient {
   rejectedPlatforms: string[]
   /** For SUBMITTED drafts: the linked PENDING Client ID */
   resultClientId?: string | null
+  /** For step-3 clients with active device sign-out: the PhoneAssignment ID */
+  activeAssignmentId?: string | null
+  /** For step-4 clients with returned device: the RETURNED PhoneAssignment ID (for undo/re-issue) */
+  returnedAssignmentId?: string | null
+  /** Phone number assigned to this client (for badge hover) */
+  assignedPhone?: string | null
+  /** Carrier of assigned phone */
+  assignedCarrier?: string | null
 }
 
 export interface PostApprovalClient {
@@ -86,6 +94,7 @@ export interface PostApprovalClient {
 export interface VerificationTask {
   id: string
   clientId: string | null
+  draftId: string | null
   clientName: string
   platformType: PlatformType | null
   platformLabel: string
@@ -98,6 +107,10 @@ export interface VerificationTask {
   clientDeadline: Date | null
   status: 'Pending' | 'Done'
   screenshots: string[]
+  /** Previously assigned phone number (for re-assignment pre-fill) */
+  assignedPhone?: string | null
+  /** Previously assigned carrier (for re-assignment pre-fill) */
+  assignedCarrier?: string | null
 }
 
 export interface SettlementClient {
@@ -331,10 +344,18 @@ export interface RiskAssessment {
   flags: {
     idExpiryRisk: 'high' | 'moderate' | 'none'
     paypalPreviouslyUsed: boolean
-    addressMismatch: boolean
+    multipleAddresses: boolean
     debankedHistory: boolean
     criminalRecord: boolean
-    undisclosedInfo: boolean
+    missingIdCount: number
+    householdAwareness: string
+    familyTechSupport: string
+    financialAutonomy: string
+    betmgmEmailMismatch: boolean
+    bankPinOverride: boolean
+    bankNameOverride: boolean
+    bankPhoneEmailNotConfirmed: boolean
+    credentialMismatches: Record<string, { username: boolean; password: boolean }>
   }
 }
 
@@ -344,6 +365,39 @@ export interface PlatformEntry {
   accountId: string
   screenshot: string
   status: string
+  pin?: string
+  pinSuggested?: string
+  pinSuggested6?: string
+  bank?: string
+  bankAutoDetected?: string
+  bankPhoneEmailConfirmed?: boolean
+  screenshot2?: string
+  paypalBalanceDetected?: boolean
+}
+
+// --- Todo Review Types ---
+
+export interface CompletedTodoEntry {
+  id: string
+  clientName: string
+  agentId: string
+  agentName: string
+  issueCategory: string
+  title: string
+  completedAt: Date
+  completedByName: string
+  draftId: string
+  createdByName: string
+}
+
+export interface TodoTimelineEntry {
+  id: string
+  date: string
+  time: string
+  event: string
+  type: 'info' | 'success' | 'warning'
+  actor: string | null
+  action: 'assigned' | 'completed' | 'reverted' | 'device_out' | 'device_returned' | 'device_reissued'
 }
 
 // --- Commission System Types ---
@@ -405,6 +459,35 @@ export interface AgentLeaderboardEntry {
   starLevel: number
   approvedClients: number
   totalEarned: number
+}
+
+// --- Device / Phone Assignment Types ---
+
+export interface DeviceRequestItem {
+  draftId: string
+  clientName: string
+  agentId: string
+  agentName: string
+  reservationDate: string
+  draftStep: number
+  daysSinceRequest: number
+}
+
+export interface ActiveDeviceSignOut {
+  assignmentId: string
+  phoneNumber: string
+  carrier: string | null
+  deviceId: string | null
+  clientName: string
+  draftId: string
+  agentId: string
+  agentName: string
+  signedOutAt: Date
+  dueBackAt: Date
+  hoursRemaining: number
+  isOverdue: boolean
+  signedOutByName: string
+  notes: string | null
 }
 
 export interface QuarterlySettlementData {

@@ -23,7 +23,7 @@ export const PLATFORM_INFO: Record<
   BETRIVERS: { name: 'BetRivers', abbrev: 'BR', category: 'sports', logoPath: '/platforms/betrivers-logo.svg' },
   BET365: { name: 'Bet365', abbrev: '365', category: 'sports', logoPath: null },
   // Financial (3)
-  BANK: { name: 'Bank', abbrev: 'BNK', category: 'financial', logoPath: null },
+  BANK: { name: 'Online Banking', abbrev: 'BNK', category: 'financial', logoPath: null },
   PAYPAL: { name: 'PayPal', abbrev: 'PP', category: 'financial', logoPath: null },
   EDGEBOOST: { name: 'EdgeBoost', abbrev: 'EB', category: 'financial', logoPath: null },
 }
@@ -38,8 +38,8 @@ export const ALL_PLATFORMS: PlatformType[] = [
   'BALLYBET',
   'BETRIVERS',
   'BET365',
-  'BANK',
   'PAYPAL',
+  'BANK',
   'EDGEBOOST',
 ]
 

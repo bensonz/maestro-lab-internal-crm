@@ -20,6 +20,7 @@ interface DraftItem {
   step: number
   updatedAt: string
   status: string
+  idDocument: string | null
 }
 
 interface DraftsPanelProps {
@@ -151,14 +152,16 @@ export function DraftsPanel({
                           <span className="min-w-0 flex-1 truncate">
                             {getDraftName(draft)}
                           </span>
-                          <button
-                            onClick={(e) => handleDelete(e, draft.id)}
-                            disabled={deletingId === draft.id}
-                            className="shrink-0 rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover/item:opacity-100"
-                            data-testid={`delete-draft-${draft.id}`}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
+                          {!draft.idDocument && (
+                            <button
+                              onClick={(e) => handleDelete(e, draft.id)}
+                              disabled={deletingId === draft.id}
+                              className="shrink-0 rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover/item:opacity-100"
+                              data-testid={`delete-draft-${draft.id}`}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          )}
                         </button>
                       ))}
                     </div>

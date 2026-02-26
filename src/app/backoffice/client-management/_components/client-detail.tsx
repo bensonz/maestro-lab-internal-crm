@@ -222,6 +222,26 @@ export function ClientDetail({
                 <Lock className="h-3 w-3" /> PIN Issue
               </Badge>
             )}
+            {client.alertFlags?.debankedHistory && (
+              <Badge variant="outline" className="gap-1 border-destructive/30 bg-destructive/10 text-[10px] text-destructive">
+                <AlertCircle className="h-3 w-3" /> De-banked
+              </Badge>
+            )}
+            {client.alertFlags?.criminalRecord && (
+              <Badge variant="outline" className="gap-1 border-destructive/30 bg-destructive/10 text-[10px] text-destructive">
+                <AlertCircle className="h-3 w-3" /> Criminal Record
+              </Badge>
+            )}
+            {client.alertFlags?.undisclosedInfo && (
+              <Badge variant="outline" className="gap-1 border-warning/30 bg-warning/10 text-[10px] text-warning">
+                <AlertTriangle className="h-3 w-3" /> Undisclosed Info
+              </Badge>
+            )}
+            {client.alertFlags?.addressMismatch && (
+              <Badge variant="outline" className="gap-1 border-warning/30 bg-warning/10 text-[10px] text-warning">
+                <AlertTriangle className="h-3 w-3" /> Address Mismatch
+              </Badge>
+            )}
             {client.alertFlags?.customAlerts?.map((alert, idx) => (
               <Badge key={idx} variant="outline" className="gap-1 border-warning/30 bg-warning/10 text-[10px] text-warning">
                 <AlertTriangle className="h-3 w-3" /> {alert}
@@ -406,10 +426,19 @@ export function ClientDetail({
                 />
               </div>
               <div className="text-sm">
-                <span className="text-muted-foreground">Company Email:</span>{' '}
+                <span className="text-muted-foreground">Gmail:</span>{' '}
                 <EditableField
                   value={client.companyEmail}
                   fieldKey="companyEmail"
+                  mono
+                  onSave={handleFieldEdit}
+                />
+              </div>
+              <div className="text-sm">
+                <span className="text-muted-foreground">Gmail Password:</span>{' '}
+                <EditableField
+                  value={client.gmailPassword || '\u2014'}
+                  fieldKey="gmailPassword"
                   mono
                   onSave={handleFieldEdit}
                 />
@@ -419,15 +448,6 @@ export function ClientDetail({
                 <EditableField
                   value={client.personalPhone}
                   fieldKey="personalPhone"
-                  mono
-                  onSave={handleFieldEdit}
-                />
-              </div>
-              <div className="text-sm">
-                <span className="text-muted-foreground">Personal Email:</span>{' '}
-                <EditableField
-                  value={client.profile.personalEmail}
-                  fieldKey="personalEmail"
                   mono
                   onSave={handleFieldEdit}
                 />

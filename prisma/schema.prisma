@@ -62,6 +62,17 @@ enum ClientDraftStatus {
   SUBMITTED
 }
 
+enum PhoneAssignmentStatus {
+  SIGNED_OUT
+  RETURNED
+}
+
+enum TodoStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
 enum EventType {
   LOGIN
   LOGOUT
@@ -80,6 +91,12 @@ enum EventType {
   QUARTERLY_SETTLEMENT_CREATED
   CLIENT_DRAFT_CREATED
   CLIENT_DRAFT_SUBMITTED
+  DEVICE_SIGNED_OUT
+  DEVICE_RETURNED
+  DEVICE_REISSUED
+  TODO_ASSIGNED
+  TODO_COMPLETED
+  TODO_REVERTED
 }
 
 // ─── User ────────────────────────────────────────────────
@@ -132,6 +149,10 @@ model User {
   promotionLogs          PromotionLog[]
   quarterlySettlements   QuarterlySettlement[]
   clientDrafts           ClientDraft[]      @relation("DraftCloser")
+  phoneAssignmentsAsAgent  PhoneAssignment[] @relation("PhoneAgent")
+  phoneAssignmentsAsIssuer PhoneAssignment[] @relation("PhoneSignedOutBy")
+  assignedTodos            Todo[]            @relation("TodoAssignedTo")
+  createdTodos             Todo[]            @relation("TodoCreatedBy")
 }
 
 // ─── Agent Application ───────────────────────────────────
@@ -239,15 +260,38 @@ model ClientDraft {
 
   // Step 2: Background
   ssnDocument        String?
+  ssnNumber          String?
+  citizenship        String?
+  missingIdType      String?
   secondAddress      String?
+  secondAddressProof String?
   hasCriminalRecord  Boolean?
   criminalRecordNotes String?
   bankingHistory     String?
-  paypalHistory      String?
-  sportsbookHistory  String?
+  bankNegativeBalance Boolean?
+  paypalHistory         String?
+  paypalSsnLinked       Boolean  @default(false)
+  paypalBrowserVerified Boolean  @default(false)
+  occupation            String?
+  annualIncome          String?
+  employmentStatus      String?
+  maritalStatus         String?
+  creditScoreRange      String?
+  dependents            String?
+  educationLevel        String?
+  householdAwareness    String?
+  familyTechSupport     String?
+  financialAutonomy     String?
+  digitalComfort        String?
+  deviceReservationDate String?
+  sportsbookHistory     String?
+  sportsbookUsedBefore  Boolean  @default(false)
+  sportsbookUsedList    String?
+  sportsbookStatuses    String?
 
   // Step 3: Platforms
-  platformData Json?
+  platformData           Json?
+  generatedCredentials   Json?
 
   // Step 4: Contract
   contractDocument String?
@@ -264,6 +308,8 @@ model ClientDraft {
   closer         User    @relation("DraftCloser", fields: [closerId], references: [id])
   resultClientId String? @unique
   resultClient   Client? @relation("DraftResult", fields: [resultClientId], references: [id])
+  phoneAssignments PhoneAssignment[]
+  todos            Todo[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -360,6 +406,60 @@ model QuarterlySettlement {
   updatedAt DateTime @updatedAt
 
   @@unique([leaderId, year, quarter])
+}
+
+// ─── Phone Assignment ────────────────────────────────────
+
+model PhoneAssignment {
+  id          String  @id @default(cuid())
+  phoneNumber String
+  carrier     String?
+  deviceId    String?
+  notes       String?
+
+  clientDraftId String
+  clientDraft   ClientDraft @relation(fields: [clientDraftId], references: [id])
+
+  agentId String
+  agent   User   @relation("PhoneAgent", fields: [agentId], references: [id])
+
+  signedOutById String
+  signedOutBy   User   @relation("PhoneSignedOutBy", fields: [signedOutById], references: [id])
+
+  signedOutAt DateTime              @default(now())
+  dueBackAt   DateTime
+  returnedAt  DateTime?
+
+  status PhoneAssignmentStatus @default(SIGNED_OUT)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Todo ───────────────────────────────────────────────
+
+model Todo {
+  id            String     @id @default(cuid())
+  title         String
+  description   String?
+  issueCategory String
+
+  clientDraftId String
+  clientDraft   ClientDraft @relation(fields: [clientDraftId], references: [id])
+
+  assignedToId  String
+  assignedTo    User   @relation("TodoAssignedTo", fields: [assignedToId], references: [id])
+
+  createdById   String
+  createdBy     User   @relation("TodoCreatedBy", fields: [createdById], references: [id])
+
+  dueDate       DateTime
+  completedAt   DateTime?
+  status        TodoStatus @default(PENDING)
+  metadata      Json?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 // ─── Event Log ───────────────────────────────────────────
