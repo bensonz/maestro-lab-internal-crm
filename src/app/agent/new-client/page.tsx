@@ -7,7 +7,7 @@ import { NewClientView } from './_components/new-client-view'
 export default async function NewClientPage({
   searchParams,
 }: {
-  searchParams: Promise<{ draft?: string }>
+  searchParams: Promise<{ draft?: string; step?: string }>
 }) {
   const agent = await requireAgent()
 
@@ -51,6 +51,7 @@ export default async function NewClientPage({
   return (
     <div className="flex h-[calc(100vh-4rem)] animate-fade-in" data-testid="new-client-page">
       <NewClientView
+        initialStep={params.step ? parseInt(params.step, 10) : undefined}
         drafts={drafts.map((d) => ({
           ...d,
           updatedAt: d.updatedAt.toISOString(),

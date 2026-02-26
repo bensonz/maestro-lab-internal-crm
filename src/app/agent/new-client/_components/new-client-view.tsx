@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo, useRef } from 'react'
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { DraftsPanel } from './drafts-panel'
 import { StepIndicator } from './step-indicator'
@@ -95,32 +95,29 @@ export interface SerializedDraft {
 }
 
 interface NewClientViewProps {
+  initialStep?: number
   drafts: (Omit<DraftSummary, 'updatedAt'> & { updatedAt: string })[]
   selectedDraft: SerializedDraft | null
   activeAssignment: SerializedPhoneAssignment | null
 }
 
-export function NewClientView({ drafts, selectedDraft, activeAssignment }: NewClientViewProps) {
+export function NewClientView({ initialStep, drafts, selectedDraft, activeAssignment }: NewClientViewProps) {
   const router = useRouter()
-  const [currentStep, setCurrentStep] = useState(selectedDraft?.step ?? 1)
+  // URL step takes priority (survives refresh), then draft's highest step, then 1
+  const [currentStep, setCurrentStep] = useState(initialStep ?? selectedDraft?.step ?? 1)
 
-  // Risk flags state — derived from draft + form data
-  const [riskFlags, setRiskFlags] = useState(() => {
-    const creds = (selectedDraft?.generatedCredentials ?? {}) as GeneratedCredentials
-    return {
-      idExpiryDaysRemaining: null as number | null,
-      paypalPreviouslyUsed: selectedDraft?.paypalPreviouslyUsed ?? false,
-      multipleAddresses: selectedDraft?.addressMismatch ?? false,
-      betmgmEmailMismatch: false,
-      debankedHistory: selectedDraft?.debankedHistory ?? false,
-      criminalRecord: selectedDraft?.hasCriminalRecord ?? false,
-      missingIdCount: (selectedDraft?.missingIdType?.split(',').filter(Boolean).length) ?? 0,
-      householdAwareness: selectedDraft?.householdAwareness ?? '',
-      familyTechSupport: selectedDraft?.familyTechSupport ?? '',
-      financialAutonomy: selectedDraft?.financialAutonomy ?? '',
-      credentialMismatches: computeInitialCredentialMismatches(selectedDraft, creds),
+  // Sync currentStep to URL so it survives hard refreshes
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    const urlStep = url.searchParams.get('step')
+    if (urlStep !== String(currentStep)) {
+      url.searchParams.set('step', String(currentStep))
+      window.history.replaceState({}, '', url.toString())
     }
-  })
+  }, [currentStep])
+
+  // Risk flags state — fully reconstructed from draft data so nothing is lost on refresh
+  const [riskFlags, setRiskFlags] = useState(() => computeAllRiskFlags(selectedDraft))
 
   const riskAssessment: RiskAssessment = useMemo(
     () => calculateRiskScore(riskFlags),
@@ -224,45 +221,73 @@ export function NewClientView({ drafts, selectedDraft, activeAssignment }: NewCl
 }
 
 /**
- * Reconstruct credential mismatch state from persisted draft data so the
- * Credentials section in the risk panel survives page refreshes.
- * Only includes platforms where the user has actually filled in values.
+ * Reconstruct ALL risk flags from persisted draft data so nothing is lost on refresh.
  */
-function computeInitialCredentialMismatches(
-  draft: SerializedDraft | null,
-  creds: GeneratedCredentials,
-): Record<string, { username: boolean; password: boolean }> {
-  if (!draft) return {}
-  const result: Record<string, { username: boolean; password: boolean }> = {}
+function computeAllRiskFlags(draft: SerializedDraft | null) {
+  const creds = (draft?.generatedCredentials ?? {}) as GeneratedCredentials
+  const platforms = (draft?.platformData as PlatformEntry[] | null) ?? []
+  const bankEntry = platforms.find((p) => p.platform === 'BANK')
 
-  // Step 1 — Gmail: compare assignedGmail vs suggestion, gmailPassword vs suggestion
-  if (draft.assignedGmail || draft.gmailPassword) {
-    result.GMAIL = {
+  // ID expiry days remaining
+  let idExpiryDaysRemaining: number | null = null
+  if (draft?.idExpiry) {
+    const expiry = new Date(draft.idExpiry)
+    idExpiryDaysRemaining = Math.floor((expiry.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+  }
+
+  // Bank info flags — mirrors step3-platforms.tsx logic
+  let bankPinOverride = false
+  let bankNameOverride = false
+  let bankPhoneEmailNotConfirmed = false
+  if (bankEntry) {
+    const pin = bankEntry.pin ?? ''
+    const sug4 = bankEntry.pinSuggested ?? ''
+    const sug6 = bankEntry.pinSuggested6 ?? ''
+    bankPinOverride = pin !== '' && sug4 !== '' && pin !== sug4 && pin !== sug6
+    bankNameOverride = !!bankEntry.bankAutoDetected && !!bankEntry.bank && bankEntry.bank !== bankEntry.bankAutoDetected
+    const bankTouched = !!(bankEntry.screenshot || bankEntry.username || bankEntry.bank)
+    bankPhoneEmailNotConfirmed = bankTouched && !bankEntry.bankPhoneEmailConfirmed
+  }
+
+  // Credential mismatches
+  const credentialMismatches: Record<string, { username: boolean; password: boolean }> = {}
+  if (draft?.assignedGmail || draft?.gmailPassword) {
+    credentialMismatches.GMAIL = {
       username: !!(draft.assignedGmail && creds.gmailSuggestion && draft.assignedGmail !== creds.gmailSuggestion),
       password: !!(draft.gmailPassword && creds.gmailPassword && draft.gmailPassword !== creds.gmailPassword),
     }
   }
-
-  // Step 1 — BetMGM: compare betmgmLogin vs assigned Gmail, betmgmPassword vs suggestion
-  if (draft.betmgmLogin || draft.betmgmPassword) {
-    result.BETMGM = {
+  if (draft?.betmgmLogin || draft?.betmgmPassword) {
+    credentialMismatches.BETMGM = {
       username: !!(draft.betmgmLogin && draft.assignedGmail && draft.betmgmLogin !== draft.assignedGmail),
       password: !!(draft.betmgmPassword && creds.betmgmPassword && draft.betmgmPassword !== creds.betmgmPassword),
     }
   }
-
-  // Step 3 — Platform cards: compare each platform's username/password vs suggestions
-  const platforms = (draft.platformData as PlatformEntry[] | null) ?? []
   const storedPwds = creds.platformPasswords ?? {}
   for (const p of platforms) {
-    if (!p.screenshot) continue // only track platforms that have been screenshotted
+    if (!p.screenshot) continue
     const suggestedPw = storedPwds[p.platform] ?? ''
     const suggestedUser = p.platform === 'BANK' ? '' : (creds.gmailSuggestion ?? '')
-    result[p.platform] = {
+    credentialMismatches[p.platform] = {
       username: !!(suggestedUser && p.username && p.username !== suggestedUser),
       password: !!(suggestedPw && p.accountId && p.accountId !== suggestedPw),
     }
   }
 
-  return result
+  return {
+    idExpiryDaysRemaining,
+    paypalPreviouslyUsed: draft?.paypalPreviouslyUsed ?? false,
+    multipleAddresses: draft?.addressMismatch ?? false,
+    betmgmEmailMismatch: false,
+    debankedHistory: draft?.debankedHistory ?? false,
+    criminalRecord: draft?.hasCriminalRecord ?? false,
+    missingIdCount: (draft?.missingIdType?.split(',').filter(Boolean).length) ?? 0,
+    householdAwareness: draft?.householdAwareness ?? '',
+    familyTechSupport: draft?.familyTechSupport ?? '',
+    financialAutonomy: draft?.financialAutonomy ?? '',
+    bankPinOverride,
+    bankNameOverride,
+    bankPhoneEmailNotConfirmed,
+    credentialMismatches,
+  }
 }
