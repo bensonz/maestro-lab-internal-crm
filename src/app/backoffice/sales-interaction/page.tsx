@@ -1,7 +1,5 @@
 import {
   MOCK_SALES_HIERARCHY,
-  MOCK_INTAKE_CLIENTS,
-  MOCK_VERIFICATION_TASKS,
   MOCK_LIFECYCLE_CLIENTS,
 } from '@/lib/mock-data'
 import { SalesInteractionView } from './_components/sales-interaction-view'
@@ -148,8 +146,7 @@ export default async function SalesInteractionPage() {
     console.error('[sales-interaction] drafts fetch error:', e)
   }
 
-  // Combine real drafts + mock data (mock kept for UI development)
-  const clientIntake = [...draftIntake, ...MOCK_INTAKE_CLIENTS]
+  const clientIntake = draftIntake
 
   // Fetch real todos from DB and map to VerificationTask format
   let realTodoTasks: VerificationTask[] = []
@@ -183,7 +180,7 @@ export default async function SalesInteractionPage() {
     console.error('[sales-interaction] todos fetch error:', e)
   }
 
-  const verificationTasks = [...realTodoTasks, ...MOCK_VERIFICATION_TASKS]
+  const verificationTasks = realTodoTasks
 
   // Fetch completed todos + timeline (separate try/catch so one failure doesn't kill both)
   let completedTodos: CompletedTodoEntry[] = []

@@ -3,7 +3,8 @@ import { AgentDetailView } from './_components/agent-detail-view'
 import { requireAdmin } from '../../_require-admin'
 import prisma from '@/backend/prisma/client'
 import { getAgentEarnings } from '@/backend/data/bonus-pools'
-import { countApprovedClients } from '@/backend/data/clients'
+import { countApprovedClients, getClientsByCloser } from '@/backend/data/clients'
+import { getDraftsByCloser } from '@/backend/data/client-drafts'
 import { STAR_THRESHOLDS } from '@/lib/commission-constants'
 import { getAgentTimeline } from '@/backend/data/event-logs'
 import type { AgentDetailData } from '@/types/backend-types'
@@ -41,10 +42,12 @@ export default async function AgentDetailPage({
     )
   }
 
-  // Fetch earnings, client counts, and timeline in parallel
-  const [earningsData, approvedClients, timeline] = await Promise.all([
+  // Fetch earnings, client counts, drafts, and timeline in parallel
+  const [earningsData, approvedClients, allClients, drafts, timeline] = await Promise.all([
     getAgentEarnings(id).catch(() => null),
     countApprovedClients(id).catch(() => 0),
+    getClientsByCloser(id).catch(() => []),
+    getDraftsByCloser(id).catch(() => []),
     getAgentTimeline(id).catch(() => []),
   ])
 
@@ -54,6 +57,41 @@ export default async function AgentDetailPage({
   const age = user.dateOfBirth
     ? Math.floor((Date.now() - new Date(user.dateOfBirth).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
     : 0
+
+  // Compute real performance metrics from available data
+  const now = new Date()
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+
+  const thisMonthEarned = earningsData
+    ? earningsData.allocations
+        .filter((a) => new Date(a.createdAt) >= startOfMonth)
+        .reduce((sum, a) => sum + a.amount, 0)
+    : 0
+
+  const approvedThisMonth = allClients.filter(
+    (c) => c.status === 'APPROVED' && c.createdAt >= startOfMonth
+  )
+  const newClientsThisMonth = approvedThisMonth.length
+
+  const clientsInProgress = drafts.length
+
+  const totalClients = allClients.length
+  const approvedCount = allClients.filter((c) => c.status === 'APPROVED').length
+  const successRate = totalClients > 0 ? Math.round((approvedCount / totalClients) * 100) : 0
+
+  // Monthly clients chart (last 6 months)
+  const monthlyClients: { month: string; count: number }[] = []
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const end = new Date(d.getFullYear(), d.getMonth() + 1, 1)
+    const count = allClients.filter(
+      (c) => c.status === 'APPROVED' && c.createdAt >= d && c.createdAt < end
+    ).length
+    monthlyClients.push({
+      month: d.toLocaleDateString('en-US', { month: 'short' }),
+      count,
+    })
+  }
 
   const agentDetail: AgentDetailData = {
     id: user.id,
@@ -78,20 +116,20 @@ export default async function AgentDetailPage({
     loginEmail: user.email,
     totalClients: approvedClients,
     totalEarned: earningsData?.totalEarned ?? 0,
-    thisMonthEarned: 0,
-    newClientsThisMonth: 0,
+    thisMonthEarned,
+    newClientsThisMonth,
     newClientsGrowth: 0,
     avgDaysToInitiate: 0,
     avgDaysToConvert: 0,
-    successRate: 0,
+    successRate,
     referralRate: 0,
     extensionRate: 0,
     resubmissionRate: 0,
     avgAccountsPerClient: 0,
-    clientsInProgress: 0,
+    clientsInProgress,
     avgDailyTodos: 0,
     delayRate: 0,
-    monthlyClients: [],
+    monthlyClients,
     supervisor: user.supervisor ? { id: user.supervisor.id, name: user.supervisor.name } : null,
     directReports: user.subordinates.map((s) => ({ id: s.id, name: s.name })),
     timeline,

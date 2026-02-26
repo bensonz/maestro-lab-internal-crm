@@ -71,3 +71,38 @@ export async function getDraftByIdForAgent(draftId: string, closerId: string) {
     where: { id: draftId, closerId },
   })
 }
+
+/** Fetch a single draft with all related data for the agent client detail view */
+export async function getDraftDetailForAgent(draftId: string, closerId: string) {
+  return prisma.clientDraft.findFirst({
+    where: { id: draftId, closerId },
+    include: {
+      closer: { select: { id: true, name: true, email: true } },
+      resultClient: { select: { id: true, status: true, approvedAt: true } },
+      phoneAssignments: {
+        orderBy: { signedOutAt: 'desc' },
+        take: 1,
+        select: {
+          phoneNumber: true,
+          deviceId: true,
+          signedOutAt: true,
+          returnedAt: true,
+          status: true,
+        },
+      },
+      todos: {
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          issueCategory: true,
+          dueDate: true,
+          status: true,
+          metadata: true,
+          createdAt: true,
+        },
+      },
+    },
+  })
+}

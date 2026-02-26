@@ -412,6 +412,7 @@ export interface AllocationLine {
   amount: number
   status: AllocationStatus
   paidAt: Date | null
+  createdAt: Date
 }
 
 export interface BonusPoolData {
