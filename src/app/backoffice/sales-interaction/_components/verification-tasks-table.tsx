@@ -13,6 +13,7 @@ interface VerificationTasksTableProps {
   selectedAgentId: string | null
   onSelectClient?: (clientId: string) => void
   onAssignDevice?: (draftId: string, clientName: string, agentName: string, phone?: string | null, carrier?: string | null) => void
+  onCompleteTodo?: (todoId: string, clientName: string) => void
 }
 
 export function VerificationTasksTable({
@@ -20,6 +21,7 @@ export function VerificationTasksTable({
   selectedAgentId,
   onSelectClient,
   onAssignDevice,
+  onCompleteTodo,
 }: VerificationTasksTableProps) {
   if (tasks.length === 0) {
     return (
@@ -32,11 +34,11 @@ export function VerificationTasksTable({
   }
 
   return (
-    <div className="divide-y divide-border/20">
+    <div className="grid grid-cols-[auto_auto_1fr_auto_auto_auto] gap-x-3">
       {tasks.map((task) => (
         <div
           key={task.id}
-          className="grid grid-cols-[1fr_auto_auto_auto_auto] items-center gap-3 px-5 py-2 transition-colors hover:bg-muted/30"
+          className="col-span-6 grid grid-cols-subgrid items-center border-b border-border/20 px-5 py-2 transition-colors last:border-b-0 hover:bg-muted/30"
           data-testid={`verification-row-${task.id}`}
         >
           {/* Col 1: Client name + agent name */}
@@ -60,13 +62,13 @@ export function VerificationTasksTable({
             </span>
           </div>
 
-          {/* Col 2: Platform + task (separate column for vertical alignment) */}
-          <div className="flex items-center gap-2">
-            <PlatformBadge platformType={task.platformType} label={task.platformLabel} />
-            <span className="text-xs text-muted-foreground">
-              {task.task}
-            </span>
-          </div>
+          {/* Col 2: Platform badge (vertically aligned across rows) */}
+          <PlatformBadge platformType={task.platformType} label={task.platformLabel} />
+
+          {/* Col 3: Task description (vertically aligned across rows) */}
+          <span className="truncate text-xs text-muted-foreground">
+            {task.task}
+          </span>
 
           {/* Col 3: Assign Device button (always visible) */}
           <Button
@@ -99,6 +101,7 @@ export function VerificationTasksTable({
             size="sm"
             variant="outline"
             className="h-7 cursor-pointer gap-1 px-2.5 text-xs"
+            onClick={() => onCompleteTodo?.(task.id, task.clientName)}
             data-testid={`done-task-${task.id}`}
           >
             <Check className="h-3 w-3" />

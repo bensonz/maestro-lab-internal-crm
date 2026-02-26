@@ -7,10 +7,10 @@ import {
 import { SalesInteractionView } from './_components/sales-interaction-view'
 import { getAllDraftsForBackoffice } from '@/backend/data/client-drafts'
 import { getActivePhoneAssignments, getReturnedPhoneAssignments } from '@/backend/data/phone-assignments'
-import { getPendingTodosForBackoffice } from '@/backend/data/todos'
+import { getPendingTodosForBackoffice, getCompletedTodosForBackoffice, getTodoTimeline } from '@/backend/data/todos'
 import { getAgentsForHierarchy } from '@/backend/data/users'
 import { getAgentDisplayTier, LEADERSHIP_TIERS, STAR_THRESHOLDS } from '@/lib/commission-constants'
-import type { IntakeClient, InProgressSubStage, VerificationTask } from '@/types/backend-types'
+import type { IntakeClient, InProgressSubStage, VerificationTask, CompletedTodoEntry, TodoTimelineEntry } from '@/types/backend-types'
 
 function stepToSubStage(step: number): InProgressSubStage {
   const map: Record<number, InProgressSubStage> = {
@@ -185,6 +185,40 @@ export default async function SalesInteractionPage() {
 
   const verificationTasks = [...realTodoTasks, ...MOCK_VERIFICATION_TASKS]
 
+  // Fetch completed todos + timeline (separate try/catch so one failure doesn't kill both)
+  let completedTodos: CompletedTodoEntry[] = []
+  let todoTimeline: TodoTimelineEntry[] = []
+
+  try {
+    todoTimeline = await getTodoTimeline()
+  } catch (e) {
+    console.error('[sales-interaction] timeline fetch error:', e)
+  }
+
+  try {
+    const completedRaw = await getCompletedTodosForBackoffice()
+    completedTodos = completedRaw.map((t) => {
+      const clientName = [t.clientDraft.firstName, t.clientDraft.lastName].filter(Boolean).join(' ') || 'Unknown'
+      const completionEvent = todoTimeline.find(
+        (e) => e.action === 'completed' && e.event.includes(t.issueCategory) && e.event.includes(clientName)
+      )
+      return {
+        id: t.id,
+        clientName,
+        agentId: t.assignedTo.id,
+        agentName: t.assignedTo.name ?? 'Unknown',
+        issueCategory: t.issueCategory,
+        title: t.title,
+        completedAt: t.completedAt ?? new Date(),
+        completedByName: completionEvent?.actor ?? t.createdBy.name ?? 'Unknown',
+        draftId: t.clientDraft.id,
+        createdByName: t.createdBy.name ?? 'Unknown',
+      }
+    })
+  } catch (e) {
+    console.error('[sales-interaction] completed todos fetch error:', e)
+  }
+
   // Compute stats from combined data
   const stats = {
     totalClients: clientIntake.length,
@@ -199,6 +233,8 @@ export default async function SalesInteractionPage() {
       agentHierarchy={agentHierarchy}
       clientIntake={clientIntake}
       verificationTasks={verificationTasks}
+      completedTodos={completedTodos}
+      todoTimeline={todoTimeline}
       lifecycleClients={MOCK_LIFECYCLE_CLIENTS}
     />
   )
