@@ -77,11 +77,13 @@ export async function ensureGeneratedCredentials<T extends Record<string, any>>(
   // Step 1 credentials: Gmail + BetMGM (deterministic from name+DOB)
   const firstName = draft.firstName ?? ''
   const lastName = draft.lastName ?? ''
-  const dob = draft.dateOfBirth ?? ''
+  // dateOfBirth comes as a Date from Prisma — convert to ISO string for consistent hashing
+  const rawDob = draft.dateOfBirth
+  const dob = rawDob instanceof Date ? rawDob.toISOString() : (rawDob ?? '')
   if (firstName && lastName && !creds.gmailSuggestion) {
-    creds.gmailSuggestion = generateGmailSuggestion(firstName, lastName, dob)
-    creds.gmailPassword = generateGmailPassword(firstName, lastName, dob)
-    creds.betmgmPassword = generateBetmgmPassword(firstName, lastName, dob)
+    creds.gmailSuggestion = generateGmailSuggestion(firstName, lastName, String(dob))
+    creds.gmailPassword = generateGmailPassword(firstName, lastName, String(dob))
+    creds.betmgmPassword = generateBetmgmPassword(firstName, lastName, String(dob))
     changed = true
   }
 

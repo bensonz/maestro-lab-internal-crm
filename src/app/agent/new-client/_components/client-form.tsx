@@ -19,28 +19,6 @@ import {
 } from './credential-generators'
 import type { SerializedDraft, SerializedPhoneAssignment } from './new-client-view'
 
-// ── Platform password generation (random, persisted on first visit) ──────────
-const PWD_WORDS = [
-  'Swift', 'Cedar', 'Maple', 'Tiger', 'River', 'Storm', 'Blade', 'Frost',
-  'Ember', 'Ridge', 'Drake', 'Flare', 'Prism', 'Coral', 'Haven', 'Lunar',
-  'Orbit', 'Cobalt', 'Dune', 'Finch', 'Grove', 'Hawk', 'Ivory', 'Jade',
-  'Knoll', 'Lance', 'Mesa', 'Nova', 'Onyx', 'Pines',
-]
-const PWD_SPECIALS = ['!', '@', '#', '$']
-
-function genPwd(): string {
-  const word = PWD_WORDS[Math.floor(Math.random() * PWD_WORDS.length)]
-  const digits = String(Math.floor(1000 + Math.random() * 9000))
-  const special = PWD_SPECIALS[Math.floor(Math.random() * PWD_SPECIALS.length)]
-  return `${word}${digits}${special}`
-}
-
-function generatePinPair(): { pin4: string; pin6: string } {
-  const base = String(Math.floor(1000 + Math.random() * 9000))
-  const suffix = String(Math.floor(10 + Math.random() * 90))
-  return { pin4: base, pin6: base + suffix }
-}
-
 export interface GeneratedCredentials {
   gmailSuggestion?: string
   gmailPassword?: string
@@ -48,29 +26,6 @@ export interface GeneratedCredentials {
   platformPasswords?: Record<string, string>
   bankPin4?: string
   bankPin6?: string
-}
-
-/**
- * Ensure Step 3 credentials (platform passwords + bank PINs) exist in the blob.
- * Called once at form init — generates random values only if not already persisted.
- */
-function ensureStep3Credentials(existing: GeneratedCredentials | null): GeneratedCredentials {
-  const creds = { ...(existing ?? {}) }
-  if (!creds.platformPasswords) {
-    creds.platformPasswords = {
-      sportsbook: genPwd(),
-      BETMGM: genPwd(),
-      PAYPAL: genPwd(),
-      EDGEBOOST: genPwd(),
-      BANK: genPwd(),
-    }
-  }
-  if (!creds.bankPin4) {
-    const pair = generatePinPair()
-    creds.bankPin4 = pair.pin4
-    creds.bankPin6 = pair.pin6
-  }
-  return creds
 }
 
 interface ClientFormProps {
@@ -98,7 +53,7 @@ export function ClientForm({
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [submitting, setSubmitting] = useState(false)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const lastSavedRef = useRef<string>(JSON.stringify(buildFormDataFromDraft(draft)))
+  const lastSavedRef = useRef<string>(JSON.stringify(formData))
   // Track the highest step ever reached so the drafts panel always shows max progress
   const highestStepRef = useRef<number>(draft.step)
 
@@ -108,19 +63,6 @@ export function ClientForm({
   const hasActiveDevice = activeAssignment?.status === 'SIGNED_OUT'
   const deviceRequested = !!(draft.deviceReservationDate)
 
-  // Persist freshly generated credentials immediately on mount (not debounced)
-  const credentialsSavedRef = useRef(false)
-  useEffect(() => {
-    if (credentialsSavedRef.current) return
-    const stored = draft.generatedCredentials as GeneratedCredentials | null
-    const current = formDataRef.current.generatedCredentials as GeneratedCredentials | null
-    // If we generated new credentials (current differs from what was in DB), save immediately
-    if (current && JSON.stringify(current) !== JSON.stringify(stored)) {
-      credentialsSavedRef.current = true
-      saveClientDraft(draft.id, { generatedCredentials: current })
-    }
-  }, [draft.id]) // eslint-disable-line react-hooks/exhaustive-deps
-
   // Reset form data when draft changes
   useEffect(() => {
     const newData = buildFormDataFromDraft(draft)
@@ -128,7 +70,6 @@ export function ClientForm({
     formDataRef.current = newData
     lastSavedRef.current = JSON.stringify(newData)
     highestStepRef.current = draft.step
-    credentialsSavedRef.current = false
     onStepChange(draft.step)
   }, [draft.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -407,12 +348,11 @@ export function ClientForm({
 }
 
 function buildFormDataFromDraft(draft: SerializedDraft): Record<string, unknown> {
-  // Eagerly ensure Step 3 credentials exist (generate once, persist forever).
-  // Step 1 credentials are added later when name+DOB become available.
-  const storedCreds = (draft.generatedCredentials ?? null) as GeneratedCredentials | null
-  const creds = ensureStep3Credentials(storedCreds)
+  // Credentials are generated and persisted server-side by ensureGeneratedCredentials()
+  // in page.tsx. Client just reads what the server provided — never generates random values.
+  const creds = (draft.generatedCredentials ?? {}) as GeneratedCredentials
 
-  // Also backfill Step 1 credentials if name+DOB are already available
+  // Backfill Step 1 deterministic credentials if name+DOB are available but server didn't set them
   const firstName = draft.firstName ?? ''
   const lastName = draft.lastName ?? ''
   const dob = draft.dateOfBirth ?? ''
