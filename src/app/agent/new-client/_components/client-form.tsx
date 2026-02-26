@@ -63,14 +63,20 @@ export function ClientForm({
   const hasActiveDevice = activeAssignment?.status === 'SIGNED_OUT'
   const deviceRequested = !!(draft.deviceReservationDate)
 
-  // Reset form data when draft changes
+  // Reset form data when draft changes (skip step override on initial mount —
+  // the parent already has the correct step from the URL param)
+  const isFirstMountRef = useRef(true)
   useEffect(() => {
     const newData = buildFormDataFromDraft(draft)
     setFormData(newData)
     formDataRef.current = newData
     lastSavedRef.current = JSON.stringify(newData)
     highestStepRef.current = draft.step
-    onStepChange(draft.step)
+    if (isFirstMountRef.current) {
+      isFirstMountRef.current = false
+    } else {
+      onStepChange(draft.step)
+    }
   }, [draft.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-save debounced — always persists the highest step ever reached
