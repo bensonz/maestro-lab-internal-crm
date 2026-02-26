@@ -7,7 +7,8 @@ import { StepIndicator } from './step-indicator'
 import { ClientForm } from './client-form'
 import { RiskPanel } from './risk-panel'
 import { calculateRiskScore } from '@/lib/risk-score'
-import type { RiskAssessment } from '@/types/backend-types'
+import type { RiskAssessment, PlatformEntry } from '@/types/backend-types'
+import type { GeneratedCredentials } from './client-form'
 
 export interface SerializedPhoneAssignment {
   phoneNumber: string
@@ -104,18 +105,21 @@ export function NewClientView({ drafts, selectedDraft, activeAssignment }: NewCl
   const [currentStep, setCurrentStep] = useState(selectedDraft?.step ?? 1)
 
   // Risk flags state — derived from draft + form data
-  const [riskFlags, setRiskFlags] = useState({
-    idExpiryDaysRemaining: null as number | null,
-    paypalPreviouslyUsed: selectedDraft?.paypalPreviouslyUsed ?? false,
-    multipleAddresses: selectedDraft?.addressMismatch ?? false,
-    betmgmEmailMismatch: false,
-    debankedHistory: selectedDraft?.debankedHistory ?? false,
-    criminalRecord: selectedDraft?.hasCriminalRecord ?? false,
-    missingIdCount: (selectedDraft?.missingIdType?.split(',').filter(Boolean).length) ?? 0,
-    householdAwareness: selectedDraft?.householdAwareness ?? '',
-    familyTechSupport: selectedDraft?.familyTechSupport ?? '',
-    financialAutonomy: selectedDraft?.financialAutonomy ?? '',
-    credentialMismatches: {} as Record<string, { username: boolean; password: boolean }>,
+  const [riskFlags, setRiskFlags] = useState(() => {
+    const creds = (selectedDraft?.generatedCredentials ?? {}) as GeneratedCredentials
+    return {
+      idExpiryDaysRemaining: null as number | null,
+      paypalPreviouslyUsed: selectedDraft?.paypalPreviouslyUsed ?? false,
+      multipleAddresses: selectedDraft?.addressMismatch ?? false,
+      betmgmEmailMismatch: false,
+      debankedHistory: selectedDraft?.debankedHistory ?? false,
+      criminalRecord: selectedDraft?.hasCriminalRecord ?? false,
+      missingIdCount: (selectedDraft?.missingIdType?.split(',').filter(Boolean).length) ?? 0,
+      householdAwareness: selectedDraft?.householdAwareness ?? '',
+      familyTechSupport: selectedDraft?.familyTechSupport ?? '',
+      financialAutonomy: selectedDraft?.financialAutonomy ?? '',
+      credentialMismatches: computeInitialCredentialMismatches(selectedDraft, creds),
+    }
   })
 
   const riskAssessment: RiskAssessment = useMemo(
@@ -217,4 +221,48 @@ export function NewClientView({ drafts, selectedDraft, activeAssignment }: NewCl
       />
     </div>
   )
+}
+
+/**
+ * Reconstruct credential mismatch state from persisted draft data so the
+ * Credentials section in the risk panel survives page refreshes.
+ * Only includes platforms where the user has actually filled in values.
+ */
+function computeInitialCredentialMismatches(
+  draft: SerializedDraft | null,
+  creds: GeneratedCredentials,
+): Record<string, { username: boolean; password: boolean }> {
+  if (!draft) return {}
+  const result: Record<string, { username: boolean; password: boolean }> = {}
+
+  // Step 1 — Gmail: compare assignedGmail vs suggestion, gmailPassword vs suggestion
+  if (draft.assignedGmail || draft.gmailPassword) {
+    result.GMAIL = {
+      username: !!(draft.assignedGmail && creds.gmailSuggestion && draft.assignedGmail !== creds.gmailSuggestion),
+      password: !!(draft.gmailPassword && creds.gmailPassword && draft.gmailPassword !== creds.gmailPassword),
+    }
+  }
+
+  // Step 1 — BetMGM: compare betmgmLogin vs assigned Gmail, betmgmPassword vs suggestion
+  if (draft.betmgmLogin || draft.betmgmPassword) {
+    result.BETMGM = {
+      username: !!(draft.betmgmLogin && draft.assignedGmail && draft.betmgmLogin !== draft.assignedGmail),
+      password: !!(draft.betmgmPassword && creds.betmgmPassword && draft.betmgmPassword !== creds.betmgmPassword),
+    }
+  }
+
+  // Step 3 — Platform cards: compare each platform's username/password vs suggestions
+  const platforms = (draft.platformData as PlatformEntry[] | null) ?? []
+  const storedPwds = creds.platformPasswords ?? {}
+  for (const p of platforms) {
+    if (!p.screenshot) continue // only track platforms that have been screenshotted
+    const suggestedPw = storedPwds[p.platform] ?? ''
+    const suggestedUser = p.platform === 'BANK' ? '' : (creds.gmailSuggestion ?? '')
+    result[p.platform] = {
+      username: !!(suggestedUser && p.username && p.username !== suggestedUser),
+      password: !!(suggestedPw && p.accountId && p.accountId !== suggestedPw),
+    }
+  }
+
+  return result
 }
