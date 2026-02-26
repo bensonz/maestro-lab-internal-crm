@@ -559,16 +559,16 @@ export const MOCK_INTAKE_CLIENTS: IntakeClient[] = [
 
 export const MOCK_VERIFICATION_TASKS: VerificationTask[] = [
   {
-    id: 'vt-1', clientId: 'client-3', clientName: 'David Lee', platformType: 'DRAFTKINGS' as const, platformLabel: 'DraftKings',
+    id: 'vt-1', clientId: 'client-3', draftId: null, clientName: 'David Lee', platformType: 'DRAFTKINGS' as const, platformLabel: 'DraftKings',
     task: 'Re-upload ID document', agentId: 'user-agent-1', agentName: 'Marcus Rivera',
     deadline: new Date('2026-02-22'), daysUntilDue: 3, deadlineLabel: 'In 3 days', clientDeadline: new Date('2026-02-22'),
-    status: 'Pending', screenshots: [],
+    status: 'Pending', screenshots: [], assignedPhone: '(555) 123-4567', assignedCarrier: 'T-Mobile',
   },
   {
-    id: 'vt-2', clientId: 'client-2', clientName: 'Maria Garcia', platformType: 'BETMGM' as const, platformLabel: 'BetMGM',
+    id: 'vt-2', clientId: 'client-2', draftId: null, clientName: 'Maria Garcia', platformType: 'BETMGM' as const, platformLabel: 'BetMGM',
     task: 'Upload verification screenshot', agentId: 'user-agent-1', agentName: 'Marcus Rivera',
     deadline: new Date('2026-02-20'), daysUntilDue: 1, deadlineLabel: 'Tomorrow', clientDeadline: new Date('2026-02-28'),
-    status: 'Pending', screenshots: [],
+    status: 'Pending', screenshots: [], assignedPhone: '(555) 987-6543', assignedCarrier: 'AT&T',
   },
 ]
 

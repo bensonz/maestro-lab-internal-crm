@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo } from 'react'
+import { useCallback, useRef } from 'react'
 import { PLATFORM_INFO, FINANCIAL_PLATFORMS, SPORTS_PLATFORMS } from '@/lib/platforms'
 import { PlatformCard } from './step3-platform-card'
 import { PayPalCard } from './step3-paypal-card'
@@ -46,30 +46,7 @@ function SectionCard({
   )
 }
 
-function generatePinPair(): { pin4: string; pin6: string } {
-  const base = String(Math.floor(1000 + Math.random() * 9000))
-  const suffix = String(Math.floor(10 + Math.random() * 90))
-  return { pin4: base, pin6: base + suffix }
-}
-
-// ── Password generation ─────────────────────────────────────────────────────
-// Rules: BetMGM, PayPal, EdgeBoost, Bank each get a unique password.
-// The 7 remaining sportsbooks share one password. Simple but random per session.
-
-const PWD_WORDS = [
-  'Swift', 'Cedar', 'Maple', 'Tiger', 'River', 'Storm', 'Blade', 'Frost',
-  'Ember', 'Ridge', 'Drake', 'Flare', 'Prism', 'Coral', 'Haven', 'Lunar',
-  'Orbit', 'Cobalt', 'Dune', 'Finch', 'Grove', 'Hawk', 'Ivory', 'Jade',
-  'Knoll', 'Lance', 'Mesa', 'Nova', 'Onyx', 'Pines',
-]
-const PWD_SPECIALS = ['!', '@', '#', '$']
-
-function genPwd(): string {
-  const word = PWD_WORDS[Math.floor(Math.random() * PWD_WORDS.length)]
-  const digits = String(Math.floor(1000 + Math.random() * 9000))
-  const special = PWD_SPECIALS[Math.floor(Math.random() * PWD_SPECIALS.length)]
-  return `${word}${digits}${special}`
-}
+import type { GeneratedCredentials } from './client-form'
 
 // ── Entry helpers ───────────────────────────────────────────────────────────
 
@@ -107,26 +84,45 @@ function getEntryForPlatform(
 export function Step3Platforms({ formData, onChange, onRiskFlagsChange, activeAssignment }: Step3Props) {
   const platformData = (formData.platformData as PlatformEntry[]) || []
 
-  // Stable suggested PIN pair — generated once per mount
-  const pinPair = useMemo(() => generatePinPair(), []) // eslint-disable-line react-hooks/exhaustive-deps
+  // Track per-platform credential mismatches for risk panel
+  const mismatchesRef = useRef<Record<string, { username: boolean; password: boolean }>>({})
 
-  // Stable passwords — generated once per mount, never repeated across re-renders
-  const passwords = useMemo(() => ({
-    sportsbook: genPwd(), // shared across 7 non-BetMGM sportsbooks
-    BETMGM:     genPwd(),
-    PAYPAL:     genPwd(),
-    EDGEBOOST:  genPwd(),
-    BANK:       genPwd(),
-  }), []) // eslint-disable-line react-hooks/exhaustive-deps
+  const handleMismatchChange = useCallback(
+    (platform: string, mismatch: { username: boolean; password: boolean } | null) => {
+      if (mismatch) {
+        // Always store — even { username: false, password: false } means "checked, all matched"
+        mismatchesRef.current = { ...mismatchesRef.current, [platform]: mismatch }
+      } else {
+        // null = screenshot deleted, remove from tracking
+        const next = { ...mismatchesRef.current }
+        delete next[platform]
+        mismatchesRef.current = next
+      }
+      onRiskFlagsChange({ credentialMismatches: { ...mismatchesRef.current } })
+    },
+    [onRiskFlagsChange],
+  )
+
+  // ── Read persisted credentials (generated at form level in client-form.tsx) ──
+  const creds = (formData.generatedCredentials ?? {}) as GeneratedCredentials
+  const storedPwds = creds.platformPasswords ?? {}
+  const passwords = {
+    sportsbook: storedPwds.sportsbook ?? '',
+    BETMGM:     storedPwds.BETMGM     ?? '',
+    PAYPAL:     storedPwds.PAYPAL     ?? '',
+    EDGEBOOST:  storedPwds.EDGEBOOST  ?? '',
+    BANK:       storedPwds.BANK       ?? '',
+  }
+  const pinPair = {
+    pin4: creds.bankPin4 ?? '',
+    pin6: creds.bankPin6 ?? '',
+  }
 
   // Username rules:
   //   Bank — use gmail prefix (online banking rejects email format)
   //   All others — use full company gmail
   const assignedGmail = (formData.assignedGmail as string) || ''
-  const gmailPrefix = useMemo(
-    () => (assignedGmail ? assignedGmail.replace(/@gmail\.com$/i, '') : ''),
-    [assignedGmail],
-  )
+  const gmailPrefix = assignedGmail ? assignedGmail.replace(/@gmail\.com$/i, '') : ''
 
   const handlePlatformChange = useCallback(
     (updated: PlatformEntry) => {
@@ -205,6 +201,7 @@ export function Step3Platforms({ formData, onChange, onRiskFlagsChange, activeAs
                     paypalSsnLinked={formData.paypalSsnLinked as boolean | null | undefined}
                     assignedGmail={assignedGmail}
                     suggestedPassword={passwords.PAYPAL}
+                    onMismatchChange={handleMismatchChange}
                   />
                 )
               }
@@ -218,6 +215,7 @@ export function Step3Platforms({ formData, onChange, onRiskFlagsChange, activeAs
                   onChange={handlePlatformChange}
                   suggestedUsername={assignedGmail}
                   suggestedPassword={passwords.EDGEBOOST}
+                  onMismatchChange={handleMismatchChange}
                 />
               )
             })}
@@ -231,6 +229,7 @@ export function Step3Platforms({ formData, onChange, onRiskFlagsChange, activeAs
               onChange={handlePlatformChange}
               suggestedUsername={gmailPrefix}
               suggestedPassword={passwords.BANK}
+              onMismatchChange={handleMismatchChange}
             />
           </div>
         </div>
@@ -252,6 +251,7 @@ export function Step3Platforms({ formData, onChange, onRiskFlagsChange, activeAs
                 onChange={handlePlatformChange}
                 suggestedUsername={assignedGmail}
                 suggestedPassword={suggestedPassword}
+                onMismatchChange={handleMismatchChange}
               />
             )
           })}

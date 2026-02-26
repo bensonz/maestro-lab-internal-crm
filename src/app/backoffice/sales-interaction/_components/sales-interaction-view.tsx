@@ -36,12 +36,12 @@ import { toast } from 'sonner'
 import { ClientIntakeList } from './client-intake-list'
 import { DraftReviewDialog } from './draft-review-dialog'
 import { DeviceAssignDialog } from './device-assign-dialog'
+import { AssignTodoDialog } from './assign-todo-dialog'
 import { VerificationTasksTable } from './verification-tasks-table'
-import { PostApprovalList } from './post-approval-list'
 import { ClientDetail } from '../../client-management/_components/client-detail'
 import { mapServerClientToClient } from '../../client-management/_components/map-client'
 import type { Client, ServerClientData } from '../../client-management/_components/types'
-import type { IntakeClient, VerificationTask, InProgressSubStage, PostApprovalClient } from '@/types/backend-types'
+import type { IntakeClient, VerificationTask, InProgressSubStage } from '@/types/backend-types'
 
 // ── Types ───────────────────────────────────────────
 interface AgentInHierarchy {
@@ -69,7 +69,6 @@ interface SalesInteractionViewProps {
   agentHierarchy: HierarchyGroup[]
   clientIntake: IntakeClient[]
   verificationTasks: VerificationTask[]
-  postApprovalClients: PostApprovalClient[]
   lifecycleClients: ServerClientData[]
 }
 
@@ -155,7 +154,6 @@ export function SalesInteractionView({
   agentHierarchy,
   clientIntake,
   verificationTasks,
-  postApprovalClients,
   lifecycleClients,
 }: SalesInteractionViewProps) {
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null)
@@ -168,10 +166,15 @@ export function SalesInteractionView({
   const [reviewingDraftName, setReviewingDraftName] = useState('')
   const [reviewingResultClientId, setReviewingResultClientId] = useState<string | null>(null)
 
+  // Assign To-Do dialog state
+  const [todoDialogOpen, setTodoDialogOpen] = useState(false)
+
   // Device assign dialog state
   const [assigningDraftId, setAssigningDraftId] = useState<string | null>(null)
   const [assigningClientName, setAssigningClientName] = useState('')
   const [assigningAgentName, setAssigningAgentName] = useState('')
+  const [assigningInitialPhone, setAssigningInitialPhone] = useState<string | null>(null)
+  const [assigningInitialCarrier, setAssigningInitialCarrier] = useState<string | null>(null)
 
   const handleReviewDraft = useCallback((id: string, name: string, resultClientId?: string | null) => {
     setReviewingDraftId(id)
@@ -179,10 +182,12 @@ export function SalesInteractionView({
     setReviewingResultClientId(resultClientId ?? null)
   }, [])
 
-  const handleAssignDevice = useCallback((draftId: string, clientName: string, agentName: string) => {
+  const handleAssignDevice = useCallback((draftId: string, clientName: string, agentName: string, phone?: string | null, carrier?: string | null) => {
     setAssigningDraftId(draftId)
     setAssigningClientName(clientName)
     setAssigningAgentName(agentName)
+    setAssigningInitialPhone(phone ?? null)
+    setAssigningInitialCarrier(carrier ?? null)
   }, [])
 
   // Client detail panel state (lifecycle clients mapped to view model)
@@ -258,22 +263,6 @@ export function SalesInteractionView({
     return result
   }, [verificationTasks, selectedAgentId, clientSearch])
 
-  // Filter post-approval clients by agent and search
-  const filteredPostApproval = useMemo(() => {
-    let result = selectedAgentId
-      ? postApprovalClients.filter((c) => c.agentId === selectedAgentId)
-      : postApprovalClients
-    if (clientSearch) {
-      const q = clientSearch.toLowerCase()
-      result = result.filter(
-        (c) =>
-          c.name.toLowerCase().includes(q) ||
-          c.agentName.toLowerCase().includes(q),
-      )
-    }
-    return result
-  }, [postApprovalClients, selectedAgentId, clientSearch])
-
   // Separate intake clients into "In Progress" and "Verification Needed"
   const inProgressClients = useMemo(
     () => filteredIntake.filter((c) => c.subStage !== 'verification-needed'),
@@ -288,12 +277,12 @@ export function SalesInteractionView({
   // Dynamic counts
   const dynamicCounts = useMemo(() => {
     return {
-      totalClients: filteredIntake.length + filteredTasks.length + filteredPostApproval.length,
+      totalClients: filteredIntake.length + filteredTasks.length,
       inProgress: inProgressClients.length,
       pendingApproval: filteredIntake.filter((c) => c.subStage === 'step-4').length,
-      verificationNeeded: verificationClients.length + filteredTasks.length + filteredPostApproval.length,
+      verificationNeeded: verificationClients.length + filteredTasks.length,
     }
-  }, [filteredIntake, filteredTasks, filteredPostApproval, inProgressClients, verificationClients])
+  }, [filteredIntake, filteredTasks, inProgressClients, verificationClients])
 
   // Exception counts per sub-stage
   const subStageExceptionCounts = useMemo(() => {
@@ -551,6 +540,7 @@ export function SalesInteractionView({
             size="sm"
             variant="terminal"
             className="ml-auto h-9"
+            onClick={() => setTodoDialogOpen(true)}
             data-testid="assign-todo-btn"
           >
             <Plus className="mr-1.5 h-4 w-4" />
@@ -563,7 +553,7 @@ export function SalesInteractionView({
           <p className="text-xs text-muted-foreground">
             Showing{' '}
             <span className="font-mono font-medium text-foreground">
-              {inProgressClients.length + verificationClients.length + filteredTasks.length + filteredPostApproval.length}
+              {inProgressClients.length + verificationClients.length + filteredTasks.length}
             </span>{' '}
             items
           </p>
@@ -661,13 +651,13 @@ export function SalesInteractionView({
                       variant="outline"
                       className="h-6 border-destructive/30 bg-destructive/10 px-2.5 font-mono text-xs font-semibold text-destructive"
                     >
-                      {verificationClients.length + filteredTasks.length + filteredPostApproval.length}
+                      {verificationClients.length + filteredTasks.length}
                     </Badge>
                   </button>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <div className="overflow-hidden rounded-b-lg border border-t-0 border-border/50 shadow-sm">
-                    {verificationClients.length === 0 && filteredTasks.length === 0 && filteredPostApproval.length === 0 ? (
+                    {verificationClients.length === 0 && filteredTasks.length === 0 ? (
                       <p className="py-8 text-center text-sm text-muted-foreground">
                         No verification tasks pending
                       </p>
@@ -686,26 +676,8 @@ export function SalesInteractionView({
                             tasks={filteredTasks}
                             selectedAgentId={selectedAgentId}
                             onSelectClient={handleSelectClient}
+                            onAssignDevice={handleAssignDevice}
                           />
-                        )}
-                        {filteredPostApproval.length > 0 && (
-                          <div data-testid="post-approval-section">
-                            <div className="flex items-center gap-2 border-t border-border/30 px-5 py-2.5">
-                              <span className="text-xs font-medium text-muted-foreground">
-                                Post-Approval Verification
-                              </span>
-                              <Badge
-                                variant="outline"
-                                className="h-5 px-1.5 font-mono text-[10px] text-muted-foreground"
-                              >
-                                {filteredPostApproval.length}
-                              </Badge>
-                            </div>
-                            <PostApprovalList
-                              clients={filteredPostApproval}
-                              selectedAgentId={selectedAgentId}
-                            />
-                          </div>
                         )}
                       </div>
                     )}
@@ -728,7 +700,15 @@ export function SalesInteractionView({
         draftId={assigningDraftId}
         clientName={assigningClientName}
         agentName={assigningAgentName}
+        initialPhone={assigningInitialPhone}
+        initialCarrier={assigningInitialCarrier}
         onClose={() => setAssigningDraftId(null)}
+      />
+
+      <AssignTodoDialog
+        open={todoDialogOpen}
+        onClose={() => setTodoDialogOpen(false)}
+        clients={clientIntake}
       />
     </div>
   )

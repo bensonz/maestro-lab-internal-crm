@@ -80,6 +80,7 @@ export interface SerializedDraft {
   sportsbookUsedList: string | null
   sportsbookStatuses: string | null
   platformData: unknown
+  generatedCredentials: unknown
   contractDocument: string | null
   paypalPreviouslyUsed: boolean
   addressMismatch: boolean
@@ -114,6 +115,7 @@ export function NewClientView({ drafts, selectedDraft, activeAssignment }: NewCl
     householdAwareness: selectedDraft?.householdAwareness ?? '',
     familyTechSupport: selectedDraft?.familyTechSupport ?? '',
     financialAutonomy: selectedDraft?.financialAutonomy ?? '',
+    credentialMismatches: {} as Record<string, { username: boolean; password: boolean }>,
   })
 
   const riskAssessment: RiskAssessment = useMemo(
@@ -123,7 +125,18 @@ export function NewClientView({ drafts, selectedDraft, activeAssignment }: NewCl
 
   const handleRiskFlagsChange = useCallback(
     (flags: Record<string, unknown>) => {
-      setRiskFlags((prev) => ({ ...prev, ...flags }))
+      setRiskFlags((prev) => {
+        // Deep-merge credentialMismatches so Step 1 and Step 3 don't overwrite each other
+        if (flags.credentialMismatches) {
+          const merged = {
+            ...prev.credentialMismatches,
+            ...(flags.credentialMismatches as Record<string, { username: boolean; password: boolean }>),
+          }
+          const { credentialMismatches: _, ...rest } = flags
+          return { ...prev, ...rest, credentialMismatches: merged }
+        }
+        return { ...prev, ...flags }
+      })
     },
     [],
   )

@@ -14,6 +14,7 @@ interface RiskFlags {
   bankPinOverride?: boolean
   bankNameOverride?: boolean
   bankPhoneEmailNotConfirmed?: boolean
+  credentialMismatches?: Record<string, { username: boolean; password: boolean }>
 }
 
 const HOUSEHOLD_AWARENESS_SCORES: Record<string, number> = {
@@ -72,6 +73,7 @@ export function calculateRiskScore(flags: RiskFlags): RiskAssessment {
   const bankPinOverride = flags.bankPinOverride ?? false
   const bankNameOverride = flags.bankNameOverride ?? false
   const bankPhoneEmailNotConfirmed = flags.bankPhoneEmailNotConfirmed ?? false
+  const credentialMismatches = flags.credentialMismatches ?? {}
 
   // Missing IDs: 0 missing = +10 bonus, each missing type = -10
   if (missingIdCount === 0) {
@@ -129,6 +131,7 @@ export function calculateRiskScore(flags: RiskFlags): RiskAssessment {
       bankPinOverride,
       bankNameOverride,
       bankPhoneEmailNotConfirmed,
+      credentialMismatches,
     },
   }
 }

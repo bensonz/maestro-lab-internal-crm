@@ -22,6 +22,9 @@ const { mockPrisma } = vi.hoisted(() => ({
     eventLog: {
       create: vi.fn(),
     },
+    phoneAssignment: {
+      deleteMany: vi.fn(),
+    },
   },
 }))
 vi.mock('@/backend/prisma/client', () => ({ default: mockPrisma }))

@@ -741,6 +741,25 @@ async function main() {
   })
   console.log(`  Created sample phone assignment: ${sampleAssignment.id} (signed out, due ${dueBackDate.toISOString().split('T')[0]})`)
 
+  // ── Sample Todo ──────────────────────────────────────────
+
+  await prisma.todo.deleteMany({ where: { clientDraftId: sampleDraft.id } })
+  const todoDueDate = new Date()
+  todoDueDate.setDate(todoDueDate.getDate() + 3)
+  const sampleTodo = await prisma.todo.create({
+    data: {
+      title: 'Contact Bank',
+      description: 'Contact Bank — Sarah Martinez',
+      issueCategory: 'Contact Bank',
+      clientDraftId: sampleDraft.id,
+      assignedToId: agent.id,
+      createdById: boStaff.id,
+      dueDate: todoDueDate,
+      status: 'PENDING',
+    },
+  })
+  console.log(`  Created sample todo: ${sampleTodo.id} (Contact Bank, assigned to Marcus, due ${todoDueDate.toISOString().split('T')[0]})`)
+
   // ── Event Logs ─────────────────────────────────────────
 
   await prisma.eventLog.createMany({
@@ -772,6 +791,19 @@ async function main() {
         description: 'Bonus pool distributed for Emily Chen',
         userId: approvedUser.id,
         metadata: { clientName: 'Emily Chen', distributedSlices: 4 },
+      },
+      {
+        eventType: 'TODO_ASSIGNED',
+        description: 'To-do assigned: "Contact Bank" for Sarah Martinez to Marcus Rivera',
+        userId: boStaff.id,
+        metadata: {
+          todoId: sampleTodo.id,
+          clientDraftId: sampleDraft.id,
+          clientName: 'Sarah Martinez',
+          agentId: agent.id,
+          agentName: 'Marcus Rivera',
+          issueCategory: 'Contact Bank',
+        },
       },
     ],
   })

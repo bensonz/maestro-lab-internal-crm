@@ -71,6 +71,7 @@ export async function getReturnedPhoneAssignments() {
       id: true,
       clientDraftId: true,
       phoneNumber: true,
+      carrier: true,
     },
   })
 }
