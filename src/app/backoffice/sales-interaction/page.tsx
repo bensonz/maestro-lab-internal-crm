@@ -3,14 +3,14 @@ import {
   MOCK_SALES_HIERARCHY,
   MOCK_INTAKE_CLIENTS,
   MOCK_VERIFICATION_TASKS,
-  MOCK_POST_APPROVAL_CLIENTS,
   MOCK_LIFECYCLE_CLIENTS,
 } from '@/lib/mock-data'
 import { SalesInteractionView } from './_components/sales-interaction-view'
 import { getAllDraftsForBackoffice } from '@/backend/data/client-drafts'
+import { getApprovedClientsForBackoffice } from '@/backend/data/clients'
 import { getAgentsForHierarchy } from '@/backend/data/users'
 import { getAgentDisplayTier, LEADERSHIP_TIERS, STAR_THRESHOLDS } from '@/lib/commission-constants'
-import type { IntakeClient, InProgressSubStage } from '@/types/backend-types'
+import type { IntakeClient, InProgressSubStage, PostApprovalClient } from '@/types/backend-types'
 
 function stepToSubStage(step: number): InProgressSubStage {
   const map: Record<number, InProgressSubStage> = {
@@ -22,14 +22,14 @@ function stepToSubStage(step: number): InProgressSubStage {
   return map[step] || 'step-1'
 }
 
-// Tier sort order: leadership tiers first (CMO→MD→SED→ED), then star levels descending (4★→Rookie)
+// Tier sort order: leadership tiers first (CMO→MD→SED→ED), then star levels descending (4-Star→Rookie)
 const TIER_SORT_ORDER: Record<string, number> = {}
 // Leadership tiers: highest first — CMO=0, MD=1, SED=2, ED=3
 // LEADERSHIP_TIERS array is [ED, SED, MD, CMO], so reverse index for sort
 for (let i = 0; i < LEADERSHIP_TIERS.length; i++) {
   TIER_SORT_ORDER[LEADERSHIP_TIERS[i].label] = LEADERSHIP_TIERS.length - 1 - i
 }
-// Star levels: 4-Star next, then descending — 4★=4, 3★=5, 2★=6, 1★=7, Rookie=8
+// Star levels: 4-Star next, then descending — 4-Star=4, 3-Star=5, 2-Star=6, 1-Star=7, Rookie=8
 for (let i = STAR_THRESHOLDS.length - 1; i >= 0; i--) {
   TIER_SORT_ORDER[STAR_THRESHOLDS[i].label] = LEADERSHIP_TIERS.length + (STAR_THRESHOLDS.length - 1 - i)
 }
@@ -111,13 +111,38 @@ export default async function SalesInteractionPage() {
       }
     : MOCK_SALES_STATS
 
+  // Fetch real approved clients for post-approval tracking
+  let postApprovalClients: PostApprovalClient[] = []
+  try {
+    const approvedClients = await getApprovedClientsForBackoffice()
+    if (approvedClients.length > 0) {
+      postApprovalClients = approvedClients.map((c) => {
+        const daysSinceApproval = c.approvedAt
+          ? Math.floor((Date.now() - new Date(c.approvedAt).getTime()) / (1000 * 60 * 60 * 24))
+          : 0
+        return {
+          id: c.id,
+          name: `${c.firstName} ${c.lastName}`,
+          agentId: c.closerId,
+          agentName: c.closer?.name ?? 'Unknown',
+          approvedAt: c.approvedAt,
+          daysSinceApproval,
+          limitedPlatforms: [], // TODO: Wire to real platform status data when available
+          pendingVerificationTodos: 0, // TODO: Wire to real todo counts when available
+        }
+      })
+    }
+  } catch {
+    // DB not available — post-approval will be empty
+  }
+
   return (
     <SalesInteractionView
       stats={stats}
       agentHierarchy={agentHierarchy}
       clientIntake={clientIntake}
       verificationTasks={MOCK_VERIFICATION_TASKS}
-      postApprovalClients={MOCK_POST_APPROVAL_CLIENTS}
+      postApprovalClients={postApprovalClients}
       lifecycleClients={MOCK_LIFECYCLE_CLIENTS}
     />
   )

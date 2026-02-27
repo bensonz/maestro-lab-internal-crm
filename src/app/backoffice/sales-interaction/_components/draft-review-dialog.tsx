@@ -172,14 +172,19 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, onClose 
   const handleApprove = async () => {
     if (!resultClientId) return
     dispatch({ type: 'APPROVE_START' })
-    const result = await approveClient(resultClientId)
-    dispatch({ type: 'APPROVE_DONE' })
-    if (result.success) {
-      toast.success(`${draftName} approved as client`)
-      onClose()
-      router.refresh()
-    } else {
-      toast.error(result.error || 'Failed to approve')
+    try {
+      const result = await approveClient(resultClientId)
+      dispatch({ type: 'APPROVE_DONE' })
+      if (result.success) {
+        toast.success(`${draftName} approved as client`)
+        onClose()
+        router.refresh()
+      } else {
+        toast.error(result.error || 'Failed to approve')
+      }
+    } catch {
+      dispatch({ type: 'APPROVE_DONE' })
+      toast.error('Failed to approve client — please try again')
     }
   }
 
@@ -223,6 +228,30 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, onClose 
 
         {draft && !loading && (
           <>
+            {/* Status + Risk summary bar */}
+            <div className="flex items-center justify-between rounded-md border border-border bg-muted/30 px-3 py-2 text-xs" data-testid="draft-review-summary">
+              <div className="flex items-center gap-3">
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    'text-[10px]',
+                    draft.status === 'SUBMITTED'
+                      ? 'border-warning/30 bg-warning/10 text-warning'
+                      : 'border-muted-foreground/30 text-muted-foreground',
+                  )}
+                >
+                  {draft.status === 'SUBMITTED' ? 'Pending Approval' : 'Draft'}
+                </Badge>
+                <span className="text-muted-foreground">Step {draft.step}/4</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {draft.paypalPreviouslyUsed && <span className="rounded bg-warning/10 px-1.5 py-0.5 text-[10px] text-warning">PayPal</span>}
+                {draft.debankedHistory && <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] text-destructive">De-banked</span>}
+                {draft.undisclosedInfo && <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] text-destructive">Undisclosed</span>}
+                {draft.hasCriminalRecord && <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] text-destructive">Criminal</span>}
+              </div>
+            </div>
+
             {/* Step indicator */}
             <div className="flex items-center justify-center gap-1.5" data-testid="draft-review-step-indicator">
               {STEP_DEFS.map((s) => (
@@ -381,36 +410,65 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, onClose 
 
             {/* Step 3 — Platforms */}
             {step === 3 && (
-              <div className="space-y-2" data-testid="draft-review-step-3-content">
+              <div className="space-y-3" data-testid="draft-review-step-3-content">
+                {/* Summary bar */}
+                {(() => {
+                  const filled = ALL_PLATFORMS.filter((p) => {
+                    const d = platformData?.[p as string]
+                    return d && (d.username || d.accountId)
+                  }).length
+                  const withScreenshot = ALL_PLATFORMS.filter((p) => {
+                    const d = platformData?.[p as string]
+                    return d?.screenshot
+                  }).length
+                  return (
+                    <div className="flex items-center gap-4 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs">
+                      <span className="text-muted-foreground">Platforms filled:</span>
+                      <span className={cn('font-mono font-semibold', filled === ALL_PLATFORMS.length ? 'text-success' : filled > 0 ? 'text-warning' : 'text-muted-foreground')}>
+                        {filled}/{ALL_PLATFORMS.length}
+                      </span>
+                      <span className="text-muted-foreground">Screenshots:</span>
+                      <span className={cn('font-mono font-semibold', withScreenshot === ALL_PLATFORMS.length ? 'text-success' : withScreenshot > 0 ? 'text-warning' : 'text-muted-foreground')}>
+                        {withScreenshot}/{ALL_PLATFORMS.length}
+                      </span>
+                    </div>
+                  )
+                })()}
+
                 <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Platform Registration</p>
                 <div className="grid grid-cols-2 gap-2">
                   {ALL_PLATFORMS.map((platform) => {
                     const info = PLATFORM_INFO[platform]
                     const data = platformData?.[platform as string]
-                    const hasData = data && (data.username || data.accountId || data.screenshot)
+                    const hasUsername = !!data?.username
+                    const hasAccountId = !!data?.accountId
+                    const hasScreenshot = !!data?.screenshot
+                    const hasBoth = hasUsername && hasAccountId
+                    const hasPartial = hasUsername || hasAccountId || hasScreenshot
+                    // green=both credentials, amber=partial, dim=empty
+                    const fillColor = hasBoth ? 'border-success/40 bg-success/5' : hasPartial ? 'border-warning/40 bg-warning/5' : 'bg-muted/20 opacity-50'
 
                     return (
                       <div
                         key={platform}
-                        className={cn(
-                          'rounded border border-border p-2 text-xs',
-                          hasData ? 'bg-card' : 'bg-muted/20 opacity-50',
-                        )}
+                        className={cn('rounded border p-2 text-xs', fillColor)}
                         data-testid={`draft-review-platform-${platform}`}
                       >
                         <div className="mb-1 flex items-center justify-between">
                           <span className="font-medium">{info.name}</span>
-                          {hasData ? (
+                          {hasBoth ? (
                             <CheckCircle2 className="h-3 w-3 text-success" />
+                          ) : hasPartial ? (
+                            <div className="h-3 w-3 rounded-full border-2 border-warning" />
                           ) : (
                             <Minus className="h-3 w-3 text-muted-foreground" />
                           )}
                         </div>
-                        {hasData && (
+                        {hasPartial && (
                           <div className="space-y-0.5 text-[10px] text-muted-foreground">
-                            {data.username && <p>User: {data.username}</p>}
-                            {data.accountId && <p>ID: <span className="font-mono">{data.accountId}</span></p>}
-                            {data.screenshot && <p className="text-success">Screenshot uploaded</p>}
+                            {data?.username && <p>User: {data.username}</p>}
+                            {data?.accountId && <p>ID: <span className="font-mono">{data.accountId}</span></p>}
+                            {data?.screenshot && <p className="text-success">Screenshot uploaded</p>}
                           </div>
                         )}
                       </div>

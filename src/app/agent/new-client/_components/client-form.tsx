@@ -45,6 +45,9 @@ export function ClientForm({
   }, [draft.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-save debounced
+  // Track consecutive save failures for throttled error feedback
+  const saveFailCountRef = useRef(0)
+
   const doSave = useCallback(
     async (data: Record<string, unknown>) => {
       const serialized = JSON.stringify(data)
@@ -59,11 +62,21 @@ export function ClientForm({
         if (result.success) {
           lastSavedRef.current = serialized
           setSaveStatus('saved')
+          saveFailCountRef.current = 0
         } else {
           setSaveStatus('idle')
+          saveFailCountRef.current++
+          // Show toast on first failure and every 5th consecutive failure
+          if (saveFailCountRef.current === 1 || saveFailCountRef.current % 5 === 0) {
+            toast.error(result.error ?? 'Failed to save draft')
+          }
         }
       } catch {
         setSaveStatus('idle')
+        saveFailCountRef.current++
+        if (saveFailCountRef.current === 1 || saveFailCountRef.current % 5 === 0) {
+          toast.error('Failed to save draft — check your connection')
+        }
       }
     },
     [draft.id, currentStep],

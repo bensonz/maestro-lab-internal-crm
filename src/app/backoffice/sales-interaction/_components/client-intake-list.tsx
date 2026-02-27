@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Check, Clock, Eye, Phone } from 'lucide-react'
-import { approveClientIntake } from '@/lib/mock-actions'
+import { approveClient } from '@/app/actions/clients'
 import { toast } from 'sonner'
 import type { IntakeClient } from '@/types/backend-types'
 import { cn } from '@/lib/utils'
@@ -29,14 +29,18 @@ export function ClientIntakeList({
 }: ClientIntakeListProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const handleApprove = (clientId: string, clientName: string) => {
+  const handleApprove = (resultClientId: string, clientName: string) => {
     startTransition(async () => {
-      const result = await approveClientIntake(clientId)
-      if (result.success) {
-        toast.success(`Approved ${clientName}`)
-        router.refresh()
-      } else {
-        toast.error(result.error || 'Failed to approve')
+      try {
+        const result = await approveClient(resultClientId)
+        if (result.success) {
+          toast.success(`Approved ${clientName}`)
+          router.refresh()
+        } else {
+          toast.error(result.error || 'Failed to approve')
+        }
+      } catch {
+        toast.error('Failed to approve client')
       }
     })
   }
@@ -149,11 +153,14 @@ export function ClientIntakeList({
                     Review
                   </Button>
                 )}
-                {client.canApprove ? (
+                {(client.canApprove || (client.resultClientId && client.subStage === 'step-4')) ? (
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => handleApprove(client.id, client.name)}
+                    onClick={() => {
+                      const approveId = client.resultClientId || client.id
+                      handleApprove(approveId, client.name)
+                    }}
                     disabled={isPending}
                     className="h-7 px-2.5 text-xs"
                     data-testid={`approve-${client.id}`}

@@ -549,6 +549,7 @@ export function SalesInteractionView({
             size="sm"
             variant="terminal"
             className="ml-auto h-9"
+            onClick={() => toast.info('Todo assignment coming soon')}
             data-testid="assign-todo-btn"
           >
             <Plus className="mr-1.5 h-4 w-4" />
@@ -585,6 +586,27 @@ export function SalesInteractionView({
         {/* Collapsible Sections Content */}
         <ScrollArea className="flex-1">
           <div className="space-y-3 p-4">
+            {/* Empty state when nothing to show */}
+            {!showInProgress && !showVerification && (
+              <div className="flex flex-col items-center justify-center py-16 text-center" data-testid="empty-state-all">
+                <FileText className="h-10 w-10 text-muted-foreground/40" />
+                <p className="mt-3 text-sm font-medium text-muted-foreground">No items to display</p>
+                <p className="mt-1 text-xs text-muted-foreground/70">
+                  Select a different filter from the sidebar.
+                </p>
+              </div>
+            )}
+
+            {showInProgress && inProgressClients.length === 0 && showVerification && verificationClients.length === 0 && filteredTasks.length === 0 && filteredPostApproval.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-16 text-center" data-testid="empty-state-no-clients">
+                <Users className="h-10 w-10 text-muted-foreground/40" />
+                <p className="mt-3 text-sm font-medium text-muted-foreground">No active clients</p>
+                <p className="mt-1 text-xs text-muted-foreground/70">
+                  {selectedAgentName ? `No clients found for ${selectedAgentName}.` : 'All queues are empty. New drafts will appear here.'}
+                </p>
+              </div>
+            )}
+
             {/* ── In Progress Section ── */}
             {showInProgress && (
               <Collapsible

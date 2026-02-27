@@ -43,3 +43,20 @@ export async function getAllClients() {
     },
   })
 }
+
+/** Fetch recently approved clients for backoffice post-approval tracking */
+export async function getApprovedClientsForBackoffice() {
+  return prisma.client.findMany({
+    where: { status: 'APPROVED' },
+    orderBy: { approvedAt: 'desc' },
+    take: 50,
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      closerId: true,
+      approvedAt: true,
+      closer: { select: { id: true, name: true } },
+    },
+  })
+}
