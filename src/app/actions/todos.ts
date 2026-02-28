@@ -9,6 +9,7 @@ const ISSUE_CATEGORIES = [
   'Contact Bank',
   'Contact PayPal',
   'Platforms Verification',
+  'Collect Debit Card Information',
 ] as const
 
 type IssueCategory = (typeof ISSUE_CATEGORIES)[number]
