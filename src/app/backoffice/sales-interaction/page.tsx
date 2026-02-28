@@ -3,12 +3,12 @@ import {
   MOCK_LIFECYCLE_CLIENTS,
 } from '@/lib/mock-data'
 import { SalesInteractionView } from './_components/sales-interaction-view'
-import { getAllDraftsForBackoffice } from '@/backend/data/client-drafts'
+import { getAllDraftsForBackoffice, getApprovedDraftsForBackoffice } from '@/backend/data/client-drafts'
 import { getActivePhoneAssignments, getReturnedPhoneAssignments } from '@/backend/data/phone-assignments'
 import { getPendingTodosForBackoffice, getCompletedTodosForBackoffice, getTodoTimeline } from '@/backend/data/todos'
 import { getAgentsForHierarchy } from '@/backend/data/users'
 import { getAgentDisplayTier, LEADERSHIP_TIERS, STAR_THRESHOLDS } from '@/lib/commission-constants'
-import type { IntakeClient, InProgressSubStage, VerificationTask, CompletedTodoEntry, TodoTimelineEntry } from '@/types/backend-types'
+import type { IntakeClient, InProgressSubStage, VerificationTask, CompletedTodoEntry, TodoTimelineEntry, ApprovedClientEntry } from '@/types/backend-types'
 
 function stepToSubStage(step: number): InProgressSubStage {
   const map: Record<number, InProgressSubStage> = {
@@ -92,7 +92,7 @@ export default async function SalesInteractionPage() {
 
     draftIntake = drafts.map((d) => {
       const isSubmitted = d.status === 'SUBMITTED'
-      const subStage = stepToSubStage(d.step)
+      const subStage: InProgressSubStage = isSubmitted ? 'pending-approval' : stepToSubStage(d.step)
       const activeAssignmentId = draftToAssignmentId.get(d.id) ?? null
       const returnedAssignmentId = draftToReturnedId.get(d.id) ?? null
 
@@ -182,9 +182,10 @@ export default async function SalesInteractionPage() {
 
   const verificationTasks = realTodoTasks
 
-  // Fetch completed todos + timeline (separate try/catch so one failure doesn't kill both)
+  // Fetch completed todos + timeline + approved clients (separate try/catch so one failure doesn't kill both)
   let completedTodos: CompletedTodoEntry[] = []
   let todoTimeline: TodoTimelineEntry[] = []
+  let approvedClients: ApprovedClientEntry[] = []
 
   try {
     todoTimeline = await getTodoTimeline()
@@ -216,11 +217,25 @@ export default async function SalesInteractionPage() {
     console.error('[sales-interaction] completed todos fetch error:', e)
   }
 
+  try {
+    const approvedDrafts = await getApprovedDraftsForBackoffice()
+    approvedClients = approvedDrafts.map((d) => ({
+      id: d.resultClient!.id,
+      draftId: d.id,
+      clientName: [d.firstName, d.lastName].filter(Boolean).join(' ') || 'Unknown',
+      agentId: d.closerId,
+      agentName: d.closer?.name ?? 'Unknown',
+      approvedAt: d.resultClient!.approvedAt ?? d.updatedAt,
+    }))
+  } catch (e) {
+    console.error('[sales-interaction] approved clients fetch error:', e)
+  }
+
   // Compute stats from combined data
   const stats = {
     totalClients: clientIntake.length,
     inProgress: clientIntake.filter((c) => c.subStage !== 'verification-needed').length,
-    pendingApproval: clientIntake.filter((c) => c.subStage === 'step-4').length,
+    pendingApproval: clientIntake.filter((c) => c.subStage === 'pending-approval').length,
     verificationNeeded: clientIntake.filter((c) => c.subStage === 'verification-needed').length,
   }
 
@@ -231,6 +246,7 @@ export default async function SalesInteractionPage() {
       clientIntake={clientIntake}
       verificationTasks={verificationTasks}
       completedTodos={completedTodos}
+      approvedClients={approvedClients}
       todoTimeline={todoTimeline}
       lifecycleClients={MOCK_LIFECYCLE_CLIENTS}
     />

@@ -15,6 +15,7 @@ import {
   Hourglass,
   FileText,
   Shield,
+  ClipboardCheck,
   Undo2,
   Loader2,
 } from 'lucide-react'
@@ -47,7 +48,7 @@ import { VerificationTasksTable } from './verification-tasks-table'
 import { ClientDetail } from '../../client-management/_components/client-detail'
 import { mapServerClientToClient } from '../../client-management/_components/map-client'
 import type { Client, ServerClientData } from '../../client-management/_components/types'
-import type { IntakeClient, VerificationTask, InProgressSubStage, CompletedTodoEntry, TodoTimelineEntry } from '@/types/backend-types'
+import type { IntakeClient, VerificationTask, InProgressSubStage, CompletedTodoEntry, TodoTimelineEntry, ApprovedClientEntry } from '@/types/backend-types'
 
 // ── Types ───────────────────────────────────────────
 interface AgentInHierarchy {
@@ -76,6 +77,7 @@ interface SalesInteractionViewProps {
   clientIntake: IntakeClient[]
   verificationTasks: VerificationTask[]
   completedTodos: CompletedTodoEntry[]
+  approvedClients: ApprovedClientEntry[]
   todoTimeline: TodoTimelineEntry[]
   lifecycleClients: ServerClientData[]
 }
@@ -153,6 +155,13 @@ const inProgressSubStages: SubStageGroup[] = [
     key: 'step-4',
     label: 'Contract',
     stepLabel: '4',
+    icon: ClipboardCheck,
+    headerColor: 'text-primary',
+  },
+  {
+    key: 'pending-approval',
+    label: 'Pending Approval',
+    stepLabel: '',
     icon: Hourglass,
     headerColor: 'text-warning',
   },
@@ -163,6 +172,7 @@ export function SalesInteractionView({
   clientIntake,
   verificationTasks,
   completedTodos,
+  approvedClients,
   todoTimeline,
   lifecycleClients,
 }: SalesInteractionViewProps) {
@@ -329,6 +339,22 @@ export function SalesInteractionView({
     return result
   }, [completedTodos, selectedAgentId, clientSearch])
 
+  // Filter approved clients by agent and search
+  const filteredApprovedClients = useMemo(() => {
+    let result = selectedAgentId
+      ? approvedClients.filter((c) => c.agentId === selectedAgentId)
+      : approvedClients
+    if (clientSearch) {
+      const q = clientSearch.toLowerCase()
+      result = result.filter(
+        (c) =>
+          c.clientName.toLowerCase().includes(q) ||
+          c.agentName.toLowerCase().includes(q),
+      )
+    }
+    return result
+  }, [approvedClients, selectedAgentId, clientSearch])
+
   // Separate intake clients into "In Progress" and "Verification Needed"
   const inProgressClients = useMemo(
     () => filteredIntake.filter((c) => c.subStage !== 'verification-needed'),
@@ -345,7 +371,7 @@ export function SalesInteractionView({
     return {
       totalClients: filteredIntake.length + filteredTasks.length,
       inProgress: inProgressClients.length,
-      pendingApproval: filteredIntake.filter((c) => c.subStage === 'step-4').length,
+      pendingApproval: filteredIntake.filter((c) => c.subStage === 'pending-approval').length,
       verificationNeeded: verificationClients.length + filteredTasks.length,
     }
   }, [filteredIntake, filteredTasks, inProgressClients, verificationClients])
@@ -666,10 +692,9 @@ export function SalesInteractionView({
                     <div>
                       {inProgressSubStages.map((stage) => {
                         const stageClients = summaryFilter === 'pending-approval'
-                          ? inProgressClients.filter((c) => c.subStage === 'step-4')
+                          ? inProgressClients.filter((c) => c.subStage === 'pending-approval')
                           : inProgressClients.filter((c) => c.subStage === stage.key)
-                        if (stageClients.length === 0 && summaryFilter !== 'pending-approval') return null
-                        if (summaryFilter === 'pending-approval' && stage.key !== 'step-4') return null
+                        if (summaryFilter === 'pending-approval' && stage.key !== 'pending-approval') return null
 
                         return (
                           <SubStageSection
@@ -753,84 +778,113 @@ export function SalesInteractionView({
               </Collapsible>
             )}
 
-            {/* ── Reviewed Section (completed todos) ── */}
-            {showVerification && (
-              <div data-testid="section-reviewed">
-                <button
-                  type="button"
-                  onClick={() => setReviewedOpen(!reviewedOpen)}
-                  className="flex w-full cursor-pointer items-center gap-2 rounded-lg border border-border bg-muted/30 px-4 py-2.5 text-left transition-colors hover:bg-muted/50"
-                  data-testid="toggle-reviewed"
-                >
-                  <span className="flex-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Reviewed ({filteredCompletedTodos.length})
-                  </span>
-                  {reviewedOpen ? (
-                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  )}
-                </button>
-                {reviewedOpen && (
-                  <div className="mt-1 overflow-hidden rounded-lg border border-border">
-                    {filteredCompletedTodos.length === 0 ? (
-                      <p className="py-6 text-center text-sm text-muted-foreground">
-                        No completed to-dos yet
-                      </p>
-                    ) : (
-                    <div className="divide-y divide-border">
-                    {filteredCompletedTodos.map((todo) => (
-                      <div
-                        key={todo.id}
-                        className="flex items-start gap-3 px-4 py-2"
-                        data-testid={`reviewed-todo-${todo.id}`}
-                      >
-                        <Badge
-                          className="mt-0.5 shrink-0 border-success/30 bg-success/20 px-1.5 py-0 text-[10px] text-success"
-                        >
-                          {todo.issueCategory}
-                        </Badge>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="truncate text-xs font-medium">
-                              {todo.clientName}
-                            </span>
-                            <span className="truncate text-[10px] text-muted-foreground">
-                              {todo.agentName}
-                            </span>
-                          </div>
-                          <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
-                            <span>by {todo.completedByName}</span>
-                            <span className="opacity-50">&middot;</span>
-                            <span>assigned by {todo.createdByName}</span>
-                          </div>
-                        </div>
-                        <span className="mt-0.5 shrink-0 whitespace-nowrap text-[10px] text-muted-foreground">
-                          {formatDistanceToNow(new Date(todo.completedAt), { addSuffix: true })}
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 shrink-0 gap-1 px-2 text-[10px] text-muted-foreground hover:text-foreground"
-                          onClick={() => handleRevertTodo(todo.id, todo.clientName)}
-                          disabled={revertingTodoId === todo.id}
-                          data-testid={`revert-todo-${todo.id}`}
-                        >
-                          {revertingTodoId === todo.id ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <Undo2 className="h-3 w-3" />
-                          )}
-                          Revert
-                        </Button>
-                      </div>
-                    ))}
-                    </div>
-                    )}
-                  </div>
+            {/* ── Reviewed Section (approved clients + completed todos) ── */}
+            <div data-testid="section-reviewed">
+              <button
+                type="button"
+                onClick={() => setReviewedOpen(!reviewedOpen)}
+                className="flex w-full cursor-pointer items-center gap-2 rounded-lg border border-border bg-muted/30 px-4 py-2.5 text-left transition-colors hover:bg-muted/50"
+                data-testid="toggle-reviewed"
+              >
+                <span className="flex-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Reviewed ({filteredApprovedClients.length + filteredCompletedTodos.length})
+                </span>
+                {reviewedOpen ? (
+                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
                 )}
-              </div>
-            )}
+              </button>
+              {reviewedOpen && (
+                <div className="mt-1 overflow-hidden rounded-lg border border-border">
+                  {filteredApprovedClients.length === 0 && filteredCompletedTodos.length === 0 ? (
+                    <p className="py-6 text-center text-sm text-muted-foreground">
+                      No reviewed items yet
+                    </p>
+                  ) : (
+                  <div className="divide-y divide-border">
+                  {/* Approved clients */}
+                  {filteredApprovedClients.map((client) => (
+                    <div
+                      key={`approved-${client.id}`}
+                      className="flex items-start gap-3 px-4 py-2"
+                      data-testid={`reviewed-approved-${client.id}`}
+                    >
+                      <Badge
+                        className="mt-0.5 shrink-0 border-emerald-500/30 bg-emerald-500/20 px-1.5 py-0 text-[10px] text-emerald-400"
+                      >
+                        Approved
+                      </Badge>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="truncate text-xs font-medium">
+                            {client.clientName}
+                          </span>
+                          <span className="truncate text-[10px] text-muted-foreground">
+                            {client.agentName}
+                          </span>
+                        </div>
+                        <div className="mt-0.5 text-[10px] text-muted-foreground">
+                          Client approved &middot; $400 bonus pool distributed
+                        </div>
+                      </div>
+                      <span className="mt-0.5 shrink-0 whitespace-nowrap text-[10px] text-muted-foreground">
+                        {formatDistanceToNow(new Date(client.approvedAt), { addSuffix: true })}
+                      </span>
+                    </div>
+                  ))}
+                  {/* Completed todos */}
+                  {filteredCompletedTodos.map((todo) => (
+                    <div
+                      key={todo.id}
+                      className="flex items-start gap-3 px-4 py-2"
+                      data-testid={`reviewed-todo-${todo.id}`}
+                    >
+                      <Badge
+                        className="mt-0.5 shrink-0 border-success/30 bg-success/20 px-1.5 py-0 text-[10px] text-success"
+                      >
+                        {todo.issueCategory}
+                      </Badge>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="truncate text-xs font-medium">
+                            {todo.clientName}
+                          </span>
+                          <span className="truncate text-[10px] text-muted-foreground">
+                            {todo.agentName}
+                          </span>
+                        </div>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
+                          <span>by {todo.completedByName}</span>
+                          <span className="opacity-50">&middot;</span>
+                          <span>assigned by {todo.createdByName}</span>
+                        </div>
+                      </div>
+                      <span className="mt-0.5 shrink-0 whitespace-nowrap text-[10px] text-muted-foreground">
+                        {formatDistanceToNow(new Date(todo.completedAt), { addSuffix: true })}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 shrink-0 gap-1 px-2 text-[10px] text-muted-foreground hover:text-foreground"
+                        onClick={() => handleRevertTodo(todo.id, todo.clientName)}
+                        disabled={revertingTodoId === todo.id}
+                        data-testid={`revert-todo-${todo.id}`}
+                      >
+                        {revertingTodoId === todo.id ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Undo2 className="h-3 w-3" />
+                        )}
+                        Revert
+                      </Button>
+                    </div>
+                  ))}
+                  </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* ── Activity Timeline ── */}
             {showVerification && (
@@ -948,17 +1002,18 @@ function SubStageSection({
   const [isOpen, setIsOpen] = useState(false)
   const Icon = stage.icon
 
-  if (clients.length === 0) return null
-
   return (
     <Collapsible
       open={isOpen}
-      onOpenChange={setIsOpen}
+      onOpenChange={clients.length > 0 ? setIsOpen : undefined}
       data-testid={`substage-${stage.key}`}
     >
       <CollapsibleTrigger asChild>
         <button
-          className="flex w-full items-center justify-between border-b border-border/30 px-5 py-2.5 transition-colors hover:bg-muted/30"
+          className={cn(
+            'flex w-full items-center justify-between border-b border-border/30 px-5 py-2.5 transition-colors',
+            clients.length > 0 ? 'hover:bg-muted/30' : 'opacity-50',
+          )}
         >
           <div className="flex items-center gap-2.5">
             {isOpen ? (
@@ -966,9 +1021,11 @@ function SubStageSection({
             ) : (
               <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
             )}
-            <span className="flex h-5 min-w-5 items-center justify-center rounded bg-muted px-1 text-[10px] font-bold text-muted-foreground">
-              {stage.stepLabel}
-            </span>
+            {stage.stepLabel && (
+              <span className="flex h-5 min-w-5 items-center justify-center rounded bg-muted px-1 text-[10px] font-bold text-muted-foreground">
+                {stage.stepLabel}
+              </span>
+            )}
             <Icon className={cn('h-3.5 w-3.5', stage.headerColor)} />
             <span className={cn('text-xs font-medium', stage.headerColor)}>
               {stage.label}
