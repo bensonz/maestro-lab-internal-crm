@@ -21,6 +21,7 @@ interface PlatformDataEntry {
 function buildQuestionnaire(
   draft: Record<string, unknown>,
   phoneAssignment?: { phoneNumber: string; carrier: string | null } | null,
+  agentZelle?: string | null,
 ): string {
   const q: Record<string, unknown> = {}
 
@@ -30,6 +31,9 @@ function buildQuestionnaire(
     q.carrier = phoneAssignment.carrier
   }
 
+  // Agent's zelle (from closer User record)
+  if (agentZelle) q.zellePhone = agentZelle
+
   // Step 1 fields (ClientDraft schema field names)
   if (draft.dateOfBirth) q.dateOfBirth = draft.dateOfBirth
   if (draft.idNumber) q.idNumber = draft.idNumber
@@ -37,8 +41,12 @@ function buildQuestionnaire(
   if (draft.gmailPassword) q.gmailPassword = draft.gmailPassword
   if (draft.assignedGmail) q.assignedGmail = draft.assignedGmail
   if (draft.livesAtDifferentAddress) q.livesAtDifferentAddress = draft.livesAtDifferentAddress
+  if (draft.address) q.address = draft.address
   if (draft.secondAddress) q.secondaryAddress = draft.secondAddress
   if (draft.currentAddress) q.currentAddress = draft.currentAddress
+  if (draft.phone) q.phone = draft.phone
+  if (draft.betmgmLogin) q.betmgmLogin = draft.betmgmLogin
+  if (draft.betmgmPassword) q.betmgmPassword = draft.betmgmPassword
 
   // Step 2 fields (matching actual ClientDraft column names)
   if (draft.citizenship) q.citizenship = draft.citizenship
@@ -47,6 +55,7 @@ function buildQuestionnaire(
   if (draft.debankedHistory) q.debankedHistory = draft.debankedHistory
   if (draft.debankedBank) q.debankedBank = draft.debankedBank
   if (draft.paypalPreviouslyUsed) q.paypalPreviouslyUsed = draft.paypalPreviouslyUsed
+  if (draft.addressMismatch) q.addressMismatch = draft.addressMismatch
   if (draft.undisclosedInfo) q.undisclosedInfo = draft.undisclosedInfo
   if (draft.occupation) q.occupation = draft.occupation
   if (draft.annualIncome) q.incomeRange = draft.annualIncome
@@ -60,6 +69,7 @@ function buildQuestionnaire(
   if (draft.sportsbookHistory) q.sportsbookHistory = draft.sportsbookHistory
   if (draft.ssnNumber) q.ssnNumber = draft.ssnNumber
   if (draft.missingIdType) q.missingIdType = draft.missingIdType
+  if (draft.paypalHistory) q.paypalHistory = draft.paypalHistory
 
   return JSON.stringify(q)
 }
@@ -194,7 +204,7 @@ export default async function ClientManagementServerPage() {
         // ID document from draft
         idDocument: (draft?.idDocument as string) ?? null,
         // Questionnaire built from draft fields
-        questionnaire: draft ? buildQuestionnaire(draft, c._phoneAssignment) : null,
+        questionnaire: draft ? buildQuestionnaire(draft, c._phoneAssignment, c.closer?.zelle) : null,
         // Platform details from draft's platformData JSON
         platformDetails,
         // Transactions (none in current schema — placeholder)

@@ -78,7 +78,7 @@ export async function getAllClients() {
   const clients = await prisma.client.findMany({
     orderBy: { createdAt: 'desc' },
     include: {
-      closer: { select: { id: true, name: true } },
+      closer: { select: { id: true, name: true, zelle: true } },
       bonusPool: { select: { id: true, status: true, totalAmount: true } },
       fromDraft: true,
     },

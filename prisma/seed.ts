@@ -556,6 +556,10 @@ async function main() {
   await prisma.bonusPool.deleteMany({
     where: { client: { email: { startsWith: 'sample-client' } } },
   })
+  // Clean up drafts linked to sample clients
+  await prisma.clientDraft.deleteMany({
+    where: { resultClient: { email: { startsWith: 'sample-client' } } },
+  })
   await prisma.client.deleteMany({
     where: { email: { startsWith: 'sample-client' } },
   })
@@ -572,6 +576,59 @@ async function main() {
       status: 'APPROVED',
       closerId: agent.id,
       approvedAt: new Date('2026-02-10'),
+    },
+  })
+
+  // Create linked ClientDraft for Client 1 (David Wilson) — simulates full intake
+  await prisma.clientDraft.create({
+    data: {
+      closerId: agent.id,
+      status: 'SUBMITTED',
+      step: 4,
+      resultClientId: client1.id,
+      firstName: 'David',
+      lastName: 'Wilson',
+      email: 'sample-client-1@example.com',
+      phone: '(555) 500-0001',
+      dateOfBirth: new Date('1992-03-15'),
+      idNumber: 'DL-77881234',
+      idExpiry: new Date('2028-11-30'),
+      address: '742 Evergreen Terrace, Springfield, IL 62704',
+      citizenship: 'US',
+      assignedGmail: 'david.wilson.work@gmail.com',
+      gmailPassword: 'DWils#2026!',
+      betmgmCheckPassed: true,
+      betmgmLogin: 'david.wilson.work@gmail.com',
+      betmgmPassword: 'BetMGM#David2026',
+      ssnNumber: '***-**-4567',
+      bankingHistory: 'Chase checking, good standing 5yr',
+      paypalPreviouslyUsed: false,
+      debankedHistory: false,
+      hasCriminalRecord: false,
+      addressMismatch: false,
+      undisclosedInfo: false,
+      occupation: 'Software Engineer',
+      annualIncome: '$75,000-$100,000',
+      employmentStatus: 'Employed Full-Time',
+      maritalStatus: 'Single',
+      platformData: {
+        paypal: { username: 'david.wilson.work@gmail.com', status: 'VERIFIED' },
+        onlineBanking: { username: 'david.wilson.work@gmail.com', accountId: 'CHK-9901', bank: 'Chase', status: 'VERIFIED' },
+        edgeboost: { username: 'david.wilson.work@gmail.com', accountId: 'EB-4401', status: 'VERIFIED' },
+        draftkings: { username: 'DWilsonDK', accountId: 'DK-7701', status: 'VERIFIED' },
+        fanduel: { username: 'DWilsonFD', accountId: 'FD-3301', status: 'VERIFIED' },
+        betmgm: { username: 'david.wilson.work@gmail.com', accountId: 'MGM-1101', status: 'VERIFIED' },
+        caesars: { username: 'DWilsonCZR', accountId: 'CZR-2201', status: 'PENDING_REVIEW' },
+        fanatics: { username: 'DWilsonFAN', accountId: 'FAN-5501' },
+      },
+      generatedCredentials: {
+        draftkings: { email: 'david.wilson.work@gmail.com', password: 'DKraft#David2026' },
+        fanduel: { email: 'david.wilson.work@gmail.com', password: 'FDuel#David2026' },
+        caesars: { email: 'david.wilson.work@gmail.com', password: 'Czar#David2026' },
+      },
+      contractDocument: '/uploads/david-wilson-contract.pdf',
+      createdAt: new Date('2026-02-05'),
+      updatedAt: new Date('2026-02-09'),
     },
   })
 
@@ -640,6 +697,56 @@ async function main() {
     },
   })
 
+  // Create linked ClientDraft for Client 2 (Emily Chen)
+  await prisma.clientDraft.create({
+    data: {
+      closerId: approvedUser.id,
+      status: 'SUBMITTED',
+      step: 4,
+      resultClientId: client2.id,
+      firstName: 'Emily',
+      lastName: 'Chen',
+      email: 'sample-client-2@example.com',
+      phone: '(555) 500-0002',
+      dateOfBirth: new Date('1995-08-22'),
+      idNumber: 'DL-33449988',
+      idExpiry: new Date('2027-06-15'),
+      address: '1200 Peachtree St NE, Atlanta, GA 30309',
+      currentAddress: '450 Piedmont Ave NE, Atlanta, GA 30308',
+      livesAtDifferentAddress: true,
+      citizenship: 'US',
+      assignedGmail: 'emily.chen.work@gmail.com',
+      gmailPassword: 'EChen#2026!',
+      betmgmCheckPassed: true,
+      betmgmLogin: 'emily.chen.work@gmail.com',
+      betmgmPassword: 'BetMGM#Emily2026',
+      ssnNumber: '***-**-8901',
+      bankingHistory: 'Citi checking, 3yr history',
+      paypalPreviouslyUsed: true,
+      debankedHistory: false,
+      hasCriminalRecord: false,
+      addressMismatch: true,
+      undisclosedInfo: false,
+      occupation: 'Marketing Manager',
+      annualIncome: '$50,000-$75,000',
+      employmentStatus: 'Employed Full-Time',
+      maritalStatus: 'Married',
+      platformData: {
+        paypal: { username: 'emily.chen.work@gmail.com', status: 'VERIFIED' },
+        onlineBanking: { username: 'emily.chen.work@gmail.com', accountId: 'CHK-5502', bank: 'Citi', status: 'VERIFIED' },
+        edgeboost: { username: 'emily.chen.work@gmail.com', accountId: 'EB-2202', status: 'PENDING_REVIEW' },
+        draftkings: { username: 'EChenDK', accountId: 'DK-8802', status: 'VERIFIED' },
+        fanduel: { username: 'EChenFD', accountId: 'FD-4402', status: 'VERIFIED' },
+        betmgm: { username: 'emily.chen.work@gmail.com', accountId: 'MGM-6602', status: 'VERIFIED' },
+        betrivers: { username: 'EChenBR', accountId: 'BR-1102' },
+        bet365: { username: 'EChen365', accountId: '365-9902' },
+      },
+      contractDocument: '/uploads/emily-chen-contract.pdf',
+      createdAt: new Date('2026-02-08'),
+      updatedAt: new Date('2026-02-11'),
+    },
+  })
+
   await prisma.bonusPool.create({
     data: {
       clientId: client2.id,
@@ -685,7 +792,7 @@ async function main() {
   console.log(`  Created client 2 (Emily Chen) + bonus pool — closed by Jamie`)
 
   // Client 3 — Pending (no bonus pool yet)
-  await prisma.client.create({
+  const client3 = await prisma.client.create({
     data: {
       firstName: 'Robert',
       lastName: 'Kim',
@@ -693,6 +800,52 @@ async function main() {
       phone: '(555) 500-0003',
       status: 'PENDING',
       closerId: agent.id,
+    },
+  })
+
+  // Create linked ClientDraft for Client 3 (Robert Kim — submitted, pending approval)
+  await prisma.clientDraft.create({
+    data: {
+      closerId: agent.id,
+      status: 'SUBMITTED',
+      step: 4,
+      resultClientId: client3.id,
+      firstName: 'Robert',
+      lastName: 'Kim',
+      email: 'sample-client-3@example.com',
+      phone: '(555) 500-0003',
+      dateOfBirth: new Date('1990-01-10'),
+      idNumber: 'DL-11225577',
+      idExpiry: new Date('2027-03-20'),
+      address: '300 Michigan Ave, Chicago, IL 60601',
+      citizenship: 'US',
+      assignedGmail: 'robert.kim.work@gmail.com',
+      gmailPassword: 'RKim#2026!',
+      betmgmCheckPassed: true,
+      betmgmLogin: 'robert.kim.work@gmail.com',
+      betmgmPassword: 'BetMGM#Robert2026',
+      ssnNumber: '***-**-3456',
+      bankingHistory: 'Chase savings + checking, 7yr',
+      paypalPreviouslyUsed: false,
+      debankedHistory: true,
+      debankedBank: 'Wells Fargo',
+      hasCriminalRecord: false,
+      addressMismatch: false,
+      undisclosedInfo: false,
+      occupation: 'Accountant',
+      annualIncome: '$100,000+',
+      employmentStatus: 'Employed Full-Time',
+      maritalStatus: 'Single',
+      platformData: {
+        paypal: { username: 'robert.kim.work@gmail.com', status: 'PENDING_REVIEW' },
+        onlineBanking: { username: 'robert.kim.work@gmail.com', accountId: 'CHK-3303', bank: 'Chase', status: 'PENDING_REVIEW' },
+        draftkings: { username: 'RKimDK', accountId: 'DK-5503', status: 'PENDING_REVIEW' },
+        fanduel: { username: 'RKimFD', accountId: 'FD-7703' },
+        betmgm: { username: 'robert.kim.work@gmail.com', accountId: 'MGM-9903' },
+      },
+      contractDocument: '/uploads/robert-kim-contract.pdf',
+      createdAt: new Date('2026-02-20'),
+      updatedAt: new Date('2026-02-25'),
     },
   })
   console.log(`  Created client 3 (Robert Kim) — pending, no bonus pool`)

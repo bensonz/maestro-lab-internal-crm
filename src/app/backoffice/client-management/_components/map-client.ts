@@ -120,6 +120,31 @@ export function findPlatformDetail(
   return details?.find((p) => p.platformType === type)
 }
 
+/** Format ISO date string to readable format (e.g. "Feb 15, 2000") */
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '\u2014'
+  try {
+    const d = new Date(dateStr)
+    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+  } catch {
+    return '\u2014'
+  }
+}
+
+/** Extract US state abbreviation from address string, e.g. "123 Main St, Chicago, IL 60601" -> "IL" */
+function extractStateFromAddress(address: string | null | undefined): string | null {
+  if (!address) return null
+  const match = address.match(/\b([A-Z]{2})\s*\d{5}/)
+  if (match) return match[1]
+  const parts = address.split(',').map((s) => s.trim())
+  if (parts.length >= 2) {
+    const stateZip = parts[parts.length - 1]
+    const stateMatch = stateZip.match(/^([A-Z]{2})\b/)
+    if (stateMatch) return stateMatch[1]
+  }
+  return null
+}
+
 // Map a single server client to our view model
 export function mapServerClientToClient(serverClient: ServerClientData): Client {
   // Parse questionnaire JSON for profile fields
@@ -141,12 +166,19 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
   // BetMGM screenshots for review banner
   const betmgmDetail = findPlatformDetail(serverClient.platformDetails, 'BETMGM')
 
+  // Address from draft — either currentAddress (lives somewhere else) or ID address
+  const primaryAddress = serverClient.address || '\u2014'
+  const secondaryAddress = (questionnaire.secondaryAddress as string) || (questionnaire.currentAddress as string) || undefined
+
+  // State from address
+  const state = extractStateFromAddress(serverClient.address)
+
   return {
     id: serverClient.id,
     name: serverClient.name,
     companyPhone: (questionnaire.companyPhone as string) || serverClient.phone || '\u2014',
     carrier: (questionnaire.carrier as string) || '\u2014',
-    companyEmail: serverClient.email || '\u2014',
+    companyEmail: (questionnaire.assignedGmail as string) || serverClient.email || '\u2014',
     personalPhone: serverClient.phone || '\u2014',
     startDate: serverClient.start,
     status: mapIntakeStatusToClientStatus(serverClient.intakeStatus),
@@ -162,7 +194,7 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
         isUsed: false,
         credentials: {
           username: paypalDetail?.username || '\u2014',
-          password: '\u2014',
+          password: '\u2014', // Security: never expose
         },
       },
       {
@@ -173,15 +205,15 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
         bankType: 'Chase' as const,
         credentials: {
           username: bankDetail?.username || '\u2014',
-          password: '\u2014',
+          password: '\u2014', // Security: never expose
         },
         debitCard: {
-          cardNumber: '\u2014',
+          cardNumber: '\u2014', // Security: never expose
           cvv: '\u2014',
           expiration: '\u2014',
         },
         bankInfo: {
-          routingNumber: '\u2014',
+          routingNumber: '\u2014', // Security: never expose
           accountNumber: '\u2014',
         },
       },
@@ -192,10 +224,10 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
         balance: 0,
         credentials: {
           username: edgeboostDetail?.username || '\u2014',
-          password: '\u2014',
+          password: '\u2014', // Security: never expose
         },
         debitCard: {
-          cardNumber: '\u2014',
+          cardNumber: '\u2014', // Security: never expose
           cvv: '\u2014',
           expiration: '\u2014',
         },
@@ -214,24 +246,23 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
       zellePhone: (questionnaire.zellePhone as string) || '\u2014',
       edgeboostDebit: '\u2014',
       bankDebit: '\u2014',
-      state: serverClient.state || '\u2014',
+      state: state || serverClient.state || '\u2014',
     },
     profile: {
       fullName: serverClient.name,
-      dob: (questionnaire.dateOfBirth as string) || '\u2014',
+      dob: formatDate(questionnaire.dateOfBirth as string),
       gender:
         ((questionnaire.gender as string) as 'Male' | 'Female') || 'Male',
       idImageUrl: serverClient.idDocument || undefined,
-      idExpiryDate: (questionnaire.idExpiry as string) || '\u2014',
-      ssn: '\u2022\u2022\u2022\u2022', // Never expose real SSN client-side
+      idExpiryDate: formatDate(questionnaire.idExpiry as string),
+      ssn: '\u2022\u2022\u2022\u2022', // Security: never expose real SSN
       citizenship: (questionnaire.citizenship as string) || '\u2014',
       personalEmail: serverClient.email || '\u2014',
-      primaryAddress: serverClient.address
-        ? `${serverClient.address}, ${serverClient.city}, ${serverClient.state} ${serverClient.zipCode}`
-        : '\u2014',
+      primaryAddress,
+      secondaryAddress,
     },
     platformAddresses: {
-      paypal: '\u2014',
+      paypal: '\u2014', // TODO: from discoveredAddresses once implemented
       bank: '\u2014',
       edgeboost: '\u2014',
     },
