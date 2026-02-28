@@ -14,7 +14,8 @@
     "db:migrate:status": "prisma migrate status",
     "db:seed": "tsx prisma/seed.ts",
     "format": "prettier --write \"src/**/*.{ts,tsx}\" \"*.{mjs,ts,json}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx}\" \"*.{mjs,ts,json}\""
+    "format:check": "prettier --check \"src/**/*.{ts,tsx}\" \"*.{mjs,ts,json}\"",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
