@@ -204,6 +204,8 @@ export interface ServerClientData {
   questionnaire: string | null
   // Platform details
   platformDetails: ServerPlatformDetail[]
+  // Generated credentials from draft
+  generatedCredentials: Record<string, unknown> | null
   // Recent transactions
   transactions: Array<{
     id: string

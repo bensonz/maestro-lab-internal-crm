@@ -10,6 +10,22 @@ import type {
 // Server-to-view-model mapping (extracted for reuse)
 // ============================================================================
 
+// Platform type → display name lookup
+const PLATFORM_TYPE_TO_NAME: Record<string, string> = {
+  DRAFTKINGS: 'DraftKings',
+  FANDUEL: 'FanDuel',
+  BETMGM: 'BetMGM',
+  CAESARS: 'Caesars',
+  FANATICS: 'Fanatics',
+  BALLYBET: 'BallyBet',
+  BETRIVERS: 'BetRivers',
+  BET365: 'Bet365',
+  PAYPAL: 'PayPal',
+  ONLINE_BANKING: 'Bank',
+  BANK: 'Bank',
+  EDGEBOOST: 'Edgeboost',
+}
+
 // Map intake status to our view status
 export function mapIntakeStatusToClientStatus(
   intakeStatus: string,
@@ -33,11 +49,38 @@ export function mapIntakeStatusToClientStatus(
   }
 }
 
+// Helper: extract a platform password from generatedCredentials
+function getPlatformPassword(
+  creds: Record<string, unknown> | null,
+  platformKey: string,
+): string {
+  if (!creds) return '\u2014'
+  // Format: platformPasswords map (keyed by DB type like DRAFTKINGS, PAYPAL, etc.)
+  const pp = creds.platformPasswords as Record<string, string> | undefined
+  if (pp?.[platformKey]) return pp[platformKey]
+  // Shared sportsbook password
+  if (pp?.sportsbook && !['PAYPAL', 'ONLINE_BANKING', 'BANK', 'EDGEBOOST', 'BETMGM'].includes(platformKey)) {
+    return pp.sportsbook
+  }
+  // BetMGM special: top-level betmgmPassword
+  if (platformKey === 'BETMGM' && creds.betmgmPassword) {
+    return creds.betmgmPassword as string
+  }
+  // Legacy format: { draftkings: { password } }
+  const legacyKey = platformKey.toLowerCase()
+  const legacy = creds[legacyKey]
+  if (legacy && typeof legacy === 'object' && 'password' in (legacy as Record<string, unknown>)) {
+    return (legacy as Record<string, string>).password
+  }
+  return '\u2014'
+}
+
 // Map platform abbreviations to betting platform entries
 export function mapPlatformsToBetting(
   platforms: string[],
   activePlatforms: string[],
   platformDetails?: ServerPlatformDetail[],
+  generatedCredentials?: Record<string, unknown> | null,
 ): Client['bettingPlatforms'] {
   const PLATFORM_META: Record<string, { id: string; name: string; dbType: string }> = {
     DK: { id: 'draftkings', name: 'DraftKings', dbType: 'DRAFTKINGS' },
@@ -76,7 +119,7 @@ export function mapPlatformsToBetting(
       balance: 0,
       credentials: {
         username: detail?.username || '\u2014',
-        password: '\u2014',
+        password: getPlatformPassword(generatedCredentials ?? null, meta.dbType),
       },
     }
   })
@@ -157,6 +200,9 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
     /* ignore parse errors */
   }
 
+  // Extract generated credentials for password/PIN display
+  const creds = serverClient.generatedCredentials
+
   // Build finance platforms from real data
   const paypalDetail = findPlatformDetail(serverClient.platformDetails, 'PAYPAL')
   const bankDetail = findPlatformDetail(serverClient.platformDetails, 'ONLINE_BANKING')
@@ -194,7 +240,7 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
         isUsed: false,
         credentials: {
           username: paypalDetail?.username || '\u2014',
-          password: '\u2014', // Security: never expose
+          password: getPlatformPassword(creds, 'PAYPAL'),
         },
       },
       {
@@ -205,15 +251,16 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
         bankType: 'Chase' as const,
         credentials: {
           username: bankDetail?.username || '\u2014',
-          password: '\u2014', // Security: never expose
+          password: getPlatformPassword(creds, 'BANK'),
+          pin: (creds?.bankPin4 as string) || '\u2014',
         },
         debitCard: {
-          cardNumber: '\u2014', // Security: never expose
+          cardNumber: '\u2014', // Not stored as structured data (screenshot-only)
           cvv: '\u2014',
           expiration: '\u2014',
         },
         bankInfo: {
-          routingNumber: '\u2014', // Security: never expose
+          routingNumber: '\u2014', // Not stored as structured data (screenshot-only)
           accountNumber: '\u2014',
         },
       },
@@ -224,10 +271,10 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
         balance: 0,
         credentials: {
           username: edgeboostDetail?.username || '\u2014',
-          password: '\u2014', // Security: never expose
+          password: getPlatformPassword(creds, 'EDGEBOOST'),
         },
         debitCard: {
-          cardNumber: '\u2014', // Security: never expose
+          cardNumber: '\u2014', // Not stored as structured data (screenshot-only)
           cvv: '\u2014',
           expiration: '\u2014',
         },
@@ -237,6 +284,7 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
       serverClient.platforms,
       serverClient.activePlatforms,
       serverClient.platformDetails,
+      creds,
     ),
     agent: serverClient.agent || undefined,
     betmgmScreenshots: betmgmDetail?.screenshots ?? [],
@@ -255,16 +303,16 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
         ((questionnaire.gender as string) as 'Male' | 'Female') || 'Male',
       idImageUrl: serverClient.idDocument || undefined,
       idExpiryDate: formatDate(questionnaire.idExpiry as string),
-      ssn: '\u2022\u2022\u2022\u2022', // Security: never expose real SSN
+      ssn: (questionnaire.ssnNumber as string) || '\u2014',
       citizenship: (questionnaire.citizenship as string) || '\u2014',
       personalEmail: serverClient.email || '\u2014',
       primaryAddress,
       secondaryAddress,
     },
     platformAddresses: {
-      paypal: '\u2014', // TODO: from discoveredAddresses once implemented
-      bank: '\u2014',
-      edgeboost: '\u2014',
+      paypal: primaryAddress !== '\u2014' ? primaryAddress : '\u2014',
+      bank: primaryAddress !== '\u2014' ? primaryAddress : '\u2014',
+      edgeboost: primaryAddress !== '\u2014' ? primaryAddress : '\u2014',
     },
     gmailPassword: (questionnaire.gmailPassword as string) || '\u2014',
     alertFlags: {
@@ -292,7 +340,7 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
             : ('deposit' as const),
       amount: t.amount,
       date: new Date(t.date).toLocaleDateString(),
-      platform: t.platformType || '\u2014',
+      platform: PLATFORM_TYPE_TO_NAME[t.platformType || ''] || t.platformType || '\u2014',
     })),
     timeline: serverClient.eventLogs.map((e) => ({
       id: e.id,

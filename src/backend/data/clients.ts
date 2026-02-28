@@ -81,6 +81,7 @@ export async function getAllClients() {
       closer: { select: { id: true, name: true, zelle: true } },
       bonusPool: { select: { id: true, status: true, totalAmount: true } },
       fromDraft: true,
+      transactions: { orderBy: { createdAt: 'desc' }, take: 50 },
     },
   })
 

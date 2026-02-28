@@ -227,8 +227,9 @@ model Client {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
-  bonusPool BonusPool?
-  fromDraft ClientDraft? @relation("DraftResult")
+  bonusPool    BonusPool?
+  fromDraft    ClientDraft?  @relation("DraftResult")
+  transactions Transaction[]
 }
 
 // ─── Client Draft ──────────────────────────────────────
@@ -482,6 +483,27 @@ model FundAllocation {
   recordedBy   User   @relation("FundRecordedBy", fields: [recordedById], references: [id])
 
   createdAt  DateTime @default(now())
+}
+
+// ─── Transaction ────────────────────────────────────────
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+}
+
+model Transaction {
+  id           String          @id @default(cuid())
+  clientId     String
+  client       Client          @relation(fields: [clientId], references: [id])
+
+  type         TransactionType
+  amount       Decimal         @db.Decimal(10, 2)
+  description  String?
+  platformType String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ─── Event Log ───────────────────────────────────────────

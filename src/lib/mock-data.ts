@@ -419,6 +419,7 @@ export const MOCK_SERVER_CLIENTS = [
       { platformType: 'BANK', status: 'PENDING_REVIEW', screenshots: [], username: null, reviewedBy: null, reviewedAt: null, reviewNotes: null },
       { platformType: 'EDGEBOOST', status: 'VERIFIED', screenshots: [], username: 'jsmith_eb', reviewedBy: null, reviewedAt: null, reviewNotes: null },
     ],
+    generatedCredentials: null,
     transactions: [
       { id: 'txn-c1-1', type: 'DEPOSIT', amount: 1500, description: 'Initial deposit to FanDuel', date: '2026-02-15', platformType: 'FANDUEL' },
       { id: 'txn-c1-2', type: 'DEPOSIT', amount: 950, description: 'Deposit to Caesars', date: '2026-02-16', platformType: 'CAESARS' },
@@ -448,6 +449,7 @@ export const MOCK_SERVER_CLIENTS = [
       { platformType: 'BANK', status: 'VERIFIED', screenshots: [], username: 'Chase ****4521', reviewedBy: 'Sarah Chen', reviewedAt: '2026-02-10', reviewNotes: null },
       { platformType: 'EDGEBOOST', status: 'VERIFIED', screenshots: [], username: 'jbrown_eb', reviewedBy: 'Sarah Chen', reviewedAt: '2026-02-11', reviewNotes: null },
     ],
+    generatedCredentials: null,
     transactions: [], eventLogs: [],
   },
   {
@@ -472,6 +474,7 @@ export const MOCK_SERVER_CLIENTS = [
       { platformType: 'BANK', status: 'REJECTED', screenshots: [], username: null, reviewedBy: 'Sarah Chen', reviewedAt: '2026-01-25', reviewNotes: 'Account closed' },
       { platformType: 'EDGEBOOST', status: 'LIMITED', screenshots: [], username: 'edavis_eb', reviewedBy: null, reviewedAt: null, reviewNotes: null },
     ],
+    generatedCredentials: null,
     transactions: [], eventLogs: [],
   },
 ]

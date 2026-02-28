@@ -207,8 +207,17 @@ export default async function ClientManagementServerPage() {
         questionnaire: draft ? buildQuestionnaire(draft, c._phoneAssignment, c.closer?.zelle) : null,
         // Platform details from draft's platformData JSON
         platformDetails,
-        // Transactions (none in current schema — placeholder)
-        transactions: [],
+        // Generated credentials from draft
+        generatedCredentials: (draft?.generatedCredentials as Record<string, unknown>) ?? null,
+        // Transactions from DB
+        transactions: (c.transactions ?? []).map((t) => ({
+          id: t.id,
+          type: t.type,
+          amount: Number(t.amount),
+          description: t.description || '',
+          date: t.createdAt.toISOString(),
+          platformType: t.platformType || null,
+        })),
         // Event logs from EventLog table
         eventLogs: events.map((e) => ({
           id: e.id,
