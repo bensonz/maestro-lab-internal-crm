@@ -13,6 +13,15 @@ export interface AgentClient {
   lastUpdated: string
   updatedAt: string
   deadline: string | null
+  // Approved client extras
+  phone: string | null
+  age: number | null
+  state: string | null
+  zelle: string | null
+  /** Duration from draft creation (scan ID) to submission, e.g. "3d11h" */
+  intakeDuration: string | null
+  /** Start date formatted, e.g. "Feb 26" */
+  startDate: string | null
 }
 
 export interface AgentDraft {

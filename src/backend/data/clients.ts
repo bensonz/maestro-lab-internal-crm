@@ -25,13 +25,53 @@ export async function getClientById(clientId: string) {
 }
 
 export async function getClientsByCloser(closerId: string) {
-  return prisma.client.findMany({
+  const clients = await prisma.client.findMany({
     where: { closerId },
     orderBy: { createdAt: 'desc' },
     include: {
+      closer: { select: { zelle: true } },
       bonusPool: { select: { id: true, status: true, totalAmount: true } },
+      fromDraft: {
+        select: {
+          id: true,
+          dateOfBirth: true,
+          address: true,
+          currentAddress: true,
+          createdAt: true,
+          updatedAt: true,
+          status: true,
+        },
+      },
     },
   })
+
+  // Fetch phone assignments for drafts
+  const draftIds = clients
+    .map((c) => c.fromDraft?.id)
+    .filter((id): id is string => !!id)
+
+  const phoneAssignments = draftIds.length > 0
+    ? await prisma.phoneAssignment.findMany({
+        where: { clientDraftId: { in: draftIds } },
+        orderBy: { signedOutAt: 'desc' },
+        select: {
+          clientDraftId: true,
+          phoneNumber: true,
+        },
+      })
+    : []
+
+  const draftPhoneMap = new Map<string, string>()
+  for (const pa of phoneAssignments) {
+    if (!draftPhoneMap.has(pa.clientDraftId)) {
+      draftPhoneMap.set(pa.clientDraftId, pa.phoneNumber)
+    }
+  }
+
+  return clients.map((c) => ({
+    ...c,
+    _phone: c.fromDraft?.id ? draftPhoneMap.get(c.fromDraft.id) ?? null : null,
+  }))
 }
 
 export async function getAllClients() {
