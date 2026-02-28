@@ -851,60 +851,47 @@ export function SalesInteractionView({
                     return (
                       <div
                         key={`approved-${client.id}`}
-                        className="flex items-start gap-3 px-4 py-2"
+                        className="flex items-center gap-2 px-4 py-1.5"
                         data-testid={`reviewed-approved-${client.id}`}
                       >
-                        <Badge
-                          className="mt-0.5 shrink-0 border-emerald-500/30 bg-emerald-500/20 px-1.5 py-0 text-[10px] text-emerald-400"
-                        >
+                        <Badge className="shrink-0 border-emerald-500/30 bg-emerald-500/20 px-1.5 py-0 text-[10px] text-emerald-400">
                           Approved
                         </Badge>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="truncate text-xs font-medium">
-                              {client.clientName}
-                            </span>
-                            <span className="truncate text-[10px] text-muted-foreground">
-                              {client.agentName}
-                            </span>
-                          </div>
-                          <div className="mt-0.5 text-[10px] text-muted-foreground">
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <span className="cursor-help truncate">
-                                    {breakdownLabel}
-                                  </span>
-                                </TooltipTrigger>
-                                <TooltipContent side="bottom" className="max-w-xs">
-                                  {pool ? (
-                                    <div className="space-y-1 text-xs">
-                                      <p className="font-medium">Pool: ${pool.totalAmount} (Direct: ${pool.directAmount}, Star: ${pool.starPoolAmount})</p>
-                                      {pool.allocations.map((a, i) => (
-                                        <p key={i}>
-                                          ${a.amount} &rarr; {a.agentName} ({a.type === 'DIRECT' ? 'direct' : a.type === 'STAR_SLICE' ? `${a.slices} star slice${a.slices > 1 ? 's' : ''}` : 'backfill'})
-                                        </p>
-                                      ))}
-                                      {pool.recycledSlices > 0 && (
-                                        <p>${pool.recycledSlices * 50} recycled ({pool.recycledSlices} slice{pool.recycledSlices > 1 ? 's' : ''})</p>
-                                      )}
-                                    </div>
-                                  ) : (
-                                    <p className="text-xs">No pool data available</p>
+                        <span className="truncate text-xs font-medium">{client.clientName}</span>
+                        <span className="truncate text-[10px] text-muted-foreground">{client.agentName}</span>
+                        <span className="text-[10px] text-muted-foreground">&middot;</span>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="cursor-help truncate text-[10px] text-muted-foreground">
+                                {breakdownLabel}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="max-w-xs">
+                              {pool ? (
+                                <div className="space-y-1 text-xs">
+                                  <p className="font-medium">Pool: ${pool.totalAmount} (Direct: ${pool.directAmount}, Star: ${pool.starPoolAmount})</p>
+                                  {pool.allocations.map((a, i) => (
+                                    <p key={i}>${a.amount} &rarr; {a.agentName} ({a.type === 'DIRECT' ? 'direct' : a.type === 'STAR_SLICE' ? `${a.slices} star slice${a.slices > 1 ? 's' : ''}` : 'backfill'})</p>
+                                  ))}
+                                  {pool.recycledSlices > 0 && (
+                                    <p>${pool.recycledSlices * 50} recycled ({pool.recycledSlices} slice{pool.recycledSlices > 1 ? 's' : ''})</p>
                                   )}
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          </div>
-                        </div>
-                        <span className="mt-0.5 shrink-0 whitespace-nowrap text-[10px] text-muted-foreground">
+                                </div>
+                              ) : (
+                                <p className="text-xs">No pool data available</p>
+                              )}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                        <span className="ml-auto shrink-0 whitespace-nowrap text-[10px] text-muted-foreground">
                           {formatDistanceToNow(new Date(client.approvedAt), { addSuffix: true })}
                         </span>
                         {canRevert && (
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-6 shrink-0 gap-1 px-2 text-[10px] text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            className="h-5 shrink-0 gap-1 px-1.5 text-[10px] text-destructive hover:bg-destructive/10 hover:text-destructive"
                             onClick={() => handleRevertApproval(client.id, client.clientName)}
                             disabled={revertingApprovalId === client.id}
                             data-testid={`revert-approval-${client.id}`}
@@ -924,30 +911,17 @@ export function SalesInteractionView({
                   {filteredCompletedTodos.map((todo) => (
                     <div
                       key={todo.id}
-                      className="flex items-start gap-3 px-4 py-2"
+                      className="flex items-center gap-2 px-4 py-1.5"
                       data-testid={`reviewed-todo-${todo.id}`}
                     >
-                      <Badge
-                        className="mt-0.5 shrink-0 border-success/30 bg-success/20 px-1.5 py-0 text-[10px] text-success"
-                      >
+                      <Badge className="shrink-0 border-success/30 bg-success/20 px-1.5 py-0 text-[10px] text-success">
                         {todo.issueCategory}
                       </Badge>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="truncate text-xs font-medium">
-                            {todo.clientName}
-                          </span>
-                          <span className="truncate text-[10px] text-muted-foreground">
-                            {todo.agentName}
-                          </span>
-                        </div>
-                        <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
-                          <span>by {todo.completedByName}</span>
-                          <span className="opacity-50">&middot;</span>
-                          <span>assigned by {todo.createdByName}</span>
-                        </div>
-                      </div>
-                      <span className="mt-0.5 shrink-0 whitespace-nowrap text-[10px] text-muted-foreground">
+                      <span className="truncate text-xs font-medium">{todo.clientName}</span>
+                      <span className="truncate text-[10px] text-muted-foreground">{todo.agentName}</span>
+                      <span className="text-[10px] text-muted-foreground">&middot;</span>
+                      <span className="truncate text-[10px] text-muted-foreground">by {todo.completedByName}</span>
+                      <span className="ml-auto shrink-0 whitespace-nowrap text-[10px] text-muted-foreground">
                         {formatDistanceToNow(new Date(todo.completedAt), { addSuffix: true })}
                       </span>
                       <Button
