@@ -74,13 +74,36 @@ export async function saveClientDraft(
     'betmgmRegScreenshot',
     'betmgmLoginScreenshot',
     'ssnDocument',
+    'ssnNumber',
+    'citizenship',
+    'missingIdType',
     'secondAddress',
+    'secondAddressProof',
     'hasCriminalRecord',
     'criminalRecordNotes',
     'bankingHistory',
+    'bankNegativeBalance',
     'paypalHistory',
+    'paypalSsnLinked',
+    'paypalBrowserVerified',
+    'occupation',
+    'annualIncome',
+    'employmentStatus',
+    'maritalStatus',
+    'creditScoreRange',
+    'dependents',
+    'educationLevel',
+    'householdAwareness',
+    'familyTechSupport',
+    'financialAutonomy',
+    'digitalComfort',
+    'deviceReservationDate',
     'sportsbookHistory',
+    'sportsbookUsedBefore',
+    'sportsbookUsedList',
+    'sportsbookStatuses',
     'platformData',
+    'generatedCredentials',
     'contractDocument',
     'paypalPreviouslyUsed',
     'addressMismatch',
@@ -202,13 +225,21 @@ export async function deleteClientDraft(draftId: string) {
 
   const draft = await prisma.clientDraft.findFirst({
     where: { id: draftId, closerId: session.user.id },
-    select: { id: true, status: true },
+    select: { id: true, status: true, idDocument: true },
   })
 
   if (!draft) return { success: false, error: 'Draft not found' }
   if (draft.status !== 'DRAFT') {
     return { success: false, error: 'Cannot delete submitted draft' }
   }
+  if (draft.idDocument) {
+    return { success: false, error: 'Cannot delete draft after ID has been uploaded' }
+  }
+
+  // Delete related phone assignments first (FK constraint)
+  await prisma.phoneAssignment.deleteMany({
+    where: { clientDraftId: draftId },
+  })
 
   await prisma.clientDraft.delete({
     where: { id: draftId },

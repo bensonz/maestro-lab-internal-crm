@@ -12,11 +12,7 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
-import {
-  getNotifications,
-  markNotificationRead,
-  markAllNotificationsRead,
-} from '@/lib/mock-actions'
+import { getAgentNotifications } from '@/app/actions/notifications'
 
 interface Notification {
   id: string
@@ -48,18 +44,24 @@ function formatRelativeTime(date: Date): string {
 
 function getNotificationIcon(type: string): string {
   switch (type) {
-    case 'APPROVAL':
-      return '✓'
-    case 'REJECTION':
-      return '✗'
-    case 'SETTLEMENT_CREATED':
-      return '$'
-    case 'DEADLINE_EXTENDED':
-      return '⏰'
+    case 'CLIENT_APPROVED_NOTIFICATION':
+      return '🎉'
+    case 'TODO_ASSIGNED':
+      return '📋'
     case 'TODO_COMPLETED':
       return '✓'
-    case 'TODO_CREATED':
-      return '📋'
+    case 'TODO_REVERTED':
+      return '↩'
+    case 'DEVICE_SIGNED_OUT':
+      return '📱'
+    case 'DEVICE_RETURNED':
+      return '📱'
+    case 'STAR_LEVEL_CHANGED':
+      return '⭐'
+    case 'LEADERSHIP_PROMOTED':
+      return '🏆'
+    case 'ALLOCATION_PAID':
+      return '$'
     default:
       return '•'
   }
@@ -69,15 +71,21 @@ export function NotificationDropdown() {
   const router = useRouter()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
+  const [readIds, setReadIds] = useState<Set<string>>(new Set())
   const [isPending, startTransition] = useTransition()
   const [isOpen, setIsOpen] = useState(false)
 
   const fetchNotifications = useCallback(() => {
     startTransition(async () => {
-      const result = await getNotifications()
+      const result = await getAgentNotifications()
       setNotifications(result.notifications as Notification[])
-      setUnreadCount(result.unreadCount)
+      setUnreadCount((prev) => {
+        // Count unread = total minus locally-marked-as-read
+        const unread = result.notifications.filter((n) => !readIds.has(n.id)).length
+        return unread
+      })
     })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -98,18 +106,9 @@ export function NotificationDropdown() {
   }
 
   function handleNotificationClick(notification: Notification) {
-    if (!notification.isRead) {
-      startTransition(async () => {
-        await markNotificationRead(notification.id)
-        setNotifications((prev) =>
-          prev.map((n) =>
-            n.id === notification.id
-              ? { ...n, isRead: true, readAt: new Date() }
-              : n,
-          ),
-        )
-        setUnreadCount((prev) => Math.max(0, prev - 1))
-      })
+    if (!readIds.has(notification.id)) {
+      setReadIds((prev) => new Set([...prev, notification.id]))
+      setUnreadCount((prev) => Math.max(0, prev - 1))
     }
     if (notification.link) {
       setIsOpen(false)
@@ -118,13 +117,12 @@ export function NotificationDropdown() {
   }
 
   function handleMarkAllRead() {
-    startTransition(async () => {
-      await markAllNotificationsRead()
-      setNotifications((prev) =>
-        prev.map((n) => ({ ...n, isRead: true, readAt: new Date() })),
-      )
-      setUnreadCount(0)
+    setReadIds((prev) => {
+      const newSet = new Set(prev)
+      for (const n of notifications) newSet.add(n.id)
+      return newSet
     })
+    setUnreadCount(0)
   }
 
   return (
@@ -175,43 +173,46 @@ export function NotificationDropdown() {
             No notifications
           </div>
         ) : (
-          notifications.map((notification) => (
-            <DropdownMenuItem
-              key={notification.id}
-              className={cn(
-                'flex cursor-pointer items-start gap-3 px-3 py-2.5',
-                !notification.isRead && 'border-l-2 border-primary bg-muted/30',
-                notification.isRead && 'text-muted-foreground',
-              )}
-              onClick={() => handleNotificationClick(notification)}
-              data-testid={`notification-item-${notification.id}`}
-            >
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs">
-                {getNotificationIcon(notification.type)}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p
-                  className={cn(
-                    'text-sm leading-tight',
-                    !notification.isRead && 'font-medium',
-                  )}
-                >
-                  {notification.title}
-                </p>
-                <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">
-                  {notification.message}
-                </p>
-                <div className="mt-1 flex items-center gap-2">
-                  <span className="text-[11px] text-muted-foreground">
-                    {formatRelativeTime(notification.createdAt)}
-                  </span>
-                  {!notification.isRead && (
-                    <Check className="h-3 w-3 text-muted-foreground" />
-                  )}
+          notifications.map((notification) => {
+            const isRead = readIds.has(notification.id)
+            return (
+              <DropdownMenuItem
+                key={notification.id}
+                className={cn(
+                  'flex cursor-pointer items-start gap-3 px-3 py-2.5',
+                  !isRead && 'border-l-2 border-primary bg-muted/30',
+                  isRead && 'text-muted-foreground',
+                )}
+                onClick={() => handleNotificationClick(notification)}
+                data-testid={`notification-item-${notification.id}`}
+              >
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs">
+                  {getNotificationIcon(notification.type)}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p
+                    className={cn(
+                      'text-sm leading-tight',
+                      !isRead && 'font-medium',
+                    )}
+                  >
+                    {notification.title}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">
+                    {notification.message}
+                  </p>
+                  <div className="mt-1 flex items-center gap-2">
+                    <span className="text-[11px] text-muted-foreground">
+                      {formatRelativeTime(notification.createdAt)}
+                    </span>
+                    {!isRead && (
+                      <Check className="h-3 w-3 text-muted-foreground" />
+                    )}
+                  </div>
                 </div>
-              </div>
-            </DropdownMenuItem>
-          ))
+              </DropdownMenuItem>
+            )
+          })
         )}
       </DropdownMenuContent>
     </DropdownMenu>

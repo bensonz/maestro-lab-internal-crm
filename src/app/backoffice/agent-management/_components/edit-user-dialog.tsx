@@ -22,7 +22,7 @@ import {
   updateUser,
   resetUserPassword,
   toggleUserActive,
-} from '@/lib/mock-actions'
+} from '@/app/actions/user-management'
 import { toast } from 'sonner'
 
 interface UserData {
@@ -30,7 +30,7 @@ interface UserData {
   name: string
   email: string
   role: string
-  phone: string
+  phone: string | null
   isActive: boolean
 }
 
@@ -184,7 +184,7 @@ export function EditUserDialog({
             <Input
               id="edit-phone"
               name="phone"
-              defaultValue={user.phone}
+              defaultValue={user.phone || ''}
               data-testid="edit-user-phone"
             />
           </Field>

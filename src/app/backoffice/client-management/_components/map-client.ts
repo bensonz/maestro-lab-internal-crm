@@ -74,6 +74,10 @@ export function mapPlatformsToBetting(
       abbr,
       status: detail ? mapBettingStatus(detail.status) : ('pipeline' as const),
       balance: 0,
+      credentials: {
+        username: detail?.username || '\u2014',
+        password: '\u2014',
+      },
     }
   })
 }
@@ -130,7 +134,8 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
 
   // Build finance platforms from real data
   const paypalDetail = findPlatformDetail(serverClient.platformDetails, 'PAYPAL')
-  const bankDetail = findPlatformDetail(serverClient.platformDetails, 'BANK')
+  const bankDetail = findPlatformDetail(serverClient.platformDetails, 'ONLINE_BANKING')
+    || findPlatformDetail(serverClient.platformDetails, 'BANK')
   const edgeboostDetail = findPlatformDetail(serverClient.platformDetails, 'EDGEBOOST')
 
   // BetMGM screenshots for review banner
@@ -139,10 +144,10 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
   return {
     id: serverClient.id,
     name: serverClient.name,
-    companyPhone: serverClient.phone || '\u2014',
-    carrier: '\u2014',
+    companyPhone: (questionnaire.companyPhone as string) || serverClient.phone || '\u2014',
+    carrier: (questionnaire.carrier as string) || '\u2014',
     companyEmail: serverClient.email || '\u2014',
-    personalPhone: '\u2014',
+    personalPhone: serverClient.phone || '\u2014',
     startDate: serverClient.start,
     status: mapIntakeStatusToClientStatus(serverClient.intakeStatus),
     intakeStatus: serverClient.intakeStatus,
@@ -230,7 +235,22 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
       bank: '\u2014',
       edgeboost: '\u2014',
     },
-    alertFlags: {},
+    gmailPassword: (questionnaire.gmailPassword as string) || '\u2014',
+    alertFlags: {
+      paypalPreviouslyUsed: questionnaire.paypalPreviouslyUsed === true,
+      idExpiring: (() => {
+        const idExpiry = (questionnaire.idExpiry as string) || null
+        if (!idExpiry) return false
+        const expiry = new Date(idExpiry)
+        const today = new Date()
+        const diffDays = Math.floor((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+        return diffDays < 100
+      })(),
+      debankedHistory: questionnaire.debankedHistory === true,
+      criminalRecord: questionnaire.criminalRecord === true,
+      undisclosedInfo: questionnaire.undisclosedInfo === true,
+      addressMismatch: questionnaire.addressMismatch === true || questionnaire.livesAtDifferentAddress === true,
+    },
     transactions: serverClient.transactions.map((t) => ({
       id: t.id,
       type:

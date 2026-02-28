@@ -175,7 +175,8 @@ describe('approveClient', () => {
       where: { id: 'client-1' },
       data: { status: 'APPROVED', approvedAt: expect.any(Date) },
     })
-    expect(mockPrisma.eventLog.create).toHaveBeenCalledTimes(1)
+    // 2 event logs: audit log + agent notification
+    expect(mockPrisma.eventLog.create).toHaveBeenCalledTimes(2)
     expect(mockRecalc).toHaveBeenCalledWith('agent-1')
     expect(mockCreatePool).toHaveBeenCalledWith('client-1', 'agent-1')
   })

@@ -31,13 +31,12 @@ function computeInnerStepProgress(draft: Awaited<ReturnType<typeof getDraftsByCl
       return { completed, total }
     }
     case 2: {
-      // 4 inner-steps: SSN, Address, Criminal record, History
-      const total = 4
+      // 3 inner-steps: Identity & Document, Platforms History, Client Background
+      const total = 3
       let completed = 0
       if (draft.ssnDocument) completed++
-      if (draft.secondAddress) completed++
-      if (draft.hasCriminalRecord != null) completed++
       if (draft.bankingHistory) completed++
+      if (draft.hasCriminalRecord != null) completed++
       return { completed, total }
     }
     case 3: {
@@ -67,6 +66,47 @@ function computeInnerStepProgress(draft: Awaited<ReturnType<typeof getDraftsByCl
     default:
       return { completed: 0, total: 3 }
   }
+}
+
+/** Extract US state abbreviation from address string, e.g. "123 Main St, Chicago, IL 60601" → "IL" */
+function extractState(address: string | null | undefined): string | null {
+  if (!address) return null
+  // Match 2-letter state code before zip
+  const match = address.match(/\b([A-Z]{2})\s*\d{5}/)
+  if (match) return match[1]
+  // Match state after last comma
+  const parts = address.split(',').map((s) => s.trim())
+  if (parts.length >= 2) {
+    const stateZip = parts[parts.length - 1]
+    const stateMatch = stateZip.match(/^([A-Z]{2})\b/)
+    if (stateMatch) return stateMatch[1]
+  }
+  return null
+}
+
+/** Compute age from date of birth */
+function computeAge(dob: Date | null | undefined): number | null {
+  if (!dob) return null
+  const now = new Date()
+  let age = now.getFullYear() - dob.getFullYear()
+  const monthDiff = now.getMonth() - dob.getMonth()
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < dob.getDate())) {
+    age--
+  }
+  return age
+}
+
+/** Format duration between two dates as compact string, e.g. "3d11h" */
+function formatDuration(start: Date, end: Date): string {
+  const ms = end.getTime() - start.getTime()
+  if (ms < 0) return '0m'
+  const totalMinutes = Math.floor(ms / 60000)
+  if (totalMinutes < 60) return `${totalMinutes}m`
+  const hours = Math.floor(totalMinutes / 60)
+  if (hours < 24) return `${hours}h`
+  const days = Math.floor(hours / 24)
+  const remainingHours = hours % 24
+  return remainingHours > 0 ? `${days}d${remainingHours}h` : `${days}d`
 }
 
 function getStatusLabel(status: string): { label: string; color: string } {
@@ -104,6 +144,7 @@ export default async function MyClientsPage() {
         ? `${d.firstName} ${d.lastName}`
         : d.firstName || 'Untitled Draft',
       step: d.step,
+      status: d.status,
       innerStepCompleted: completed,
       innerStepTotal: total,
       updatedAt: d.updatedAt.toISOString(),
@@ -118,6 +159,16 @@ export default async function MyClientsPage() {
       .filter((c) => c.status !== 'PENDING')
       .map((c) => {
         const { label, color } = getStatusLabel(c.status)
+        const draft = c.fromDraft
+        const addr = draft?.currentAddress || draft?.address || null
+        const dob = draft?.dateOfBirth ?? null
+
+        // Duration from draft creation (scan ID) to submission
+        let intakeDuration: string | null = null
+        if (draft && draft.status === 'SUBMITTED') {
+          intakeDuration = formatDuration(draft.createdAt, draft.updatedAt)
+        }
+
         return {
           id: c.id,
           name: `${c.firstName} ${c.lastName}`,
@@ -131,6 +182,14 @@ export default async function MyClientsPage() {
           lastUpdated: c.updatedAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
           updatedAt: c.updatedAt.toISOString(),
           deadline: null,
+          phone: c._phone || c.phone || null,
+          age: computeAge(dob),
+          state: extractState(addr),
+          zelle: c.closer?.zelle ?? null,
+          intakeDuration,
+          startDate: draft
+            ? draft.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+            : null,
         }
       })
 

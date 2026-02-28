@@ -16,6 +16,7 @@ import {
   Handshake,
   PieChart,
   BarChart3,
+  BookOpen,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -94,6 +95,7 @@ const navItems: NavItem[] = [
     icon: Receipt,
   },
   { title: 'Phone Tracking', href: '/backoffice/phone-tracking', icon: Phone },
+  { title: 'Rules Registry', href: '/backoffice/rules-registry', icon: BookOpen },
 ]
 
 export function BackofficeNav() {

@@ -1,30 +1,28 @@
 'use client'
 
-import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Eye, Clock } from 'lucide-react'
+import { Check, Phone } from 'lucide-react'
 import type { VerificationTask } from '@/types/backend-types'
 import { PlatformType } from '@/types'
 import { cn } from '@/lib/utils'
-import { DocumentReviewModal } from './document-review-modal'
 import { DeadlineCountdown } from '@/components/deadline-countdown'
 
 interface VerificationTasksTableProps {
   tasks: VerificationTask[]
   selectedAgentId: string | null
   onSelectClient?: (clientId: string) => void
+  onAssignDevice?: (draftId: string, clientName: string, agentName: string, phone?: string | null, carrier?: string | null) => void
+  onCompleteTodo?: (todoId: string, clientName: string) => void
 }
 
 export function VerificationTasksTable({
   tasks,
   selectedAgentId,
   onSelectClient,
+  onAssignDevice,
+  onCompleteTodo,
 }: VerificationTasksTableProps) {
-  const [selectedTask, setSelectedTask] = useState<VerificationTask | null>(
-    null,
-  )
-
   if (tasks.length === 0) {
     return (
       <p className="py-6 text-center text-sm text-muted-foreground">
@@ -36,125 +34,101 @@ export function VerificationTasksTable({
   }
 
   return (
-    <>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border/30 text-left text-xs uppercase tracking-wider text-muted-foreground">
-              <th className="px-4 py-3 font-medium">Client</th>
-              <th className="px-4 py-3 font-medium">Platform</th>
-              <th className="px-4 py-3 font-medium">Task</th>
-              <th className="px-4 py-3 font-medium">Agent</th>
-              <th className="px-4 py-3 font-medium">Deadline</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="sr-only px-4 py-3 font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {tasks.map((task) => (
-              <tr
-                key={task.id}
-                className="border-b border-border/20 last:border-0"
-                data-testid={`verification-row-${task.id}`}
+    <div className="grid grid-cols-[auto_auto_1fr_auto_auto_auto] gap-x-3">
+      {tasks.map((task) => (
+        <div
+          key={task.id}
+          className="col-span-6 grid grid-cols-subgrid items-center border-b border-border/20 px-5 py-2 transition-colors last:border-b-0 hover:bg-muted/30"
+          data-testid={`verification-row-${task.id}`}
+        >
+          {/* Col 1: Client name + agent name */}
+          <div className="flex min-w-0 items-center gap-2">
+            {task.clientId ? (
+              <button
+                type="button"
+                onClick={() => onSelectClient?.(task.clientId!)}
+                className="truncate text-sm font-medium text-foreground hover:text-primary hover:underline"
+                data-testid={`client-name-${task.clientId}`}
               >
-                <td className="px-4 py-3">
-                  {task.clientId ? (
-                    <button
-                      type="button"
-                      onClick={() => onSelectClient?.(task.clientId!)}
-                      className="font-medium text-foreground hover:text-primary hover:underline"
-                      data-testid={`client-name-${task.clientId}`}
-                    >
-                      {task.clientName}
-                    </button>
-                  ) : (
-                    <span className="text-muted-foreground">
-                      {task.clientName}
-                    </span>
-                  )}
-                </td>
-                <td className="px-4 py-3">
-                  <PlatformBadge platformType={task.platformType} />
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">
-                  {task.task}
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">
-                  {task.agentName}
-                </td>
-                <td className="px-4 py-3">
-                  {task.clientDeadline ? (
-                    <DeadlineCountdown
-                      deadline={task.clientDeadline}
-                      variant="inline"
-                    />
-                  ) : (
-                    <div className="flex items-center gap-1.5 text-muted-foreground">
-                      <Clock className="h-3.5 w-3.5" />
-                      {task.deadlineLabel}
-                    </div>
-                  )}
-                </td>
-                <td className="px-4 py-3">
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      'text-xs',
-                      task.status === 'Done'
-                        ? 'border-success/30 bg-success/20 text-success'
-                        : 'border-warning/30 bg-warning/20 text-warning',
-                    )}
-                  >
-                    {task.status}
-                  </Badge>
-                </td>
-                <td className="px-4 py-3">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => setSelectedTask(task)}
-                    data-testid={`review-doc-${task.id}`}
-                  >
-                    <Eye className="h-4 w-4" />
-                    <span className="sr-only">Review documents</span>
-                  </Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                {task.clientName}
+              </button>
+            ) : (
+              <span className="truncate text-sm font-medium text-foreground">
+                {task.clientName}
+              </span>
+            )}
+            <span className="shrink-0 text-[11px] text-muted-foreground">
+              {task.agentName}
+            </span>
+          </div>
 
-      {selectedTask && selectedTask.clientId && selectedTask.platformType && (
-        <DocumentReviewModal
-          open={!!selectedTask}
-          onOpenChange={(open) => {
-            if (!open) setSelectedTask(null)
-          }}
-          clientId={selectedTask.clientId}
-          clientName={selectedTask.clientName}
-          platformType={selectedTask.platformType}
-          platformLabel={selectedTask.platformLabel}
-          task={selectedTask.task}
-          screenshots={selectedTask.screenshots}
-        />
-      )}
-    </>
+          {/* Col 2: Platform badge (vertically aligned across rows) */}
+          <PlatformBadge platformType={task.platformType} label={task.platformLabel} />
+
+          {/* Col 3: Task description (vertically aligned across rows) */}
+          <span className="truncate text-xs text-muted-foreground">
+            {task.task}
+          </span>
+
+          {/* Col 3: Assign Device button (always visible) */}
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 gap-1 px-2.5 text-xs"
+            onClick={() => onAssignDevice?.(task.draftId ?? task.id, task.clientName, task.agentName, task.assignedPhone, task.assignedCarrier)}
+            data-testid={`assign-phone-${task.id}`}
+          >
+            <Phone className="h-3 w-3" />
+            Assign Device
+          </Button>
+
+          {/* Col 4: Countdown */}
+          <div className="flex items-center justify-end">
+            {task.clientDeadline ? (
+              <DeadlineCountdown
+                deadline={task.clientDeadline}
+                variant="inline"
+              />
+            ) : task.deadlineLabel ? (
+              <span className="text-[11px] text-muted-foreground">
+                {task.deadlineLabel}
+              </span>
+            ) : null}
+          </div>
+
+          {/* Col 5: Done button (far right) */}
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 cursor-pointer gap-1 px-2.5 text-xs"
+            onClick={() => onCompleteTodo?.(task.id, task.clientName)}
+            data-testid={`done-task-${task.id}`}
+          >
+            <Check className="h-3 w-3" />
+            Done
+          </Button>
+        </div>
+      ))}
+    </div>
   )
 }
 
 function PlatformBadge({
   platformType,
+  label,
 }: {
   platformType: PlatformType | null
+  label?: string
 }) {
   if (!platformType) {
-    return (
-      <Badge variant="outline" className="text-xs">
-        N/A
-      </Badge>
-    )
+    if (label) {
+      return (
+        <Badge variant="outline" className="shrink-0 text-[10px]">
+          {label}
+        </Badge>
+      )
+    }
+    return null
   }
 
   const config = getPlatformBadgeConfig(platformType)
@@ -162,7 +136,7 @@ function PlatformBadge({
   return (
     <Badge
       variant="outline"
-      className={cn('text-xs font-medium', config.className)}
+      className={cn('shrink-0 text-[10px] font-medium', config.className)}
     >
       {config.label}
     </Badge>
