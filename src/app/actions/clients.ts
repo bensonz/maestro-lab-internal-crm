@@ -83,15 +83,34 @@ export async function approveClient(clientId: string) {
   // Create and distribute bonus pool
   const poolResult = await createAndDistributeBonusPool(clientId, client.closerId)
 
+  // Notify the agent — congratulatory event log entry visible on agent timeline
+  await prisma.eventLog.create({
+    data: {
+      eventType: 'CLIENT_APPROVED_NOTIFICATION',
+      description: `Congratulations! Your client ${client.firstName} ${client.lastName} has been approved. A $400 bonus pool has been created and distributed.`,
+      userId: client.closerId,
+      metadata: {
+        clientId,
+        poolId: poolResult.poolId,
+        distributedSlices: poolResult.distributedSlices,
+        recycledSlices: poolResult.recycledSlices,
+        approvedBy: session.user.id,
+      },
+    },
+  })
+
   revalidatePath('/backoffice/client-management')
   revalidatePath('/backoffice/commissions')
+  revalidatePath('/backoffice/sales-interaction')
   revalidatePath('/agent/clients')
   revalidatePath('/agent/earnings')
+  revalidatePath('/agent')
 
   return {
     success: true,
     poolId: poolResult.poolId,
     distributedSlices: poolResult.distributedSlices,
     recycledSlices: poolResult.recycledSlices,
+    clientName: `${client.firstName} ${client.lastName}`,
   }
 }

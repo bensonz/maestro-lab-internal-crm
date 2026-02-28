@@ -54,6 +54,7 @@ export const EventType = {
   TODO_ASSIGNED: 'TODO_ASSIGNED',
   TODO_COMPLETED: 'TODO_COMPLETED',
   TODO_REVERTED: 'TODO_REVERTED',
+  CLIENT_APPROVED_NOTIFICATION: 'CLIENT_APPROVED_NOTIFICATION',
 } as const
 export type EventType = (typeof EventType)[keyof typeof EventType]
 

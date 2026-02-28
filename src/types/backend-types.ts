@@ -29,6 +29,7 @@ export type InProgressSubStage =
   | 'step-2'
   | 'step-3'
   | 'step-4'
+  | 'pending-approval'
 
 export type ExceptionType =
   | 'deadline-approaching'
@@ -376,6 +377,15 @@ export interface PlatformEntry {
 }
 
 // --- Todo Review Types ---
+
+export interface ApprovedClientEntry {
+  id: string
+  draftId: string
+  clientName: string
+  agentId: string
+  agentName: string
+  approvedAt: Date
+}
 
 export interface CompletedTodoEntry {
   id: string

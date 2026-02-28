@@ -1,12 +1,21 @@
-import { MOCK_KPIS, MOCK_HIERARCHY } from '@/lib/mock-data'
+import { MOCK_HIERARCHY } from '@/lib/mock-data'
 import { EarningsView } from './_components/earnings-view'
 import { requireAgent } from '../_require-agent'
 import { getAgentEarnings } from '@/backend/data/bonus-pools'
+import { computeAgentKPIs } from '@/backend/services/agent-kpis'
 
 export default async function EarningsPage() {
   const agent = await requireAgent()
 
-  let earningsData = await getAgentEarnings(agent.id).catch(() => null)
+  const [earningsData, kpis] = await Promise.all([
+    getAgentEarnings(agent.id).catch(() => null),
+    computeAgentKPIs(agent.id).catch(() => ({
+      totalClients: 0, approvedClients: 0, rejectedClients: 0,
+      inProgressClients: 0, delayedClients: 0, successRate: 0,
+      delayRate: 0, extensionRate: 0, avgDaysToInitiate: null,
+      avgDaysToConvert: null, pendingTodos: 0, overdueTodos: 0,
+    })),
+  ])
 
   // Build transactions from real allocations, or fall back to empty
   const transactions = earningsData
@@ -43,5 +52,5 @@ export default async function EarningsPage() {
     recentTransactions: transactions,
   }
 
-  return <EarningsView earnings={earnings} kpis={MOCK_KPIS} hierarchy={MOCK_HIERARCHY} />
+  return <EarningsView earnings={earnings} kpis={kpis} hierarchy={MOCK_HIERARCHY} />
 }

@@ -84,8 +84,8 @@ export function ClientIntakeList({
         // Undo/Re-issue — PHONE RETURNED with a returned assignment, any step
         const showReissue = client.status === 'PHONE RETURNED' && !!client.returnedAssignmentId
 
-        // Approve — only step-4 submitted drafts
-        const showApprove = client.subStage === 'step-4' && !!client.resultClientId
+        // Approve — only pending-approval (submitted) drafts
+        const showApprove = client.subStage === 'pending-approval' && !!client.resultClientId
 
         return (
           <div

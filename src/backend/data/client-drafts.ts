@@ -66,6 +66,22 @@ export async function getAllDraftsForBackoffice() {
   })
 }
 
+/** Fetch SUBMITTED drafts whose resultClient is APPROVED (for backoffice reviewed section) */
+export async function getApprovedDraftsForBackoffice() {
+  return prisma.clientDraft.findMany({
+    where: {
+      status: 'SUBMITTED',
+      resultClient: { status: 'APPROVED' },
+    },
+    orderBy: { updatedAt: 'desc' },
+    include: {
+      closer: { select: { id: true, name: true } },
+      resultClient: { select: { id: true, status: true, approvedAt: true } },
+    },
+    take: 50,
+  })
+}
+
 export async function getDraftByIdForAgent(draftId: string, closerId: string) {
   return prisma.clientDraft.findFirst({
     where: { id: draftId, closerId },

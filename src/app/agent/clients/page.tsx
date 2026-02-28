@@ -103,6 +103,7 @@ export default async function MyClientsPage() {
         ? `${d.firstName} ${d.lastName}`
         : d.firstName || 'Untitled Draft',
       step: d.step,
+      status: d.status,
       innerStepCompleted: completed,
       innerStepTotal: total,
       updatedAt: d.updatedAt.toISOString(),
