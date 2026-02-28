@@ -852,10 +852,14 @@ async function main() {
 
   // ── Sample Client Draft ────────────────────────────────
 
+  // Delete in dependency order: Todo → PhoneAssignment → ClientDraft
+  await prisma.todo.deleteMany({
+    where: { clientDraft: { closerId: agent.id } },
+  })
   await prisma.phoneAssignment.deleteMany({
     where: { clientDraft: { closerId: agent.id } },
   })
-  await prisma.clientDraft.deleteMany({ where: { closerId: agent.id } })
+  await prisma.clientDraft.deleteMany({ where: { closerId: agent.id, resultClientId: null } })
   // Compute future dates for phone assignment (sign out = now, due back = 3 days from now)
   const signOutDate = new Date()
   const dueBackDate = new Date(signOutDate.getTime() + 3 * 24 * 60 * 60 * 1000)
