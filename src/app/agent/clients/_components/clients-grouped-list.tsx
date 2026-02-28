@@ -78,7 +78,7 @@ const statusGroups: StatusGroup[] = [
   },
 ]
 
-/* ─── Client row ─── */
+/* ─── Client row (for non-approved groups) ─── */
 function ClientRow({ client }: { client: AgentClient }) {
   const isTerminal =
     client.intakeStatus === IntakeStatus.APPROVED ||
@@ -130,6 +130,22 @@ function ClientRow({ client }: { client: AgentClient }) {
         <div className="flex justify-end">
           <ArrowRight className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary" />
         </div>
+      </div>
+    </Link>
+  )
+}
+
+/* ─── Approved client row (clean, no step/time/arrow) ─── */
+function ApprovedClientRow({ client }: { client: AgentClient }) {
+  return (
+    <Link href={`/agent/clients/${client.id}`}>
+      <div
+        className="group flex cursor-pointer items-center border-b border-border/50 bg-card/50 px-5 py-2 transition-colors hover:bg-card"
+        data-testid={`client-row-${client.id}`}
+      >
+        <p className="truncate text-sm font-medium text-foreground transition-colors group-hover:text-primary">
+          {client.name}
+        </p>
       </div>
     </Link>
   )
@@ -348,9 +364,13 @@ function GroupSection({
       {clients.length > 0 && (
         <CollapsibleContent>
           <div className="overflow-hidden rounded-b-lg border border-t-0 border-border/50 shadow-sm">
-            {clients.map((client) => (
-              <ClientRow key={client.id} client={client} />
-            ))}
+            {clients.map((client) =>
+              group.key === 'approved' ? (
+                <ApprovedClientRow key={client.id} client={client} />
+              ) : (
+                <ClientRow key={client.id} client={client} />
+              ),
+            )}
           </div>
         </CollapsibleContent>
       )}
