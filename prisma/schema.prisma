@@ -98,6 +98,7 @@ enum EventType {
   TODO_COMPLETED
   TODO_REVERTED
   CLIENT_APPROVED_NOTIFICATION
+  CLIENT_APPROVAL_REVERTED
 }
 
 // ─── User ────────────────────────────────────────────────

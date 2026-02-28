@@ -114,3 +114,74 @@ export async function approveClient(clientId: string) {
     clientName: `${client.firstName} ${client.lastName}`,
   }
 }
+
+export async function revertApproval(clientId: string) {
+  const session = await auth()
+  if (!session?.user) return { success: false, error: 'Not authenticated' }
+
+  const role = (session.user as { role: string }).role
+  if (!['ADMIN', 'BACKOFFICE'].includes(role)) {
+    return { success: false, error: 'Not authorized' }
+  }
+
+  const client = await prisma.client.findUnique({
+    where: { id: clientId },
+    select: { id: true, status: true, closerId: true, firstName: true, lastName: true, approvedAt: true },
+  })
+
+  if (!client) return { success: false, error: 'Client not found' }
+  if (client.status !== 'APPROVED') {
+    return { success: false, error: 'Client is not approved' }
+  }
+
+  // Enforce 5-minute revert window
+  if (client.approvedAt) {
+    const minutesSinceApproval = (Date.now() - new Date(client.approvedAt).getTime()) / 60000
+    if (minutesSinceApproval > 5) {
+      return { success: false, error: 'Revert window expired (5 minutes)' }
+    }
+  }
+
+  // Delete bonus allocations and pool for this client
+  const pool = await prisma.bonusPool.findUnique({
+    where: { clientId },
+    select: { id: true },
+  })
+
+  if (pool) {
+    await prisma.bonusAllocation.deleteMany({
+      where: { poolId: pool.id },
+    })
+    await prisma.bonusPool.delete({
+      where: { id: pool.id },
+    })
+  }
+
+  // Revert client status to PENDING, clear approvedAt
+  await prisma.client.update({
+    where: { id: clientId },
+    data: { status: 'PENDING', approvedAt: null },
+  })
+
+  // Recalculate closer's star level
+  await recalculateAgentStarLevel(client.closerId)
+
+  // Log the revert event
+  await prisma.eventLog.create({
+    data: {
+      eventType: 'CLIENT_APPROVAL_REVERTED',
+      description: `Approval reverted for client ${client.firstName} ${client.lastName}`,
+      userId: session.user.id,
+      metadata: { clientId, closerId: client.closerId },
+    },
+  })
+
+  revalidatePath('/backoffice/client-management')
+  revalidatePath('/backoffice/commissions')
+  revalidatePath('/backoffice/sales-interaction')
+  revalidatePath('/agent/clients')
+  revalidatePath('/agent/earnings')
+  revalidatePath('/agent')
+
+  return { success: true }
+}

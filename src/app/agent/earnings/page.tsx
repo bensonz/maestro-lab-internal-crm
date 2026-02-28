@@ -3,6 +3,31 @@ import { EarningsView } from './_components/earnings-view'
 import { requireAgent } from '../_require-agent'
 import { getAgentEarnings } from '@/backend/data/bonus-pools'
 import { computeAgentKPIs } from '@/backend/services/agent-kpis'
+import type { AllocationLine } from '@/types/backend-types'
+
+function formatEarningsDate(d: Date): string {
+  const month = d.getMonth() + 1
+  const day = d.getDate()
+  const year = d.getFullYear()
+  let hours = d.getHours()
+  const ampm = hours >= 12 ? 'pm' : 'am'
+  hours = hours % 12 || 12
+  return `${month}/${day}/${year} ${hours}${ampm}`
+}
+
+function buildDescription(a: AllocationLine): string {
+  const clientShort = a.clientName
+    ? `${a.clientName.split(' ')[0]} ${(a.clientName.split(' ')[1] ?? '')[0] ?? ''}`.trim()
+    : 'Unknown'
+  if (a.type === 'DIRECT') {
+    return `Direct bonus - ${clientShort}`
+  }
+  const closerShort = a.closerName ?? 'Unknown'
+  if (a.type === 'STAR_SLICE') {
+    return `Star slice - ${closerShort} → ${clientShort} (${a.slices} slices)`
+  }
+  return `Backfill - ${closerShort} → ${clientShort} (${a.slices} slices)`
+}
 
 export default async function EarningsPage() {
   const agent = await requireAgent()
@@ -21,18 +46,12 @@ export default async function EarningsPage() {
   const transactions = earningsData
     ? earningsData.allocations.map((a) => ({
         id: a.id,
-        client: a.agentName,
-        description: a.type === 'DIRECT'
-          ? 'Direct bonus'
-          : a.type === 'STAR_SLICE'
-            ? `Star slice (${a.slices} slices)`
-            : `Backfill (${a.slices} slices)`,
+        client: a.clientName ?? 'Unknown',
+        description: buildDescription(a),
         amount: a.amount,
-        status: a.status === 'PAID' ? 'Paid' : 'Pending',
-        date: a.paidAt
-          ? new Date(a.paidAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-          : 'Pending',
-        rawDate: a.paidAt?.toISOString() ?? new Date().toISOString(),
+        status: a.status === 'PAID' ? 'Paid' : 'Issued',
+        date: formatEarningsDate(new Date(a.createdAt)),
+        rawDate: a.createdAt.toISOString?.() ?? new Date(a.createdAt).toISOString(),
       }))
     : []
 

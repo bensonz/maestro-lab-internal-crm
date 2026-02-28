@@ -107,6 +107,8 @@ export async function getTodoTimeline() {
           'DEVICE_SIGNED_OUT',
           'DEVICE_RETURNED',
           'DEVICE_REISSUED',
+          'CLIENT_APPROVED',
+          'CLIENT_APPROVAL_REVERTED',
         ],
       },
     },
@@ -117,13 +119,15 @@ export async function getTodoTimeline() {
     take: 100,
   })
 
-  const actionMap: Record<string, 'assigned' | 'completed' | 'reverted' | 'device_out' | 'device_returned' | 'device_reissued'> = {
+  const actionMap: Record<string, 'assigned' | 'completed' | 'reverted' | 'device_out' | 'device_returned' | 'device_reissued' | 'client_approved' | 'client_reverted'> = {
     TODO_ASSIGNED: 'assigned',
     TODO_COMPLETED: 'completed',
     TODO_REVERTED: 'reverted',
     DEVICE_SIGNED_OUT: 'device_out',
     DEVICE_RETURNED: 'device_returned',
     DEVICE_REISSUED: 'device_reissued',
+    CLIENT_APPROVED: 'client_approved',
+    CLIENT_APPROVAL_REVERTED: 'client_reverted',
   }
 
   const typeMap: Record<string, 'info' | 'success' | 'warning'> = {
@@ -133,6 +137,8 @@ export async function getTodoTimeline() {
     DEVICE_SIGNED_OUT: 'info',
     DEVICE_RETURNED: 'success',
     DEVICE_REISSUED: 'warning',
+    CLIENT_APPROVED: 'success',
+    CLIENT_APPROVAL_REVERTED: 'warning',
   }
 
   return events.map((e) => ({

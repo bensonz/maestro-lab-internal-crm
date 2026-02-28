@@ -36,10 +36,17 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { formatDistanceToNow } from 'date-fns'
 import { completeTodo, revertTodo } from '@/app/actions/todos'
+import { revertApproval } from '@/app/actions/clients'
 import { ClientIntakeList } from './client-intake-list'
 import { DraftReviewDialog } from './draft-review-dialog'
 import { DeviceAssignDialog } from './device-assign-dialog'
@@ -194,6 +201,9 @@ export function SalesInteractionView({
   // Revert todo state
   const [revertingTodoId, setRevertingTodoId] = useState<string | null>(null)
 
+  // Revert approval state
+  const [revertingApprovalId, setRevertingApprovalId] = useState<string | null>(null)
+
   const handleCompleteTodo = useCallback(async (todoId: string, clientName: string) => {
     try {
       const result = await completeTodo(todoId)
@@ -222,6 +232,23 @@ export function SalesInteractionView({
       toast.error('Something went wrong')
     } finally {
       setRevertingTodoId(null)
+    }
+  }, [router])
+
+  const handleRevertApproval = useCallback(async (clientId: string, clientName: string) => {
+    setRevertingApprovalId(clientId)
+    try {
+      const result = await revertApproval(clientId)
+      if (result.success) {
+        toast.success(`Approval reverted for ${clientName}`)
+        router.refresh()
+      } else {
+        toast.error(result.error || 'Failed to revert approval')
+      }
+    } catch {
+      toast.error('Something went wrong')
+    } finally {
+      setRevertingApprovalId(null)
     }
   }, [router])
 
@@ -804,35 +831,95 @@ export function SalesInteractionView({
                   ) : (
                   <div className="divide-y divide-border">
                   {/* Approved clients */}
-                  {filteredApprovedClients.map((client) => (
-                    <div
-                      key={`approved-${client.id}`}
-                      className="flex items-start gap-3 px-4 py-2"
-                      data-testid={`reviewed-approved-${client.id}`}
-                    >
-                      <Badge
-                        className="mt-0.5 shrink-0 border-emerald-500/30 bg-emerald-500/20 px-1.5 py-0 text-[10px] text-emerald-400"
+                  {filteredApprovedClients.map((client) => {
+                    // Build pool breakdown label
+                    const pool = client.poolSummary
+                    let breakdownLabel = '$400 pool distributed'
+                    if (pool && pool.allocations.length > 0) {
+                      const parts = pool.allocations.map((a) => {
+                        const starSuffix = a.type === 'STAR_SLICE' ? ' (star)' : a.type === 'BACKFILL' ? ' (backfill)' : ''
+                        return `$${a.amount} \u2192 ${a.agentName}${starSuffix}`
+                      })
+                      if (pool.recycledSlices > 0) {
+                        parts.push(`$${pool.recycledSlices * 50} recycled`)
+                      }
+                      breakdownLabel = parts.join(', ')
+                    }
+
+                    const canRevert = (Date.now() - new Date(client.approvedAt).getTime()) / 60000 <= 5
+
+                    return (
+                      <div
+                        key={`approved-${client.id}`}
+                        className="flex items-start gap-3 px-4 py-2"
+                        data-testid={`reviewed-approved-${client.id}`}
                       >
-                        Approved
-                      </Badge>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="truncate text-xs font-medium">
-                            {client.clientName}
-                          </span>
-                          <span className="truncate text-[10px] text-muted-foreground">
-                            {client.agentName}
-                          </span>
+                        <Badge
+                          className="mt-0.5 shrink-0 border-emerald-500/30 bg-emerald-500/20 px-1.5 py-0 text-[10px] text-emerald-400"
+                        >
+                          Approved
+                        </Badge>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="truncate text-xs font-medium">
+                              {client.clientName}
+                            </span>
+                            <span className="truncate text-[10px] text-muted-foreground">
+                              {client.agentName}
+                            </span>
+                          </div>
+                          <div className="mt-0.5 text-[10px] text-muted-foreground">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="cursor-help truncate">
+                                    {breakdownLabel}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom" className="max-w-xs">
+                                  {pool ? (
+                                    <div className="space-y-1 text-xs">
+                                      <p className="font-medium">Pool: ${pool.totalAmount} (Direct: ${pool.directAmount}, Star: ${pool.starPoolAmount})</p>
+                                      {pool.allocations.map((a, i) => (
+                                        <p key={i}>
+                                          ${a.amount} &rarr; {a.agentName} ({a.type === 'DIRECT' ? 'direct' : a.type === 'STAR_SLICE' ? `${a.slices} star slice${a.slices > 1 ? 's' : ''}` : 'backfill'})
+                                        </p>
+                                      ))}
+                                      {pool.recycledSlices > 0 && (
+                                        <p>${pool.recycledSlices * 50} recycled ({pool.recycledSlices} slice{pool.recycledSlices > 1 ? 's' : ''})</p>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <p className="text-xs">No pool data available</p>
+                                  )}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
                         </div>
-                        <div className="mt-0.5 text-[10px] text-muted-foreground">
-                          Client approved &middot; $400 bonus pool distributed
-                        </div>
+                        <span className="mt-0.5 shrink-0 whitespace-nowrap text-[10px] text-muted-foreground">
+                          {formatDistanceToNow(new Date(client.approvedAt), { addSuffix: true })}
+                        </span>
+                        {canRevert && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 shrink-0 gap-1 px-2 text-[10px] text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            onClick={() => handleRevertApproval(client.id, client.clientName)}
+                            disabled={revertingApprovalId === client.id}
+                            data-testid={`revert-approval-${client.id}`}
+                          >
+                            {revertingApprovalId === client.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Undo2 className="h-3 w-3" />
+                            )}
+                            Revert
+                          </Button>
+                        )}
                       </div>
-                      <span className="mt-0.5 shrink-0 whitespace-nowrap text-[10px] text-muted-foreground">
-                        {formatDistanceToNow(new Date(client.approvedAt), { addSuffix: true })}
-                      </span>
-                    </div>
-                  ))}
+                    )
+                  })}
                   {/* Completed todos */}
                   {filteredCompletedTodos.map((todo) => (
                     <div
@@ -887,73 +974,73 @@ export function SalesInteractionView({
             </div>
 
             {/* ── Activity Timeline ── */}
-            {showVerification && (
-              <div data-testid="todo-activity-timeline">
-                <div className="border-t border-border" />
-                <div className="pt-3">
-                  {timelineOpen && (
-                    <div className="mb-1 max-h-64 overflow-hidden overflow-y-auto rounded-lg border border-border">
-                      {todoTimeline.length === 0 ? (
-                        <p className="py-6 text-center text-sm text-muted-foreground">
-                          No activity yet
-                        </p>
-                      ) : (
-                      <div className="divide-y divide-border">
-                      {todoTimeline.map((entry) => {
-                        const actionConfigs: Record<string, { label: string; badgeClass: string }> = {
-                          assigned: { label: 'Assigned', badgeClass: 'bg-primary/20 text-primary border-primary/30' },
-                          completed: { label: 'Completed', badgeClass: 'bg-success/20 text-success border-success/30' },
-                          reverted: { label: 'Reverted', badgeClass: 'bg-warning/20 text-warning border-warning/30' },
-                          device_out: { label: 'Device Out', badgeClass: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' },
-                          device_returned: { label: 'Returned', badgeClass: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
-                          device_reissued: { label: 'Re-issued', badgeClass: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
-                        }
-                        const actionConfig = actionConfigs[entry.action] ?? actionConfigs.assigned
-                        return (
-                          <div
-                            key={entry.id}
-                            className="flex items-center gap-2 px-3 py-1"
-                            data-testid={`todo-timeline-${entry.id}`}
-                          >
-                            <Badge className={`shrink-0 px-1.5 py-0 text-[9px] ${actionConfig.badgeClass}`}>
-                              {actionConfig.label}
-                            </Badge>
-                            <span className="truncate text-[11px] text-foreground">
-                              {entry.event}
-                            </span>
-                            <span className="ml-auto shrink-0 whitespace-nowrap text-[9px] text-muted-foreground">
-                              {entry.date} {entry.time}
-                            </span>
-                            {entry.actor && (
-                              <span className="shrink-0 whitespace-nowrap text-[9px] text-muted-foreground">
-                                by {entry.actor}
-                              </span>
-                            )}
-                          </div>
-                        )
-                      })}
-                      </div>
-                      )}
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setTimelineOpen(!timelineOpen)}
-                    className="flex w-full cursor-pointer items-center gap-2 rounded-lg border border-border bg-muted/30 px-4 py-2 text-left transition-colors hover:bg-muted/50"
-                    data-testid="toggle-todo-timeline"
-                  >
-                    <span className="flex-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                      Activity Timeline ({todoTimeline.length})
-                    </span>
-                    {timelineOpen ? (
-                      <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+            <div data-testid="todo-activity-timeline">
+              <div className="border-t border-border" />
+              <div className="pt-3">
+                {timelineOpen && (
+                  <div className="mb-1 max-h-64 overflow-hidden overflow-y-auto rounded-lg border border-border">
+                    {todoTimeline.length === 0 ? (
+                      <p className="py-6 text-center text-sm text-muted-foreground">
+                        No activity yet
+                      </p>
                     ) : (
-                      <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+                    <div className="divide-y divide-border">
+                    {todoTimeline.map((entry) => {
+                      const actionConfigs: Record<string, { label: string; badgeClass: string }> = {
+                        assigned: { label: 'Assigned', badgeClass: 'bg-primary/20 text-primary border-primary/30' },
+                        completed: { label: 'Completed', badgeClass: 'bg-success/20 text-success border-success/30' },
+                        reverted: { label: 'Reverted', badgeClass: 'bg-warning/20 text-warning border-warning/30' },
+                        device_out: { label: 'Device Out', badgeClass: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' },
+                        device_returned: { label: 'Returned', badgeClass: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
+                        device_reissued: { label: 'Re-issued', badgeClass: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
+                        client_approved: { label: 'Approved', badgeClass: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
+                        client_reverted: { label: 'Reverted', badgeClass: 'bg-red-500/20 text-red-400 border-red-500/30' },
+                      }
+                      const actionConfig = actionConfigs[entry.action] ?? actionConfigs.assigned
+                      return (
+                        <div
+                          key={entry.id}
+                          className="flex items-center gap-2 px-3 py-1"
+                          data-testid={`todo-timeline-${entry.id}`}
+                        >
+                          <Badge className={`shrink-0 px-1.5 py-0 text-[9px] ${actionConfig.badgeClass}`}>
+                            {actionConfig.label}
+                          </Badge>
+                          <span className="truncate text-[11px] text-foreground">
+                            {entry.event}
+                          </span>
+                          <span className="ml-auto shrink-0 whitespace-nowrap text-[9px] text-muted-foreground">
+                            {entry.date} {entry.time}
+                          </span>
+                          {entry.actor && (
+                            <span className="shrink-0 whitespace-nowrap text-[9px] text-muted-foreground">
+                              by {entry.actor}
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })}
+                    </div>
                     )}
-                  </button>
-                </div>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setTimelineOpen(!timelineOpen)}
+                  className="flex w-full cursor-pointer items-center gap-2 rounded-lg border border-border bg-muted/30 px-4 py-2 text-left transition-colors hover:bg-muted/50"
+                  data-testid="toggle-todo-timeline"
+                >
+                  <span className="flex-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                    Activity Timeline ({todoTimeline.length})
+                  </span>
+                  {timelineOpen ? (
+                    <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                  ) : (
+                    <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+                  )}
+                </button>
               </div>
-            )}
+            </div>
           </div>
         </ScrollArea>
       </div>
