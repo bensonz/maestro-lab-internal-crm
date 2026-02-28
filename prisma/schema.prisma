@@ -298,6 +298,9 @@ model ClientDraft {
   // Step 4: Contract
   contractDocument String?
 
+  // Address discovery (progressive OCR across screenshots)
+  discoveredAddresses Json?
+
   // Risk flags
   paypalPreviouslyUsed Boolean @default(false)
   addressMismatch      Boolean @default(false)
