@@ -1,11 +1,17 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useRef, useState, useEffect } from 'react'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ScreenshotThumbnail } from '@/components/upload-dropzone'
-import { Upload, Loader2, ScanLine, AlertTriangle } from 'lucide-react'
-import { mockExtractFromPaypal, mockExtractFromPlatform } from './mock-extract-id'
+import { Upload, Loader2, AlertTriangle, MapPin, Check, X, CheckCircle2, ScanLine } from 'lucide-react'
+import { mockExtractFromPaypal, mockExtractAddressFromScreenshot } from './mock-extract-id'
+import { addressesMatch } from '@/lib/address-utils'
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import type { PlatformEntry } from '@/types/backend-types'
 
 interface PayPalCardProps {
@@ -16,6 +22,12 @@ interface PayPalCardProps {
   assignedGmail?: string
   suggestedPassword?: string
   onMismatchChange?: (platform: string, mismatch: { username: boolean; password: boolean } | null) => void
+  /** Recorded address from Step 1 (ID document) */
+  recordedAddress?: string | null
+  /** New address detected via OCR on address proof screenshot */
+  detectedNewAddress?: string | null
+  onAddressConfirm?: (platform: string, address: string) => void
+  onAddressDismiss?: (platform: string) => void
 }
 
 export function PayPalCard({
@@ -26,89 +38,177 @@ export function PayPalCard({
   assignedGmail,
   suggestedPassword,
   onMismatchChange,
+  recordedAddress,
+  detectedNewAddress,
+  onAddressConfirm,
+  onAddressDismiss,
 }: PayPalCardProps) {
-  const credInputRef = useRef<HTMLInputElement>(null)
-  const balInputRef = useRef<HTMLInputElement>(null)
-  const [isUploadingCred, setIsUploadingCred] = useState(false)
-  const [isUploadingBal, setIsUploadingBal] = useState(false)
-  const [isDetectingBal, setIsDetectingBal] = useState(false)
-  const [isDetectingCred, setIsDetectingCred] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [isUploading, setIsUploading] = useState(false)
   const [credMismatch, setCredMismatch] = useState<{ username: boolean; password: boolean } | null>(null)
+
+  // Address detection dialog state
+  const [addressDialogOpen, setAddressDialogOpen] = useState(false)
+  const [detectedAddr, setDetectedAddr] = useState('')
+  const [addrMatchesRecorded, setAddrMatchesRecorded] = useState<boolean | null>(null)
+  const [isDetectingAddr, setIsDetectingAddr] = useState(false)
 
   const isExisting = paypalPreviouslyUsed === true && paypalSsnLinked === true
 
-  const handleCredUpload = useCallback(
-    async (file: File) => {
-      const body = new FormData()
-      body.append('file', file)
-      setIsUploadingCred(true)
-      try {
-        const res = await fetch('/api/upload/public', { method: 'POST', body })
-        const data = await res.json()
-        if (res.ok) {
-          const updated = { ...entry, screenshot: data.path }
+  // 3 named slots: screenshot (login creds), screenshot2 (balance page), screenshots[0] (address proof)
+  const slot1 = entry.screenshot || null   // Login creds
+  const slot2 = entry.screenshot2 || null  // Balance page
+  const slot3 = (entry.screenshots ?? [])[0] || null  // Address proof
+  const filledCount = [slot1, slot2, slot3].filter(Boolean).length
 
-          // OCR: check credentials against suggested values
-          if (assignedGmail || suggestedPassword) {
-            setIsDetectingCred(true)
+  // ── Live credential mismatch detection ──
+  const prevMismatchKeyRef = useRef('')
+  useEffect(() => {
+    const u = entry.username || ''
+    const p = entry.accountId || ''
+    const su = assignedGmail || ''
+    const sp = suggestedPassword || ''
+
+    const userMismatch = !!(u && su && u !== su)
+    const passMismatch = !!(p && sp && p !== sp)
+    const key = `${userMismatch}-${passMismatch}`
+    if (key === prevMismatchKeyRef.current) return
+    prevMismatchKeyRef.current = key
+
+    const m = (userMismatch || passMismatch) ? { username: userMismatch, password: passMismatch } : null
+    setCredMismatch(m)
+    onMismatchChange?.('PAYPAL', m ?? { username: false, password: false })
+  }, [entry.username, entry.accountId, assignedGmail, suggestedPassword]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Upload handler — fills the next empty slot(s) in order
+  const handleFilesSelected = useCallback(
+    async (files: File[]) => {
+      if (files.length === 0) return
+      setIsUploading(true)
+
+      // Determine which slots are currently empty
+      const updated = { ...entry }
+      let currentSlot1 = updated.screenshot || ''
+      let currentSlot2 = updated.screenshot2 || ''
+      let currentSlot3 = (updated.screenshots ?? [])[0] || ''
+      let addressProofFile: File | null = null
+
+      for (const file of files) {
+        try {
+          const body = new FormData()
+          body.append('file', file)
+          const res = await fetch('/api/upload/public', { method: 'POST', body })
+          const data = await res.json()
+          if (!res.ok) continue
+
+          const url = data.url as string
+
+          // Fill into the first empty slot
+          if (!currentSlot1) {
+            currentSlot1 = url
+            updated.screenshot = url
+          } else if (!currentSlot2) {
+            currentSlot2 = url
+            updated.screenshot2 = url
+            // Run balance detection on slot 2
             try {
-              const result = await mockExtractFromPlatform(
-                file,
-                assignedGmail ?? '',
-                suggestedPassword ?? '',
-              )
-              const userMismatch = !!assignedGmail && result.detectedUsername !== assignedGmail
-              const passMismatch = !!suggestedPassword && result.detectedPassword !== suggestedPassword
-              const m = { username: userMismatch, password: passMismatch }
-              setCredMismatch(userMismatch || passMismatch ? m : null)
-              onMismatchChange?.('PAYPAL', m)
-            } finally {
-              setIsDetectingCred(false)
+              const result = await mockExtractFromPaypal(file)
+              updated.paypalBalanceDetected = result.balanceWordDetected
+            } catch { /* silent */ }
+          } else if (!currentSlot3) {
+            currentSlot3 = url
+            updated.screenshots = [url]
+            addressProofFile = file
+          }
+          // If all 3 slots full, extra files are ignored
+        } catch {
+          // silent
+        }
+      }
+
+      onChange(updated)
+      setIsUploading(false)
+
+      // If address proof was just uploaded, run address OCR and show dialog
+      if (addressProofFile) {
+        setIsDetectingAddr(true)
+        setAddressDialogOpen(true)
+        try {
+          const result = await mockExtractAddressFromScreenshot(addressProofFile, 'PAYPAL')
+          if (result.detectedAddress) {
+            setDetectedAddr(result.detectedAddress)
+            // Compare against recorded address from Step 1
+            if (recordedAddress) {
+              setAddrMatchesRecorded(addressesMatch(result.detectedAddress, recordedAddress))
+            } else {
+              setAddrMatchesRecorded(null) // no recorded address to compare
             }
+          } else {
+            setDetectedAddr('')
+            setAddrMatchesRecorded(null)
           }
-
-          onChange(updated)
+        } catch {
+          setDetectedAddr('')
+          setAddrMatchesRecorded(null)
+        } finally {
+          setIsDetectingAddr(false)
         }
-      } catch {
-        // silent
-      } finally {
-        setIsUploadingCred(false)
       }
     },
-    [entry, onChange, assignedGmail, suggestedPassword],
+    [entry, onChange, recordedAddress],
   )
 
-  const handleBalUpload = useCallback(
-    async (file: File) => {
-      const body = new FormData()
-      body.append('file', file)
-      setIsUploadingBal(true)
-      try {
-        const res = await fetch('/api/upload/public', { method: 'POST', body })
-        const data = await res.json()
-        if (res.ok) {
-          const updated = { ...entry, screenshot2: data.path }
-          setIsDetectingBal(true)
-          try {
-            const result = await mockExtractFromPaypal(file)
-            updated.paypalBalanceDetected = result.balanceWordDetected
-          } finally {
-            setIsDetectingBal(false)
-          }
-          onChange(updated)
-        }
-      } catch {
-        // silent
-      } finally {
-        setIsUploadingBal(false)
+  const handleDeleteSlot = useCallback(
+    (slot: 1 | 2 | 3) => {
+      const updated = { ...entry }
+      if (slot === 1) {
+        updated.screenshot = ''
+        setCredMismatch(null)
+        onMismatchChange?.('PAYPAL', null)
+      } else if (slot === 2) {
+        updated.screenshot2 = ''
+        updated.paypalBalanceDetected = false
+      } else {
+        updated.screenshots = []
+        // Clear stored address detection
+        updated.detectedAddress = undefined
+        setDetectedAddr('')
+        setAddrMatchesRecorded(null)
       }
+      onChange(updated)
     },
-    [entry, onChange],
+    [entry, onChange, onMismatchChange],
   )
+
+  // Address dialog actions
+  const handleAddressConfirm = useCallback(() => {
+    // Store the detected address on the entry
+    onChange({ ...entry, detectedAddress: detectedAddr })
+    // If it's a NEW address (doesn't match recorded), notify parent
+    if (!addrMatchesRecorded && detectedAddr) {
+      onAddressConfirm?.('PAYPAL', detectedAddr)
+    }
+    setAddressDialogOpen(false)
+  }, [entry, onChange, detectedAddr, addrMatchesRecorded, onAddressConfirm])
+
+  const handleAddressDismiss = useCallback(() => {
+    setAddressDialogOpen(false)
+    setDetectedAddr('')
+    setAddrMatchesRecorded(null)
+    onAddressDismiss?.('PAYPAL')
+  }, [onAddressDismiss])
+
+  // Determine the address status for the inline indicator
+  const hasConfirmedAddress = !!entry.detectedAddress
 
   return (
     <div className="rounded-md border p-2.5 space-y-2" data-testid="platform-card-PAYPAL">
-      <p className="text-sm">PayPal</p>
+      <p className="text-sm">
+        PayPal
+        {filledCount > 0 && (
+          <span className="ml-1.5 text-muted-foreground"> — {filledCount} upload{filledCount !== 1 ? 's' : ''}</span>
+        )}
+      </p>
 
       {/* Inline amber instruction */}
       <p className="text-xs text-amber-700 dark:text-amber-400">
@@ -133,88 +233,108 @@ export function PayPalCard({
         </span>
       </label>
 
-      {/* Screenshot slots */}
+      {/* Upload area: single button + only filled slot thumbnails with labels */}
       <div className="flex items-center gap-3">
-        {/* Slot 1: Login credentials */}
-        <div className="flex items-center gap-1.5">
-          <input
-            ref={credInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            onChange={(e) => {
-              const f = e.target.files?.[0]
-              if (f) handleCredUpload(f)
-              e.target.value = ''
-            }}
-            className="hidden"
-          />
-          {entry.screenshot ? (
-            <ScreenshotThumbnail
-              src={entry.screenshot}
-              onDelete={() => { setCredMismatch(null); onMismatchChange?.('PAYPAL', null); onChange({ ...entry, screenshot: '' }) }}
-              size="sm"
-            />
-          ) : (
-            <button
-              type="button"
-              onClick={() => credInputRef.current?.click()}
-              disabled={isUploadingCred || isDetectingCred}
-              className="flex h-8 items-center gap-1.5 rounded-md border border-dashed border-border/60 px-2.5 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground disabled:opacity-50"
-              data-testid="platform-screenshot-PAYPAL"
-            >
-              {isUploadingCred || isDetectingCred ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Upload className="h-3.5 w-3.5" />
-              )}
-            </button>
-          )}
-          <span className="text-[10px] text-muted-foreground">Login creds</span>
-        </div>
-
-        {/* Slot 2: Balance page */}
-        <div className="flex items-center gap-1.5">
-          <input
-            ref={balInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            onChange={(e) => {
-              const f = e.target.files?.[0]
-              if (f) handleBalUpload(f)
-              e.target.value = ''
-            }}
-            className="hidden"
-          />
-          {entry.screenshot2 ? (
-            <ScreenshotThumbnail
-              src={entry.screenshot2}
-              onDelete={() => onChange({ ...entry, screenshot2: '', paypalBalanceDetected: false })}
-              size="sm"
-            />
-          ) : (
-            <button
-              type="button"
-              onClick={() => balInputRef.current?.click()}
-              disabled={isUploadingBal || isDetectingBal}
-              className="flex h-8 items-center gap-1.5 rounded-md border border-dashed border-border/60 px-2.5 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground disabled:opacity-50"
-              data-testid="platform-screenshot2-PAYPAL"
-            >
-              {isUploadingBal || isDetectingBal ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Upload className="h-3.5 w-3.5" />
-              )}
-            </button>
-          )}
-          <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-            Balance page
-            {isDetectingBal && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
-            {entry.paypalBalanceDetected && !isDetectingBal && (
-              <ScanLine className="h-3 w-3 text-primary" />
+        {/* Upload button — accepts up to 3 files at once */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          multiple
+          onChange={(e) => {
+            const files = Array.from(e.target.files || []).slice(0, 3 - filledCount)
+            if (files.length > 0) handleFilesSelected(files)
+            e.target.value = ''
+          }}
+          className="hidden"
+        />
+        {filledCount < 3 && (
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+            className="flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-dashed border-border/60 px-2.5 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground disabled:opacity-50"
+            data-testid="platform-screenshot-PAYPAL"
+          >
+            {isUploading ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Upload className="h-3.5 w-3.5" />
             )}
-          </span>
-        </div>
+          </button>
+        )}
+
+        {/* Slot labels as reminders — always show, thumbnails replace labels when uploaded */}
+        {slot1 ? (
+          <div className="flex items-center gap-1.5">
+            <ScreenshotThumbnail
+              src={slot1}
+              onDelete={() => handleDeleteSlot(1)}
+              size="sm"
+            />
+            <span className="text-[10px] text-muted-foreground">Login creds</span>
+          </div>
+        ) : (
+          <span className="text-[10px] text-muted-foreground/50">Login creds</span>
+        )}
+
+        {slot2 ? (
+          <div className="flex items-center gap-1.5">
+            <ScreenshotThumbnail
+              src={slot2}
+              onDelete={() => handleDeleteSlot(2)}
+              size="sm"
+            />
+            <span className="text-[10px] text-muted-foreground">Balance page</span>
+          </div>
+        ) : (
+          <span className="text-[10px] text-muted-foreground/50">Balance page</span>
+        )}
+
+        {slot3 ? (
+          <div className="flex items-center gap-1.5">
+            <ScreenshotThumbnail
+              src={slot3}
+              onDelete={() => handleDeleteSlot(3)}
+              size="sm"
+            />
+            <span className="text-[10px] text-muted-foreground">Address proof</span>
+          </div>
+        ) : (
+          <span className="text-[10px] text-muted-foreground/50">Address proof</span>
+        )}
       </div>
+
+      {/* Detection feedback — balance */}
+      {entry.paypalBalanceDetected && (
+        <p className="flex items-center gap-1.5 text-xs text-success" data-testid="paypal-balance-detected">
+          <CheckCircle2 className="h-3 w-3 shrink-0" />
+          Balance visible — account home page confirmed
+        </p>
+      )}
+
+      {/* Detection feedback — address confirmed or editable field on mismatch */}
+      {hasConfirmedAddress && (
+        <>
+          {recordedAddress && addressesMatch(entry.detectedAddress!, recordedAddress) ? (
+            <p className="flex items-center gap-1.5 text-xs text-success" data-testid="paypal-address-confirmed">
+              <MapPin className="h-3 w-3 shrink-0" />
+              Address matches ID record
+            </p>
+          ) : (
+            <div className="flex items-center gap-2 rounded-md border-l-2 border-amber-500 bg-amber-500/5 px-2.5 py-1.5" data-testid="paypal-address-field">
+              <MapPin className="h-3 w-3 shrink-0 text-amber-600" />
+              <span className="text-[10px] text-amber-700 dark:text-amber-400 shrink-0">PayPal address:</span>
+              <Input
+                value={entry.detectedAddress ?? ''}
+                onChange={(e) => onChange({ ...entry, detectedAddress: e.target.value })}
+                className="h-6 flex-1 text-xs border-amber-500/30"
+                data-testid="paypal-address-edit-input"
+              />
+            </div>
+          )}
+        </>
+      )}
 
       {/* Mismatch warning for login creds */}
       {credMismatch && (
@@ -256,6 +376,104 @@ export function PayPalCard({
           />
         </div>
       </div>
+
+      {/* ── Address Detection Dialog ── */}
+      <Dialog open={addressDialogOpen} onOpenChange={(open) => { if (!open) handleAddressDismiss() }}>
+        <DialogContent className="max-w-md" data-testid="paypal-address-dialog">
+          <DialogTitle className="text-sm font-medium">PayPal Address Detection</DialogTitle>
+
+          {isDetectingAddr ? (
+            <div className="flex items-center gap-2 py-6 justify-center">
+              <ScanLine className="h-5 w-5 animate-pulse text-primary" />
+              <span className="text-sm text-muted-foreground">Scanning address proof...</span>
+            </div>
+          ) : detectedAddr ? (
+            <div className="space-y-3">
+              {/* Detected address — editable */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Detected Address</label>
+                <Input
+                  value={detectedAddr}
+                  onChange={(e) => {
+                    setDetectedAddr(e.target.value)
+                    // Re-check match when edited
+                    if (recordedAddress) {
+                      setAddrMatchesRecorded(addressesMatch(e.target.value, recordedAddress))
+                    }
+                  }}
+                  className="h-8 text-sm"
+                  data-testid="paypal-address-input"
+                />
+              </div>
+
+              {/* Recorded address comparison */}
+              {recordedAddress && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Recorded Address (from ID)</label>
+                  <p className="rounded-md border border-border/40 bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground">
+                    {recordedAddress}
+                  </p>
+                </div>
+              )}
+
+              {/* Match status */}
+              {addrMatchesRecorded === true && (
+                <div className="flex items-center gap-2 rounded-md bg-success/10 px-3 py-2" data-testid="address-match-status">
+                  <CheckCircle2 className="h-4 w-4 text-success" />
+                  <span className="text-xs font-medium text-success">Address matches recorded ID address</span>
+                </div>
+              )}
+              {addrMatchesRecorded === false && (
+                <div className="flex items-center gap-2 rounded-md bg-amber-500/10 px-3 py-2" data-testid="address-match-status">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  <span className="text-xs font-medium text-amber-700 dark:text-amber-400">
+                    New address — differs from ID
+                  </span>
+                </div>
+              )}
+              {addrMatchesRecorded === null && !recordedAddress && (
+                <div className="flex items-center gap-2 rounded-md bg-muted/40 px-3 py-2" data-testid="address-match-status">
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">No ID address on file to compare</span>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={handleAddressDismiss}
+                  className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted transition-colors"
+                  data-testid="paypal-address-dialog-dismiss"
+                >
+                  <X className="h-3 w-3" />
+                  Dismiss
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAddressConfirm}
+                  className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground hover:bg-primary/90 transition-colors"
+                  data-testid="paypal-address-dialog-confirm"
+                >
+                  <Check className="h-3 w-3" />
+                  {addrMatchesRecorded ? 'Confirm Match' : 'Record Address'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="py-6 text-center">
+              <p className="text-sm text-muted-foreground">No address detected from screenshot</p>
+              <button
+                type="button"
+                onClick={() => setAddressDialogOpen(false)}
+                className="mt-3 rounded-md px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

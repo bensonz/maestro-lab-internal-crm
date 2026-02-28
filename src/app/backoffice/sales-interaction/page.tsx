@@ -1,16 +1,16 @@
 import {
-  MOCK_SALES_STATS,
   MOCK_SALES_HIERARCHY,
-  MOCK_INTAKE_CLIENTS,
-  MOCK_VERIFICATION_TASKS,
   MOCK_LIFECYCLE_CLIENTS,
 } from '@/lib/mock-data'
 import { SalesInteractionView } from './_components/sales-interaction-view'
-import { getAllDraftsForBackoffice } from '@/backend/data/client-drafts'
+import { getAllDraftsForBackoffice, getApprovedDraftsForBackoffice } from '@/backend/data/client-drafts'
+import { getActivePhoneAssignments, getReturnedPhoneAssignments } from '@/backend/data/phone-assignments'
+import { getPendingTodosForBackoffice, getCompletedTodosForBackoffice, getTodoTimeline } from '@/backend/data/todos'
 import { getApprovedClientsForBackoffice } from '@/backend/data/clients'
+import prisma from '@/backend/prisma/client'
 import { getAgentsForHierarchy } from '@/backend/data/users'
 import { getAgentDisplayTier, LEADERSHIP_TIERS, STAR_THRESHOLDS } from '@/lib/commission-constants'
-import type { IntakeClient, InProgressSubStage, PostApprovalClient } from '@/types/backend-types'
+import type { IntakeClient, InProgressSubStage, VerificationTask, CompletedTodoEntry, TodoTimelineEntry, ApprovedClientEntry, PostApprovalClient } from '@/types/backend-types'
 
 function stepToSubStage(step: number): InProgressSubStage {
   const map: Record<number, InProgressSubStage> = {
@@ -58,33 +58,79 @@ export default async function SalesInteractionPage() {
         .sort(([a], [b]) => (TIER_SORT_ORDER[a] ?? 99) - (TIER_SORT_ORDER[b] ?? 99))
         .map(([level, agents]) => ({ level, agents }))
     }
-  } catch {
-    // DB not available, fall back to mock
+  } catch (e) {
+    console.error('[sales-interaction] agents fetch error:', e)
   }
 
-  // Fetch real drafts from DB (DRAFT + SUBMITTED with PENDING client)
+  // Fetch real drafts + device data from DB
   let draftIntake: IntakeClient[] = []
+
   try {
-    const drafts = await getAllDraftsForBackoffice()
+    const [drafts, activeAssignments, returnedAssignments] = await Promise.all([
+      getAllDraftsForBackoffice(),
+      getActivePhoneAssignments(),
+      getReturnedPhoneAssignments(),
+    ])
+
+    // Map draft ID → active assignment ID + phone number + carrier
+    const draftToAssignmentId = new Map<string, string>()
+    const draftToPhoneNumber = new Map<string, string>()
+    const draftToCarrier = new Map<string, string>()
+    for (const a of activeAssignments) {
+      draftToAssignmentId.set(a.clientDraftId, a.id)
+      draftToPhoneNumber.set(a.clientDraftId, a.phoneNumber)
+      if (a.carrier) draftToCarrier.set(a.clientDraftId, a.carrier)
+    }
+
+    // Map draft ID → returned assignment ID + phone number (most recent return per draft)
+    const draftToReturnedId = new Map<string, string>()
+    for (const a of returnedAssignments) {
+      if (!draftToReturnedId.has(a.clientDraftId)) {
+        draftToReturnedId.set(a.clientDraftId, a.id)
+        draftToPhoneNumber.set(a.clientDraftId, a.phoneNumber)
+        if (a.carrier) draftToCarrier.set(a.clientDraftId, a.carrier)
+      }
+    }
+
     draftIntake = drafts.map((d) => {
       const isSubmitted = d.status === 'SUBMITTED'
+      const subStage: InProgressSubStage = isSubmitted ? 'pending-approval' : stepToSubStage(d.step)
+      const activeAssignmentId = draftToAssignmentId.get(d.id) ?? null
+      const returnedAssignmentId = draftToReturnedId.get(d.id) ?? null
+
+      // Status based on actual device activity, not step
+      let status = ''
+      let statusColor = ''
+      if (activeAssignmentId) {
+        status = 'PHONE ISSUED'
+        statusColor = 'text-success'
+      } else if (returnedAssignmentId) {
+        status = 'PHONE RETURNED'
+        statusColor = 'text-primary'
+      }
+
+      // Assign Device: step-2 or step-3 when device reservation exists but no active or returned assignment
+      const canAssignPhone = (subStage === 'step-2' || subStage === 'step-3') && !!(d.deviceReservationDate) && !activeAssignmentId && !returnedAssignmentId
+
+      const daysSince = Math.floor(
+        (Date.now() - new Date(d.updatedAt).getTime()) / (1000 * 60 * 60 * 24),
+      )
+
       return {
         id: d.id,
         name: d.firstName && d.lastName
           ? `${d.firstName} ${d.lastName}`
           : d.firstName || 'Untitled Draft',
-        status: isSubmitted ? 'PENDING APPROVAL' : 'DRAFT',
+        status,
         statusType: isSubmitted ? 'ready' as const : 'pending_platform' as const,
-        statusColor: isSubmitted ? 'text-warning' : 'text-muted-foreground',
+        statusColor,
         agentId: d.closerId,
         agentName: d.closer?.name ?? 'Unknown',
-        days: Math.floor(
-          (Date.now() - new Date(d.updatedAt).getTime()) / (1000 * 60 * 60 * 24),
-        ),
-        daysLabel: `${Math.floor((Date.now() - new Date(d.updatedAt).getTime()) / (1000 * 60 * 60 * 24))}d`,
+        days: daysSince,
+        daysLabel: `${daysSince}d`,
         canApprove: false,
-        canAssignPhone: false,
-        subStage: stepToSubStage(d.step),
+        canAssignPhone,
+        subStage,
         executionDeadline: null,
         deadlineExtensions: 0,
         pendingExtensionRequest: null,
@@ -92,31 +138,151 @@ export default async function SalesInteractionPage() {
         exceptionStates: [],
         rejectedPlatforms: [],
         resultClientId: d.resultClientId,
+        activeAssignmentId,
+        returnedAssignmentId,
+        assignedPhone: draftToPhoneNumber.get(d.id) ?? null,
+        assignedCarrier: draftToCarrier.get(d.id) ?? null,
       }
     })
-  } catch {
-    // DB not available, fall back to mock
+  } catch (e) {
+    console.error('[sales-interaction] drafts fetch error:', e)
   }
 
-  // Use real drafts if available, otherwise mock data
-  const clientIntake = draftIntake.length > 0 ? draftIntake : MOCK_INTAKE_CLIENTS
+  const clientIntake = draftIntake
 
-  // Compute stats from actual data
-  const stats = draftIntake.length > 0
-    ? {
-        totalClients: draftIntake.length,
-        inProgress: draftIntake.length,
-        pendingApproval: draftIntake.filter((c) => c.subStage === 'step-4').length,
-        verificationNeeded: 0,
+  // Fetch real todos from DB and map to VerificationTask format
+  let realTodoTasks: VerificationTask[] = []
+  try {
+    const todos = await getPendingTodosForBackoffice()
+    realTodoTasks = todos.map((t) => {
+      const clientName = [t.clientDraft.firstName, t.clientDraft.lastName].filter(Boolean).join(' ') || 'Unknown'
+      const daysUntil = Math.floor((t.dueDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+      const latestPhone = t.clientDraft.phoneAssignments?.[0] ?? null
+      return {
+        id: t.id,
+        clientId: null,
+        draftId: t.clientDraft.id,
+        clientName,
+        platformType: null,
+        platformLabel: t.issueCategory,
+        task: t.title,
+        agentId: t.assignedTo.id,
+        agentName: t.assignedTo.name,
+        deadline: t.dueDate,
+        daysUntilDue: daysUntil,
+        deadlineLabel: daysUntil < 0 ? `${Math.abs(daysUntil)}d overdue` : `${daysUntil}d`,
+        clientDeadline: t.dueDate,
+        status: 'Pending' as const,
+        screenshots: [],
+        assignedPhone: latestPhone?.phoneNumber ?? null,
+        assignedCarrier: latestPhone?.carrier ?? null,
       }
-    : MOCK_SALES_STATS
+    })
+  } catch (e) {
+    console.error('[sales-interaction] todos fetch error:', e)
+  }
+
+  const verificationTasks = realTodoTasks
+
+  // Fetch completed todos + timeline + approved clients (separate try/catch so one failure doesn't kill both)
+  let completedTodos: CompletedTodoEntry[] = []
+  let todoTimeline: TodoTimelineEntry[] = []
+  let approvedClients: ApprovedClientEntry[] = []
+
+  try {
+    todoTimeline = await getTodoTimeline()
+  } catch (e) {
+    console.error('[sales-interaction] timeline fetch error:', e)
+  }
+
+  try {
+    const completedRaw = await getCompletedTodosForBackoffice()
+    completedTodos = completedRaw.map((t) => {
+      const clientName = [t.clientDraft.firstName, t.clientDraft.lastName].filter(Boolean).join(' ') || 'Unknown'
+      const completionEvent = todoTimeline.find(
+        (e) => e.action === 'completed' && e.event.includes(t.issueCategory) && e.event.includes(clientName)
+      )
+      return {
+        id: t.id,
+        clientName,
+        agentId: t.assignedTo.id,
+        agentName: t.assignedTo.name ?? 'Unknown',
+        issueCategory: t.issueCategory,
+        title: t.title,
+        completedAt: t.completedAt ?? new Date(),
+        completedByName: completionEvent?.actor ?? t.createdBy.name ?? 'Unknown',
+        draftId: t.clientDraft.id,
+        createdByName: t.createdBy.name ?? 'Unknown',
+      }
+    })
+  } catch (e) {
+    console.error('[sales-interaction] completed todos fetch error:', e)
+  }
+
+  try {
+    const approvedDrafts = await getApprovedDraftsForBackoffice()
+    const clientIds = approvedDrafts
+      .filter((d) => d.resultClient?.id)
+      .map((d) => d.resultClient!.id)
+
+    // Fetch bonus pools + allocations for all approved clients in one query
+    const pools = clientIds.length > 0
+      ? await prisma.bonusPool.findMany({
+          where: { clientId: { in: clientIds } },
+          include: {
+            allocations: {
+              include: { agent: { select: { name: true } } },
+              orderBy: { amount: 'desc' },
+            },
+          },
+        })
+      : []
+    const poolByClientId = new Map(pools.map((p) => [p.clientId, p]))
+
+    approvedClients = approvedDrafts.map((d) => {
+      const pool = poolByClientId.get(d.resultClient!.id)
+      return {
+        id: d.resultClient!.id,
+        draftId: d.id,
+        clientName: [d.firstName, d.lastName].filter(Boolean).join(' ') || 'Unknown',
+        agentId: d.closerId,
+        agentName: d.closer?.name ?? 'Unknown',
+        approvedAt: d.resultClient!.approvedAt ?? d.updatedAt,
+        poolSummary: pool
+          ? {
+              totalAmount: pool.totalAmount,
+              directAmount: pool.directAmount,
+              starPoolAmount: pool.starPoolAmount,
+              distributedSlices: pool.distributedSlices,
+              recycledSlices: pool.recycledSlices,
+              allocations: pool.allocations.map((a) => ({
+                agentName: a.agent.name,
+                type: a.type as 'DIRECT' | 'STAR_SLICE' | 'BACKFILL',
+                amount: a.amount,
+                slices: a.slices,
+              })),
+            }
+          : null,
+      }
+    })
+  } catch (e) {
+    console.error('[sales-interaction] approved clients fetch error:', e)
+  }
+
+  // Compute stats from combined data
+  const stats = {
+    totalClients: clientIntake.length,
+    inProgress: clientIntake.filter((c) => c.subStage !== 'verification-needed').length,
+    pendingApproval: clientIntake.filter((c) => c.subStage === 'pending-approval').length,
+    verificationNeeded: clientIntake.filter((c) => c.subStage === 'verification-needed').length,
+  }
 
   // Fetch real approved clients for post-approval tracking
   let postApprovalClients: PostApprovalClient[] = []
   try {
-    const approvedClients = await getApprovedClientsForBackoffice()
-    if (approvedClients.length > 0) {
-      postApprovalClients = approvedClients.map((c) => {
+    const dbApprovedClients = await getApprovedClientsForBackoffice()
+    if (dbApprovedClients.length > 0) {
+      postApprovalClients = dbApprovedClients.map((c) => {
         const daysSinceApproval = c.approvedAt
           ? Math.floor((Date.now() - new Date(c.approvedAt).getTime()) / (1000 * 60 * 60 * 24))
           : 0
@@ -127,8 +293,8 @@ export default async function SalesInteractionPage() {
           agentName: c.closer?.name ?? 'Unknown',
           approvedAt: c.approvedAt,
           daysSinceApproval,
-          limitedPlatforms: [], // TODO: Wire to real platform status data when available
-          pendingVerificationTodos: 0, // TODO: Wire to real todo counts when available
+          limitedPlatforms: [],
+          pendingVerificationTodos: 0,
         }
       })
     }
@@ -141,8 +307,10 @@ export default async function SalesInteractionPage() {
       stats={stats}
       agentHierarchy={agentHierarchy}
       clientIntake={clientIntake}
-      verificationTasks={MOCK_VERIFICATION_TASKS}
-      postApprovalClients={postApprovalClients}
+      verificationTasks={verificationTasks}
+      completedTodos={completedTodos}
+      approvedClients={approvedClients}
+      todoTimeline={todoTimeline}
       lifecycleClients={MOCK_LIFECYCLE_CLIENTS}
     />
   )

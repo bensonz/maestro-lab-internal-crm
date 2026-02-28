@@ -173,6 +173,23 @@ describe('saveClientDraft', () => {
     expect(updateCall.data.betmgmLoginScreenshot).toBe('/uploads/betmgm-login.png')
     expect(updateCall.data.address).toBe('123 Main St')
   })
+
+  it('saves discoveredAddresses as JSON field', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'agent-1' } })
+    mockPrisma.clientDraft.findFirst.mockResolvedValue({
+      id: 'draft-1',
+      status: 'DRAFT',
+    })
+
+    const addresses = [
+      { address: '123 Main St, LA, CA', source: 'ID', confirmedByAgent: true },
+      { address: '456 Oak Ave, Brooklyn, NY', source: 'PAYPAL' },
+    ]
+    await saveClientDraft('draft-1', { discoveredAddresses: addresses })
+
+    const updateCall = mockPrisma.clientDraft.update.mock.calls[0][0]
+    expect(updateCall.data.discoveredAddresses).toEqual(addresses)
+  })
 })
 
 describe('submitClientDraft', () => {

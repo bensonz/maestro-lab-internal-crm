@@ -175,7 +175,7 @@ export function AssignTodoDialog({
                   Agent: <span className="font-medium text-foreground">{selectedClient.agentName}</span>
                 </p>
                 <p>
-                  Current step: <span className="font-medium text-foreground">{selectedClient.subStage.replace('step-', 'Step ')}</span>
+                  Current step: <span className="font-medium text-foreground">{selectedClient.subStage === 'pending-approval' ? 'Pending Approval' : selectedClient.subStage.replace('step-', 'Step ')}</span>
                 </p>
                 {selectedClient.assignedPhone && (
                   <p>

@@ -5,31 +5,6 @@ import { getTodosByAgent } from '@/backend/data/todos'
 import { getDraftsByCloser } from '@/backend/data/client-drafts'
 import { getClientsByCloser } from '@/backend/data/clients'
 import { getAgentEarnings } from '@/backend/data/bonus-pools'
-import type { AllocationLine } from '@/types/backend-types'
-
-function formatEarningsDate(d: Date): string {
-  const month = d.getMonth() + 1
-  const day = d.getDate()
-  const year = d.getFullYear()
-  let hours = d.getHours()
-  const ampm = hours >= 12 ? 'pm' : 'am'
-  hours = hours % 12 || 12
-  return `${month}/${day}/${year} ${hours}${ampm}`
-}
-
-function buildDescription(a: AllocationLine): string {
-  const clientShort = a.clientName
-    ? `${a.clientName.split(' ')[0]} ${(a.clientName.split(' ')[1] ?? '')[0] ?? ''}`.trim()
-    : 'Unknown'
-  if (a.type === 'DIRECT') {
-    return `Direct bonus - ${clientShort}`
-  }
-  const closerShort = a.closerName ?? 'Unknown'
-  if (a.type === 'STAR_SLICE') {
-    return `Star slice - ${closerShort} → ${clientShort} (${a.slices} slices)`
-  }
-  return `Backfill - ${closerShort} → ${clientShort} (${a.slices} slices)`
-}
 
 export default async function TodoListPage() {
   const agent = await requireAgent()
@@ -116,20 +91,43 @@ export default async function TodoListPage() {
         .reduce((sum, a) => sum + a.amount, 0)
     : 0
 
+  const formatEarningsDate = (d: Date) => {
+    const month = d.getMonth() + 1
+    const day = d.getDate()
+    const year = d.getFullYear()
+    let hours = d.getHours()
+    const ampm = hours >= 12 ? 'pm' : 'am'
+    hours = hours % 12 || 12
+    return `${month}/${day}/${year} ${hours}${ampm}`
+  }
+
   const earningsData = {
     totalEarnings: earningsResult?.totalEarned ?? 0,
     pendingPayout: earningsResult?.pendingAmount ?? 0,
     thisMonth,
     recentTransactions: earningsResult
-      ? earningsResult.allocations.map((a) => ({
-          id: a.id,
-          client: a.clientName ?? 'Unknown',
-          description: buildDescription(a),
-          amount: a.amount,
-          status: a.status === 'PAID' ? 'Paid' : 'Issued',
-          date: formatEarningsDate(new Date(a.createdAt)),
-          rawDate: a.createdAt.toISOString?.() ?? new Date(a.createdAt).toISOString(),
-        }))
+      ? earningsResult.allocations.map((a) => {
+          const clientName = a.clientName ?? 'Unknown'
+          let description: string
+          if (a.type === 'DIRECT') {
+            description = `Direct bonus - ${clientName}`
+          } else if (a.type === 'STAR_SLICE') {
+            description = `Star slice - ${a.closerName ?? 'Unknown'} → ${clientName} (${a.slices} slices)`
+          } else {
+            description = `Backfill - ${a.closerName ?? 'Unknown'} → ${clientName} (${a.slices} slices)`
+          }
+          const status = a.status === 'PAID' ? 'Paid' : 'Issued'
+          const date = formatEarningsDate(new Date(a.createdAt))
+          return {
+            id: a.id,
+            client: clientName,
+            description,
+            amount: a.amount,
+            status,
+            date,
+            rawDate: a.createdAt.toISOString?.() ?? new Date(a.createdAt).toISOString(),
+          }
+        })
       : [],
     commission: {
       totalEarned: earningsResult?.totalEarned ?? 0,

@@ -27,6 +27,9 @@ const GMAIL_PATTERNS = [
   (f: string, l: string, bm: string, bd: string) => `${f}${l[0]}${bm}${bd}`,
 ] as const
 
+/** Total number of Gmail suggestion patterns available for cycling */
+export const GMAIL_PATTERN_COUNT = GMAIL_PATTERNS.length
+
 /** One stable Gmail suggestion per client (deterministic from name + DOB only) */
 export function generateGmailSuggestion(firstName: string, lastName: string, dob: string): string {
   if (!firstName || !lastName) return ''
@@ -40,6 +43,31 @@ export function generateGmailSuggestion(firstName: string, lastName: string, dob
 
   const idx = stableHash(f + l + dob) % GMAIL_PATTERNS.length
   const local = GMAIL_PATTERNS[idx](f, l, birthMonth, birthDay)
+  return `${local}@gmail.com`
+}
+
+/**
+ * Generate a Gmail suggestion at a specific pattern index.
+ * Used for cycling through alternatives when the default suggestion is taken.
+ * @param index Pattern index (wraps around GMAIL_PATTERN_COUNT)
+ */
+export function generateGmailSuggestionAtIndex(
+  firstName: string,
+  lastName: string,
+  dob: string,
+  index: number,
+): string {
+  if (!firstName || !lastName) return ''
+  const f = firstName.toLowerCase().replace(/[^a-z]/g, '')
+  const l = lastName.toLowerCase().replace(/[^a-z]/g, '')
+  if (!f || !l) return ''
+
+  const dobDate = dob ? new Date(dob) : null
+  const birthMonth = dobDate ? pad2(dobDate.getMonth() + 1) : '01'
+  const birthDay = dobDate ? pad2(dobDate.getDate()) : '01'
+
+  const patternIdx = ((index % GMAIL_PATTERNS.length) + GMAIL_PATTERNS.length) % GMAIL_PATTERNS.length
+  const local = GMAIL_PATTERNS[patternIdx](f, l, birthMonth, birthDay)
   return `${local}@gmail.com`
 }
 

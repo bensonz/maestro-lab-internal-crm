@@ -53,6 +53,18 @@ describe('calculateRiskScore', () => {
     expect(result.flags.multipleAddresses).toBe(true)
   })
 
+  it('passes through discoveredAddressCount without scoring', () => {
+    const result = calculateRiskScore({ discoveredAddressCount: 3 })
+    expect(result.score).toBe(10) // default score unchanged
+    expect(result.level).toBe('low')
+    expect(result.flags.discoveredAddressCount).toBe(3)
+  })
+
+  it('defaults discoveredAddressCount to 0 when not provided', () => {
+    const result = calculateRiskScore({})
+    expect(result.flags.discoveredAddressCount).toBe(0)
+  })
+
   it('debankedHistory subtracts 30 (net -20)', () => {
     const result = calculateRiskScore({ debankedHistory: true })
     expect(result.score).toBe(-20)

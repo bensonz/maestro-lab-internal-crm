@@ -119,7 +119,9 @@ export async function getTodoTimeline() {
     take: 100,
   })
 
-  const actionMap: Record<string, 'assigned' | 'completed' | 'reverted' | 'device_out' | 'device_returned' | 'device_reissued' | 'client_approved' | 'client_reverted'> = {
+  type TimelineAction = 'assigned' | 'completed' | 'reverted' | 'device_out' | 'device_returned' | 'device_reissued' | 'client_approved' | 'client_reverted'
+
+  const actionMap: Record<string, TimelineAction> = {
     TODO_ASSIGNED: 'assigned',
     TODO_COMPLETED: 'completed',
     TODO_REVERTED: 'reverted',

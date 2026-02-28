@@ -79,6 +79,8 @@ export interface IntakeClient {
   assignedPhone?: string | null
   /** Carrier of assigned phone */
   assignedCarrier?: string | null
+  /** Number of unique addresses discovered across platform screenshots */
+  addressCount?: number
 }
 
 export interface PostApprovalClient {
@@ -357,6 +359,7 @@ export interface RiskAssessment {
     bankNameOverride: boolean
     bankPhoneEmailNotConfirmed: boolean
     credentialMismatches: Record<string, { username: boolean; password: boolean }>
+    discoveredAddressCount: number
   }
 }
 
@@ -374,6 +377,25 @@ export interface PlatformEntry {
   bankPhoneEmailConfirmed?: boolean
   screenshot2?: string
   paypalBalanceDetected?: boolean
+  /** Bank routing number (Online Banking only) */
+  routingNumber?: string
+  /** Bank account number (Online Banking only) */
+  bankAccountNumber?: string
+  /** Array of screenshot URLs/paths for multi-upload support */
+  screenshots?: string[]
+  /** Address detected from OCR on this platform's screenshots */
+  detectedAddress?: string
+}
+
+// --- Discovered Address Types ---
+
+export interface DiscoveredAddress {
+  /** The full address string */
+  address: string
+  /** Source platform: 'ID' | 'BETMGM' | 'PAYPAL' | etc. */
+  source: string
+  /** Whether the agent has confirmed this address */
+  confirmedByAgent?: boolean
 }
 
 // --- Todo Review Types ---

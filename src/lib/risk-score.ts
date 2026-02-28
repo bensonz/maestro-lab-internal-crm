@@ -15,6 +15,8 @@ interface RiskFlags {
   bankNameOverride?: boolean
   bankPhoneEmailNotConfirmed?: boolean
   credentialMismatches?: Record<string, { username: boolean; password: boolean }>
+  /** Number of unique addresses discovered across platform screenshots (informational) */
+  discoveredAddressCount?: number
 }
 
 const HOUSEHOLD_AWARENESS_SCORES: Record<string, number> = {
@@ -74,6 +76,7 @@ export function calculateRiskScore(flags: RiskFlags): RiskAssessment {
   const bankNameOverride = flags.bankNameOverride ?? false
   const bankPhoneEmailNotConfirmed = flags.bankPhoneEmailNotConfirmed ?? false
   const credentialMismatches = flags.credentialMismatches ?? {}
+  const discoveredAddressCount = flags.discoveredAddressCount ?? 0
 
   // Missing IDs: 0 missing = +10 bonus, each missing type = -10
   if (missingIdCount === 0) {
@@ -132,6 +135,7 @@ export function calculateRiskScore(flags: RiskFlags): RiskAssessment {
       bankNameOverride,
       bankPhoneEmailNotConfirmed,
       credentialMismatches,
+      discoveredAddressCount,
     },
   }
 }

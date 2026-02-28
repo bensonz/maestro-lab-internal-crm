@@ -19,7 +19,9 @@
       "Bash(git rm:*)",
       "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_KSal0wDmMc9u@ep-summer-paper-aiyj2l3c-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require\" npx prisma migrate status:*)",
       "Bash(psql:*)",
-      "Bash(git rebase:*)"
+      "Bash(git rebase:*)",
+      "Bash(head:*)",
+      "Bash(cd:*)"
     ]
   }
 }

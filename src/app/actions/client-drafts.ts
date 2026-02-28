@@ -38,17 +38,14 @@ export async function saveClientDraft(
   const session = await auth()
   if (!session?.user) return { success: false, error: 'Not authenticated' }
 
-  // Ownership check — backoffice/admin can edit any draft (including submitted ones)
-  const role = session.user.role
-  const isPrivileged = role === 'ADMIN' || role === 'BACKOFFICE'
+  // Ownership check
   const draft = await prisma.clientDraft.findFirst({
-    where: isPrivileged ? { id: draftId } : { id: draftId, closerId: session.user.id },
+    where: { id: draftId, closerId: session.user.id },
     select: { id: true, status: true },
   })
 
   if (!draft) return { success: false, error: 'Draft not found' }
-  // Agents can only edit DRAFT status; backoffice can edit any status
-  if (!isPrivileged && draft.status !== 'DRAFT') {
+  if (draft.status !== 'DRAFT') {
     return { success: false, error: 'Draft already submitted' }
   }
 
@@ -113,6 +110,7 @@ export async function saveClientDraft(
     'debankedHistory',
     'debankedBank',
     'undisclosedInfo',
+    'discoveredAddresses',
   ]
 
   const updateData: Record<string, unknown> = {}

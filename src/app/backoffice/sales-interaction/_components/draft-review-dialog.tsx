@@ -9,6 +9,8 @@ import {
   Loader2,
   CheckCircle2,
   Minus,
+  KeyRound,
+  MapPin,
 } from 'lucide-react'
 import {
   Dialog,
@@ -53,7 +55,8 @@ interface FullDraftData {
   bankingHistory: string | null
   paypalHistory: string | null
   sportsbookHistory: string | null
-  platformData: Record<string, { username?: string; accountId?: string; screenshot?: string }> | null
+  platformData: Record<string, { username?: string; accountId?: string; screenshot?: string; screenshots?: string[]; pin?: string; bank?: string; bankPhoneEmailConfirmed?: boolean }> | null
+  discoveredAddresses: Array<{ address: string; source: string; confirmedByAgent?: boolean }> | null
   contractDocument: string | null
   paypalPreviouslyUsed: boolean
   addressMismatch: boolean
@@ -176,7 +179,7 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, onClose 
       const result = await approveClient(resultClientId)
       dispatch({ type: 'APPROVE_DONE' })
       if (result.success) {
-        toast.success(`${draftName} approved as client`)
+        toast.success(`${draftName} approved! $400 bonus pool created (${result.distributedSlices} slices distributed, ${result.recycledSlices} recycled). Agent notified.`)
         onClose()
         router.refresh()
       } else {
@@ -205,7 +208,7 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, onClose 
     })
   }, [draftId, loadedDraftId])
 
-  const platformData = draft?.platformData as Record<string, { username?: string; accountId?: string; screenshot?: string }> | null
+  const platformData = draft?.platformData as Record<string, { username?: string; accountId?: string; screenshot?: string; screenshots?: string[]; pin?: string; bank?: string; bankPhoneEmailConfirmed?: boolean }> | null
 
   return (
     <Dialog open={!!draftId} onOpenChange={(open) => { if (!open) onClose() }}>
@@ -245,6 +248,21 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, onClose 
                 <span className="text-muted-foreground">Step {draft.step}/4</span>
               </div>
               <div className="flex items-center gap-2">
+                {(() => {
+                  const addrCount = (draft.discoveredAddresses ?? []).length
+                  if (addrCount === 0) return null
+                  const addrStyle = addrCount <= 1
+                    ? 'bg-success/10 text-success'
+                    : addrCount === 2
+                      ? 'bg-warning/10 text-warning'
+                      : 'bg-destructive/10 text-destructive'
+                  return (
+                    <span className={cn('inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px]', addrStyle)}>
+                      <MapPin className="h-2.5 w-2.5" />
+                      {addrCount}
+                    </span>
+                  )
+                })()}
                 {draft.paypalPreviouslyUsed && <span className="rounded bg-warning/10 px-1.5 py-0.5 text-[10px] text-warning">PayPal</span>}
                 {draft.debankedHistory && <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] text-destructive">De-banked</span>}
                 {draft.undisclosedInfo && <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] text-destructive">Undisclosed</span>}
@@ -353,6 +371,29 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, onClose 
                     </FieldValue>
                   </div>
                 </div>
+
+                {/* Discovered Addresses */}
+                {(draft.discoveredAddresses ?? []).length > 0 && (
+                  <div className="space-y-2" data-testid="draft-review-addresses">
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Discovered Addresses</p>
+                    <div className="space-y-1">
+                      {(draft.discoveredAddresses ?? []).map((addr, i) => (
+                        <div key={i} className="flex items-start gap-2 rounded border border-border p-2 text-xs">
+                          <MapPin className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground" />
+                          <div>
+                            <span className="rounded bg-muted px-1 py-0.5 text-[10px] font-medium text-muted-foreground">
+                              From {addr.source}
+                            </span>
+                            <p className="mt-0.5 font-medium">{addr.address}</p>
+                          </div>
+                          {addr.confirmedByAgent && (
+                            <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0 text-success" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -394,9 +435,8 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, onClose 
                   <div className="space-y-1 text-xs">
                     {[
                       { flag: draft.paypalPreviouslyUsed, label: 'PayPal Previously Used', color: 'bg-warning' },
-                      { flag: draft.addressMismatch, label: 'Address Mismatch', color: 'bg-muted-foreground' },
+                      { flag: draft.addressMismatch, label: 'Multiple Addresses', color: 'bg-muted-foreground' },
                       { flag: draft.debankedHistory, label: `De-banked${draft.debankedBank ? ` (${draft.debankedBank})` : ''}`, color: 'bg-destructive' },
-                      { flag: draft.undisclosedInfo, label: 'Undisclosed Info', color: 'bg-destructive' },
                     ].map(({ flag, label, color }) => (
                       <div key={label} className="flex items-center gap-2">
                         <div className={cn('h-2 w-2 rounded-full', flag ? color : 'bg-muted')} />
@@ -455,7 +495,16 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, onClose 
                         data-testid={`draft-review-platform-${platform}`}
                       >
                         <div className="mb-1 flex items-center justify-between">
-                          <span className="font-medium">{info.name}</span>
+                          <span className="font-medium">
+                            {info.name}
+                            {(() => {
+                              const screenshotCount = data?.screenshots?.length ?? (data?.screenshot ? 1 : 0)
+                              if (screenshotCount > 0) {
+                                return <span className="ml-1 text-[10px] font-normal text-muted-foreground">— {screenshotCount} upload{screenshotCount !== 1 ? 's' : ''}</span>
+                              }
+                              return null
+                            })()}
+                          </span>
                           {hasBoth ? (
                             <CheckCircle2 className="h-3 w-3 text-success" />
                           ) : hasPartial ? (
@@ -474,6 +523,56 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, onClose 
                       </div>
                     )
                   })}
+                </div>
+
+                {/* Credentials summary */}
+                <div className="space-y-1.5" data-testid="draft-review-credentials">
+                  <p className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                    <KeyRound className="h-3 w-3" />
+                    Credentials
+                  </p>
+                  <div className="space-y-1 text-xs">
+                    {/* Step 1 credentials: Gmail + BetMGM */}
+                    {[
+                      { key: 'Gmail', user: draft.assignedGmail, pass: draft.gmailPassword },
+                      { key: 'BetMGM', user: draft.betmgmLogin, pass: draft.betmgmPassword },
+                    ].map(({ key, user, pass }) => {
+                      const hasUser = !!user
+                      const hasPass = !!pass
+                      const filled = hasUser && hasPass
+                      return (
+                        <div key={key} className="flex items-center justify-between">
+                          <span className={cn('flex items-center gap-1', filled ? 'text-foreground' : 'text-muted-foreground')}>
+                            <span className={cn('inline-block h-1.5 w-1.5 rounded-full', filled ? 'bg-success' : hasUser || hasPass ? 'bg-warning' : 'bg-muted-foreground/30')} />
+                            {key}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground/60">
+                            {hasUser && hasPass ? 'filled' : hasUser ? 'email only' : hasPass ? 'password only' : '—'}
+                          </span>
+                        </div>
+                      )
+                    })}
+                    {/* Step 3 platform credentials */}
+                    {ALL_PLATFORMS.map((platform) => {
+                      const info = PLATFORM_INFO[platform]
+                      const data = platformData?.[platform as string]
+                      const hasUser = !!data?.username
+                      const hasPass = !!data?.accountId
+                      const filled = hasUser && hasPass
+                      if (!hasUser && !hasPass) return null
+                      return (
+                        <div key={platform} className="flex items-center justify-between">
+                          <span className={cn('flex items-center gap-1', filled ? 'text-foreground' : 'text-muted-foreground')}>
+                            <span className={cn('inline-block h-1.5 w-1.5 rounded-full', filled ? 'bg-success' : 'bg-warning')} />
+                            {info.name}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground/60">
+                            {hasUser && hasPass ? 'filled' : hasUser ? 'username only' : 'password only'}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               </div>
             )}
@@ -494,6 +593,23 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, onClose 
                     </div>
                   )}
                 </div>
+
+                {/* Discovered Addresses summary */}
+                {(draft.discoveredAddresses ?? []).length > 0 && (
+                  <div className="space-y-2" data-testid="draft-review-step4-addresses">
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Addresses</p>
+                    <div className="space-y-1">
+                      {(draft.discoveredAddresses ?? []).map((addr, i) => (
+                        <div key={i} className="flex items-center gap-2 text-xs">
+                          <MapPin className="h-3 w-3 shrink-0 text-muted-foreground" />
+                          <span className="rounded bg-muted px-1 py-0.5 text-[10px] text-muted-foreground">{addr.source}</span>
+                          <span className="flex-1 truncate font-medium">{addr.address}</span>
+                          {addr.confirmedByAgent && <CheckCircle2 className="h-3 w-3 shrink-0 text-success" />}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Submission Checklist</p>
