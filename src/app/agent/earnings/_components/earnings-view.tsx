@@ -155,7 +155,9 @@ export function EarningsView({ earnings, kpis, hierarchy }: EarningsViewProps) {
                                 'text-[10px]',
                                 tx.status === 'Paid'
                                   ? 'border-success/50 bg-success/10 text-success'
-                                  : 'border-warning/50 bg-warning/10 text-warning',
+                                  : tx.status === 'Withdrawable'
+                                    ? 'border-primary/50 bg-primary/10 text-primary'
+                                    : 'border-warning/50 bg-warning/10 text-warning',
                               )}
                             >
                               {tx.status}

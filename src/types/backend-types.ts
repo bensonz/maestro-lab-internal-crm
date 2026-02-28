@@ -378,6 +378,13 @@ export interface PlatformEntry {
 
 // --- Todo Review Types ---
 
+export interface PoolAllocationSummary {
+  agentName: string
+  type: 'DIRECT' | 'STAR_SLICE' | 'BACKFILL'
+  amount: number
+  slices: number
+}
+
 export interface ApprovedClientEntry {
   id: string
   draftId: string
@@ -385,6 +392,14 @@ export interface ApprovedClientEntry {
   agentId: string
   agentName: string
   approvedAt: Date
+  poolSummary: {
+    totalAmount: number
+    directAmount: number
+    starPoolAmount: number
+    distributedSlices: number
+    recycledSlices: number
+    allocations: PoolAllocationSummary[]
+  } | null
 }
 
 export interface CompletedTodoEntry {
@@ -407,7 +422,7 @@ export interface TodoTimelineEntry {
   event: string
   type: 'info' | 'success' | 'warning'
   actor: string | null
-  action: 'assigned' | 'completed' | 'reverted' | 'device_out' | 'device_returned' | 'device_reissued'
+  action: 'assigned' | 'completed' | 'reverted' | 'device_out' | 'device_returned' | 'device_reissued' | 'client_approved' | 'client_reverted'
 }
 
 // --- Commission System Types ---
@@ -423,6 +438,8 @@ export interface AllocationLine {
   status: AllocationStatus
   paidAt: Date | null
   createdAt: Date
+  clientName: string | null
+  closerName: string | null
 }
 
 export interface BonusPoolData {

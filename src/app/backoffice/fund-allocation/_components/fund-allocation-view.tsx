@@ -120,32 +120,29 @@ export function FundAllocationView({
   return (
     <div className="space-y-6 p-6 animate-fade-in">
       {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">
-          Fund Allocation
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Record and track fund movements between platforms and clients
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">
+            Fund Allocation
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Platform Balances (Current Totals)
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleViewAllClick}
+          className="gap-1.5 text-xs"
+          data-testid="view-all-balances-btn"
+        >
+          <Eye className="h-3 w-3" />
+          View All Details
+        </Button>
       </div>
 
       {/* Platform Balance Cards */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
-            Platform Balances (Current Totals)
-          </h2>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleViewAllClick}
-            className="gap-1.5 text-xs"
-            data-testid="view-all-balances-btn"
-          >
-            <Eye className="h-3 w-3" />
-            View All Details
-          </Button>
-        </div>
 
         {/* Financial Platforms */}
         <div className="grid grid-cols-3 gap-3">

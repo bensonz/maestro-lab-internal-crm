@@ -8,7 +8,8 @@ import { getActivePhoneAssignments, getReturnedPhoneAssignments } from '@/backen
 import { getPendingTodosForBackoffice, getCompletedTodosForBackoffice, getTodoTimeline } from '@/backend/data/todos'
 import { getAgentsForHierarchy } from '@/backend/data/users'
 import { getAgentDisplayTier, LEADERSHIP_TIERS, STAR_THRESHOLDS } from '@/lib/commission-constants'
-import type { IntakeClient, InProgressSubStage, VerificationTask, CompletedTodoEntry, TodoTimelineEntry, ApprovedClientEntry } from '@/types/backend-types'
+import prisma from '@/backend/prisma/client'
+import type { IntakeClient, InProgressSubStage, VerificationTask, CompletedTodoEntry, TodoTimelineEntry, ApprovedClientEntry, PoolAllocationSummary } from '@/types/backend-types'
 
 function stepToSubStage(step: number): InProgressSubStage {
   const map: Record<number, InProgressSubStage> = {
@@ -219,7 +220,7 @@ export default async function SalesInteractionPage() {
 
   try {
     const approvedDrafts = await getApprovedDraftsForBackoffice()
-    approvedClients = approvedDrafts.map((d) => ({
+    const baseApproved = approvedDrafts.map((d) => ({
       id: d.resultClient!.id,
       draftId: d.id,
       clientName: [d.firstName, d.lastName].filter(Boolean).join(' ') || 'Unknown',
@@ -227,6 +228,37 @@ export default async function SalesInteractionPage() {
       agentName: d.closer?.name ?? 'Unknown',
       approvedAt: d.resultClient!.approvedAt ?? d.updatedAt,
     }))
+
+    // Fetch pool data for approved clients
+    const clientIds = baseApproved.map((c) => c.id)
+    const pools = clientIds.length > 0 ? await prisma.bonusPool.findMany({
+      where: { clientId: { in: clientIds } },
+      include: {
+        allocations: {
+          include: { agent: { select: { name: true } } },
+          orderBy: { amount: 'desc' },
+        },
+      },
+    }) : []
+    const poolByClientId = new Map(pools.map((p) => [p.clientId, p]))
+
+    approvedClients = baseApproved.map((c) => {
+      const pool = poolByClientId.get(c.id)
+      const poolSummary = pool ? {
+        totalAmount: pool.totalAmount,
+        directAmount: pool.directAmount,
+        starPoolAmount: pool.starPoolAmount,
+        distributedSlices: pool.distributedSlices,
+        recycledSlices: pool.recycledSlices,
+        allocations: pool.allocations.map((a): PoolAllocationSummary => ({
+          agentName: a.agent.name,
+          type: a.type as 'DIRECT' | 'STAR_SLICE' | 'BACKFILL',
+          amount: a.amount,
+          slices: a.slices,
+        })),
+      } : null
+      return { ...c, poolSummary }
+    })
   } catch (e) {
     console.error('[sales-interaction] approved clients fetch error:', e)
   }

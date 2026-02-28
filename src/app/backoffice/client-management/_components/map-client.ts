@@ -134,7 +134,8 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
 
   // Build finance platforms from real data
   const paypalDetail = findPlatformDetail(serverClient.platformDetails, 'PAYPAL')
-  const bankDetail = findPlatformDetail(serverClient.platformDetails, 'BANK')
+  const bankDetail = findPlatformDetail(serverClient.platformDetails, 'ONLINE_BANKING')
+    || findPlatformDetail(serverClient.platformDetails, 'BANK')
   const edgeboostDetail = findPlatformDetail(serverClient.platformDetails, 'EDGEBOOST')
 
   // BetMGM screenshots for review banner
@@ -143,10 +144,10 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
   return {
     id: serverClient.id,
     name: serverClient.name,
-    companyPhone: serverClient.phone || '\u2014',
-    carrier: '\u2014',
+    companyPhone: (questionnaire.companyPhone as string) || serverClient.phone || '\u2014',
+    carrier: (questionnaire.carrier as string) || '\u2014',
     companyEmail: serverClient.email || '\u2014',
-    personalPhone: '\u2014',
+    personalPhone: serverClient.phone || '\u2014',
     startDate: serverClient.start,
     status: mapIntakeStatusToClientStatus(serverClient.intakeStatus),
     intakeStatus: serverClient.intakeStatus,
