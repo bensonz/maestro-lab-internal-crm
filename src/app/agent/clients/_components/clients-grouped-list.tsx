@@ -135,17 +135,35 @@ function ClientRow({ client }: { client: AgentClient }) {
   )
 }
 
-/* ─── Approved client row (clean, no step/time/arrow) ─── */
+/* ─── Approved client row — name + phone + age + state + zelle + duration + start ─── */
 function ApprovedClientRow({ client }: { client: AgentClient }) {
   return (
     <Link href={`/agent/clients/${client.id}`}>
       <div
-        className="group flex cursor-pointer items-center border-b border-border/50 bg-card/50 px-5 py-2 transition-colors hover:bg-card"
+        className="group flex cursor-pointer items-center gap-3 border-b border-border/50 bg-card/50 px-5 py-1.5 transition-colors hover:bg-card"
         data-testid={`client-row-${client.id}`}
       >
-        <p className="truncate text-sm font-medium text-foreground transition-colors group-hover:text-primary">
+        <span className="min-w-0 shrink-0 truncate text-sm font-medium text-foreground transition-colors group-hover:text-primary">
           {client.name}
-        </p>
+        </span>
+        {client.phone && (
+          <span className="shrink-0 font-mono text-[11px] text-muted-foreground">{client.phone}</span>
+        )}
+        {client.age != null && (
+          <span className="shrink-0 text-[11px] text-muted-foreground">{client.age}y</span>
+        )}
+        {client.state && (
+          <span className="shrink-0 text-[11px] font-medium text-muted-foreground">{client.state}</span>
+        )}
+        {client.zelle && (
+          <span className="shrink-0 font-mono text-[11px] text-muted-foreground">{client.zelle}</span>
+        )}
+        {client.intakeDuration && (
+          <span className="shrink-0 font-mono text-[11px] text-primary">{client.intakeDuration}</span>
+        )}
+        {client.startDate && (
+          <span className="ml-auto shrink-0 text-[11px] text-muted-foreground">{client.startDate}</span>
+        )}
       </div>
     </Link>
   )
