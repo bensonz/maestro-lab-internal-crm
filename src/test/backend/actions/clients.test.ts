@@ -15,6 +15,12 @@ const { mockPrisma } = vi.hoisted(() => ({
       findUnique: vi.fn(),
       update: vi.fn(),
     },
+    clientDraft: {
+      findFirst: vi.fn(),
+    },
+    todo: {
+      create: vi.fn(),
+    },
     eventLog: {
       create: vi.fn(),
     },
@@ -163,6 +169,9 @@ describe('approveClient', () => {
       firstName: 'John',
       lastName: 'Doe',
     })
+    // Mock for auto-create "Collect Debit Card Information" todo
+    mockPrisma.clientDraft.findFirst.mockResolvedValue({ id: 'draft-1' })
+    mockPrisma.todo.create.mockResolvedValue({ id: 'todo-1' })
 
     const result = await approveClient('client-1')
     expect(result.success).toBe(true)
@@ -175,8 +184,8 @@ describe('approveClient', () => {
       where: { id: 'client-1' },
       data: { status: 'APPROVED', approvedAt: expect.any(Date) },
     })
-    // 2 event logs: audit log + agent notification
-    expect(mockPrisma.eventLog.create).toHaveBeenCalledTimes(2)
+    // 3 event logs: audit log + agent notification + auto-todo assignment
+    expect(mockPrisma.eventLog.create).toHaveBeenCalledTimes(3)
     expect(mockRecalc).toHaveBeenCalledWith('agent-1')
     expect(mockCreatePool).toHaveBeenCalledWith('client-1', 'agent-1')
   })

@@ -138,6 +138,23 @@ export async function getClientWithDraft(clientId: string) {
   })
 }
 
+/** Fetch recently approved clients for backoffice post-approval tracking */
+export async function getApprovedClientsForBackoffice() {
+  return prisma.client.findMany({
+    where: { status: 'APPROVED' },
+    orderBy: { approvedAt: 'desc' },
+    take: 50,
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      closerId: true,
+      approvedAt: true,
+      closer: { select: { id: true, name: true } },
+    },
+  })
+}
+
 /**
  * Fetch event logs for a specific client.
  */
@@ -155,22 +172,5 @@ export async function getClientEventLogs(clientId: string) {
     },
     orderBy: { createdAt: 'desc' },
     take: 50,
-  })
-}
-
-/** Fetch recently approved clients for backoffice post-approval tracking */
-export async function getApprovedClientsForBackoffice() {
-  return prisma.client.findMany({
-    where: { status: 'APPROVED' },
-    orderBy: { approvedAt: 'desc' },
-    take: 50,
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      closerId: true,
-      approvedAt: true,
-      closer: { select: { id: true, name: true } },
-    },
   })
 }

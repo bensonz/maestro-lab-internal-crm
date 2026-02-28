@@ -1,7 +1,7 @@
 'use client'
 
 import { cn } from '@/lib/utils'
-import { Shield, AlertTriangle, CheckCircle2, XCircle, KeyRound } from 'lucide-react'
+import { Shield, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react'
 import type { RiskAssessment } from '@/types/backend-types'
 
 interface RiskPanelProps {
@@ -11,62 +11,13 @@ interface RiskPanelProps {
   idExpiryDaysRemaining?: number | null
 }
 
-const HOUSEHOLD_LABELS: Record<string, string> = {
-  supportive: 'Supportive',
-  aware_neutral: 'Neutral',
-  not_aware: 'Not Aware',
-  not_applicable: 'N/A',
-}
-
-const FAMILY_SUPPORT_LABELS: Record<string, string> = {
-  willing_to_help: 'Willing',
-  available_uninvolved: 'Uninvolved',
-  no: 'No',
-  prefer_not_to_involve: 'Won\'t Involve',
-}
-
-const AUTONOMY_LABELS: Record<string, string> = {
-  fully_independent: 'Independent',
-  shared_with_spouse: 'Shared',
-  dependent_on_others: 'Dependent',
-}
-
-const CREDENTIAL_DISPLAY_NAMES: Record<string, string> = {
-  GMAIL: 'Gmail',
-  BETMGM: 'BetMGM',
-  PAYPAL: 'PayPal',
-  BANK: 'Online Banking',
-  EDGEBOOST: 'EdgeBoost',
-  DRAFTKINGS: 'DraftKings',
-  FANDUEL: 'FanDuel',
-  CAESARS: 'Caesars',
-  FANATICS: 'Fanatics',
-  BALLYBET: 'Bally Bet',
-  BETRIVERS: 'BetRivers',
-  BET365: 'Bet365',
-}
-
-type FlagEntry = {
-  key: keyof RiskAssessment['flags']
-  label: string
-  weight: string
-  type: 'boolean' | 'idExpiry' | 'missingId' | 'assessment'
-  labels?: Record<string, string>
-}
-
-const FLAG_ENTRIES: FlagEntry[] = [
-  { key: 'missingIdCount', label: 'Missing IDs', weight: '0: +10 / each: −10', type: 'missingId' },
-  { key: 'idExpiryRisk', label: 'ID Expiring Soon', weight: '−10 to −20', type: 'idExpiry' },
-  { key: 'multipleAddresses', label: 'Multiple Addresses', weight: 'info only', type: 'boolean' },
-  { key: 'paypalPreviouslyUsed', label: 'PayPal Previously Used', weight: '−10', type: 'boolean' },
-  { key: 'debankedHistory', label: 'De-banked History', weight: '−30', type: 'boolean' },
-  { key: 'criminalRecord', label: 'Criminal Record', weight: '−30', type: 'boolean' },
-  { key: 'householdAwareness', label: 'Household Awareness', weight: '0 to −8', type: 'assessment', labels: HOUSEHOLD_LABELS },
-  { key: 'familyTechSupport', label: 'Family Support', weight: '0 to −15', type: 'assessment', labels: FAMILY_SUPPORT_LABELS },
-  { key: 'financialAutonomy', label: 'Financial Autonomy', weight: '0 to −15', type: 'assessment', labels: AUTONOMY_LABELS },
-  { key: 'bankPinOverride', label: 'PIN Changed', weight: 'info only', type: 'boolean' },
-  { key: 'bankNameOverride', label: 'Bank Changed', weight: 'info only', type: 'boolean' },
-  { key: 'bankPhoneEmailNotConfirmed', label: 'Bank Phone/Email Unverified', weight: 'info only', type: 'boolean' },
+const FLAG_LABELS: { key: keyof RiskAssessment['flags']; label: string }[] = [
+  { key: 'idExpiryRisk', label: 'ID Expiring Soon' },
+  { key: 'paypalPreviouslyUsed', label: 'PayPal Previously Used' },
+  { key: 'addressMismatch', label: 'Address Mismatch' },
+  { key: 'debankedHistory', label: 'De-banked History' },
+  { key: 'criminalRecord', label: 'Criminal Record' },
+  { key: 'undisclosedInfo', label: 'Undisclosed Info' },
 ]
 
 export function RiskPanel({ assessment, draftSelected, idExpiryDaysRemaining }: RiskPanelProps) {
@@ -124,108 +75,46 @@ export function RiskPanel({ assessment, draftSelected, idExpiryDaysRemaining }: 
                 Risk Factors
               </p>
 
-              {FLAG_ENTRIES.map((entry) => {
-                const value = assessment.flags[entry.key]
-                let active: boolean
-                let displayLabel = entry.label
-
-                if (entry.type === 'idExpiry') {
-                  active = value === 'high' || value === 'moderate'
-                  if (active && idExpiryDaysRemaining != null) {
-                    displayLabel = `ID Expiring in ${idExpiryDaysRemaining}D`
-                  }
-                } else if (entry.type === 'missingId') {
-                  const count = value as number
-                  active = count > 0
-                  displayLabel = count === 0 ? 'All IDs Present' : `${count} Missing ID${count > 1 ? 's' : ''}`
-                } else if (entry.type === 'assessment') {
-                  const strVal = value as string
-                  active = !!strVal && strVal !== 'supportive' && strVal !== 'willing_to_help' && strVal !== 'fully_independent' && strVal !== 'not_applicable'
-                  if (strVal && entry.labels) {
-                    displayLabel = `${entry.label}: ${entry.labels[strVal] ?? strVal}`
-                  }
-                } else {
-                  active = value === true
-                }
-
+              {FLAG_LABELS.map(({ key, label }) => {
+                const value = assessment.flags[key]
+                // idExpiryRisk is 'high' | 'moderate' | 'none'; others are boolean
+                const active =
+                  key === 'idExpiryRisk'
+                    ? value === 'high' || value === 'moderate'
+                    : value === true
                 return (
                   <div
-                    key={entry.key}
-                    className="flex items-center justify-between text-xs"
-                    data-testid={`risk-flag-${entry.key}`}
+                    key={key}
+                    className="flex items-center text-xs"
+                    data-testid={`risk-flag-${key}`}
                   >
                     <span
                       className={cn(
                         'flex items-center gap-1',
-                        entry.type === 'missingId' && !active
-                          ? 'text-success'
-                          : active
-                            ? 'text-foreground'
-                            : 'text-muted-foreground',
+                        active ? 'text-foreground' : 'text-muted-foreground',
                       )}
                     >
                       <span
                         className={cn(
                           'inline-block h-1.5 w-1.5 rounded-full',
-                          entry.type === 'missingId' && !active
-                            ? 'bg-success'
-                            : active
-                              ? 'bg-destructive'
-                              : 'bg-muted-foreground/30',
+                          active ? 'bg-destructive' : 'bg-muted-foreground/30',
                         )}
                       />
-                      {displayLabel}
+                      {key === 'idExpiryRisk' && active && idExpiryDaysRemaining != null
+                        ? `ID Expiring in ${idExpiryDaysRemaining}D`
+                        : label}
                     </span>
-                    <span className="text-muted-foreground/60">{entry.weight}</span>
                   </div>
                 )
               })}
             </div>
 
-            {/* Credentials section */}
-            <div className="space-y-2" data-testid="credentials-section">
-              <p className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-                <KeyRound className="h-3 w-3" />
-                Credentials
-              </p>
-              {Object.keys(assessment.flags.credentialMismatches).length > 0 ? (
-                Object.entries(assessment.flags.credentialMismatches).map(([platform, m]) => {
-                  const name = CREDENTIAL_DISPLAY_NAMES[platform] || platform
-                  const hasMismatch = m.username || m.password
-                  const detail = hasMismatch
-                    ? [m.username && 'email', m.password && 'password'].filter(Boolean).join(', ')
-                    : null
-                  return (
-                    <div
-                      key={platform}
-                      className="flex items-center justify-between text-xs"
-                      data-testid={`credential-${platform}`}
-                    >
-                      <span className={cn('flex items-center gap-1', hasMismatch ? 'text-foreground' : 'text-success')}>
-                        <span className={cn('inline-block h-1.5 w-1.5 rounded-full', hasMismatch ? 'bg-destructive' : 'bg-success')} />
-                        {name}
-                      </span>
-                      {hasMismatch ? (
-                        <span className="text-destructive/70 text-[10px]">{detail}</span>
-                      ) : (
-                        <span className="text-success/70 text-[10px]">match</span>
-                      )}
-                    </div>
-                  )
-                })
-              ) : (
-                <p className="text-[10px] text-muted-foreground/60">
-                  No platforms checked yet
-                </p>
-              )}
-            </div>
-
             {/* Threshold guide */}
             <div className="rounded-md border p-2 text-[10px] text-muted-foreground space-y-0.5">
               <p className="font-medium">Thresholds</p>
-              <p>0 to +10: Low (green)</p>
-              <p>−1 to −29: Medium (amber)</p>
-              <p>−30 or below: High (red)</p>
+              <p>0–29: Low (green)</p>
+              <p>30–49: Medium (amber)</p>
+              <p>50+: High (red)</p>
             </div>
           </>
         )}
