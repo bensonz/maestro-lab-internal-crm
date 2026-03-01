@@ -179,65 +179,65 @@ export interface TeamRollup {
 
 // --- From backend/data/action-hub.ts ---
 
-export interface ActionHubStats {
-  pnlCompleted: boolean
-  pendingActions: number
-  overdueCount: number
-  fundAlertsCount: number
-  pendingSettlements: number
-  transfersToday: number
+export interface ActionHubKPIs {
+  pendingTodos: number
+  overdueTodos: number
+  overdueDevices: number
+  todayAllocations: number
+  readyToApprove: number
+  unconfirmedAllocations: number
 }
 
-export interface PnlStatus {
-  completed: boolean
-  completedBy: string | null
-  completedAtFormatted: string | null
+export interface RundownBlock {
+  label: string
+  phase: string
+  items: RundownItem[]
 }
 
-export interface FundAlert {
-  clientId: string
-  clientName: string
-  issue: 'shortfall' | 'surplus' | 'paypal_frequent'
-  platformType: string
-  balance: number
-  description: string
+export interface RundownItem {
+  label: string
+  description?: string
+  count?: number
+  link?: string
+  done?: boolean
 }
 
-export type PendingActionType =
-  | 'screenshot_review'
-  | 'extension_request'
-  | 'client_approval'
-  | 'settlement_review'
-
-export interface PendingAction {
-  id: string
-  type: PendingActionType
-  title: string
-  clientName: string
-  agentName: string
-  urgency: 'critical' | 'high' | 'normal'
-  createdAt: Date
-  ageFormatted: string
-  link: string
-}
-
-export interface EnhancedTask {
-  id: string
-  title: string
-  client: string
-  clientId: string | null
-  category: string
-  type: string
-  status: string
-  dueIn: string
-  dueDate: Date | null
-  overdue: boolean
-}
-
-export interface EnhancedAgentTasks {
+export interface OverdueDevice {
+  assignmentId: string
+  phoneNumber: string
   agentId: string
   agentName: string
-  tasks: EnhancedTask[]
+  clientName: string
+  dueBackAt: Date
+  daysOverdue: number
+}
+
+export interface ActionHubTodo {
+  id: string
+  title: string
+  issueCategory: string
+  clientName: string
+  agentId: string
+  agentName: string
+  dueDate: Date
+  daysUntilDue: number
+  overdue: boolean
+  draftId: string
+  source: string
+}
+
+export interface FundAllocationEntry {
+  id: string
+  amount: number
+  platform: string
+  direction: string
+  notes: string | null
+  recordedBy: string
+  createdAt: Date
+  confirmationStatus: string
+  confirmedAmount: number | null
+  confirmedAt: Date | null
+  confirmedBy: string | null
 }
 
 export interface ActiveAgent {
@@ -385,6 +385,12 @@ export interface PlatformEntry {
   screenshots?: string[]
   /** Address detected from OCR on this platform's screenshots */
   detectedAddress?: string
+  /** Personal info page screenshot (sportsbook only) */
+  screenshotPersonalInfo?: string
+  /** Ready-to-deposit page screenshot (sportsbook only) */
+  screenshotDeposit?: string
+  /** True when screenshotDeposit is present — platform is deposit-ready */
+  depositDetected?: boolean
 }
 
 // --- Discovered Address Types ---

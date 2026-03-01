@@ -46,9 +46,10 @@ export default async function TodoListPage() {
   // Map real todos to pending tasks
   const now = Date.now()
   const pendingTasks = realTodosResult.map((t) => {
-    const clientName = [t.clientDraft.firstName, t.clientDraft.lastName]
-      .filter(Boolean)
-      .join(' ') || 'Unknown'
+    const clientName = [
+      t.clientDraft?.firstName ?? t.client?.firstName,
+      t.clientDraft?.lastName ?? t.client?.lastName,
+    ].filter(Boolean).join(' ') || 'Unknown'
     const daysUntil = Math.floor(
       (t.dueDate.getTime() - now) / (1000 * 60 * 60 * 24),
     )
@@ -57,11 +58,11 @@ export default async function TodoListPage() {
       task: t.title,
       description: t.description || `${t.issueCategory} — ${clientName}`,
       client: clientName,
-      clientId: t.clientDraftId,
+      clientId: t.clientDraftId ?? '',
       due: daysUntil < 0 ? `${Math.abs(daysUntil)}d overdue` : `${daysUntil}d`,
       dueDate: t.dueDate.toISOString(),
       overdue: daysUntil < 0,
-      stepNumber: t.clientDraft.step,
+      stepNumber: t.clientDraft?.step ?? 1,
       createdAt: t.createdAt.toISOString(),
       extensionsUsed: 0,
       maxExtensions: 2,

@@ -7,10 +7,12 @@ import {
   ChevronDown,
   ChevronRight,
   ArrowRight,
+  Clock,
   FileText,
   FileCheck,
   Shield,
   ClipboardCheck,
+  Mail,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -20,7 +22,7 @@ import {
 } from '@/components/ui/collapsible'
 import { IntakeStatus } from '@/types'
 import { cn } from '@/lib/utils'
-import type { AgentClient, AgentDraft } from './types'
+import type { AgentClient, AgentDraft, VerificationSubCategory } from './types'
 
 function formatRelativeTime(isoString: string): string {
   const diff = Date.now() - new Date(isoString).getTime()
@@ -29,6 +31,17 @@ function formatRelativeTime(isoString: string): string {
   if (minutes < 60) return `${minutes}m`
   const hours = Math.floor(minutes / 60)
   if (hours < 24) return `${hours}h`
+  const days = Math.floor(hours / 24)
+  const remainingHours = hours % 24
+  return remainingHours > 0 ? `${days}d${remainingHours}h` : `${days}d`
+}
+
+function formatDeadlineCountdown(isoString: string | null): string {
+  if (!isoString) return ''
+  const diff = new Date(isoString).getTime() - Date.now()
+  if (diff <= 0) return 'overdue'
+  const hours = Math.floor(diff / (1000 * 60 * 60))
+  if (hours < 24) return `${hours}h left`
   const days = Math.floor(hours / 24)
   const remainingHours = hours % 24
   return remainingHours > 0 ? `${days}d${remainingHours}h` : `${days}d`
@@ -51,7 +64,22 @@ const inProgressSteps: InProgressStep[] = [
   { key: 'pending-approval', label: 'Pending Approval', stepNumber: 0, icon: Hourglass, headerColor: 'text-warning' },
 ]
 
-/* ─── Non-in-progress status groups ─── */
+/* ─── Verification sub-step definitions ─── */
+interface VerificationStep {
+  key: string
+  label: string
+  icon: React.ElementType
+  headerColor: string
+  categories: VerificationSubCategory[]
+  defaultOpen: boolean
+}
+
+const verificationSteps: VerificationStep[] = [
+  { key: 'action-required', label: 'Action Required', icon: Shield, headerColor: 'text-primary', categories: ['platform-verification', 'bank-visit'], defaultOpen: true },
+  { key: 'awaiting-mail', label: 'Awaiting Mail', icon: Mail, headerColor: 'text-muted-foreground', categories: ['awaiting-mail'], defaultOpen: false },
+]
+
+/* ─── Non-in-progress status groups (excluding verification — it has its own section) ─── */
 interface StatusGroup {
   key: string
   label: string
@@ -61,16 +89,6 @@ interface StatusGroup {
 
 const statusGroups: StatusGroup[] = [
   {
-    key: 'verification-needed',
-    label: 'Verification Needed',
-    statuses: [
-      IntakeStatus.NEEDS_MORE_INFO,
-      IntakeStatus.PENDING_EXTERNAL,
-      IntakeStatus.EXECUTION_DELAYED,
-    ],
-    collapsedByDefault: false,
-  },
-  {
     key: 'approved',
     label: 'Approved',
     statuses: [IntakeStatus.APPROVED],
@@ -78,7 +96,7 @@ const statusGroups: StatusGroup[] = [
   },
 ]
 
-/* ─── Client row (for non-approved groups) ─── */
+/* ─── Client row (generic fallback) ─── */
 function ClientRow({ client }: { client: AgentClient }) {
   const isTerminal =
     client.intakeStatus === IntakeStatus.APPROVED ||
@@ -132,6 +150,64 @@ function ClientRow({ client }: { client: AgentClient }) {
         </div>
       </div>
     </Link>
+  )
+}
+
+/* ─── Verification row — uniform grid across all sub-categories ─── */
+function VerificationRow({ client }: { client: AgentClient }) {
+  const badgeLabel = client.verificationPlatform || (
+    client.verificationSubCategory === 'bank-visit' ? 'Bank' : 'Mail'
+  )
+
+  const badgeColor =
+    client.verificationSubCategory === 'platform-verification'
+      ? 'border-primary/30 bg-primary/10 text-primary'
+      : client.verificationSubCategory === 'bank-visit'
+        ? 'border-warning/30 bg-warning/10 text-warning'
+        : 'border-border bg-muted/30 text-muted-foreground'
+
+  const isOverdue = client.deadline
+    ? new Date(client.deadline).getTime() < Date.now()
+    : false
+
+  const deadlineText = formatDeadlineCountdown(client.deadline)
+
+  return (
+    <div
+      className="grid grid-cols-[minmax(100px,_1fr)_80px_1fr_auto] items-center gap-2 border-b border-border/50 bg-card/50 px-5 py-2"
+      data-testid={`verify-row-${client.id}`}
+    >
+      {/* Name */}
+      <span className="min-w-0 truncate text-sm font-medium text-foreground">
+        {client.name}
+      </span>
+
+      {/* Badge — fixed-width column for alignment */}
+      <Badge
+        variant="outline"
+        className={cn('w-fit text-[10px]', badgeColor)}
+      >
+        {badgeLabel}
+      </Badge>
+
+      {/* Task text — aligned across all rows */}
+      <span className="min-w-0 truncate text-xs text-muted-foreground">
+        {client.verificationTask}
+      </span>
+
+      {/* Deadline countdown — prominent */}
+      <span className={cn(
+        'flex shrink-0 items-center gap-1.5 rounded-md px-2 py-0.5 font-mono text-xs font-medium',
+        isOverdue
+          ? 'bg-destructive/10 text-destructive'
+          : deadlineText.startsWith('0') || deadlineText.includes('h left')
+            ? 'bg-warning/10 text-warning'
+            : 'bg-muted/60 text-foreground/70',
+      )}>
+        <Clock className="h-3.5 w-3.5" />
+        {deadlineText}
+      </span>
+    </div>
   )
 }
 
@@ -335,7 +411,126 @@ function InProgressSection({
   )
 }
 
-/* ─── Collapsible status group ─── */
+/* ─── Verification sub-step section (mirrors SubStepSection) ─── */
+function VerificationSubStepSection({
+  step,
+  clients,
+}: {
+  step: VerificationStep
+  clients: AgentClient[]
+}) {
+  const [isOpen, setIsOpen] = useState(step.defaultOpen && clients.length > 0)
+  const Icon = step.icon
+
+  return (
+    <Collapsible
+      open={isOpen}
+      onOpenChange={clients.length > 0 ? setIsOpen : undefined}
+      data-testid={`verify-substep-${step.key}`}
+    >
+      <CollapsibleTrigger asChild>
+        <button className={cn(
+          'flex w-full items-center justify-between border-b border-border/30 px-5 py-2.5 transition-colors',
+          clients.length > 0 ? 'hover:bg-muted/30' : 'opacity-50',
+        )}>
+          <div className="flex items-center gap-2.5">
+            {isOpen ? (
+              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+            )}
+            <Icon className={cn('h-3.5 w-3.5', step.headerColor)} />
+            <span className={cn('text-xs font-medium', step.headerColor)}>
+              {step.label}
+            </span>
+          </div>
+          <Badge
+            variant="outline"
+            className={cn(
+              'h-5 px-1.5 font-mono text-[10px]',
+              clients.length > 0 ? 'border-primary/30 bg-primary/5 text-primary' : '',
+            )}
+          >
+            {clients.length}
+          </Badge>
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="border-b border-border/20 bg-muted/10">
+          {clients.map((client) => (
+            <VerificationRow key={client.id} client={client} />
+          ))}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  )
+}
+
+/* ─── Verification Needed collapsible (parent with sub-steps) ─── */
+function VerificationSection({
+  clients,
+}: {
+  clients: AgentClient[]
+}) {
+  const [isOpen, setIsOpen] = useState(clients.length > 0)
+
+  return (
+    <Collapsible
+      open={isOpen}
+      onOpenChange={clients.length > 0 ? setIsOpen : undefined}
+      className="mb-2"
+      data-testid="group-verification-needed"
+    >
+      <CollapsibleTrigger asChild>
+        <button
+          className={cn(
+            'flex w-full items-center justify-between rounded-lg border border-border/50 bg-card px-4 py-3 shadow-sm transition-colors',
+            clients.length > 0 && 'hover:bg-accent/5',
+            isOpen && clients.length > 0 && 'rounded-b-none border-b-0',
+            clients.length === 0 && 'opacity-60',
+          )}
+        >
+          <div className="flex items-center gap-3">
+            {isOpen && clients.length > 0 ? (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            )}
+            <span className="text-sm font-semibold text-foreground">
+              Verification Needed
+            </span>
+          </div>
+          <Badge
+            variant="outline"
+            className="h-6 border-primary/30 bg-primary/10 px-2.5 font-mono text-xs font-semibold text-primary"
+          >
+            {clients.length}
+          </Badge>
+        </button>
+      </CollapsibleTrigger>
+      {clients.length > 0 && (
+        <CollapsibleContent>
+          <div className="overflow-hidden rounded-b-lg border border-t-0 border-border/50 shadow-sm">
+            {verificationSteps.map((step) => {
+              const stepClients = clients.filter(
+                (c) => c.verificationSubCategory != null && step.categories.includes(c.verificationSubCategory),
+              )
+              return (
+                <VerificationSubStepSection
+                  key={step.key}
+                  step={step}
+                  clients={stepClients}
+                />
+              )
+            })}
+          </div>
+        </CollapsibleContent>
+      )}
+    </Collapsible>
+  )
+}
+
+/* ─── Collapsible status group (for Approved, etc.) ─── */
 function GroupSection({
   group,
   clients,
@@ -403,14 +598,25 @@ interface ClientsGroupedListProps {
 }
 
 export function ClientsGroupedList({ clients, drafts }: ClientsGroupedListProps) {
+  // Separate verification clients from the rest
+  const verificationClients = clients.filter(
+    (c) => c.verificationSubCategory != null,
+  )
+  const nonVerificationClients = clients.filter(
+    (c) => c.verificationSubCategory == null,
+  )
+
   return (
     <div className="space-y-1">
       {/* In Progress section (drafts only, with sub-steps) */}
       <InProgressSection drafts={drafts} />
 
-      {/* Other status groups (Verification, Approved, Rejected, etc.) */}
+      {/* Verification Needed section (with sub-categories) */}
+      <VerificationSection clients={verificationClients} />
+
+      {/* Other status groups (Approved, etc.) */}
       {statusGroups.map((group) => {
-        const groupClients = clients.filter((c) =>
+        const groupClients = nonVerificationClients.filter((c) =>
           group.statuses.includes(c.intakeStatus),
         )
         return (

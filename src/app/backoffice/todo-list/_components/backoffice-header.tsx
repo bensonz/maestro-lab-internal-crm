@@ -1,22 +1,20 @@
 'use client'
 
 import { Badge } from '@/components/ui/badge'
-import { CheckCircle2, AlertTriangle, Zap } from 'lucide-react'
+import { ListChecks, Smartphone, DollarSign, CheckCircle2, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { ActionHubStats, PnlStatus } from './types'
+import type { ActionHubKPIs } from './types'
 
 interface BackofficeHeaderProps {
   userName: string
   userRole: string
-  stats: ActionHubStats
-  pnlStatus: PnlStatus
+  kpis: ActionHubKPIs
 }
 
 export function BackofficeHeader({
   userName,
   userRole,
-  stats,
-  pnlStatus,
+  kpis,
 }: BackofficeHeaderProps) {
   return (
     <div data-testid="action-hub-header">
@@ -31,88 +29,162 @@ export function BackofficeHeader({
       </p>
 
       <div
-        className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3"
+        className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5"
         data-testid="action-hub-stats"
       >
-        {/* P&L Status */}
+        {/* Pending Todos */}
         <div
           className={cn(
             'rounded-md border px-3 py-2.5 transition-colors',
-            pnlStatus.completed
-              ? 'border-success/30 bg-success/5'
-              : 'border-warning/30 bg-warning/5',
+            kpis.overdueTodos > 0
+              ? 'border-destructive/30 bg-destructive/5'
+              : 'border-border',
           )}
-          data-testid="stat-pnl-status"
+          data-testid="stat-pending-todos"
         >
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
-            P&L Status
+            Pending Todos
           </p>
           <div className="mt-1 flex items-center gap-2">
-            {pnlStatus.completed ? (
-              <>
-                <CheckCircle2 className="h-4 w-4 text-success" />
-                <span className="font-mono text-lg font-semibold text-success">
-                  Done
-                </span>
-              </>
-            ) : (
-              <>
-                <AlertTriangle className="h-4 w-4 text-warning" />
-                <span className="font-mono text-lg font-semibold text-warning">
-                  Pending
-                </span>
-              </>
+            <ListChecks
+              className={cn(
+                'h-4 w-4',
+                kpis.overdueTodos > 0 ? 'text-destructive' : 'text-primary',
+              )}
+            />
+            <span
+              className={cn(
+                'font-mono text-lg font-semibold',
+                kpis.overdueTodos > 0 ? 'text-destructive' : 'text-primary',
+              )}
+            >
+              {kpis.pendingTodos}
+            </span>
+            {kpis.overdueTodos > 0 && (
+              <span className="text-xs text-destructive">
+                ({kpis.overdueTodos} overdue)
+              </span>
             )}
           </div>
         </div>
 
-        {/* Pending Actions */}
-        <div
-          className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2.5"
-          data-testid="stat-pending-actions"
-        >
-          <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
-            Pending Actions
-          </p>
-          <div className="mt-1 flex items-center gap-2">
-            <Zap className="h-4 w-4 text-primary" />
-            <span className="font-mono text-lg font-semibold text-primary">
-              {stats.pendingActions}
-            </span>
-          </div>
-        </div>
-
-        {/* Overdue Tasks */}
+        {/* Overdue Devices */}
         <div
           className={cn(
-            'rounded-md border px-3 py-2.5',
-            stats.overdueCount > 0
-              ? 'border-destructive/30 bg-destructive/5'
+            'rounded-md border px-3 py-2.5 transition-colors',
+            kpis.overdueDevices > 0
+              ? 'border-warning/30 bg-warning/5'
               : 'border-border',
           )}
-          data-testid="stat-overdue-tasks"
+          data-testid="stat-overdue-devices"
         >
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
-            Overdue Tasks
+            Overdue Devices
           </p>
           <div className="mt-1 flex items-center gap-2">
-            <AlertTriangle
+            <Smartphone
               className={cn(
                 'h-4 w-4',
-                stats.overdueCount > 0
-                  ? 'text-destructive'
+                kpis.overdueDevices > 0
+                  ? 'text-warning'
                   : 'text-muted-foreground',
               )}
             />
             <span
               className={cn(
                 'font-mono text-lg font-semibold',
-                stats.overdueCount > 0
-                  ? 'text-destructive'
+                kpis.overdueDevices > 0
+                  ? 'text-warning'
                   : 'text-muted-foreground',
               )}
             >
-              {stats.overdueCount}
+              {kpis.overdueDevices}
+            </span>
+          </div>
+        </div>
+
+        {/* Fund Allocations Today */}
+        <div
+          className="rounded-md border border-border px-3 py-2.5"
+          data-testid="stat-fund-allocations"
+        >
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
+            Allocations Today
+          </p>
+          <div className="mt-1 flex items-center gap-2">
+            <DollarSign className="h-4 w-4 text-success" />
+            <span className="font-mono text-lg font-semibold text-success">
+              {kpis.todayAllocations}
+            </span>
+          </div>
+        </div>
+
+        {/* Ready to Approve */}
+        <div
+          className={cn(
+            'rounded-md border px-3 py-2.5 transition-colors',
+            kpis.readyToApprove > 0
+              ? 'border-primary/30 bg-primary/5'
+              : 'border-border',
+          )}
+          data-testid="stat-ready-to-approve"
+        >
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
+            Ready to Approve
+          </p>
+          <div className="mt-1 flex items-center gap-2">
+            <CheckCircle2
+              className={cn(
+                'h-4 w-4',
+                kpis.readyToApprove > 0
+                  ? 'text-primary'
+                  : 'text-muted-foreground',
+              )}
+            />
+            <span
+              className={cn(
+                'font-mono text-lg font-semibold',
+                kpis.readyToApprove > 0
+                  ? 'text-primary'
+                  : 'text-muted-foreground',
+              )}
+            >
+              {kpis.readyToApprove}
+            </span>
+          </div>
+        </div>
+
+        {/* Unconfirmed Allocations */}
+        <div
+          className={cn(
+            'rounded-md border px-3 py-2.5 transition-colors',
+            kpis.unconfirmedAllocations > 0
+              ? 'border-warning/30 bg-warning/5'
+              : 'border-border',
+          )}
+          data-testid="stat-unconfirmed-allocs"
+        >
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
+            Unconfirmed Funds
+          </p>
+          <div className="mt-1 flex items-center gap-2">
+            <AlertCircle
+              className={cn(
+                'h-4 w-4',
+                kpis.unconfirmedAllocations > 0
+                  ? 'text-warning'
+                  : 'text-muted-foreground',
+              )}
+            />
+            <span
+              className={cn(
+                'font-mono text-lg font-semibold',
+                kpis.unconfirmedAllocations > 0
+                  ? 'text-warning'
+                  : 'text-muted-foreground',
+              )}
+            >
+              {kpis.unconfirmedAllocations}
             </span>
           </div>
         </div>

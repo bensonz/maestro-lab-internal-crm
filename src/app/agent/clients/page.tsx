@@ -1,10 +1,11 @@
-import { MOCK_AGENT_CLIENTS, MOCK_CLIENT_STATS } from '@/lib/mock-data'
 import { ClientsView } from './_components/clients-view'
+import { LiveRefreshWrapper } from './_components/live-refresh-wrapper'
 import { requireAgent } from '../_require-agent'
 import { getClientsByCloser } from '@/backend/data/clients'
 import { getDraftsByCloser } from '@/backend/data/client-drafts'
 import { IntakeStatus } from '@/types'
-import { ALL_PLATFORMS } from '@/lib/platforms'
+import { ALL_PLATFORMS, SPORTS_PLATFORMS, FINANCIAL_PLATFORMS } from '@/lib/platforms'
+import type { PlatformEntry } from '@/types/backend-types'
 import type { AgentClient, AgentDraft } from './_components/types'
 
 function mapClientStatus(status: string): IntakeStatus {
@@ -43,11 +44,19 @@ function computeInnerStepProgress(draft: Awaited<ReturnType<typeof getDraftsByCl
       // 11 inner-steps: one per platform registration
       const total = ALL_PLATFORMS.length // 11
       let completed = 0
-      if (draft.platformData && typeof draft.platformData === 'object') {
-        const pd = draft.platformData as Record<string, Record<string, unknown>>
-        for (const key of ALL_PLATFORMS) {
-          const entry = pd[key]
-          if (entry && (entry.username || entry.accountId || entry.screenshot)) {
+      if (draft.platformData && Array.isArray(draft.platformData)) {
+        const pd = draft.platformData as unknown as PlatformEntry[]
+        for (const key of SPORTS_PLATFORMS) {
+          const entry = pd.find((e) => e.platform === key)
+          // Sportsbook: count as done when any data entered (screenshot, username, or credentials)
+          if (entry && (entry.screenshot || entry.screenshotPersonalInfo || entry.screenshotDeposit || entry.username)) {
+            completed++
+          }
+        }
+        for (const key of FINANCIAL_PLATFORMS) {
+          const entry = pd.find((e) => e.platform === key)
+          // Financial platforms: done when has screenshot or username
+          if (entry && (entry.screenshot || entry.username)) {
             completed++
           }
         }
@@ -190,6 +199,9 @@ export default async function MyClientsPage() {
           startDate: draft
             ? draft.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
             : null,
+          verificationSubCategory: null,
+          verificationTask: null,
+          verificationPlatform: null,
         }
       })
 
@@ -198,39 +210,48 @@ export default async function MyClientsPage() {
       c.intakeStatus === IntakeStatus.PENDING ||
       c.intakeStatus === IntakeStatus.READY_FOR_APPROVAL
     ).length
+    const verificationCount = clients.filter((c) =>
+      c.intakeStatus === IntakeStatus.NEEDS_MORE_INFO ||
+      c.intakeStatus === IntakeStatus.PENDING_EXTERNAL ||
+      c.intakeStatus === IntakeStatus.EXECUTION_DELAYED
+    ).length
     const stats = {
       total: clients.length,
       inProgress: inProgressClientCount + drafts.length,
-      verificationNeeded: 0,
+      verificationNeeded: verificationCount,
       approved: clients.filter((c) => c.intakeStatus === IntakeStatus.APPROVED).length,
       rejected: clients.filter((c) => c.intakeStatus === IntakeStatus.REJECTED).length,
       aborted: 0,
       draftsCount: drafts.length,
     }
 
+    const hasActiveDrafts = drafts.length > 0
+
     return (
       <div className="flex h-[calc(100vh-4rem)] animate-fade-in">
-        <ClientsView clients={clients} drafts={drafts} stats={stats} />
+        <LiveRefreshWrapper enabled={hasActiveDrafts}>
+          <ClientsView clients={clients} drafts={drafts} stats={stats} />
+        </LiveRefreshWrapper>
       </div>
     )
   }
 
-  // Fallback to mock data
-  const mockStats = {
-    total: MOCK_CLIENT_STATS.total,
-    inProgress: MOCK_CLIENT_STATS.inProgress + MOCK_CLIENT_STATS.pendingApproval,
-    verificationNeeded: MOCK_CLIENT_STATS.verificationNeeded,
-    approved: MOCK_CLIENT_STATS.approved,
-    rejected: MOCK_CLIENT_STATS.rejected,
-    aborted: MOCK_CLIENT_STATS.aborted,
+  // No clients or drafts yet — show empty state
+  const emptyStats = {
+    total: 0,
+    inProgress: 0,
+    verificationNeeded: 0,
+    approved: 0,
+    rejected: 0,
+    aborted: 0,
     draftsCount: 0,
   }
   return (
     <div className="flex h-[calc(100vh-4rem)] animate-fade-in">
       <ClientsView
-        clients={MOCK_AGENT_CLIENTS}
+        clients={[]}
         drafts={[]}
-        stats={mockStats}
+        stats={emptyStats}
       />
     </div>
   )

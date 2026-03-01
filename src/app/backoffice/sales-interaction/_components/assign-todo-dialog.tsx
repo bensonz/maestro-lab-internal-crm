@@ -21,15 +21,9 @@ import {
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Loader2, Info } from 'lucide-react'
 import { assignTodo } from '@/app/actions/todos'
+import { ISSUE_CATEGORIES } from '@/lib/todo-categories'
 import { toast } from 'sonner'
 import type { IntakeClient } from '@/types/backend-types'
-
-const ISSUE_CATEGORIES = [
-  'Re-Open Bank Account / Schedule with Client',
-  'Contact Bank',
-  'Contact PayPal',
-  'Platforms Verification',
-] as const
 
 interface AssignTodoDialogProps {
   open: boolean
@@ -82,7 +76,7 @@ export function AssignTodoDialog({
     if (!selectedDraftId || !issueCategory || !dueDate) return
 
     startTransition(async () => {
-      const result = await assignTodo(selectedDraftId, issueCategory, dueDate)
+      const result = await assignTodo(issueCategory, dueDate, { clientDraftId: selectedDraftId })
 
       if (result.success) {
         toast.success(`To-do assigned to ${selectedClient?.agentName ?? 'agent'}`)

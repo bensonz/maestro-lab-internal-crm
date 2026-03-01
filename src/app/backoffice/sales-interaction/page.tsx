@@ -1,7 +1,3 @@
-import {
-  MOCK_SALES_HIERARCHY,
-  MOCK_LIFECYCLE_CLIENTS,
-} from '@/lib/mock-data'
 import { SalesInteractionView } from './_components/sales-interaction-view'
 import { getAllDraftsForBackoffice, getApprovedDraftsForBackoffice } from '@/backend/data/client-drafts'
 import { getActivePhoneAssignments, getReturnedPhoneAssignments } from '@/backend/data/phone-assignments'
@@ -36,7 +32,7 @@ for (let i = STAR_THRESHOLDS.length - 1; i >= 0; i--) {
 
 export default async function SalesInteractionPage() {
   // Fetch real agents from DB for team directory
-  let agentHierarchy = MOCK_SALES_HIERARCHY
+  let agentHierarchy: { level: string; agents: { id: string; name: string; level: string; stars: number; clientCount: number }[] }[] = []
   try {
     const agents = await getAgentsForHierarchy()
     if (agents.length > 0) {
@@ -155,13 +151,16 @@ export default async function SalesInteractionPage() {
   try {
     const todos = await getPendingTodosForBackoffice()
     realTodoTasks = todos.map((t) => {
-      const clientName = [t.clientDraft.firstName, t.clientDraft.lastName].filter(Boolean).join(' ') || 'Unknown'
+      const clientName = [
+        t.clientDraft?.firstName ?? t.client?.firstName,
+        t.clientDraft?.lastName ?? t.client?.lastName,
+      ].filter(Boolean).join(' ') || 'Unknown'
       const daysUntil = Math.floor((t.dueDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-      const latestPhone = t.clientDraft.phoneAssignments?.[0] ?? null
+      const latestPhone = t.clientDraft?.phoneAssignments?.[0] ?? null
       return {
         id: t.id,
         clientId: null,
-        draftId: t.clientDraft.id,
+        draftId: t.clientDraft?.id ?? t.clientDraftId ?? '',
         clientName,
         platformType: null,
         platformLabel: t.issueCategory,
@@ -198,7 +197,10 @@ export default async function SalesInteractionPage() {
   try {
     const completedRaw = await getCompletedTodosForBackoffice()
     completedTodos = completedRaw.map((t) => {
-      const clientName = [t.clientDraft.firstName, t.clientDraft.lastName].filter(Boolean).join(' ') || 'Unknown'
+      const clientName = [
+        t.clientDraft?.firstName ?? t.client?.firstName,
+        t.clientDraft?.lastName ?? t.client?.lastName,
+      ].filter(Boolean).join(' ') || 'Unknown'
       const completionEvent = todoTimeline.find(
         (e) => e.action === 'completed' && e.event.includes(t.issueCategory) && e.event.includes(clientName)
       )
@@ -211,7 +213,7 @@ export default async function SalesInteractionPage() {
         title: t.title,
         completedAt: t.completedAt ?? new Date(),
         completedByName: completionEvent?.actor ?? t.createdBy.name ?? 'Unknown',
-        draftId: t.clientDraft.id,
+        draftId: t.clientDraft?.id ?? t.clientDraftId ?? '',
         createdByName: t.createdBy.name ?? 'Unknown',
       }
     })
@@ -311,7 +313,7 @@ export default async function SalesInteractionPage() {
       completedTodos={completedTodos}
       approvedClients={approvedClients}
       todoTimeline={todoTimeline}
-      lifecycleClients={MOCK_LIFECYCLE_CLIENTS}
+      lifecycleClients={[]}
     />
   )
 }

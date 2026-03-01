@@ -1,16 +1,30 @@
-import {
-  MOCK_FUND_MOVEMENTS,
-  MOCK_FUND_CLIENTS,
-  MOCK_FUND_STATS,
-} from '@/lib/mock-data'
 import { FundAllocationView } from './_components/fund-allocation-view'
+import {
+  getFundClients,
+  getRecentFundMovements,
+  getFundStats,
+} from '@/backend/data/fund-allocation'
 
-export default function FundAllocationPage() {
+export default async function FundAllocationPage() {
+  let clients: { id: string; name: string }[] = []
+  let movements: Awaited<ReturnType<typeof getRecentFundMovements>> = []
+  let stats = { externalTotal: 0, internalDeposits: 0, pendingCount: 0 }
+
+  try {
+    ;[clients, movements, stats] = await Promise.all([
+      getFundClients(),
+      getRecentFundMovements(),
+      getFundStats(),
+    ])
+  } catch (e) {
+    console.error('[fund-allocation] DB fetch error:', e)
+  }
+
   return (
     <FundAllocationView
-      clients={MOCK_FUND_CLIENTS}
-      movements={MOCK_FUND_MOVEMENTS}
-      stats={MOCK_FUND_STATS}
+      clients={clients}
+      movements={movements}
+      stats={stats}
     />
   )
 }

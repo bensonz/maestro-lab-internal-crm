@@ -1,4 +1,3 @@
-import { MOCK_RANKING } from '@/lib/mock-data'
 import { HeroBanner } from './_components/dashboard/hero-banner'
 import { DoNow } from './_components/dashboard/do-now'
 import { Pipeline, Scorecard } from './_components/dashboard/pipeline-scorecard'
@@ -50,7 +49,7 @@ export default async function AgentDashboard() {
 
   // Build real priority actions from todos
   const priorityActions: PriorityAction[] = todos.map((t) => {
-    const clientName = [t.clientDraft.firstName, t.clientDraft.lastName].filter(Boolean).join(' ') || 'Unknown'
+    const clientName = [t.clientDraft?.firstName, t.clientDraft?.lastName].filter(Boolean).join(' ') || 'Unknown'
     const daysUntil = Math.floor((t.dueDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
     let type: PriorityAction['type'] = 'needs-info'
     if (daysUntil < 0) type = 'overdue'
@@ -71,7 +70,7 @@ export default async function AgentDashboard() {
   const submittedCount = drafts.filter((d) => d.status === 'SUBMITTED').length
   const inProgressDraftCount = draftCount - submittedCount
 
-  const ranking = MOCK_RANKING
+  const ranking = { percentile: 0 }
 
   return (
     <div className="space-y-5 p-6 animate-fade-in" data-testid="agent-dashboard">

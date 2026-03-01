@@ -140,3 +140,90 @@ export async function getAgentsForHierarchy() {
     },
   })
 }
+
+/**
+ * Builds the full hierarchy data for an agent's earnings page.
+ * Returns the agent info, supervisor chain, subordinate tree, and team size.
+ */
+export async function getAgentHierarchy(agentId: string) {
+  // Fetch all agents in one query to build the tree in memory
+  const allAgents = await prisma.user.findMany({
+    where: { role: 'AGENT', isActive: true },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      avatar: true,
+      tier: true,
+      starLevel: true,
+      isActive: true,
+      role: true,
+      supervisorId: true,
+      closedClients: {
+        select: { status: true },
+      },
+    },
+  })
+
+  type AgentRow = (typeof allAgents)[number]
+
+  function toHierarchyAgent(a: AgentRow) {
+    const totalClients = a.closedClients.length
+    const approvedClients = a.closedClients.filter(c => c.status === 'APPROVED').length
+    return {
+      id: a.id,
+      name: a.name,
+      email: a.email,
+      avatar: a.avatar,
+      tier: a.tier,
+      starLevel: a.starLevel,
+      isActive: a.isActive,
+      role: a.role,
+      totalClients,
+      approvedClients,
+      successRate: totalClients > 0 ? Math.round((approvedClients / totalClients) * 1000) / 10 : 0,
+    }
+  }
+
+  const agentMap = new Map(allAgents.map(a => [a.id, a]))
+  const current = agentMap.get(agentId)
+  if (!current) return null
+
+  // Build supervisor chain (walk up)
+  const supervisorChain = []
+  let cursor = current.supervisorId ? agentMap.get(current.supervisorId) : undefined
+  while (cursor) {
+    supervisorChain.push(toHierarchyAgent(cursor))
+    cursor = cursor.supervisorId ? agentMap.get(cursor.supervisorId) : undefined
+  }
+
+  // Build children map
+  const childrenMap = new Map<string, AgentRow[]>()
+  for (const a of allAgents) {
+    if (a.supervisorId) {
+      if (!childrenMap.has(a.supervisorId)) childrenMap.set(a.supervisorId, [])
+      childrenMap.get(a.supervisorId)!.push(a)
+    }
+  }
+
+  // Build subordinate tree (recursive)
+  let teamSize = 0
+  function buildTree(parentId: string): { id: string; name: string; email: string; avatar: string | null; tier: string; starLevel: number; isActive: boolean; role: string; totalClients: number; approvedClients: number; successRate: number; subordinates: ReturnType<typeof buildTree>[] } {
+    const agent = agentMap.get(parentId)!
+    const children = childrenMap.get(parentId) ?? []
+    const subordinates = children.map(c => {
+      teamSize++
+      return buildTree(c.id)
+    })
+    return { ...toHierarchyAgent(agent), subordinates }
+  }
+
+  const subordinateTree = buildTree(agentId)
+
+  return {
+    agent: toHierarchyAgent(current),
+    supervisorChain,
+    subordinateTree,
+    teamSize,
+  }
+}

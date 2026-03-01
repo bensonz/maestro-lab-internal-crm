@@ -134,7 +134,7 @@ export async function returnDevice(assignmentId: string) {
   await prisma.eventLog.create({
     data: {
       eventType: 'DEVICE_RETURNED',
-      description: `Device returned for ${assignment.clientDraft.firstName} ${assignment.clientDraft.lastName}: ${assignment.phoneNumber}`,
+      description: `Device returned for ${assignment.clientDraft?.firstName ?? ''} ${assignment.clientDraft?.lastName ?? ''}: ${assignment.phoneNumber}`.trim(),
       userId: session.user.id,
       metadata: {
         assignmentId,
@@ -190,7 +190,7 @@ export async function reissueDevice(assignmentId: string) {
   await prisma.eventLog.create({
     data: {
       eventType: 'DEVICE_REISSUED',
-      description: `Device re-issued for ${assignment.clientDraft.firstName} ${assignment.clientDraft.lastName}: ${assignment.phoneNumber}`,
+      description: `Device re-issued for ${assignment.clientDraft?.firstName ?? ''} ${assignment.clientDraft?.lastName ?? ''}: ${assignment.phoneNumber}`.trim(),
       userId: session.user.id,
       metadata: {
         assignmentId,

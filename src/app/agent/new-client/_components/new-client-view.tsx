@@ -85,6 +85,9 @@ export interface SerializedDraft {
   generatedCredentials: unknown
   discoveredAddresses: unknown
   contractDocument: string | null
+  agentConfidenceLevel: string | null
+  clientHidingInfo: boolean
+  clientHidingInfoNotes: string | null
   paypalPreviouslyUsed: boolean
   addressMismatch: boolean
   debankedHistory: boolean
@@ -163,6 +166,13 @@ export function NewClientView({ initialStep, drafts, selectedDraft, activeAssign
     setCurrentStep(step)
   }, [])
 
+  // Track the max reachable step from ClientForm's validation
+  const [maxReachableStep, setMaxReachableStep] = useState<number>(4)
+
+  const handleMaxReachableStepChange = useCallback((step: number) => {
+    setMaxReachableStep(step)
+  }, [])
+
   // Ref to ClientForm's flush-aware step change handler
   const formStepHandlerRef = useRef<((step: number) => void) | null>(null)
 
@@ -189,7 +199,7 @@ export function NewClientView({ initialStep, drafts, selectedDraft, activeAssign
       <div className="flex flex-1 flex-col overflow-y-auto">
         <div className="w-full p-6">
           <div className="mx-auto max-w-2xl">
-            <StepIndicator currentStep={currentStep} totalSteps={4} onStepChange={handleStepIndicatorClick} />
+            <StepIndicator currentStep={currentStep} totalSteps={4} onStepChange={handleStepIndicatorClick} maxReachableStep={maxReachableStep} />
           </div>
 
           {selectedDraft ? (
@@ -199,7 +209,9 @@ export function NewClientView({ initialStep, drafts, selectedDraft, activeAssign
               onStepChange={handleStepChange}
               onRiskFlagsChange={handleRiskFlagsChange}
               onRegisterStepHandler={(handler) => { formStepHandlerRef.current = handler }}
+              onMaxReachableStepChange={handleMaxReachableStepChange}
               activeAssignment={activeAssignment}
+              riskAssessment={riskAssessment}
             />
           ) : (
             <div className="mt-12 text-center text-muted-foreground" data-testid="no-draft-selected">

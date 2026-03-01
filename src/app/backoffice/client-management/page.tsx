@@ -116,6 +116,13 @@ function buildPlatformDetails(platformData: unknown): ServerPlatformDetail[] {
       reviewedBy: null,
       reviewedAt: null,
       reviewNotes: null,
+      // Pass through bank/card fields for client detail display
+      routingNumber: (entry as Record<string, unknown>).routingNumber as string || null,
+      bankAccountNumber: (entry as Record<string, unknown>).bankAccountNumber as string || null,
+      pin: (entry as Record<string, unknown>).pin as string || null,
+      cardNumber: (entry as Record<string, unknown>).cardNumber as string || null,
+      cvv: (entry as Record<string, unknown>).cvv as string || null,
+      cardExpiry: (entry as Record<string, unknown>).cardExpiry as string || null,
     })
   }
 

@@ -81,6 +81,7 @@ export const clientDraftSubmitSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
   contractDocument: z.string().min(1, 'Contract document is required'),
+  agentConfidenceLevel: z.string().min(1, 'Agent confidence level is required'),
 })
 
 export type ClientStep1Input = z.infer<typeof clientStep1Schema>

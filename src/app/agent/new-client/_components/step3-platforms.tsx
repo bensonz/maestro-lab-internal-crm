@@ -1,10 +1,11 @@
 'use client'
 
-import { useCallback, useRef } from 'react'
+import { useCallback, useRef, useMemo } from 'react'
 import { PLATFORM_INFO, FINANCIAL_PLATFORMS, SPORTS_PLATFORMS } from '@/lib/platforms'
 import { PlatformCard } from './step3-platform-card'
 import { PayPalCard } from './step3-paypal-card'
 import { BulkUploadZone } from './bulk-upload-zone'
+import { Badge } from '@/components/ui/badge'
 import {
   Collapsible,
   CollapsibleContent,
@@ -204,6 +205,17 @@ export function Step3Platforms({
     [formData.platformData, onChange, assignedGmail],
   )
 
+  // ── Deposit readiness tracking ──
+  const depositStats = useMemo(() => {
+    const total = SPORTS_PLATFORMS.length // 8
+    let ready = 0
+    for (const p of SPORTS_PLATFORMS) {
+      const entry = platformData.find((e) => e.platform === p)
+      if (entry?.depositDetected) ready++
+    }
+    return { ready, total, allReady: ready === total }
+  }, [platformData])
+
   return (
     <div className="space-y-4" data-testid="step3-platforms">
 
@@ -302,6 +314,37 @@ export function Step3Platforms({
 
       {/* Sports Platforms */}
       <SectionCard title="Sportsbook Platforms">
+        {/* Deposit Readiness Banner */}
+        <div
+          className={`flex items-center gap-2.5 rounded-md border px-3 py-2 ${
+            depositStats.allReady
+              ? 'border-success/30 bg-success/10'
+              : 'border-border/50 bg-muted/20'
+          }`}
+          data-testid="deposit-progress-banner"
+        >
+          {depositStats.allReady ? (
+            <CheckCircle2 className="h-4 w-4 text-success" />
+          ) : null}
+          <span className={`text-sm font-medium ${depositStats.allReady ? 'text-success' : 'text-foreground'}`}>
+            {depositStats.allReady
+              ? 'All platforms deposit-ready'
+              : 'Deposit Ready'}
+          </span>
+          <Badge
+            variant="outline"
+            className={`ml-auto h-5 px-2 font-mono text-[11px] ${
+              depositStats.allReady
+                ? 'border-success/40 bg-success/10 text-success'
+                : depositStats.ready > 0
+                  ? 'border-primary/30 bg-primary/10 text-primary'
+                  : 'text-muted-foreground'
+            }`}
+          >
+            {depositStats.ready}/{depositStats.total}
+          </Badge>
+        </div>
+
         {/* Bulk Upload Zone — drop 20-30 screenshots at once */}
         <BulkUploadZone
           platforms={SPORTS_PLATFORMS as PlatformType[]}

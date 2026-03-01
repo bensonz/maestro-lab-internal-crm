@@ -100,6 +100,11 @@ enum EventType {
   CLIENT_APPROVED_NOTIFICATION
   CLIENT_APPROVAL_REVERTED
   FUND_ALLOCATED
+  DEBIT_CARD_UPLOADED
+  GMAIL_SYNCED
+  EMAIL_TODO_CREATED
+  FUND_CONFIRMED
+  FUND_DISCREPANCY_FLAGGED
 }
 
 // ─── User ────────────────────────────────────────────────
@@ -157,6 +162,7 @@ model User {
   assignedTodos            Todo[]            @relation("TodoAssignedTo")
   createdTodos             Todo[]            @relation("TodoCreatedBy")
   fundAllocations          FundAllocation[]  @relation("FundRecordedBy")
+  fundConfirmations        FundAllocation[]  @relation("FundConfirmedBy")
 }
 
 // ─── Agent Application ───────────────────────────────────
@@ -230,6 +236,7 @@ model Client {
   bonusPool    BonusPool?
   fromDraft    ClientDraft?  @relation("DraftResult")
   transactions Transaction[]
+  todos        Todo[]        @relation("TodoClient")
 }
 
 // ─── Client Draft ──────────────────────────────────────
@@ -300,6 +307,11 @@ model ClientDraft {
 
   // Step 4: Contract
   contractDocument String?
+
+  // Step 4: Agent Assessment
+  agentConfidenceLevel  String?    // "high" | "medium" | "low"
+  clientHidingInfo      Boolean    @default(false)
+  clientHidingInfoNotes String?
 
   // Address discovery (progressive OCR across screenshots)
   discoveredAddresses Json?
@@ -452,8 +464,11 @@ model Todo {
   description   String?
   issueCategory String
 
-  clientDraftId String
-  clientDraft   ClientDraft @relation(fields: [clientDraftId], references: [id])
+  clientDraftId String?
+  clientDraft   ClientDraft? @relation(fields: [clientDraftId], references: [id])
+
+  clientId      String?
+  client        Client?  @relation("TodoClient", fields: [clientId], references: [id])
 
   assignedToId  String
   assignedTo    User   @relation("TodoAssignedTo", fields: [assignedToId], references: [id])
@@ -465,6 +480,8 @@ model Todo {
   completedAt   DateTime?
   status        TodoStatus @default(PENDING)
   metadata      Json?
+  source        String     @default("MANUAL")
+  processedEmailId String?
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -482,7 +499,48 @@ model FundAllocation {
   recordedById String
   recordedBy   User   @relation("FundRecordedBy", fields: [recordedById], references: [id])
 
+  confirmationStatus  String   @default("UNCONFIRMED")
+  confirmedAt         DateTime?
+  confirmedById       String?
+  confirmedBy         User?    @relation("FundConfirmedBy", fields: [confirmedById], references: [id])
+  confirmedAmount     Decimal? @db.Decimal(12, 2)
+  emailConfirmationId String?
+  discrepancyNotes    String?
+
   createdAt  DateTime @default(now())
+}
+
+// ─── Gmail Integration ──────────────────────────────────
+
+model GmailIntegration {
+  id           String    @id @default(cuid())
+  inboxEmail   String    @unique
+  refreshToken String
+  accessToken  String?
+  tokenExpiry  DateTime?
+  historyId    String?
+  lastSyncAt   DateTime?
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+// ─── Processed Email ────────────────────────────────────
+
+model ProcessedEmail {
+  id             String   @id @default(cuid())
+  gmailMessageId String   @unique
+  threadId       String?
+  from           String
+  subject        String
+  snippet        String?
+  receivedAt     DateTime
+  detectionType  String
+  detectionData  Json?
+  processed      Boolean  @default(false)
+  todoId         String?
+  fundAllocationId String?
+  createdAt      DateTime @default(now())
 }
 
 // ─── Transaction ────────────────────────────────────────

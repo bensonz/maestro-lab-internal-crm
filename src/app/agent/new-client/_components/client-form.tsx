@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, ChevronRight, Loader2, Smartphone, AlertTriangle } from 'lucide-react'
@@ -12,13 +12,14 @@ import { Step1PreQual } from './step1-prequal'
 import { Step2Background } from './step2-background'
 import { Step3Platforms } from './step3-platforms'
 import { Step4Contract } from './step4-contract'
+import { isStepComplete, getMaxReachableStep } from './step-validation'
 import {
   generateGmailSuggestion,
   generateGmailPassword,
   generateBetmgmPassword,
 } from './credential-generators'
 import { findMatchingAddress } from '@/lib/address-utils'
-import type { DiscoveredAddress } from '@/types/backend-types'
+import type { DiscoveredAddress, RiskAssessment } from '@/types/backend-types'
 import type { SerializedDraft, SerializedPhoneAssignment } from './new-client-view'
 
 export interface GeneratedCredentials {
@@ -38,7 +39,9 @@ interface ClientFormProps {
   onStepChange: (step: number) => void
   onRiskFlagsChange: (flags: Record<string, unknown>) => void
   onRegisterStepHandler?: (handler: (step: number) => void) => void
+  onMaxReachableStepChange?: (step: number) => void
   activeAssignment: SerializedPhoneAssignment | null
+  riskAssessment: RiskAssessment
 }
 
 export function ClientForm({
@@ -47,7 +50,9 @@ export function ClientForm({
   onStepChange,
   onRiskFlagsChange,
   onRegisterStepHandler,
+  onMaxReachableStepChange,
   activeAssignment,
+  riskAssessment,
 }: ClientFormProps) {
   const router = useRouter()
   const [formData, setFormData] = useState<Record<string, unknown>>(() =>
@@ -66,6 +71,15 @@ export function ClientForm({
   const deviceEverAssigned = !!activeAssignment
   const hasActiveDevice = activeAssignment?.status === 'SIGNED_OUT'
   const deviceRequested = !!(draft.deviceReservationDate)
+
+  // ── Step validation: compute max reachable step ──
+  const maxReachableStep = useMemo(() => getMaxReachableStep(formData), [formData])
+  const currentStepComplete = useMemo(() => isStepComplete(currentStep, formData).complete, [currentStep, formData])
+
+  // Report maxReachableStep to parent whenever it changes
+  useEffect(() => {
+    onMaxReachableStepChange?.(maxReachableStep)
+  }, [maxReachableStep, onMaxReachableStepChange])
 
   // Reset form data when draft changes (skip step override on initial mount —
   // the parent already has the correct step from the URL param)
@@ -202,11 +216,26 @@ export function ClientForm({
   // Flush save before step change — uses ref to capture latest formData
   async function handleStepChange(newStep: number) {
     if (newStep < 1 || newStep > 4) return
-    // Block advancing to step 3+ if device requested but never assigned
-    if (newStep >= 3 && deviceRequested && !deviceEverAssigned) {
-      toast.error('Waiting for backoffice to assign device')
-      return
+
+    // Backward navigation — always allowed (skip validation)
+    const isBackward = newStep < currentStep
+
+    if (!isBackward) {
+      // Block advancing to step 3+ if device requested but never assigned
+      if (newStep >= 3 && deviceRequested && !deviceEverAssigned) {
+        toast.error('Waiting for backoffice to assign device')
+        return
+      }
+      // Forward navigation — validate current step is complete
+      const validation = isStepComplete(currentStep, formDataRef.current)
+      if (!validation.complete) {
+        const preview = validation.missingFields.slice(0, 3).join(', ')
+        const more = validation.missingFields.length > 3 ? ` and ${validation.missingFields.length - 3} more` : ''
+        toast.error(`Complete current step first: ${preview}${more}`)
+        return
+      }
     }
+
     // Track highest step ever reached (going back doesn't lower it)
     highestStepRef.current = Math.max(highestStepRef.current, newStep)
     if (saveTimerRef.current) {
@@ -306,6 +335,7 @@ export function ClientForm({
           onChange={handleFieldChange}
           discoveredAddresses={(formData.discoveredAddresses as DiscoveredAddress[]) || []}
           onAddressUpdate={(addresses) => handleFieldChange('discoveredAddresses', addresses)}
+          riskAssessment={riskAssessment}
         />
       )}
 
@@ -382,6 +412,7 @@ export function ClientForm({
               <Button
                 size="sm"
                 onClick={() => handleStepChange(currentStep + 1)}
+                disabled={!currentStepComplete}
                 data-testid="next-step-button"
               >
                 Next
@@ -411,6 +442,7 @@ export function ClientForm({
             <Button
               size="sm"
               onClick={() => handleStepChange(currentStep + 1)}
+              disabled={!currentStepComplete}
               data-testid="next-step-button"
             >
               Next
@@ -514,5 +546,8 @@ function buildFormDataFromDraft(draft: SerializedDraft): Record<string, unknown>
     debankedHistory: draft.debankedHistory,
     debankedBank: draft.debankedBank ?? '',
     undisclosedInfo: draft.undisclosedInfo,
+    agentConfidenceLevel: draft.agentConfidenceLevel ?? '',
+    clientHidingInfo: draft.clientHidingInfo ?? false,
+    clientHidingInfoNotes: draft.clientHidingInfoNotes ?? '',
   }
 }

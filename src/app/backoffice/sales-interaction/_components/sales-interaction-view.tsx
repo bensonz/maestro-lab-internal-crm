@@ -50,6 +50,7 @@ import { revertApproval } from '@/app/actions/clients'
 import { ClientIntakeList } from './client-intake-list'
 import { DraftReviewDialog } from './draft-review-dialog'
 import { DeviceAssignDialog } from './device-assign-dialog'
+import { UploadCardDialog } from './upload-card-dialog'
 import { AssignTodoDialog } from './assign-todo-dialog'
 import { VerificationTasksTable } from './verification-tasks-table'
 import { ClientDetail } from '../../client-management/_components/client-detail'
@@ -262,10 +263,19 @@ export function SalesInteractionView({
   const [assigningInitialPhone, setAssigningInitialPhone] = useState<string | null>(null)
   const [assigningInitialCarrier, setAssigningInitialCarrier] = useState<string | null>(null)
 
+  // Upload card dialog state
+  const [uploadCardDraftId, setUploadCardDraftId] = useState<string | null>(null)
+  const [uploadCardDraftName, setUploadCardDraftName] = useState('')
+
   const handleReviewDraft = useCallback((id: string, name: string, resultClientId?: string | null) => {
     setReviewingDraftId(id)
     setReviewingDraftName(name)
     setReviewingResultClientId(resultClientId ?? null)
+  }, [])
+
+  const handleUploadCard = useCallback((draftId: string, clientName: string) => {
+    setUploadCardDraftId(draftId)
+    setUploadCardDraftName(clientName)
   }, [])
 
   const handleAssignDevice = useCallback((draftId: string, clientName: string, agentName: string, phone?: string | null, carrier?: string | null) => {
@@ -732,6 +742,7 @@ export function SalesInteractionView({
                             onSelectClient={handleSelectClient}
                             onReviewDraft={handleReviewDraft}
                             onAssignDevice={handleAssignDevice}
+                            onUploadCard={handleUploadCard}
                           />
                         )
                       })}
@@ -1069,6 +1080,12 @@ export function SalesInteractionView({
         onClose={() => setAssigningDraftId(null)}
       />
 
+      <UploadCardDialog
+        draftId={uploadCardDraftId}
+        clientName={uploadCardDraftName}
+        onClose={() => setUploadCardDraftId(null)}
+      />
+
       <AssignTodoDialog
         open={todoDialogOpen}
         onClose={() => setTodoDialogOpen(false)}
@@ -1086,6 +1103,7 @@ function SubStageSection({
   onSelectClient,
   onReviewDraft,
   onAssignDevice,
+  onUploadCard,
 }: {
   stage: SubStageGroup
   clients: IntakeClient[]
@@ -1093,6 +1111,7 @@ function SubStageSection({
   onSelectClient?: (clientId: string) => void
   onReviewDraft?: (draftId: string, name: string, resultClientId?: string | null) => void
   onAssignDevice?: (draftId: string, clientName: string, agentName: string) => void
+  onUploadCard?: (draftId: string, clientName: string) => void
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const Icon = stage.icon
@@ -1147,7 +1166,7 @@ function SubStageSection({
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="border-b border-border/20 bg-muted/10">
-          <ClientIntakeList clients={clients} selectedAgentId={null} onSelectClient={onSelectClient} onReviewDraft={onReviewDraft} onAssignDevice={onAssignDevice} />
+          <ClientIntakeList clients={clients} selectedAgentId={null} onSelectClient={onSelectClient} onReviewDraft={onReviewDraft} onAssignDevice={onAssignDevice} onUploadCard={onUploadCard} />
         </div>
       </CollapsibleContent>
     </Collapsible>

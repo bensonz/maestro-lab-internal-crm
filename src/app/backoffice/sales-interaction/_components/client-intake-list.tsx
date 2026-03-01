@@ -11,7 +11,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { Check, Clock, Eye, Loader2, Phone, RotateCcw, Undo2 } from 'lucide-react'
+import { Check, Clock, CreditCard, Eye, Loader2, Phone, RotateCcw, Undo2 } from 'lucide-react'
 import { returnDevice, reissueDevice } from '@/app/actions/phone-assignments'
 import { toast } from 'sonner'
 import type { IntakeClient } from '@/types/backend-types'
@@ -23,6 +23,7 @@ interface ClientIntakeListProps {
   onSelectClient?: (clientId: string) => void
   onReviewDraft?: (draftId: string, name: string, resultClientId?: string | null) => void
   onAssignDevice?: (draftId: string, clientName: string, agentName: string) => void
+  onUploadCard?: (draftId: string, clientName: string) => void
 }
 
 export function ClientIntakeList({
@@ -31,6 +32,7 @@ export function ClientIntakeList({
   onSelectClient,
   onReviewDraft,
   onAssignDevice,
+  onUploadCard,
 }: ClientIntakeListProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -189,16 +191,28 @@ export function ClientIntakeList({
               )}
 
               {showApprove && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 gap-1 px-2.5 text-xs"
-                  onClick={() => onReviewDraft?.(client.id, client.name, client.resultClientId)}
-                  data-testid={`approve-${client.id}`}
-                >
-                  <Check className="h-3 w-3" />
-                  Approve
-                </Button>
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 gap-1 px-2.5 text-xs"
+                    onClick={() => onUploadCard?.(client.id, client.name)}
+                    data-testid={`upload-card-${client.id}`}
+                  >
+                    <CreditCard className="h-3 w-3" />
+                    Upload Card #
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 gap-1 px-2.5 text-xs"
+                    onClick={() => onReviewDraft?.(client.id, client.name, client.resultClientId)}
+                    data-testid={`approve-${client.id}`}
+                  >
+                    <Check className="h-3 w-3" />
+                    Approve
+                  </Button>
+                </>
               )}
             </div>
 

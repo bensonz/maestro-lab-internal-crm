@@ -3,7 +3,7 @@
 // instead of fetching from the database.
 // ============================================================
 
-import type { PriorityAction, IntakeClient, VerificationTask, PostApprovalClient, HierarchyAgent, HierarchyNode, AgentKPIs, ActionHubStats, PnlStatus, FundAlert, PendingAction, EnhancedAgentTasks, ActiveAgent, AgentDetailData, SettlementClient } from '@/types/backend-types'
+import type { PriorityAction, IntakeClient, VerificationTask, PostApprovalClient, HierarchyAgent, HierarchyNode, AgentKPIs, ActiveAgent, AgentDetailData, SettlementClient } from '@/types/backend-types'
 
 // ─── Session ───────────────────────────────────────────────
 
@@ -103,14 +103,14 @@ export const MOCK_RANKING = {
 // ─── Agent Clients ────────────────────────────────────────
 
 export const MOCK_AGENT_CLIENTS = [
-  { id: 'client-1', name: 'John Smith', intakeStatus: 'IN_EXECUTION' as const, status: 'In Execution', statusColor: 'blue', nextTask: 'Upload DraftKings screenshot', step: 5, totalSteps: 11, progress: 45, lastUpdated: '2 hours ago', updatedAt: '2026-02-19T10:00:00Z', deadline: '2026-02-25', phone: null, age: null, state: null, zelle: null, intakeDuration: null, startDate: null },
-  { id: 'client-2', name: 'Maria Garcia', intakeStatus: 'IN_EXECUTION' as const, status: 'In Execution', statusColor: 'blue', nextTask: 'Complete FanDuel registration', step: 3, totalSteps: 11, progress: 27, lastUpdated: '1 day ago', updatedAt: '2026-02-18T14:00:00Z', deadline: '2026-02-28', phone: null, age: null, state: null, zelle: null, intakeDuration: null, startDate: null },
-  { id: 'client-3', name: 'David Lee', intakeStatus: 'NEEDS_MORE_INFO' as const, status: 'Needs More Info', statusColor: 'yellow', nextTask: 'Provide additional ID info', step: 2, totalSteps: 11, progress: 18, lastUpdated: '3 hours ago', updatedAt: '2026-02-19T08:00:00Z', deadline: '2026-02-22', phone: null, age: null, state: null, zelle: null, intakeDuration: null, startDate: null },
-  { id: 'client-4', name: 'Sarah Wilson', intakeStatus: 'PHONE_ISSUED' as const, status: 'Phone Issued', statusColor: 'green', nextTask: 'Begin platform registrations', step: 1, totalSteps: 11, progress: 9, lastUpdated: '5 hours ago', updatedAt: '2026-02-19T06:00:00Z', deadline: '2026-02-21', phone: null, age: null, state: null, zelle: null, intakeDuration: null, startDate: null },
-  { id: 'client-5', name: 'James Brown', intakeStatus: 'READY_FOR_APPROVAL' as const, status: 'Ready for Approval', statusColor: 'purple', nextTask: null, step: 11, totalSteps: 11, progress: 100, lastUpdated: '1 day ago', updatedAt: '2026-02-18T16:00:00Z', deadline: null, phone: null, age: null, state: null, zelle: null, intakeDuration: null, startDate: null },
-  { id: 'client-6', name: 'Emily Davis', intakeStatus: 'APPROVED' as const, status: 'Approved', statusColor: 'green', nextTask: null, step: 11, totalSteps: 11, progress: 100, lastUpdated: '3 days ago', updatedAt: '2026-02-16T12:00:00Z', deadline: null, phone: '(555) 888-1234', age: 32, state: 'NJ', zelle: 'emily.d@zelle.com', intakeDuration: '5d8h', startDate: 'Feb 11' },
-  { id: 'client-7', name: 'Robert Taylor', intakeStatus: 'PENDING' as const, status: 'Pending', statusColor: 'gray', nextTask: 'Waiting for phone assignment', step: 0, totalSteps: 11, progress: 0, lastUpdated: '4 days ago', updatedAt: '2026-02-15T09:00:00Z', deadline: null, phone: null, age: null, state: null, zelle: null, intakeDuration: null, startDate: null },
-  { id: 'client-8', name: 'Lisa Anderson', intakeStatus: 'IN_EXECUTION' as const, status: 'In Execution', statusColor: 'blue', nextTask: 'Upload BetMGM screenshot', step: 7, totalSteps: 11, progress: 64, lastUpdated: '6 hours ago', updatedAt: '2026-02-19T05:00:00Z', deadline: '2026-02-26', phone: null, age: null, state: null, zelle: null, intakeDuration: null, startDate: null },
+  { id: 'client-1', name: 'John Smith', intakeStatus: 'IN_EXECUTION' as const, status: 'In Execution', statusColor: 'blue', nextTask: 'Upload DraftKings screenshot', step: 5, totalSteps: 11, progress: 45, lastUpdated: '2 hours ago', updatedAt: '2026-02-19T10:00:00Z', deadline: '2026-02-25', phone: null, age: null, state: null, zelle: null, intakeDuration: null, startDate: null, verificationSubCategory: null, verificationTask: null, verificationPlatform: null },
+  { id: 'client-2', name: 'Maria Garcia', intakeStatus: 'IN_EXECUTION' as const, status: 'In Execution', statusColor: 'blue', nextTask: 'Complete FanDuel registration', step: 3, totalSteps: 11, progress: 27, lastUpdated: '1 day ago', updatedAt: '2026-02-18T14:00:00Z', deadline: '2026-02-28', phone: null, age: null, state: null, zelle: null, intakeDuration: null, startDate: null, verificationSubCategory: null, verificationTask: null, verificationPlatform: null },
+  { id: 'client-3', name: 'David Lee', intakeStatus: 'NEEDS_MORE_INFO' as const, status: 'Needs More Info', statusColor: 'yellow', nextTask: 'Provide additional ID info', step: 2, totalSteps: 11, progress: 18, lastUpdated: '3 hours ago', updatedAt: '2026-02-19T08:00:00Z', deadline: '2026-02-22', phone: null, age: null, state: null, zelle: null, intakeDuration: null, startDate: null, verificationSubCategory: null, verificationTask: null, verificationPlatform: null },
+  { id: 'client-4', name: 'Sarah Wilson', intakeStatus: 'PHONE_ISSUED' as const, status: 'Phone Issued', statusColor: 'green', nextTask: 'Begin platform registrations', step: 1, totalSteps: 11, progress: 9, lastUpdated: '5 hours ago', updatedAt: '2026-02-19T06:00:00Z', deadline: '2026-02-21', phone: null, age: null, state: null, zelle: null, intakeDuration: null, startDate: null, verificationSubCategory: null, verificationTask: null, verificationPlatform: null },
+  { id: 'client-5', name: 'James Brown', intakeStatus: 'READY_FOR_APPROVAL' as const, status: 'Ready for Approval', statusColor: 'purple', nextTask: null, step: 11, totalSteps: 11, progress: 100, lastUpdated: '1 day ago', updatedAt: '2026-02-18T16:00:00Z', deadline: null, phone: null, age: null, state: null, zelle: null, intakeDuration: null, startDate: null, verificationSubCategory: null, verificationTask: null, verificationPlatform: null },
+  { id: 'client-6', name: 'Emily Davis', intakeStatus: 'APPROVED' as const, status: 'Approved', statusColor: 'green', nextTask: null, step: 11, totalSteps: 11, progress: 100, lastUpdated: '3 days ago', updatedAt: '2026-02-16T12:00:00Z', deadline: null, phone: '(555) 888-1234', age: 32, state: 'NJ', zelle: 'emily.d@zelle.com', intakeDuration: '5d8h', startDate: 'Feb 11', verificationSubCategory: null, verificationTask: null, verificationPlatform: null },
+  { id: 'client-7', name: 'Robert Taylor', intakeStatus: 'PENDING' as const, status: 'Pending', statusColor: 'gray', nextTask: 'Waiting for phone assignment', step: 0, totalSteps: 11, progress: 0, lastUpdated: '4 days ago', updatedAt: '2026-02-15T09:00:00Z', deadline: null, phone: null, age: null, state: null, zelle: null, intakeDuration: null, startDate: null, verificationSubCategory: null, verificationTask: null, verificationPlatform: null },
+  { id: 'client-8', name: 'Lisa Anderson', intakeStatus: 'IN_EXECUTION' as const, status: 'In Execution', statusColor: 'blue', nextTask: 'Upload BetMGM screenshot', step: 7, totalSteps: 11, progress: 64, lastUpdated: '6 hours ago', updatedAt: '2026-02-19T05:00:00Z', deadline: '2026-02-26', phone: null, age: null, state: null, zelle: null, intakeDuration: null, startDate: null, verificationSubCategory: null, verificationTask: null, verificationPlatform: null },
 ]
 
 // ─── Agent Client Detail ─────────────────────────────────
@@ -190,8 +190,8 @@ const mockAgent: HierarchyAgent = {
   name: 'Marcus Rivera',
   email: 'agent@test.com',
   avatar: null,
-  tier: '2-star',
-  starLevel: 2,
+  tier: 'rookie',
+  starLevel: 0,
   isActive: true,
   role: 'AGENT',
   totalClients: 24,
@@ -776,50 +776,7 @@ export const MOCK_LTV_REPORT = {
 }
 
 // ─── Backoffice Action Hub ────────────────────────────────
-
-export const MOCK_ACTION_HUB_STATS: ActionHubStats = {
-  pnlCompleted: false,
-  pendingActions: 5,
-  overdueCount: 1,
-  fundAlertsCount: 2,
-  pendingSettlements: 3,
-  transfersToday: 1,
-}
-
-export const MOCK_PNL_STATUS: PnlStatus = {
-  completed: false,
-  completedBy: null,
-  completedAtFormatted: null,
-}
-
-export const MOCK_FUND_ALERTS: FundAlert[] = [
-  { clientId: 'client-1', clientName: 'John Smith', issue: 'shortfall', platformType: 'DRAFTKINGS', balance: -150, description: 'DraftKings balance below threshold' },
-  { clientId: 'client-6', clientName: 'Emily Davis', issue: 'surplus', platformType: 'FANDUEL', balance: 2500, description: 'FanDuel balance exceeds $1,000' },
-]
-
-export const MOCK_PENDING_ACTIONS: PendingAction[] = [
-  { id: 'pa-1', type: 'screenshot_review', title: 'Review DraftKings screenshot', clientName: 'John Smith', agentName: 'Marcus Rivera', urgency: 'high', createdAt: new Date('2026-02-18'), ageFormatted: '1d ago', link: '/backoffice/sales-interaction' },
-  { id: 'pa-2', type: 'extension_request', title: 'Extension request for Sarah Wilson', clientName: 'Sarah Wilson', agentName: 'Marcus Rivera', urgency: 'normal', createdAt: new Date('2026-02-18'), ageFormatted: '1d ago', link: '/backoffice/sales-interaction' },
-  { id: 'pa-3', type: 'client_approval', title: 'Review James Brown for approval', clientName: 'James Brown', agentName: 'Marcus Rivera', urgency: 'high', createdAt: new Date('2026-02-18'), ageFormatted: '1d ago', link: '/backoffice/sales-interaction' },
-  { id: 'pa-4', type: 'settlement_review', title: 'Pending settlement review', clientName: 'John Smith', agentName: 'Marcus Rivera', urgency: 'critical', createdAt: new Date('2026-02-17'), ageFormatted: '2d ago', link: '/backoffice/client-settlement' },
-]
-
-export const MOCK_AGENT_TASKS: EnhancedAgentTasks[] = [
-  {
-    agentId: 'user-agent-1', agentName: 'Marcus Rivera',
-    tasks: [
-      { id: 'et-1', title: 'Upload DraftKings screenshot', client: 'John Smith', clientId: 'client-1', category: 'Upload', type: 'UPLOAD_SCREENSHOT', status: 'PENDING', dueIn: 'Today', dueDate: new Date('2026-02-19'), overdue: false },
-      { id: 'et-2', title: 'Complete BetMGM registration', client: 'John Smith', clientId: 'client-1', category: 'Execution', type: 'EXECUTION', status: 'PENDING', dueIn: 'In 3 days', dueDate: new Date('2026-02-22'), overdue: false },
-      { id: 'et-3', title: 'Provide additional ID', client: 'David Lee', clientId: 'client-3', category: 'Info', type: 'PROVIDE_INFO', status: 'OVERDUE', dueIn: 'Overdue', dueDate: new Date('2026-02-17'), overdue: true },
-    ],
-  },
-  {
-    agentId: 'user-sub-1', agentName: 'Alex Kim',
-    tasks: [
-      { id: 'et-4', title: 'Upload Caesars screenshot', client: 'New Client A', clientId: 'client-9', category: 'Upload', type: 'UPLOAD_SCREENSHOT', status: 'PENDING', dueIn: 'Tomorrow', dueDate: new Date('2026-02-20'), overdue: false },
-    ],
-  },
-]
+// (Action Hub is now fully wired to real DB data — no more mock data needed)
 
 export const MOCK_ACTIVE_AGENTS: ActiveAgent[] = [
   { id: 'user-agent-1', name: 'Marcus Rivera' },

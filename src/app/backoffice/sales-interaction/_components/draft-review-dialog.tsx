@@ -839,20 +839,12 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, onClose 
                   <ChevronRight className="ml-1 h-3 w-3" />
                 </Button>
               ) : resultClientId ? (
-                <Button
-                  size="sm"
-                  className="h-7 text-xs"
-                  onClick={handleApprove}
-                  disabled={approving || hasChanges}
-                  data-testid="draft-review-approve-btn"
-                >
-                  {approving ? (
-                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                  ) : (
-                    <Check className="mr-1 h-3 w-3" />
-                  )}
-                  Approve Client
-                </Button>
+                <ApproveGate
+                  draft={draft}
+                  approving={approving}
+                  hasChanges={hasChanges}
+                  onApprove={handleApprove}
+                />
               ) : (
                 <span className="text-[11px] text-muted-foreground" data-testid="draft-review-pending-submit">
                   Awaiting agent submission
@@ -863,5 +855,51 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, onClose 
         )}
       </DialogContent>
     </Dialog>
+  )
+}
+
+/* ─── Approval gate: require both debit cards before approving ─── */
+function ApproveGate({
+  draft,
+  approving,
+  hasChanges,
+  onApprove,
+}: {
+  draft: FullDraftData | null
+  approving: boolean
+  hasChanges: boolean
+  onApprove: () => void
+}) {
+  const pd = (draft?.platformData as Record<string, Record<string, unknown>>) || {}
+  const hasBankCard = !!pd.onlineBanking?.cardNumber
+  const hasEdgeboostCard = !!pd.edgeboost?.cardNumber
+  const cardsReady = hasBankCard && hasEdgeboostCard
+
+  return (
+    <div className="flex items-center gap-2">
+      {!cardsReady && (
+        <span className="text-[10px] text-warning" data-testid="cards-required-msg">
+          {!hasBankCard && !hasEdgeboostCard
+            ? 'Both debit cards required'
+            : !hasBankCard
+              ? 'Bank debit card required'
+              : 'Edgeboost debit card required'}
+        </span>
+      )}
+      <Button
+        size="sm"
+        className="h-7 text-xs"
+        onClick={onApprove}
+        disabled={approving || hasChanges || !cardsReady}
+        data-testid="draft-review-approve-btn"
+      >
+        {approving ? (
+          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+        ) : (
+          <Check className="mr-1 h-3 w-3" />
+        )}
+        Approve Client
+      </Button>
+    </div>
   )
 }

@@ -114,6 +114,9 @@ export async function saveClientDraft(
     'debankedBank',
     'undisclosedInfo',
     'discoveredAddresses',
+    'agentConfidenceLevel',
+    'clientHidingInfo',
+    'clientHidingInfoNotes',
   ]
 
   const updateData: Record<string, unknown> = {}
@@ -153,6 +156,7 @@ export async function submitClientDraft(draftId: string) {
     firstName: draft.firstName,
     lastName: draft.lastName,
     contractDocument: draft.contractDocument,
+    agentConfidenceLevel: draft.agentConfidenceLevel,
   })
 
   if (!validation.success) {
@@ -190,11 +194,105 @@ export async function submitClientDraft(draftId: string) {
     },
   })
 
+  // Auto-create todo: Collect Debit Card Information (cards arrive ~7 days after intake)
+  const draftName = `${draft.firstName} ${draft.lastName}`
+  await prisma.todo.create({
+    data: {
+      title: 'Collect Debit Card Information',
+      description: `Collect Debit Card Information — ${draftName}`,
+      issueCategory: 'Collect Debit Card Information',
+      clientDraftId: draftId,
+      assignedToId: session.user.id,
+      createdById: session.user.id,
+      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+      status: 'PENDING',
+    },
+  })
+
   revalidatePath('/agent/new-client')
   revalidatePath('/agent/clients')
+  revalidatePath('/agent/todo-list')
   revalidatePath('/backoffice/client-management')
+  revalidatePath('/backoffice/sales-interaction')
 
   return { success: true, clientId: client.id }
+}
+
+/**
+ * Update debit card information for a submitted draft.
+ * Called from the Upload Card dialog on the sales interaction page.
+ * Merges card data into the draft's platformData JSON.
+ */
+export async function updateDebitCardInfo(
+  draftId: string,
+  data: {
+    bankCard?: { cardNumber: string; cvv: string; expiry: string; images: string[] }
+    edgeboostCard?: { cardNumber: string; cvv: string; expiry: string; images: string[] }
+  },
+): Promise<{ success: boolean; error?: string }> {
+  const session = await auth()
+  if (!session?.user) return { success: false, error: 'Not authenticated' }
+
+  // Allow backoffice/admin or the closing agent
+  const role = session.user.role
+  const isPrivileged = role === 'ADMIN' || role === 'BACKOFFICE'
+  const draft = await prisma.clientDraft.findFirst({
+    where: isPrivileged ? { id: draftId } : { id: draftId, closerId: session.user.id },
+    select: { id: true, platformData: true, resultClientId: true, firstName: true, lastName: true },
+  })
+
+  if (!draft) return { success: false, error: 'Draft not found' }
+
+  // Merge card data into platformData
+  const platformData = (draft.platformData as Record<string, Record<string, unknown>>) || {}
+
+  if (data.bankCard) {
+    if (!platformData.onlineBanking) platformData.onlineBanking = {}
+    platformData.onlineBanking.cardNumber = data.bankCard.cardNumber
+    platformData.onlineBanking.cvv = data.bankCard.cvv
+    platformData.onlineBanking.cardExpiry = data.bankCard.expiry
+    platformData.onlineBanking.cardImages = data.bankCard.images
+  }
+
+  if (data.edgeboostCard) {
+    if (!platformData.edgeboost) platformData.edgeboost = {}
+    platformData.edgeboost.cardNumber = data.edgeboostCard.cardNumber
+    platformData.edgeboost.cvv = data.edgeboostCard.cvv
+    platformData.edgeboost.cardExpiry = data.edgeboostCard.expiry
+    platformData.edgeboost.cardImages = data.edgeboostCard.images
+  }
+
+  await prisma.clientDraft.update({
+    where: { id: draftId },
+    // Roundtrip through JSON to produce a clean Prisma-compatible JsonValue
+    data: { platformData: JSON.parse(JSON.stringify(platformData)) },
+  })
+
+  // Log event
+  const clientName = `${draft.firstName || ''} ${draft.lastName || ''}`.trim()
+  const cardsUploaded = [
+    data.bankCard ? 'Bank' : null,
+    data.edgeboostCard ? 'Edgeboost' : null,
+  ].filter(Boolean).join(' + ')
+
+  await prisma.eventLog.create({
+    data: {
+      eventType: 'DEBIT_CARD_UPLOADED',
+      description: `Debit card info uploaded for ${clientName}: ${cardsUploaded}`,
+      userId: session.user.id,
+      metadata: {
+        draftId,
+        clientId: draft.resultClientId,
+        clientName,
+        cardsUploaded,
+      },
+    },
+  })
+
+  revalidatePath('/backoffice/sales-interaction')
+  revalidatePath('/backoffice/client-management')
+
+  return { success: true }
 }
 
 export async function getFullDraft(draftId: string) {

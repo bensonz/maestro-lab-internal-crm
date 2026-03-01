@@ -1,20 +1,23 @@
 'use client'
 
 import { BackofficeHeader } from './backoffice-header'
-import { DailyOpsPanel } from './daily-ops-panel'
-import { ActionQueuePanel } from './action-queue-panel'
-import { AgentTaskOverview } from './agent-task-overview'
+import { DailyRundown } from './daily-rundown'
+import { OverdueDevicesPanel } from './overdue-devices-panel'
+import { PendingTodosPanel } from './pending-todos-panel'
+import { FundAllocationsPanel } from './fund-allocations-panel'
+import { ActivityFeed } from './activity-feed'
 import type { ActionHubViewProps } from './types'
 
 export function ActionHubView({
-  stats,
-  pnlStatus,
-  fundAlerts,
-  pendingActions,
-  agentTasks,
-  activeAgents,
   userName,
   userRole,
+  kpis,
+  dailyRundown,
+  overdueDevices,
+  pendingTodos,
+  todayAllocations,
+  yesterdayAllocCount,
+  timeline,
 }: ActionHubViewProps) {
   return (
     <div
@@ -24,20 +27,22 @@ export function ActionHubView({
       <BackofficeHeader
         userName={userName}
         userRole={userRole}
-        stats={stats}
-        pnlStatus={pnlStatus}
+        kpis={kpis}
       />
 
+      <DailyRundown blocks={dailyRundown} />
+
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <DailyOpsPanel
-          pnlStatus={pnlStatus}
-          fundAlerts={fundAlerts}
-          stats={stats}
-        />
-        <ActionQueuePanel actions={pendingActions} />
+        <OverdueDevicesPanel devices={overdueDevices} />
+        <PendingTodosPanel todos={pendingTodos} />
       </div>
 
-      <AgentTaskOverview agentTasks={agentTasks} activeAgents={activeAgents} />
+      <FundAllocationsPanel
+        allocations={todayAllocations}
+        yesterdayCount={yesterdayAllocCount}
+      />
+
+      <ActivityFeed entries={timeline} />
     </div>
   )
 }

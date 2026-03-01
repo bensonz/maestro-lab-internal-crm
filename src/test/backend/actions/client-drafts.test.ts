@@ -25,6 +25,9 @@ const { mockPrisma } = vi.hoisted(() => ({
     phoneAssignment: {
       deleteMany: vi.fn(),
     },
+    todo: {
+      create: vi.fn(),
+    },
   },
 }))
 vi.mock('@/backend/prisma/client', () => ({ default: mockPrisma }))
@@ -253,6 +256,7 @@ describe('submitClientDraft', () => {
       email: 'john@test.com',
       phone: '555-0001',
       contractDocument: '/uploads/contract.pdf',
+      agentConfidenceLevel: 'high',
     })
 
     const result = await submitClientDraft('draft-1')

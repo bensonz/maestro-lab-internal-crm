@@ -34,7 +34,7 @@ CRM for client onboarding across sports betting platforms. Two portals:
 
 ## 3. Database
 
-### 11 Prisma Models (`prisma/schema.prisma`)
+### 13 Prisma Models (`prisma/schema.prisma`)
 
 - **User** — staff accounts with hierarchy (supervisorId), star level/tier, leadershipTier (NONE/ED/SED/MD/CMO)
 - **AgentApplication** — PENDING → APPROVED/REJECTED. Stores idDocument + addressDocument
@@ -45,8 +45,11 @@ CRM for client onboarding across sports betting platforms. Two portals:
 - **PromotionLog** — immutable star level + leadership tier change audit
 - **QuarterlySettlement** — DRAFT → APPROVED → PAID. Unique per [leaderId, year, quarter]
 - **PhoneAssignment** — SIGNED_OUT → RETURNED. Tracks phone, carrier, deviceId, dueBackAt (3-day window). OVERDUE computed at view time
-- **Todo** — PENDING → COMPLETED/CANCELLED. issueCategory (4 predefined), dueDate (default 3 days), metadata (Json)
-- **EventLog** — append-only audit trail for all system events
+- **Todo** — PENDING → COMPLETED/CANCELLED. issueCategory (9 predefined), dueDate (default 3 days), metadata (Json), source (MANUAL/EMAIL_AUTO), optional clientDraftId + clientId
+- **FundAllocation** — records every fund allocation with platform, amount (Decimal 12,2), direction (DEPOSIT/WITHDRAWAL), confirmationStatus (UNCONFIRMED/CONFIRMED/DISCREPANCY), confirmedAmount, confirmedBy, discrepancyNotes
+- **GmailIntegration** — stores OAuth tokens for Gmail API inbox connection, historyId for incremental sync
+- **ProcessedEmail** — dedup + audit trail for processed emails. gmailMessageId (unique), detectionType, links to todoId + fundAllocationId
+- **EventLog** — append-only audit trail for all system events. EventType includes `FUND_ALLOCATED`, `GMAIL_SYNCED`, `EMAIL_TODO_CREATED`, `FUND_CONFIRMED`, `FUND_DISCREPANCY_FLAGGED`
 
 ### Prisma 7 Setup
 
@@ -82,7 +85,7 @@ CRM for client onboarding across sports betting platforms. Two portals:
 ## 5. Current State (Phase 2)
 
 ### Live (real DB)
-Agent Application + review, Agent Directory (table/tree, HoverCard), Login Management (CRUD), Commission system ($400 pool, star distribution), Client drafts (CRUD, auth-guarded), Phone assignments (assign/return/re-issue), Agent Dashboard (earnings/star), Agent Earnings (allocations), Agent Clients, Agent Detail (inline-edit + audit), New Client (4-step intake), Commissions page, Search API, NextAuth v5
+Agent Application + review, Agent Directory (table/tree, HoverCard), Login Management (CRUD), Commission system ($400 pool, star distribution), Client drafts (CRUD, auth-guarded), Phone assignments (assign/return/re-issue), Agent Dashboard (earnings/star), Agent Earnings (allocations), Agent Clients, Agent Detail (inline-edit + audit), New Client (4-step intake), Commissions page, Search API, NextAuth v5, **Backoffice Action Hub** (daily rundown, overdue devices, pending todos, fund allocations, activity feed), **FundAllocation** (record/track/confirm allocations), **Auto-todo on client approval** (Collect Debit Card Information, 7-day due), **Gmail Integration** (auto-detect emails, create todos, match funds), **Fund Confirmation** (UNCONFIRMED/CONFIRMED/DISCREPANCY workflow)
 
 ### Partially Wired (DB + mock fallbacks)
 - Agent dashboard — earnings real, pipeline mock
@@ -92,7 +95,7 @@ Agent Application + review, Agent Directory (table/tree, HoverCard), Login Manag
 - Agent Action Hub — real todos merged with mock
 
 ### Mock (UI shell only)
-Agent team/todos/settings. Backoffice overview, client management UI, settlements, fund allocation, partners, profit sharing, reports, phone tracking, action hub. Mock data: `src/lib/mock-data.ts`, stubs: `src/lib/mock-actions.ts`.
+Agent team/todos/settings. Backoffice overview, client management UI, settlements, fund allocation page, partners, profit sharing, reports, phone tracking. Mock data: `src/lib/mock-data.ts`, stubs: `src/lib/mock-actions.ts`.
 
 ---
 
@@ -105,6 +108,8 @@ ClientDraft (DRAFT) → submit → ClientDraft (SUBMITTED) + Client (PENDING)
                                     → backoffice approves → Client (APPROVED) + star recalc + $400 pool
 ```
 Agent "My Clients" shows drafts grouped by step (1-4) at top, approved/submitted below. PENDING filtered (exist as drafts).
+
+**Auto-todo on approval:** When a client is approved, a "Collect Debit Card Information" todo is auto-created with 7-day due date, assigned to the closer agent. Once debit card info is confirmed, PayPal should be issued.
 
 ### Commission ($400 pool per approved client)
 - $200 direct to closer, $200 star pool = 4×$50 slices up hierarchy
@@ -161,7 +166,7 @@ Backoffice hub at `/backoffice/sales-interaction`. Queue/Review tab toggle.
 
 **Review dialog:** 4-step read-only, Approve on Step 4. Step 3 shows credential fill status (green=both, amber=partial, dim=empty).
 
-**Todo system:** Done → `completeTodo()` (COMPLETED + event). Revert → `revertTodo()` (back to PENDING + event). Assign dialog: client picker, 4 issue categories, default 3-day due.
+**Todo system:** Done → `completeTodo()` (COMPLETED + event). Revert → `revertTodo()` (back to PENDING + event). Assign dialog: client picker, 5 issue categories (Re-Open Bank, Contact Bank, Contact PayPal, Platforms Verification, Collect Debit Card Information), default 3-day due.
 
 **Key files:** `sales-interaction-view.tsx`, `client-intake-list.tsx`, `draft-review-dialog.tsx`, `device-assign-dialog.tsx`, `assign-todo-dialog.tsx`, `src/app/actions/phone-assignments.ts`, `src/app/actions/todos.ts`
 
@@ -192,11 +197,53 @@ vi.mock('@/backend/auth', () => ({ auth: mockAuth }))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 ```
 
-**16 files, 233 tests:** Agent Application (5 files, 57), Commission (7 files, 73), Client Draft (2 files, 55), Phone Assignment (1 file, 22), Todo (1 file, 16)
+**19 files, ~280 tests:** Agent Application (5 files, 57), Commission (7 files, 73), Client Draft (2 files, 55), Phone Assignment (1 file, 22), Todo (1 file, ~20), Fund Confirmations (1 file, ~10), Gmail Detectors (1 file, ~25), Gmail Matcher (1 file, ~7)
 
 ---
 
-## 12. Seed Data
+## 12. Feature: Gmail Auto-Detection + Fund Confirmation
+
+### Gmail Integration
+Business Gmail inbox connected via Google OAuth. Cron syncs every 5 minutes (`vercel.json`). 5 detectors auto-classify emails:
+
+| Detector | Source | Auto-Creates | Fund Match? |
+|----------|--------|-------------|-------------|
+| VIP | Sportsbook "VIP"/"elevated" emails | Todo: "VIP Account — Reply Required" | No |
+| Verification | Platform "verify"/"action needed" | Todo: "Account Verification — Send to Client" | No |
+| Fund Deposit | "deposit confirmed" + $ amount | Todo: "Confirm Fund Deposit" | Yes |
+| Fund Withdrawal | "withdrawal processed" + $ | Todo: "Confirm Fund Withdrawal" | Yes |
+| PayPal | PayPal transfer notifications | Todo: "Confirm Fund Deposit/Withdrawal" | Yes |
+
+**Client identification:** `ClientDraft.assignedGmail` ↔ email "to" address. Todo assigned to closer agent.
+
+**Fund matching:** Same platform + direction + amount within 5% + 48h window → auto-confirm. 5-25% mismatch → flag discrepancy. No match → manual review todo.
+
+**Key files:** `src/lib/gmail/` (types, client, sync, processor, matcher, detectors/), `src/app/actions/gmail-settings.ts`, `src/app/api/cron/gmail-sync/route.ts`, `src/app/api/gmail/callback/route.ts`, `src/app/backoffice/settings/gmail/`
+
+**Setup:** See `docs/gmail-setup.md`. Requires `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REDIRECT_URI`, `CRON_SECRET` env vars.
+
+### Fund Confirmation
+FundAllocation now tracks: `confirmationStatus` (UNCONFIRMED → CONFIRMED/DISCREPANCY), `confirmedAt`, `confirmedBy`, `confirmedAmount`, `discrepancyNotes`.
+
+- **Action Hub:** Filter tabs (All/Unconfirmed/Confirmed/Discrepancy), "Confirm" button on unconfirmed rows, confirmation dialog, unconfirmed count in header KPIs + daily rundown
+- **Actions:** `confirmFundAllocation()`, `flagDiscrepancy()` in `src/app/actions/fund-confirmations.ts`
+
+### Todo Categories (9 total)
+1. Re-Open Bank Account / Schedule with Client
+2. Contact Bank
+3. Contact PayPal
+4. Platforms Verification
+5. Collect Debit Card Information
+6. VIP Account — Reply Required *(new)*
+7. Account Verification — Send to Client *(new)*
+8. Confirm Fund Deposit *(new)*
+9. Confirm Fund Withdrawal *(new)*
+
+`assignTodo()` now accepts `{ clientDraftId?, clientId? }` — at least one required. Auto-created email todos have `source: 'EMAIL_AUTO'` and show a mail icon in the Action Hub.
+
+---
+
+## 13. Seed Data
 
 See `prisma/seed.ts` for full details. All passwords: `password123` (except Jamie Torres: `approved123`).
 
@@ -207,10 +254,10 @@ See `prisma/seed.ts` for full details. All passwords: `password123` (except Jami
 - Rachel Kim (SED) → Tony Russo (2★) → Sofia Reyes; Kevin Okafor
 - Victor Hayes (CMO) → Diana Foster (MD) → Ryan Mitchell (4★)
 
-**Sample data:** 3 clients (2 APPROVED w/ bonus pools, 1 PENDING), 1 draft (Sarah Martinez, step 2), 1 phone assignment (SIGNED_OUT), 1 todo (Contact Bank, PENDING)
+**Sample data:** 3 clients (2 APPROVED w/ bonus pools, 1 PENDING), 1 draft (Sarah Martinez, step 3), 1 phone assignment (SIGNED_OUT), 1 todo (Contact Bank, PENDING), 6 fund allocations (2 confirmed, 1 discrepancy, 3 unconfirmed)
 
 ---
 
-## 13. Documentation
+## 14. Documentation
 
 Update `CLAUDE.md` after every task. Write detail docs to `docs/` directory when needed.

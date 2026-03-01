@@ -620,8 +620,17 @@ async function main() {
       maritalStatus: 'Single',
       platformData: {
         paypal: { username: 'david.wilson.work@gmail.com', status: 'VERIFIED' },
-        onlineBanking: { username: 'david.wilson.work@gmail.com', accountId: 'CHK-9901', bank: 'Chase', status: 'VERIFIED' },
-        edgeboost: { username: 'david.wilson.work@gmail.com', accountId: 'EB-4401', status: 'VERIFIED' },
+        onlineBanking: {
+          username: 'david.wilson.work@gmail.com', accountId: 'CHK-9901', bank: 'Chase', status: 'VERIFIED',
+          routingNumber: '021000021', bankAccountNumber: '4839201756',
+          cardNumber: '4532 1234 5678 9012', cvv: '847', cardExpiry: '09/28', pin: '2580',
+          cardImages: ['/uploads/david-wilson-bank-card.jpg'],
+        },
+        edgeboost: {
+          username: 'david.wilson.work@gmail.com', accountId: 'EB-4401', status: 'VERIFIED',
+          cardNumber: '5412 7534 0000 1234', cvv: '312', cardExpiry: '11/27',
+          cardImages: ['/uploads/david-wilson-edgeboost-card.jpg'],
+        },
         draftkings: { username: 'DWilsonDK', accountId: 'DK-7701', status: 'VERIFIED' },
         fanduel: { username: 'DWilsonFD', accountId: 'FD-3301', status: 'VERIFIED' },
         betmgm: { username: 'david.wilson.work@gmail.com', accountId: 'MGM-1101', status: 'VERIFIED' },
@@ -748,8 +757,17 @@ async function main() {
       maritalStatus: 'Married',
       platformData: {
         paypal: { username: 'emily.chen.work@gmail.com', status: 'VERIFIED' },
-        onlineBanking: { username: 'emily.chen.work@gmail.com', accountId: 'CHK-5502', bank: 'Citi', status: 'VERIFIED' },
-        edgeboost: { username: 'emily.chen.work@gmail.com', accountId: 'EB-2202', status: 'PENDING_REVIEW' },
+        onlineBanking: {
+          username: 'emily.chen.work@gmail.com', accountId: 'CHK-5502', bank: 'Citi', status: 'VERIFIED',
+          routingNumber: '021000089', bankAccountNumber: '5527801943',
+          cardNumber: '4916 3344 7788 2201', cvv: '523', cardExpiry: '04/28', pin: '1234',
+          cardImages: ['/uploads/emily-chen-bank-card.jpg'],
+        },
+        edgeboost: {
+          username: 'emily.chen.work@gmail.com', accountId: 'EB-2202', status: 'PENDING_REVIEW',
+          cardNumber: '5500 1122 3344 5566', cvv: '789', cardExpiry: '08/27',
+          cardImages: ['/uploads/emily-chen-edgeboost-card.jpg'],
+        },
         draftkings: { username: 'EChenDK', accountId: 'DK-8802', status: 'VERIFIED' },
         fanduel: { username: 'EChenFD', accountId: 'FD-4402', status: 'VERIFIED' },
         betmgm: { username: 'emily.chen.work@gmail.com', accountId: 'MGM-6602', status: 'VERIFIED' },
@@ -1076,6 +1094,80 @@ async function main() {
     },
   })
   console.log(`  Created sample todo: ${sampleTodo.id} (Contact Bank, assigned to Marcus, due ${todoDueDate.toISOString().split('T')[0]})`)
+
+  // ── Sample Fund Allocations ───────────────────────────────
+  // Mix of UNCONFIRMED, CONFIRMED, and DISCREPANCY for testing
+
+  await prisma.fundAllocation.deleteMany({})
+  await prisma.fundAllocation.createMany({
+    data: [
+      {
+        amount: 500.00,
+        platform: 'DraftKings',
+        direction: 'DEPOSIT',
+        notes: 'Initial fund deposit for David Wilson accounts',
+        recordedById: boStaff.id,
+        confirmationStatus: 'CONFIRMED',
+        confirmedAt: new Date('2026-02-11T10:00:00'),
+        confirmedById: admin.id,
+        confirmedAmount: 500.00,
+        createdAt: new Date('2026-02-11T08:00:00'),
+      },
+      {
+        amount: 300.00,
+        platform: 'FanDuel',
+        direction: 'DEPOSIT',
+        notes: 'FanDuel deposit for David Wilson',
+        recordedById: boStaff.id,
+        confirmationStatus: 'CONFIRMED',
+        confirmedAt: new Date('2026-02-13T14:00:00'),
+        confirmedById: boStaff.id,
+        confirmedAmount: 300.00,
+        createdAt: new Date('2026-02-13T09:00:00'),
+      },
+      {
+        amount: 200.00,
+        platform: 'PayPal',
+        direction: 'DEPOSIT',
+        notes: 'PayPal transfer for David Wilson',
+        recordedById: boStaff.id,
+        confirmationStatus: 'DISCREPANCY',
+        confirmedAt: new Date('2026-02-15T16:00:00'),
+        confirmedById: admin.id,
+        confirmedAmount: 185.50,
+        discrepancyNotes: 'PayPal fee deducted $14.50',
+        createdAt: new Date('2026-02-15T08:00:00'),
+      },
+      {
+        amount: 150.00,
+        platform: 'DraftKings',
+        direction: 'WITHDRAWAL',
+        notes: 'DraftKings withdrawal for David Wilson',
+        recordedById: boStaff.id,
+        confirmationStatus: 'UNCONFIRMED',
+        createdAt: new Date('2026-02-20T10:00:00'),
+      },
+      {
+        amount: 400.00,
+        platform: 'BetMGM',
+        direction: 'DEPOSIT',
+        notes: 'BetMGM deposit for Emily Chen accounts',
+        recordedById: boStaff.id,
+        confirmationStatus: 'UNCONFIRMED',
+        createdAt: new Date('2026-02-25T09:00:00'),
+      },
+      {
+        amount: 250.00,
+        platform: 'Online Banking',
+        direction: 'DEPOSIT',
+        notes: 'Bank transfer for Emily Chen',
+        recordedById: boStaff.id,
+        confirmationStatus: 'UNCONFIRMED',
+        createdAt: new Date('2026-02-27T11:00:00'),
+      },
+    ],
+  })
+  console.log('  Created sample fund allocations (2 confirmed, 1 discrepancy, 3 unconfirmed)')
 
   // ── Event Logs ─────────────────────────────────────────
   // General system events

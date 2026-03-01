@@ -19,6 +19,9 @@ export async function getTodosByAgent(agentId: string) {
           step: true,
         },
       },
+      client: {
+        select: { id: true, firstName: true, lastName: true },
+      },
       createdBy: {
         select: { id: true, name: true },
       },
@@ -53,6 +56,9 @@ export async function getPendingTodosForBackoffice() {
           },
         },
       },
+      client: {
+        select: { id: true, firstName: true, lastName: true },
+      },
       assignedTo: {
         select: { id: true, name: true },
       },
@@ -80,6 +86,9 @@ export async function getCompletedTodosForBackoffice() {
           lastName: true,
           step: true,
         },
+      },
+      client: {
+        select: { id: true, firstName: true, lastName: true },
       },
       assignedTo: {
         select: { id: true, name: true },
