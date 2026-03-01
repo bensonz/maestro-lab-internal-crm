@@ -1,13 +1,22 @@
 'use client'
 
-import { useState, useCallback, useMemo, useRef } from 'react'
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { DraftsPanel } from './drafts-panel'
 import { StepIndicator } from './step-indicator'
 import { ClientForm } from './client-form'
 import { RiskPanel } from './risk-panel'
 import { calculateRiskScore } from '@/lib/risk-score'
-import type { RiskAssessment } from '@/types/backend-types'
+import type { RiskAssessment, PlatformEntry, DiscoveredAddress } from '@/types/backend-types'
+import { getUniqueAddresses } from '@/lib/address-utils'
+import type { GeneratedCredentials } from './client-form'
+
+export interface SerializedPhoneAssignment {
+  phoneNumber: string
+  signedOutAt: string
+  dueBackAt: string
+  status: string
+}
 
 interface DraftSummary {
   id: string
@@ -16,6 +25,7 @@ interface DraftSummary {
   step: number
   updatedAt: string
   status: string
+  idDocument: string | null
 }
 
 export interface SerializedDraft {
@@ -44,18 +54,42 @@ export interface SerializedDraft {
   betmgmRegScreenshot: string | null
   betmgmLoginScreenshot: string | null
   ssnDocument: string | null
+  ssnNumber: string | null
+  citizenship: string | null
+  missingIdType: string | null
   secondAddress: string | null
+  secondAddressProof: string | null
   hasCriminalRecord: boolean | null
   criminalRecordNotes: string | null
   bankingHistory: string | null
   paypalHistory: string | null
+  paypalSsnLinked: boolean
+  paypalBrowserVerified: boolean
+  occupation: string | null
+  annualIncome: string | null
+  employmentStatus: string | null
+  maritalStatus: string | null
+  creditScoreRange: string | null
+  dependents: string | null
+  educationLevel: string | null
+  householdAwareness: string | null
+  familyTechSupport: string | null
+  financialAutonomy: string | null
+  digitalComfort: string | null
+  deviceReservationDate: string | null
   sportsbookHistory: string | null
+  sportsbookUsedBefore: boolean
+  sportsbookUsedList: string | null
+  sportsbookStatuses: string | null
   platformData: unknown
+  generatedCredentials: unknown
+  discoveredAddresses: unknown
   contractDocument: string | null
   paypalPreviouslyUsed: boolean
   addressMismatch: boolean
   debankedHistory: boolean
   debankedBank: string | null
+  bankNegativeBalance: boolean | null
   undisclosedInfo: boolean
   closerId: string
   resultClientId: string | null
@@ -64,23 +98,29 @@ export interface SerializedDraft {
 }
 
 interface NewClientViewProps {
+  initialStep?: number
   drafts: (Omit<DraftSummary, 'updatedAt'> & { updatedAt: string })[]
   selectedDraft: SerializedDraft | null
+  activeAssignment: SerializedPhoneAssignment | null
 }
 
-export function NewClientView({ drafts, selectedDraft }: NewClientViewProps) {
+export function NewClientView({ initialStep, drafts, selectedDraft, activeAssignment }: NewClientViewProps) {
   const router = useRouter()
-  const [currentStep, setCurrentStep] = useState(selectedDraft?.step ?? 1)
+  // URL step takes priority (survives refresh), then draft's highest step, then 1
+  const [currentStep, setCurrentStep] = useState(initialStep ?? selectedDraft?.step ?? 1)
 
-  // Risk flags state — derived from draft + form data
-  const [riskFlags, setRiskFlags] = useState({
-    idExpiryDaysRemaining: null as number | null,
-    paypalPreviouslyUsed: selectedDraft?.paypalPreviouslyUsed ?? false,
-    addressMismatch: selectedDraft?.addressMismatch ?? false,
-    debankedHistory: selectedDraft?.debankedHistory ?? false,
-    criminalRecord: selectedDraft?.hasCriminalRecord ?? false,
-    undisclosedInfo: selectedDraft?.undisclosedInfo ?? false,
-  })
+  // Sync currentStep to URL so it survives hard refreshes
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    const urlStep = url.searchParams.get('step')
+    if (urlStep !== String(currentStep)) {
+      url.searchParams.set('step', String(currentStep))
+      window.history.replaceState({}, '', url.toString())
+    }
+  }, [currentStep])
+
+  // Risk flags state — fully reconstructed from draft data so nothing is lost on refresh
+  const [riskFlags, setRiskFlags] = useState(() => computeAllRiskFlags(selectedDraft))
 
   const riskAssessment: RiskAssessment = useMemo(
     () => calculateRiskScore(riskFlags),
@@ -89,7 +129,18 @@ export function NewClientView({ drafts, selectedDraft }: NewClientViewProps) {
 
   const handleRiskFlagsChange = useCallback(
     (flags: Record<string, unknown>) => {
-      setRiskFlags((prev) => ({ ...prev, ...flags }))
+      setRiskFlags((prev) => {
+        // Deep-merge credentialMismatches so Step 1 and Step 3 don't overwrite each other
+        if (flags.credentialMismatches) {
+          const merged = {
+            ...prev.credentialMismatches,
+            ...(flags.credentialMismatches as Record<string, { username: boolean; password: boolean }>),
+          }
+          const { credentialMismatches: _, ...rest } = flags
+          return { ...prev, ...rest, credentialMismatches: merged }
+        }
+        return { ...prev, ...flags }
+      })
     },
     [],
   )
@@ -148,6 +199,7 @@ export function NewClientView({ drafts, selectedDraft }: NewClientViewProps) {
               onStepChange={handleStepChange}
               onRiskFlagsChange={handleRiskFlagsChange}
               onRegisterStepHandler={(handler) => { formStepHandlerRef.current = handler }}
+              activeAssignment={activeAssignment}
             />
           ) : (
             <div className="mt-12 text-center text-muted-foreground" data-testid="no-draft-selected">
@@ -169,4 +221,82 @@ export function NewClientView({ drafts, selectedDraft }: NewClientViewProps) {
       />
     </div>
   )
+}
+
+/**
+ * Reconstruct ALL risk flags from persisted draft data so nothing is lost on refresh.
+ */
+function computeAllRiskFlags(draft: SerializedDraft | null) {
+  const creds = (draft?.generatedCredentials ?? {}) as GeneratedCredentials
+  const platforms = (draft?.platformData as PlatformEntry[] | null) ?? []
+  const bankEntry = platforms.find((p) => p.platform === 'BANK')
+
+  // ID expiry days remaining
+  let idExpiryDaysRemaining: number | null = null
+  if (draft?.idExpiry) {
+    const expiry = new Date(draft.idExpiry)
+    idExpiryDaysRemaining = Math.floor((expiry.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+  }
+
+  // Bank info flags — mirrors step3-platforms.tsx logic
+  let bankPinOverride = false
+  let bankNameOverride = false
+  let bankPhoneEmailNotConfirmed = false
+  if (bankEntry) {
+    const pin = bankEntry.pin ?? ''
+    const sug4 = bankEntry.pinSuggested ?? ''
+    const sug6 = bankEntry.pinSuggested6 ?? ''
+    bankPinOverride = pin !== '' && sug4 !== '' && pin !== sug4 && pin !== sug6
+    bankNameOverride = !!bankEntry.bankAutoDetected && !!bankEntry.bank && bankEntry.bank !== bankEntry.bankAutoDetected
+    const bankTouched = !!(bankEntry.screenshot || bankEntry.username || bankEntry.bank)
+    bankPhoneEmailNotConfirmed = bankTouched && !bankEntry.bankPhoneEmailConfirmed
+  }
+
+  // Credential mismatches
+  const credentialMismatches: Record<string, { username: boolean; password: boolean }> = {}
+  if (draft?.assignedGmail || draft?.gmailPassword) {
+    credentialMismatches.GMAIL = {
+      username: !!(draft.assignedGmail && creds.gmailSuggestion && draft.assignedGmail !== creds.gmailSuggestion),
+      password: !!(draft.gmailPassword && creds.gmailPassword && draft.gmailPassword !== creds.gmailPassword),
+    }
+  }
+  if (draft?.betmgmLogin || draft?.betmgmPassword) {
+    credentialMismatches.BETMGM = {
+      username: !!(draft.betmgmLogin && draft.assignedGmail && draft.betmgmLogin !== draft.assignedGmail),
+      password: !!(draft.betmgmPassword && creds.betmgmPassword && draft.betmgmPassword !== creds.betmgmPassword),
+    }
+  }
+  const storedPwds = creds.platformPasswords ?? {}
+  for (const p of platforms) {
+    if (!p.screenshot) continue
+    const suggestedPw = storedPwds[p.platform] ?? ''
+    const suggestedUser = p.platform === 'BANK' ? '' : (creds.gmailSuggestion ?? '')
+    credentialMismatches[p.platform] = {
+      username: !!(suggestedUser && p.username && p.username !== suggestedUser),
+      password: !!(suggestedPw && p.accountId && p.accountId !== suggestedPw),
+    }
+  }
+
+  // Discovered addresses — count unique addresses for risk display
+  const discoveredAddresses = (draft?.discoveredAddresses as DiscoveredAddress[] | null) ?? []
+  const uniqueAddresses = getUniqueAddresses(discoveredAddresses)
+  const discoveredAddressCount = uniqueAddresses.length
+
+  return {
+    idExpiryDaysRemaining,
+    paypalPreviouslyUsed: draft?.paypalPreviouslyUsed ?? false,
+    multipleAddresses: draft?.addressMismatch ?? false,
+    discoveredAddressCount,
+    betmgmEmailMismatch: false,
+    debankedHistory: draft?.debankedHistory ?? false,
+    criminalRecord: draft?.hasCriminalRecord ?? false,
+    missingIdCount: (draft?.missingIdType?.split(',').filter(Boolean).length) ?? 0,
+    householdAwareness: draft?.householdAwareness ?? '',
+    familyTechSupport: draft?.familyTechSupport ?? '',
+    financialAutonomy: draft?.financialAutonomy ?? '',
+    bankPinOverride,
+    bankNameOverride,
+    bankPhoneEmailNotConfirmed,
+    credentialMismatches,
+  }
 }

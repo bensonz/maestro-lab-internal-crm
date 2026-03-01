@@ -167,21 +167,26 @@ interface ScreenshotThumbnailProps {
   src: string
   onDelete?: () => void
   isDeleting?: boolean
+  size?: 'sm' | 'md'
 }
 
 export function ScreenshotThumbnail({
   src,
   onDelete,
   isDeleting,
+  size = 'md',
 }: ScreenshotThumbnailProps) {
   const [imageError, setImageError] = useState(false)
 
+  const sizeClasses = size === 'sm' ? 'h-8 w-8 rounded-md' : 'h-16 w-16 rounded-lg'
+  const iconSize = size === 'sm' ? 'h-4 w-4' : 'h-6 w-6'
+
   return (
     <div className="group relative">
-      <div className="relative h-16 w-16 overflow-hidden rounded-lg bg-muted/50 ring-1 ring-border/30">
+      <div className={`relative overflow-hidden bg-muted/50 ring-1 ring-border/30 ${sizeClasses}`}>
         {imageError ? (
           <div className="flex h-full w-full items-center justify-center">
-            <ImageIcon className="h-6 w-6 text-muted-foreground" />
+            <ImageIcon className={`${iconSize} text-muted-foreground`} />
           </div>
         ) : (
           // eslint-disable-next-line @next/next/no-img-element

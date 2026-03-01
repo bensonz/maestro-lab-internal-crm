@@ -38,14 +38,17 @@ export async function saveClientDraft(
   const session = await auth()
   if (!session?.user) return { success: false, error: 'Not authenticated' }
 
-  // Ownership check
+  // Ownership check — backoffice/admin can edit any draft (including submitted ones)
+  const role = session.user.role
+  const isPrivileged = role === 'ADMIN' || role === 'BACKOFFICE'
   const draft = await prisma.clientDraft.findFirst({
-    where: { id: draftId, closerId: session.user.id },
+    where: isPrivileged ? { id: draftId } : { id: draftId, closerId: session.user.id },
     select: { id: true, status: true },
   })
 
   if (!draft) return { success: false, error: 'Draft not found' }
-  if (draft.status !== 'DRAFT') {
+  // Agents can only edit DRAFT status; backoffice can edit any status
+  if (!isPrivileged && draft.status !== 'DRAFT') {
     return { success: false, error: 'Draft already submitted' }
   }
 
@@ -74,19 +77,43 @@ export async function saveClientDraft(
     'betmgmRegScreenshot',
     'betmgmLoginScreenshot',
     'ssnDocument',
+    'ssnNumber',
+    'citizenship',
+    'missingIdType',
     'secondAddress',
+    'secondAddressProof',
     'hasCriminalRecord',
     'criminalRecordNotes',
     'bankingHistory',
+    'bankNegativeBalance',
     'paypalHistory',
+    'paypalSsnLinked',
+    'paypalBrowserVerified',
+    'occupation',
+    'annualIncome',
+    'employmentStatus',
+    'maritalStatus',
+    'creditScoreRange',
+    'dependents',
+    'educationLevel',
+    'householdAwareness',
+    'familyTechSupport',
+    'financialAutonomy',
+    'digitalComfort',
+    'deviceReservationDate',
     'sportsbookHistory',
+    'sportsbookUsedBefore',
+    'sportsbookUsedList',
+    'sportsbookStatuses',
     'platformData',
+    'generatedCredentials',
     'contractDocument',
     'paypalPreviouslyUsed',
     'addressMismatch',
     'debankedHistory',
     'debankedBank',
     'undisclosedInfo',
+    'discoveredAddresses',
   ]
 
   const updateData: Record<string, unknown> = {}
@@ -202,13 +229,21 @@ export async function deleteClientDraft(draftId: string) {
 
   const draft = await prisma.clientDraft.findFirst({
     where: { id: draftId, closerId: session.user.id },
-    select: { id: true, status: true },
+    select: { id: true, status: true, idDocument: true },
   })
 
   if (!draft) return { success: false, error: 'Draft not found' }
   if (draft.status !== 'DRAFT') {
     return { success: false, error: 'Cannot delete submitted draft' }
   }
+  if (draft.idDocument) {
+    return { success: false, error: 'Cannot delete draft after ID has been uploaded' }
+  }
+
+  // Delete related phone assignments first (FK constraint)
+  await prisma.phoneAssignment.deleteMany({
+    where: { clientDraftId: draftId },
+  })
 
   await prisma.clientDraft.delete({
     where: { id: draftId },

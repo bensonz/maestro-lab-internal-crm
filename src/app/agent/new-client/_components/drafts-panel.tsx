@@ -20,6 +20,7 @@ interface DraftItem {
   step: number
   updatedAt: string
   status: string
+  idDocument: string | null
 }
 
 interface DraftsPanelProps {
@@ -139,11 +140,14 @@ export function DraftsPanel({
                   <CollapsibleContent>
                     <div className="space-y-0.5 pb-1">
                       {stepDrafts.map((draft) => (
-                        <button
+                        <div
                           key={draft.id}
+                          role="button"
+                          tabIndex={0}
                           onClick={() => onSelect(draft.id)}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(draft.id) } }}
                           className={cn(
-                            'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent group/item',
+                            'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent group/item cursor-pointer',
                             selectedDraftId === draft.id && 'bg-accent',
                           )}
                           data-testid={`draft-item-${draft.id}`}
@@ -151,15 +155,17 @@ export function DraftsPanel({
                           <span className="min-w-0 flex-1 truncate">
                             {getDraftName(draft)}
                           </span>
-                          <button
-                            onClick={(e) => handleDelete(e, draft.id)}
-                            disabled={deletingId === draft.id}
-                            className="shrink-0 rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover/item:opacity-100"
-                            data-testid={`delete-draft-${draft.id}`}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
-                        </button>
+                          {!draft.idDocument && (
+                            <button
+                              onClick={(e) => handleDelete(e, draft.id)}
+                              disabled={deletingId === draft.id}
+                              className="shrink-0 rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover/item:opacity-100"
+                              data-testid={`delete-draft-${draft.id}`}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          )}
+                        </div>
                       ))}
                     </div>
                   </CollapsibleContent>

@@ -10,6 +10,7 @@ import {
   FileText,
   FileCheck,
   Shield,
+  ClipboardCheck,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -46,7 +47,8 @@ const inProgressSteps: InProgressStep[] = [
   { key: 'step-1', label: 'Pre-Qual', stepNumber: 1, icon: FileText, headerColor: 'text-muted-foreground' },
   { key: 'step-2', label: 'Background', stepNumber: 2, icon: FileCheck, headerColor: 'text-primary' },
   { key: 'step-3', label: 'Platforms', stepNumber: 3, icon: Shield, headerColor: 'text-primary' },
-  { key: 'step-4', label: 'Pending Approval', stepNumber: 4, icon: Hourglass, headerColor: 'text-warning' },
+  { key: 'step-4', label: 'Contract', stepNumber: 4, icon: ClipboardCheck, headerColor: 'text-primary' },
+  { key: 'pending-approval', label: 'Pending Approval', stepNumber: 0, icon: Hourglass, headerColor: 'text-warning' },
 ]
 
 /* ─── Non-in-progress status groups ─── */
@@ -76,7 +78,7 @@ const statusGroups: StatusGroup[] = [
   },
 ]
 
-/* ─── Client row ─── */
+/* ─── Client row (for non-approved groups) ─── */
 function ClientRow({ client }: { client: AgentClient }) {
   const isTerminal =
     client.intakeStatus === IntakeStatus.APPROVED ||
@@ -133,6 +135,40 @@ function ClientRow({ client }: { client: AgentClient }) {
   )
 }
 
+/* ─── Approved client row — name + phone + age + state + zelle + duration + start ─── */
+function ApprovedClientRow({ client }: { client: AgentClient }) {
+  return (
+    <Link href={`/agent/clients/${client.id}`}>
+      <div
+        className="group flex cursor-pointer items-center gap-3 border-b border-border/50 bg-card/50 px-5 py-1.5 transition-colors hover:bg-card"
+        data-testid={`client-row-${client.id}`}
+      >
+        <span className="min-w-0 shrink-0 truncate text-sm font-medium text-foreground transition-colors group-hover:text-primary">
+          {client.name}
+        </span>
+        {client.phone && (
+          <span className="shrink-0 font-mono text-[11px] text-muted-foreground">{client.phone}</span>
+        )}
+        {client.age != null && (
+          <span className="shrink-0 text-[11px] text-muted-foreground">{client.age}y</span>
+        )}
+        {client.state && (
+          <span className="shrink-0 text-[11px] font-medium text-muted-foreground">{client.state}</span>
+        )}
+        {client.zelle && (
+          <span className="shrink-0 font-mono text-[11px] text-muted-foreground">{client.zelle}</span>
+        )}
+        {client.intakeDuration && (
+          <span className="shrink-0 font-mono text-[11px] text-primary">{client.intakeDuration}</span>
+        )}
+        {client.startDate && (
+          <span className="ml-auto shrink-0 text-[11px] text-muted-foreground">{client.startDate}</span>
+        )}
+      </div>
+    </Link>
+  )
+}
+
 /* ─── Draft row ─── */
 function DraftRow({ draft }: { draft: AgentDraft }) {
   const progressPct = draft.innerStepTotal > 0
@@ -183,25 +219,28 @@ function SubStepSection({
   const [isOpen, setIsOpen] = useState(false)
   const Icon = step.icon
 
-  if (drafts.length === 0) return null
-
   return (
     <Collapsible
       open={isOpen}
-      onOpenChange={setIsOpen}
+      onOpenChange={drafts.length > 0 ? setIsOpen : undefined}
       data-testid={`substep-${step.key}`}
     >
       <CollapsibleTrigger asChild>
-        <button className="flex w-full items-center justify-between border-b border-border/30 px-5 py-2.5 transition-colors hover:bg-muted/30">
+        <button className={cn(
+          'flex w-full items-center justify-between border-b border-border/30 px-5 py-2.5 transition-colors',
+          drafts.length > 0 ? 'hover:bg-muted/30' : 'opacity-50',
+        )}>
           <div className="flex items-center gap-2.5">
             {isOpen ? (
               <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
             ) : (
               <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
             )}
-            <span className="flex h-5 min-w-5 items-center justify-center rounded bg-muted px-1 text-[10px] font-bold text-muted-foreground">
-              {step.stepNumber}
-            </span>
+            {step.stepNumber > 0 && (
+              <span className="flex h-5 min-w-5 items-center justify-center rounded bg-muted px-1 text-[10px] font-bold text-muted-foreground">
+                {step.stepNumber}
+              </span>
+            )}
             <Icon className={cn('h-3.5 w-3.5', step.headerColor)} />
             <span className={cn('text-xs font-medium', step.headerColor)}>
               {step.label}
@@ -235,7 +274,7 @@ function InProgressSection({
 }: {
   drafts: AgentDraft[]
 }) {
-  const [isOpen, setIsOpen] = useState(drafts.length > 0)
+  const [isOpen, setIsOpen] = useState(true)
 
   return (
     <Collapsible
@@ -248,11 +287,11 @@ function InProgressSection({
         <button
           className={cn(
             'flex w-full items-center justify-between rounded-lg border border-border/50 bg-card px-4 py-3 shadow-sm transition-colors hover:bg-accent/5',
-            isOpen && drafts.length > 0 && 'rounded-b-none border-b-0',
+            isOpen && 'rounded-b-none border-b-0',
           )}
         >
           <div className="flex items-center gap-3">
-            {isOpen && drafts.length > 0 ? (
+            {isOpen ? (
               <ChevronDown className="h-4 w-4 text-muted-foreground" />
             ) : (
               <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -269,22 +308,29 @@ function InProgressSection({
           </Badge>
         </button>
       </CollapsibleTrigger>
-      {drafts.length > 0 && (
-        <CollapsibleContent>
-          <div className="overflow-hidden rounded-b-lg border border-t-0 border-border/50 shadow-sm">
-            {inProgressSteps.map((step) => {
-              const stepDrafts = drafts.filter((d) => d.step === step.stepNumber)
-              return (
-                <SubStepSection
-                  key={step.key}
-                  step={step}
-                  drafts={stepDrafts}
-                />
-              )
-            })}
-          </div>
-        </CollapsibleContent>
-      )}
+      <CollapsibleContent>
+        <div className="overflow-hidden rounded-b-lg border border-t-0 border-border/50 shadow-sm">
+          {inProgressSteps.map((step) => {
+            let stepDrafts: AgentDraft[]
+            if (step.key === 'pending-approval') {
+              // SUBMITTED drafts go to Pending Approval
+              stepDrafts = drafts.filter((d) => d.status === 'SUBMITTED')
+            } else if (step.key === 'step-4') {
+              // Step 4 (Contract) only shows non-submitted drafts
+              stepDrafts = drafts.filter((d) => d.step === 4 && d.status !== 'SUBMITTED')
+            } else {
+              stepDrafts = drafts.filter((d) => d.step === step.stepNumber && d.status !== 'SUBMITTED')
+            }
+            return (
+              <SubStepSection
+                key={step.key}
+                step={step}
+                drafts={stepDrafts}
+              />
+            )
+          })}
+        </div>
+      </CollapsibleContent>
     </Collapsible>
   )
 }
@@ -336,9 +382,13 @@ function GroupSection({
       {clients.length > 0 && (
         <CollapsibleContent>
           <div className="overflow-hidden rounded-b-lg border border-t-0 border-border/50 shadow-sm">
-            {clients.map((client) => (
-              <ClientRow key={client.id} client={client} />
-            ))}
+            {clients.map((client) =>
+              group.key === 'approved' ? (
+                <ApprovedClientRow key={client.id} client={client} />
+              ) : (
+                <ClientRow key={client.id} client={client} />
+              ),
+            )}
           </div>
         </CollapsibleContent>
       )}

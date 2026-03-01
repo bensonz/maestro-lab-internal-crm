@@ -92,6 +92,10 @@ export interface AlertFlags {
   paypalPreviouslyUsed?: boolean
   idExpiring?: boolean
   pinIssue?: boolean
+  debankedHistory?: boolean
+  criminalRecord?: boolean
+  undisclosedInfo?: boolean
+  addressMismatch?: boolean
   customAlerts?: string[]
 }
 
@@ -148,6 +152,7 @@ export interface Client {
   timeline: TimelineEvent[]
   agent?: string
   agentId?: string
+  gmailPassword?: string
   zelle?: string
   relationships?: Relationship[]
   questionnaire?: Record<string, unknown> | null
@@ -199,6 +204,8 @@ export interface ServerClientData {
   questionnaire: string | null
   // Platform details
   platformDetails: ServerPlatformDetail[]
+  // Generated credentials from draft
+  generatedCredentials: Record<string, unknown> | null
   // Recent transactions
   transactions: Array<{
     id: string

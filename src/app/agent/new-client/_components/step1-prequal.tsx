@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { Input } from '@/components/ui/input'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { UploadDropzone, ScreenshotThumbnail } from '@/components/upload-dropzone'
@@ -23,8 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { ScanLine, HelpCircle, Loader2, ChevronDown } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { ScanLine, HelpCircle, Loader2, ChevronDown, RefreshCw } from 'lucide-react'
 import { IdDetectionModal } from './id-detection-modal'
 import { GmailDetectionModal } from './gmail-detection-modal'
 import { BetmgmDetectionModal } from './betmgm-detection-modal'
@@ -74,6 +73,15 @@ function computeAge(dobStr: string): number | null {
   }
   return age
 }
+
+import {
+  generateGmailSuggestion,
+  generateGmailPassword,
+  generateBetmgmPassword,
+  generateGmailSuggestionAtIndex,
+  GMAIL_PATTERN_COUNT,
+} from './credential-generators'
+import type { GeneratedCredentials } from './client-form'
 
 function UploadTooltip({ tip }: { tip: { what: string; not: string } }) {
   return (
@@ -146,6 +154,86 @@ export function Step1PreQual({ formData, onChange, onRiskFlagsChange }: Step1Pro
   const [betmgmDetectionData, setBetmgmDetectionData] = useState<BetmgmExtractionResult | null>(null)
   const [betmgmDetectionType, setBetmgmDetectionType] = useState<'registration' | 'login'>('login')
   const [showBetmgmModal, setShowBetmgmModal] = useState(false)
+
+  // ── Read persisted credentials (generated at form level in client-form.tsx) ──
+  const creds = (formData.generatedCredentials ?? {}) as GeneratedCredentials
+  const suggestedGmail = creds.gmailSuggestion || ''
+  const suggestedGmailPassword = creds.gmailPassword || ''
+  const suggestedBetmgmPassword = creds.betmgmPassword || ''
+
+  // When name+DOB change and credentials haven't been generated yet, generate now
+  useEffect(() => {
+    const firstName = (formData.firstName as string) || ''
+    const lastName = (formData.lastName as string) || ''
+    const dob = (formData.dateOfBirth as string) || ''
+    if (!firstName || !lastName) return
+    if (creds.gmailSuggestion) return // already generated
+    const updated: GeneratedCredentials = {
+      ...creds,
+      gmailSuggestion: generateGmailSuggestion(firstName, lastName, dob),
+      gmailPassword: generateGmailPassword(firstName, lastName, dob),
+      betmgmPassword: generateBetmgmPassword(firstName, lastName, dob),
+    }
+    onChange('generatedCredentials', updated)
+  }, [formData.firstName, formData.lastName, formData.dateOfBirth]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-fill fields when suggestion first becomes available (field empty)
+  useEffect(() => {
+    if (suggestedGmail && !(formData.assignedGmail as string)) {
+      onChange('assignedGmail', suggestedGmail)
+    }
+  }, [suggestedGmail]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (suggestedGmailPassword && !(formData.gmailPassword as string)) {
+      onChange('gmailPassword', suggestedGmailPassword)
+    }
+  }, [suggestedGmailPassword]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (suggestedBetmgmPassword && !(formData.betmgmPassword as string)) {
+      onChange('betmgmPassword', suggestedBetmgmPassword)
+    }
+  }, [suggestedBetmgmPassword]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-fill BetMGM login email from assignedGmail when login is empty
+  useEffect(() => {
+    const gmail = (formData.assignedGmail as string) || ''
+    const betmgmLogin = (formData.betmgmLogin as string) || ''
+    if (gmail && !betmgmLogin) {
+      onChange('betmgmLogin', gmail)
+    }
+  }, [formData.assignedGmail]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Live credential mismatch detection ──
+  // Recompute mismatches whenever any credential field changes.
+  // This replaces the old OCR-only approach so changes reflect instantly.
+  const prevMismatchRef = useRef('')
+  useEffect(() => {
+    const assignedGmail = (formData.assignedGmail as string) || ''
+    const gmailPwd = (formData.gmailPassword as string) || ''
+    const betmgmLogin = (formData.betmgmLogin as string) || ''
+    const betmgmPwd = (formData.betmgmPassword as string) || ''
+
+    // Gmail: compare against suggestion
+    const gmailEmailMismatch = !!(assignedGmail && suggestedGmail && assignedGmail !== suggestedGmail)
+    const gmailPwdMismatch = !!(gmailPwd && suggestedGmailPassword && gmailPwd !== suggestedGmailPassword)
+    // BetMGM: email should match assignedGmail, password should match suggestion
+    const betmgmEmailMismatch = !!(betmgmLogin && assignedGmail && betmgmLogin !== assignedGmail)
+    const betmgmPwdMismatch = !!(betmgmPwd && suggestedBetmgmPassword && betmgmPwd !== suggestedBetmgmPassword)
+
+    const key = `${gmailEmailMismatch}-${gmailPwdMismatch}-${betmgmEmailMismatch}-${betmgmPwdMismatch}`
+    if (key === prevMismatchRef.current) return
+    prevMismatchRef.current = key
+
+    onRiskFlagsChange({
+      credentialMismatches: {
+        GMAIL: { username: gmailEmailMismatch, password: gmailPwdMismatch },
+        BETMGM: { username: betmgmEmailMismatch, password: betmgmPwdMismatch },
+      },
+      gmailChangedFromSuggestion: gmailEmailMismatch,
+    })
+  }, [formData.assignedGmail, formData.gmailPassword, formData.betmgmLogin, formData.betmgmPassword, suggestedGmail, suggestedGmailPassword, suggestedBetmgmPassword]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleIdExpiryChange(value: string) {
     onChange('idExpiry', value)
@@ -245,6 +333,7 @@ export function Step1PreQual({ formData, onChange, onRiskFlagsChange }: Step1Pro
   )
 
   function handleGmailDetectionConfirm(data: { emailAddress: string; password: string }) {
+    // Set form values from OCR — the live useEffect will auto-recompute mismatches
     if (data.emailAddress) {
       onChange('assignedGmail', data.emailAddress)
       setAutoFilledFields((prev) => new Set([...prev, 'assignedGmail']))
@@ -288,7 +377,7 @@ export function Step1PreQual({ formData, onChange, onRiskFlagsChange }: Step1Pro
   }
 
   function handleBetmgmDetectionConfirm(data: BetmgmExtractionResult) {
-    // Auto-fill credential fields from detection
+    // Set form values from OCR — the live useEffect will auto-recompute mismatches
     if (data.loginEmail) {
       onChange('betmgmLogin', data.loginEmail)
       setAutoFilledFields((prev) => new Set([...prev, 'betmgmLogin']))
@@ -441,6 +530,8 @@ export function Step1PreQual({ formData, onChange, onRiskFlagsChange }: Step1Pro
               onCheckedChange={(checked) => {
                 const val = checked === true
                 onChange('livesAtDifferentAddress', val)
+                onChange('addressMismatch', val)
+                onRiskFlagsChange({ multipleAddresses: val })
                 if (!val) {
                   onChange('currentAddress', '')
                   onChange('differentAddressDuration', '')
@@ -509,9 +600,37 @@ export function Step1PreQual({ formData, onChange, onRiskFlagsChange }: Step1Pro
         <SectionCard title="Company Gmail">
           <div className="grid grid-cols-2 gap-4">
             <Field>
-              <FieldLabel htmlFor="assignedGmail" className="flex items-center gap-1.5">
+              <FieldLabel htmlFor="assignedGmail" className="flex w-full items-center gap-1.5">
                 Gmail Address
                 {autoFilledFields.has('assignedGmail') && <AutoFilledBadge />}
+                {suggestedGmail && (
+                  <span className="ml-auto flex items-center gap-1">
+                    <button type="button" onClick={() => onChange('assignedGmail', suggestedGmail)} className="truncate max-w-[55%] text-[10px] text-muted-foreground/60 hover:text-primary transition-colors" title="Click to use this suggestion" data-testid="gmail-suggestion">
+                      {suggestedGmail}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const firstName = (formData.firstName as string) || ''
+                        const lastName = (formData.lastName as string) || ''
+                        const dob = (formData.dateOfBirth as string) || ''
+                        if (!firstName || !lastName) return
+                        // Cycle through patterns: use the stored index + 1
+                        const currentIdx = (creds.suggestionIndex ?? 0) as number
+                        const nextIdx = (currentIdx + 1) % GMAIL_PATTERN_COUNT
+                        const newSuggestion = generateGmailSuggestionAtIndex(firstName, lastName, dob, nextIdx)
+                        const updated = { ...creds, gmailSuggestion: newSuggestion, suggestionIndex: nextIdx }
+                        onChange('generatedCredentials', updated)
+                        onChange('assignedGmail', newSuggestion)
+                      }}
+                      className="flex h-4 w-4 items-center justify-center rounded text-muted-foreground/50 hover:text-primary transition-colors"
+                      title="Generate another suggestion"
+                      data-testid="gmail-regenerate"
+                    >
+                      <RefreshCw className="h-2.5 w-2.5" />
+                    </button>
+                  </span>
+                )}
               </FieldLabel>
               <Input
                 id="assignedGmail"
@@ -524,9 +643,14 @@ export function Step1PreQual({ formData, onChange, onRiskFlagsChange }: Step1Pro
             </Field>
 
             <Field>
-              <FieldLabel htmlFor="gmailPassword" className="flex items-center gap-1.5">
+              <FieldLabel htmlFor="gmailPassword" className="flex w-full items-center gap-1.5">
                 Gmail Password
                 {autoFilledFields.has('gmailPassword') && <AutoFilledBadge />}
+                {suggestedGmailPassword && (
+                  <button type="button" onClick={() => onChange('gmailPassword', suggestedGmailPassword)} className="ml-auto truncate max-w-[55%] text-[10px] text-muted-foreground/60 hover:text-primary transition-colors" title="Click to use this suggestion" data-testid="gmail-pw-suggestion">
+                    {suggestedGmailPassword}
+                  </button>
+                )}
               </FieldLabel>
               <Input
                 id="gmailPassword"
@@ -584,9 +708,14 @@ export function Step1PreQual({ formData, onChange, onRiskFlagsChange }: Step1Pro
             </Field>
 
             <Field>
-              <FieldLabel htmlFor="betmgmPassword" className="flex items-center gap-1.5">
+              <FieldLabel htmlFor="betmgmPassword" className="flex w-full items-center gap-1.5">
                 BetMGM Password
                 {autoFilledFields.has('betmgmPassword') && <AutoFilledBadge />}
+                {suggestedBetmgmPassword && (
+                  <button type="button" onClick={() => onChange('betmgmPassword', suggestedBetmgmPassword)} className="ml-auto truncate max-w-[55%] text-[10px] text-muted-foreground/60 hover:text-primary transition-colors" title="Click to use this suggestion" data-testid="betmgm-pw-suggestion">
+                    {suggestedBetmgmPassword}
+                  </button>
+                )}
               </FieldLabel>
               <Input
                 id="betmgmPassword"

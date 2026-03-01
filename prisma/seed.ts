@@ -556,6 +556,17 @@ async function main() {
   await prisma.bonusPool.deleteMany({
     where: { client: { email: { startsWith: 'sample-client' } } },
   })
+  await prisma.transaction.deleteMany({
+    where: { client: { email: { startsWith: 'sample-client' } } },
+  })
+  // Clean up phone assignments linked to sample client drafts
+  await prisma.phoneAssignment.deleteMany({
+    where: { clientDraft: { resultClient: { email: { startsWith: 'sample-client' } } } },
+  })
+  // Clean up drafts linked to sample clients
+  await prisma.clientDraft.deleteMany({
+    where: { resultClient: { email: { startsWith: 'sample-client' } } },
+  })
   await prisma.client.deleteMany({
     where: { email: { startsWith: 'sample-client' } },
   })
@@ -572,6 +583,67 @@ async function main() {
       status: 'APPROVED',
       closerId: agent.id,
       approvedAt: new Date('2026-02-10'),
+    },
+  })
+
+  // Create linked ClientDraft for Client 1 (David Wilson) — simulates full intake
+  const draft1 = await prisma.clientDraft.create({
+    data: {
+      closerId: agent.id,
+      status: 'SUBMITTED',
+      step: 4,
+      resultClientId: client1.id,
+      firstName: 'David',
+      lastName: 'Wilson',
+      email: 'sample-client-1@example.com',
+      phone: '(555) 500-0001',
+      dateOfBirth: new Date('1992-03-15'),
+      idNumber: 'DL-77881234',
+      idExpiry: new Date('2028-11-30'),
+      address: '742 Evergreen Terrace, Springfield, IL 62704',
+      citizenship: 'US',
+      assignedGmail: 'david.wilson.work@gmail.com',
+      gmailPassword: 'DWils#2026!',
+      betmgmCheckPassed: true,
+      betmgmLogin: 'david.wilson.work@gmail.com',
+      betmgmPassword: 'BetMGM#David2026',
+      ssnNumber: '***-**-4567',
+      bankingHistory: 'Chase checking, good standing 5yr',
+      paypalPreviouslyUsed: false,
+      debankedHistory: false,
+      hasCriminalRecord: false,
+      addressMismatch: false,
+      undisclosedInfo: false,
+      occupation: 'Software Engineer',
+      annualIncome: '$75,000-$100,000',
+      employmentStatus: 'Employed Full-Time',
+      maritalStatus: 'Single',
+      platformData: {
+        paypal: { username: 'david.wilson.work@gmail.com', status: 'VERIFIED' },
+        onlineBanking: { username: 'david.wilson.work@gmail.com', accountId: 'CHK-9901', bank: 'Chase', status: 'VERIFIED' },
+        edgeboost: { username: 'david.wilson.work@gmail.com', accountId: 'EB-4401', status: 'VERIFIED' },
+        draftkings: { username: 'DWilsonDK', accountId: 'DK-7701', status: 'VERIFIED' },
+        fanduel: { username: 'DWilsonFD', accountId: 'FD-3301', status: 'VERIFIED' },
+        betmgm: { username: 'david.wilson.work@gmail.com', accountId: 'MGM-1101', status: 'VERIFIED' },
+        caesars: { username: 'DWilsonCZR', accountId: 'CZR-2201', status: 'PENDING_REVIEW' },
+        fanatics: { username: 'DWilsonFAN', accountId: 'FAN-5501' },
+      },
+      generatedCredentials: {
+        gmailPassword: 'DWils#2026!',
+        betmgmPassword: 'BetMGM#David2026',
+        platformPasswords: {
+          sportsbook: 'SBook#David2026',
+          BETMGM: 'BetMGM#David2026',
+          PAYPAL: 'PPal#David2026',
+          ONLINE_BANKING: 'Bank#David2026',
+          EDGEBOOST: 'Edge#David2026',
+        },
+        bankPin4: '2580',
+        bankPin6: '258000',
+      },
+      contractDocument: '/uploads/david-wilson-contract.pdf',
+      createdAt: new Date('2026-02-05'),
+      updatedAt: new Date('2026-02-09'),
     },
   })
 
@@ -640,6 +712,69 @@ async function main() {
     },
   })
 
+  // Create linked ClientDraft for Client 2 (Emily Chen)
+  const draft2 = await prisma.clientDraft.create({
+    data: {
+      closerId: approvedUser.id,
+      status: 'SUBMITTED',
+      step: 4,
+      resultClientId: client2.id,
+      firstName: 'Emily',
+      lastName: 'Chen',
+      email: 'sample-client-2@example.com',
+      phone: '(555) 500-0002',
+      dateOfBirth: new Date('1995-08-22'),
+      idNumber: 'DL-33449988',
+      idExpiry: new Date('2027-06-15'),
+      address: '1200 Peachtree St NE, Atlanta, GA 30309',
+      currentAddress: '450 Piedmont Ave NE, Atlanta, GA 30308',
+      livesAtDifferentAddress: true,
+      citizenship: 'US',
+      assignedGmail: 'emily.chen.work@gmail.com',
+      gmailPassword: 'EChen#2026!',
+      betmgmCheckPassed: true,
+      betmgmLogin: 'emily.chen.work@gmail.com',
+      betmgmPassword: 'BetMGM#Emily2026',
+      ssnNumber: '***-**-8901',
+      bankingHistory: 'Citi checking, 3yr history',
+      paypalPreviouslyUsed: true,
+      debankedHistory: false,
+      hasCriminalRecord: false,
+      addressMismatch: true,
+      undisclosedInfo: false,
+      occupation: 'Marketing Manager',
+      annualIncome: '$50,000-$75,000',
+      employmentStatus: 'Employed Full-Time',
+      maritalStatus: 'Married',
+      platformData: {
+        paypal: { username: 'emily.chen.work@gmail.com', status: 'VERIFIED' },
+        onlineBanking: { username: 'emily.chen.work@gmail.com', accountId: 'CHK-5502', bank: 'Citi', status: 'VERIFIED' },
+        edgeboost: { username: 'emily.chen.work@gmail.com', accountId: 'EB-2202', status: 'PENDING_REVIEW' },
+        draftkings: { username: 'EChenDK', accountId: 'DK-8802', status: 'VERIFIED' },
+        fanduel: { username: 'EChenFD', accountId: 'FD-4402', status: 'VERIFIED' },
+        betmgm: { username: 'emily.chen.work@gmail.com', accountId: 'MGM-6602', status: 'VERIFIED' },
+        betrivers: { username: 'EChenBR', accountId: 'BR-1102' },
+        bet365: { username: 'EChen365', accountId: '365-9902' },
+      },
+      generatedCredentials: {
+        gmailPassword: 'EChen#2026!',
+        betmgmPassword: 'BetMGM#Emily2026',
+        platformPasswords: {
+          sportsbook: 'SBook#Emily2026',
+          BETMGM: 'BetMGM#Emily2026',
+          PAYPAL: 'PPal#Emily2026',
+          ONLINE_BANKING: 'Bank#Emily2026',
+          EDGEBOOST: 'Edge#Emily2026',
+        },
+        bankPin4: '1234',
+        bankPin6: '123400',
+      },
+      contractDocument: '/uploads/emily-chen-contract.pdf',
+      createdAt: new Date('2026-02-08'),
+      updatedAt: new Date('2026-02-11'),
+    },
+  })
+
   await prisma.bonusPool.create({
     data: {
       clientId: client2.id,
@@ -685,7 +820,7 @@ async function main() {
   console.log(`  Created client 2 (Emily Chen) + bonus pool — closed by Jamie`)
 
   // Client 3 — Pending (no bonus pool yet)
-  await prisma.client.create({
+  const client3 = await prisma.client.create({
     data: {
       firstName: 'Robert',
       lastName: 'Kim',
@@ -695,16 +830,205 @@ async function main() {
       closerId: agent.id,
     },
   })
+
+  // Create linked ClientDraft for Client 3 (Robert Kim — submitted, pending approval)
+  const draft3 = await prisma.clientDraft.create({
+    data: {
+      closerId: agent.id,
+      status: 'SUBMITTED',
+      step: 4,
+      resultClientId: client3.id,
+      firstName: 'Robert',
+      lastName: 'Kim',
+      email: 'sample-client-3@example.com',
+      phone: '(555) 500-0003',
+      dateOfBirth: new Date('1990-01-10'),
+      idNumber: 'DL-11225577',
+      idExpiry: new Date('2027-03-20'),
+      address: '300 Michigan Ave, Chicago, IL 60601',
+      citizenship: 'US',
+      assignedGmail: 'robert.kim.work@gmail.com',
+      gmailPassword: 'RKim#2026!',
+      betmgmCheckPassed: true,
+      betmgmLogin: 'robert.kim.work@gmail.com',
+      betmgmPassword: 'BetMGM#Robert2026',
+      ssnNumber: '***-**-3456',
+      bankingHistory: 'Chase savings + checking, 7yr',
+      paypalPreviouslyUsed: false,
+      debankedHistory: true,
+      debankedBank: 'Wells Fargo',
+      hasCriminalRecord: false,
+      addressMismatch: false,
+      undisclosedInfo: false,
+      occupation: 'Accountant',
+      annualIncome: '$100,000+',
+      employmentStatus: 'Employed Full-Time',
+      maritalStatus: 'Single',
+      platformData: {
+        paypal: { username: 'robert.kim.work@gmail.com', status: 'PENDING_REVIEW' },
+        onlineBanking: { username: 'robert.kim.work@gmail.com', accountId: 'CHK-3303', bank: 'Chase', status: 'PENDING_REVIEW' },
+        draftkings: { username: 'RKimDK', accountId: 'DK-5503', status: 'PENDING_REVIEW' },
+        fanduel: { username: 'RKimFD', accountId: 'FD-7703' },
+        betmgm: { username: 'robert.kim.work@gmail.com', accountId: 'MGM-9903' },
+      },
+      generatedCredentials: {
+        gmailPassword: 'RKim#2026!',
+        betmgmPassword: 'BetMGM#Robert2026',
+        platformPasswords: {
+          sportsbook: 'SBook#Robert2026',
+          BETMGM: 'BetMGM#Robert2026',
+          PAYPAL: 'PPal#Robert2026',
+          ONLINE_BANKING: 'Bank#Robert2026',
+        },
+        bankPin4: '2580',
+        bankPin6: '258000',
+      },
+      contractDocument: '/uploads/robert-kim-contract.pdf',
+      createdAt: new Date('2026-02-20'),
+      updatedAt: new Date('2026-02-25'),
+    },
+  })
   console.log(`  Created client 3 (Robert Kim) — pending, no bonus pool`)
+
+  // ── Phone Assignments for Sample Clients ─────────────────
+  // These simulate device assignments during the intake process
+
+  await prisma.phoneAssignment.create({
+    data: {
+      phoneNumber: '(555) 888-0001',
+      carrier: 'Verizon',
+      deviceId: 'IMEI-1001001001',
+      clientDraftId: draft1.id,
+      agentId: agent.id,
+      signedOutById: boStaff.id,
+      signedOutAt: new Date('2026-02-06'),
+      dueBackAt: new Date('2026-02-09'),
+      returnedAt: new Date('2026-02-08'),
+      status: 'RETURNED',
+    },
+  })
+
+  await prisma.phoneAssignment.create({
+    data: {
+      phoneNumber: '(555) 888-0002',
+      carrier: 'T-Mobile',
+      deviceId: 'IMEI-2002002002',
+      clientDraftId: draft2.id,
+      agentId: approvedUser.id,
+      signedOutById: boStaff.id,
+      signedOutAt: new Date('2026-02-09'),
+      dueBackAt: new Date('2026-02-12'),
+      returnedAt: new Date('2026-02-11'),
+      status: 'RETURNED',
+    },
+  })
+
+  await prisma.phoneAssignment.create({
+    data: {
+      phoneNumber: '(555) 888-0003',
+      carrier: 'AT&T',
+      deviceId: 'IMEI-3003003003',
+      clientDraftId: draft3.id,
+      agentId: agent.id,
+      signedOutById: boStaff.id,
+      signedOutAt: new Date('2026-02-21'),
+      dueBackAt: new Date('2026-02-24'),
+      status: 'SIGNED_OUT',
+    },
+  })
+  console.log('  Created phone assignments for 3 sample clients')
+
+  // ── Transactions for Approved Clients ──────────────────────
+  // Simulate fund deposits and withdrawals
+
+  // David Wilson — 4 transactions
+  await prisma.transaction.createMany({
+    data: [
+      {
+        clientId: client1.id,
+        type: 'DEPOSIT',
+        amount: 500.00,
+        description: 'Initial deposit to DraftKings',
+        platformType: 'DRAFTKINGS',
+        createdAt: new Date('2026-02-11'),
+      },
+      {
+        clientId: client1.id,
+        type: 'DEPOSIT',
+        amount: 300.00,
+        description: 'Deposit to FanDuel',
+        platformType: 'FANDUEL',
+        createdAt: new Date('2026-02-13'),
+      },
+      {
+        clientId: client1.id,
+        type: 'DEPOSIT',
+        amount: 200.00,
+        description: 'PayPal fund transfer',
+        platformType: 'PAYPAL',
+        createdAt: new Date('2026-02-15'),
+      },
+      {
+        clientId: client1.id,
+        type: 'WITHDRAWAL',
+        amount: 150.00,
+        description: 'Withdrawal from DraftKings',
+        platformType: 'DRAFTKINGS',
+        createdAt: new Date('2026-02-20'),
+      },
+    ],
+  })
+
+  // Emily Chen — 3 transactions
+  await prisma.transaction.createMany({
+    data: [
+      {
+        clientId: client2.id,
+        type: 'DEPOSIT',
+        amount: 400.00,
+        description: 'Initial deposit to BetMGM',
+        platformType: 'BETMGM',
+        createdAt: new Date('2026-02-13'),
+      },
+      {
+        clientId: client2.id,
+        type: 'DEPOSIT',
+        amount: 250.00,
+        description: 'Bank transfer deposit',
+        platformType: 'ONLINE_BANKING',
+        createdAt: new Date('2026-02-16'),
+      },
+      {
+        clientId: client2.id,
+        type: 'WITHDRAWAL',
+        amount: 100.00,
+        description: 'PayPal withdrawal',
+        platformType: 'PAYPAL',
+        createdAt: new Date('2026-02-22'),
+      },
+    ],
+  })
+  console.log('  Created transactions for approved clients')
 
   // ── Sample Client Draft ────────────────────────────────
 
-  await prisma.clientDraft.deleteMany({ where: { closerId: agent.id } })
+  // Delete in dependency order: Todo → PhoneAssignment → ClientDraft
+  await prisma.todo.deleteMany({
+    where: { clientDraft: { closerId: agent.id } },
+  })
+  await prisma.phoneAssignment.deleteMany({
+    where: { clientDraft: { closerId: agent.id } },
+  })
+  await prisma.clientDraft.deleteMany({ where: { closerId: agent.id, resultClientId: null } })
+  // Compute future dates for phone assignment (sign out = now, due back = 3 days from now)
+  const signOutDate = new Date()
+  const dueBackDate = new Date(signOutDate.getTime() + 3 * 24 * 60 * 60 * 1000)
+
   const sampleDraft = await prisma.clientDraft.create({
     data: {
       closerId: agent.id,
       status: 'DRAFT',
-      step: 2,
+      step: 3,
       firstName: 'Sarah',
       lastName: 'Martinez',
       email: 'sarah.m@example.com',
@@ -712,12 +1036,49 @@ async function main() {
       idDocument: '/uploads/sample-client-id.jpg',
       idNumber: 'DL-55667788',
       idExpiry: new Date('2028-08-20'),
+      assignedGmail: 'sarah.martinez.work@gmail.com',
+      deviceReservationDate: new Date().toISOString().split('T')[0],
     },
   })
-  console.log(`  Created sample client draft: ${sampleDraft.id} (step 2, for Marcus)`)
+  console.log(`  Created sample client draft: ${sampleDraft.id} (step 3, for Marcus, with device reservation + Gmail)`)
+
+  // Sample PhoneAssignment — signed out device for Sarah Martinez's draft
+  const sampleAssignment = await prisma.phoneAssignment.create({
+    data: {
+      phoneNumber: '(555) 777-0001',
+      carrier: 'T-Mobile',
+      deviceId: 'IMEI-9876543210',
+      clientDraftId: sampleDraft.id,
+      agentId: agent.id,
+      signedOutById: boStaff.id,
+      signedOutAt: signOutDate,
+      dueBackAt: dueBackDate,
+      status: 'SIGNED_OUT',
+    },
+  })
+  console.log(`  Created sample phone assignment: ${sampleAssignment.id} (signed out, due ${dueBackDate.toISOString().split('T')[0]})`)
+
+  // ── Sample Todo ──────────────────────────────────────────
+
+  await prisma.todo.deleteMany({ where: { clientDraftId: sampleDraft.id } })
+  const todoDueDate = new Date()
+  todoDueDate.setDate(todoDueDate.getDate() + 3)
+  const sampleTodo = await prisma.todo.create({
+    data: {
+      title: 'Contact Bank',
+      description: 'Contact Bank — Sarah Martinez',
+      issueCategory: 'Contact Bank',
+      clientDraftId: sampleDraft.id,
+      assignedToId: agent.id,
+      createdById: boStaff.id,
+      dueDate: todoDueDate,
+      status: 'PENDING',
+    },
+  })
+  console.log(`  Created sample todo: ${sampleTodo.id} (Contact Bank, assigned to Marcus, due ${todoDueDate.toISOString().split('T')[0]})`)
 
   // ── Event Logs ─────────────────────────────────────────
-
+  // General system events
   await prisma.eventLog.createMany({
     data: [
       {
@@ -737,20 +1098,152 @@ async function main() {
         metadata: { createdUserId: approvedUser.id },
       },
       {
-        eventType: 'BONUS_POOL_DISTRIBUTED',
-        description: 'Bonus pool distributed for David Wilson',
-        userId: agent.id,
-        metadata: { clientName: 'David Wilson', distributedSlices: 4 },
-      },
-      {
-        eventType: 'BONUS_POOL_DISTRIBUTED',
-        description: 'Bonus pool distributed for Emily Chen',
-        userId: approvedUser.id,
-        metadata: { clientName: 'Emily Chen', distributedSlices: 4 },
+        eventType: 'TODO_ASSIGNED',
+        description: 'To-do assigned: "Contact Bank" for Sarah Martinez to Marcus Rivera',
+        userId: boStaff.id,
+        metadata: {
+          todoId: sampleTodo.id,
+          clientDraftId: sampleDraft.id,
+          clientName: 'Sarah Martinez',
+          agentId: agent.id,
+          agentName: 'Marcus Rivera',
+          issueCategory: 'Contact Bank',
+        },
       },
     ],
   })
-  console.log('  Created event logs')
+
+  // Client-specific event logs (with metadata.clientId for timeline queries)
+  // David Wilson — 7 lifecycle events
+  await prisma.eventLog.createMany({
+    data: [
+      {
+        eventType: 'CLIENT_DRAFT_CREATED',
+        description: 'Client intake started for David Wilson by Marcus Rivera',
+        userId: agent.id,
+        metadata: { clientId: client1.id, clientName: 'David Wilson', agentName: 'Marcus Rivera' },
+        createdAt: new Date('2026-02-05'),
+      },
+      {
+        eventType: 'DEVICE_SIGNED_OUT',
+        description: 'Device (555) 888-0001 signed out for David Wilson',
+        userId: boStaff.id,
+        metadata: { clientId: client1.id, clientName: 'David Wilson', phoneNumber: '(555) 888-0001', carrier: 'Verizon' },
+        createdAt: new Date('2026-02-06'),
+      },
+      {
+        eventType: 'DEVICE_RETURNED',
+        description: 'Device (555) 888-0001 returned for David Wilson',
+        userId: boStaff.id,
+        metadata: { clientId: client1.id, clientName: 'David Wilson', phoneNumber: '(555) 888-0001' },
+        createdAt: new Date('2026-02-08'),
+      },
+      {
+        eventType: 'CLIENT_DRAFT_SUBMITTED',
+        description: 'Client intake submitted for David Wilson',
+        userId: agent.id,
+        metadata: { clientId: client1.id, clientName: 'David Wilson' },
+        createdAt: new Date('2026-02-09'),
+      },
+      {
+        eventType: 'CLIENT_APPROVED',
+        description: 'Client David Wilson approved',
+        userId: boStaff.id,
+        metadata: { clientId: client1.id, clientName: 'David Wilson' },
+        createdAt: new Date('2026-02-10'),
+      },
+      {
+        eventType: 'BONUS_POOL_CREATED',
+        description: 'Bonus pool ($400) created for David Wilson',
+        userId: admin.id,
+        metadata: { clientId: client1.id, clientName: 'David Wilson', totalAmount: 400 },
+        createdAt: new Date('2026-02-10T01:00:00'),
+      },
+      {
+        eventType: 'BONUS_POOL_DISTRIBUTED',
+        description: 'Bonus pool distributed for David Wilson — $200 direct + 4 star slices',
+        userId: agent.id,
+        metadata: { clientId: client1.id, clientName: 'David Wilson', distributedSlices: 4 },
+        createdAt: new Date('2026-02-10T02:00:00'),
+      },
+    ],
+  })
+
+  // Emily Chen — 6 lifecycle events
+  await prisma.eventLog.createMany({
+    data: [
+      {
+        eventType: 'CLIENT_DRAFT_CREATED',
+        description: 'Client intake started for Emily Chen by Jamie Torres',
+        userId: approvedUser.id,
+        metadata: { clientId: client2.id, clientName: 'Emily Chen', agentName: 'Jamie Torres' },
+        createdAt: new Date('2026-02-08'),
+      },
+      {
+        eventType: 'DEVICE_SIGNED_OUT',
+        description: 'Device (555) 888-0002 signed out for Emily Chen',
+        userId: boStaff.id,
+        metadata: { clientId: client2.id, clientName: 'Emily Chen', phoneNumber: '(555) 888-0002', carrier: 'T-Mobile' },
+        createdAt: new Date('2026-02-09'),
+      },
+      {
+        eventType: 'DEVICE_RETURNED',
+        description: 'Device (555) 888-0002 returned for Emily Chen',
+        userId: boStaff.id,
+        metadata: { clientId: client2.id, clientName: 'Emily Chen', phoneNumber: '(555) 888-0002' },
+        createdAt: new Date('2026-02-11'),
+      },
+      {
+        eventType: 'CLIENT_DRAFT_SUBMITTED',
+        description: 'Client intake submitted for Emily Chen',
+        userId: approvedUser.id,
+        metadata: { clientId: client2.id, clientName: 'Emily Chen' },
+        createdAt: new Date('2026-02-11T01:00:00'),
+      },
+      {
+        eventType: 'CLIENT_APPROVED',
+        description: 'Client Emily Chen approved',
+        userId: boStaff.id,
+        metadata: { clientId: client2.id, clientName: 'Emily Chen' },
+        createdAt: new Date('2026-02-12'),
+      },
+      {
+        eventType: 'BONUS_POOL_DISTRIBUTED',
+        description: 'Bonus pool distributed for Emily Chen — $200 direct + 4 star slices',
+        userId: approvedUser.id,
+        metadata: { clientId: client2.id, clientName: 'Emily Chen', distributedSlices: 4 },
+        createdAt: new Date('2026-02-12T01:00:00'),
+      },
+    ],
+  })
+
+  // Robert Kim — 3 lifecycle events (pending, no approval yet)
+  await prisma.eventLog.createMany({
+    data: [
+      {
+        eventType: 'CLIENT_DRAFT_CREATED',
+        description: 'Client intake started for Robert Kim by Marcus Rivera',
+        userId: agent.id,
+        metadata: { clientId: client3.id, clientName: 'Robert Kim', agentName: 'Marcus Rivera' },
+        createdAt: new Date('2026-02-20'),
+      },
+      {
+        eventType: 'DEVICE_SIGNED_OUT',
+        description: 'Device (555) 888-0003 signed out for Robert Kim',
+        userId: boStaff.id,
+        metadata: { clientId: client3.id, clientName: 'Robert Kim', phoneNumber: '(555) 888-0003', carrier: 'AT&T' },
+        createdAt: new Date('2026-02-21'),
+      },
+      {
+        eventType: 'CLIENT_DRAFT_SUBMITTED',
+        description: 'Client intake submitted for Robert Kim',
+        userId: agent.id,
+        metadata: { clientId: client3.id, clientName: 'Robert Kim' },
+        createdAt: new Date('2026-02-25'),
+      },
+    ],
+  })
+  console.log('  Created event logs (general + client-specific with clientId)')
 
   console.log('\nSeeding complete!')
   console.log('\n  Progression ladder: Rookie → 1★ → 2★ → 3★ → 4★ → ED → SED → MD → CMO')

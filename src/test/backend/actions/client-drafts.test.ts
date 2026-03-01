@@ -22,6 +22,9 @@ const { mockPrisma } = vi.hoisted(() => ({
     eventLog: {
       create: vi.fn(),
     },
+    phoneAssignment: {
+      deleteMany: vi.fn(),
+    },
   },
 }))
 vi.mock('@/backend/prisma/client', () => ({ default: mockPrisma }))
@@ -170,6 +173,23 @@ describe('saveClientDraft', () => {
     expect(updateCall.data.betmgmLoginScreenshot).toBe('/uploads/betmgm-login.png')
     expect(updateCall.data.address).toBe('123 Main St')
   })
+
+  it('saves discoveredAddresses as JSON field', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'agent-1' } })
+    mockPrisma.clientDraft.findFirst.mockResolvedValue({
+      id: 'draft-1',
+      status: 'DRAFT',
+    })
+
+    const addresses = [
+      { address: '123 Main St, LA, CA', source: 'ID', confirmedByAgent: true },
+      { address: '456 Oak Ave, Brooklyn, NY', source: 'PAYPAL' },
+    ]
+    await saveClientDraft('draft-1', { discoveredAddresses: addresses })
+
+    const updateCall = mockPrisma.clientDraft.update.mock.calls[0][0]
+    expect(updateCall.data.discoveredAddresses).toEqual(addresses)
+  })
 })
 
 describe('submitClientDraft', () => {
@@ -290,6 +310,7 @@ describe('deleteClientDraft', () => {
     mockPrisma.clientDraft.findFirst.mockResolvedValue({
       id: 'draft-1',
       status: 'SUBMITTED',
+      idDocument: null,
     })
 
     const result = await deleteClientDraft('draft-1')
@@ -297,11 +318,26 @@ describe('deleteClientDraft', () => {
     expect(result.error).toBe('Cannot delete submitted draft')
   })
 
-  it('deletes draft on success', async () => {
+  it('returns error if ID document has been uploaded', async () => {
     mockAuth.mockResolvedValue({ user: { id: 'agent-1' } })
     mockPrisma.clientDraft.findFirst.mockResolvedValue({
       id: 'draft-1',
       status: 'DRAFT',
+      idDocument: '/uploads/id-doc.jpg',
+    })
+
+    const result = await deleteClientDraft('draft-1')
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('Cannot delete draft after ID has been uploaded')
+    expect(mockPrisma.clientDraft.delete).not.toHaveBeenCalled()
+  })
+
+  it('deletes draft on success when no ID uploaded', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'agent-1' } })
+    mockPrisma.clientDraft.findFirst.mockResolvedValue({
+      id: 'draft-1',
+      status: 'DRAFT',
+      idDocument: null,
     })
 
     const result = await deleteClientDraft('draft-1')

@@ -10,6 +10,22 @@ import type {
 // Server-to-view-model mapping (extracted for reuse)
 // ============================================================================
 
+// Platform type → display name lookup
+const PLATFORM_TYPE_TO_NAME: Record<string, string> = {
+  DRAFTKINGS: 'DraftKings',
+  FANDUEL: 'FanDuel',
+  BETMGM: 'BetMGM',
+  CAESARS: 'Caesars',
+  FANATICS: 'Fanatics',
+  BALLYBET: 'BallyBet',
+  BETRIVERS: 'BetRivers',
+  BET365: 'Bet365',
+  PAYPAL: 'PayPal',
+  ONLINE_BANKING: 'Bank',
+  BANK: 'Bank',
+  EDGEBOOST: 'Edgeboost',
+}
+
 // Map intake status to our view status
 export function mapIntakeStatusToClientStatus(
   intakeStatus: string,
@@ -33,11 +49,38 @@ export function mapIntakeStatusToClientStatus(
   }
 }
 
+// Helper: extract a platform password from generatedCredentials
+function getPlatformPassword(
+  creds: Record<string, unknown> | null,
+  platformKey: string,
+): string {
+  if (!creds) return '\u2014'
+  // Format: platformPasswords map (keyed by DB type like DRAFTKINGS, PAYPAL, etc.)
+  const pp = creds.platformPasswords as Record<string, string> | undefined
+  if (pp?.[platformKey]) return pp[platformKey]
+  // Shared sportsbook password
+  if (pp?.sportsbook && !['PAYPAL', 'ONLINE_BANKING', 'BANK', 'EDGEBOOST', 'BETMGM'].includes(platformKey)) {
+    return pp.sportsbook
+  }
+  // BetMGM special: top-level betmgmPassword
+  if (platformKey === 'BETMGM' && creds.betmgmPassword) {
+    return creds.betmgmPassword as string
+  }
+  // Legacy format: { draftkings: { password } }
+  const legacyKey = platformKey.toLowerCase()
+  const legacy = creds[legacyKey]
+  if (legacy && typeof legacy === 'object' && 'password' in (legacy as Record<string, unknown>)) {
+    return (legacy as Record<string, string>).password
+  }
+  return '\u2014'
+}
+
 // Map platform abbreviations to betting platform entries
 export function mapPlatformsToBetting(
   platforms: string[],
   activePlatforms: string[],
   platformDetails?: ServerPlatformDetail[],
+  generatedCredentials?: Record<string, unknown> | null,
 ): Client['bettingPlatforms'] {
   const PLATFORM_META: Record<string, { id: string; name: string; dbType: string }> = {
     DK: { id: 'draftkings', name: 'DraftKings', dbType: 'DRAFTKINGS' },
@@ -74,6 +117,10 @@ export function mapPlatformsToBetting(
       abbr,
       status: detail ? mapBettingStatus(detail.status) : ('pipeline' as const),
       balance: 0,
+      credentials: {
+        username: detail?.username || '\u2014',
+        password: getPlatformPassword(generatedCredentials ?? null, meta.dbType),
+      },
     }
   })
 }
@@ -116,6 +163,31 @@ export function findPlatformDetail(
   return details?.find((p) => p.platformType === type)
 }
 
+/** Format ISO date string to readable format (e.g. "Feb 15, 2000") */
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '\u2014'
+  try {
+    const d = new Date(dateStr)
+    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+  } catch {
+    return '\u2014'
+  }
+}
+
+/** Extract US state abbreviation from address string, e.g. "123 Main St, Chicago, IL 60601" -> "IL" */
+function extractStateFromAddress(address: string | null | undefined): string | null {
+  if (!address) return null
+  const match = address.match(/\b([A-Z]{2})\s*\d{5}/)
+  if (match) return match[1]
+  const parts = address.split(',').map((s) => s.trim())
+  if (parts.length >= 2) {
+    const stateZip = parts[parts.length - 1]
+    const stateMatch = stateZip.match(/^([A-Z]{2})\b/)
+    if (stateMatch) return stateMatch[1]
+  }
+  return null
+}
+
 // Map a single server client to our view model
 export function mapServerClientToClient(serverClient: ServerClientData): Client {
   // Parse questionnaire JSON for profile fields
@@ -128,21 +200,32 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
     /* ignore parse errors */
   }
 
+  // Extract generated credentials for password/PIN display
+  const creds = serverClient.generatedCredentials
+
   // Build finance platforms from real data
   const paypalDetail = findPlatformDetail(serverClient.platformDetails, 'PAYPAL')
-  const bankDetail = findPlatformDetail(serverClient.platformDetails, 'BANK')
+  const bankDetail = findPlatformDetail(serverClient.platformDetails, 'ONLINE_BANKING')
+    || findPlatformDetail(serverClient.platformDetails, 'BANK')
   const edgeboostDetail = findPlatformDetail(serverClient.platformDetails, 'EDGEBOOST')
 
   // BetMGM screenshots for review banner
   const betmgmDetail = findPlatformDetail(serverClient.platformDetails, 'BETMGM')
 
+  // Address from draft — either currentAddress (lives somewhere else) or ID address
+  const primaryAddress = serverClient.address || '\u2014'
+  const secondaryAddress = (questionnaire.secondaryAddress as string) || (questionnaire.currentAddress as string) || undefined
+
+  // State from address
+  const state = extractStateFromAddress(serverClient.address)
+
   return {
     id: serverClient.id,
     name: serverClient.name,
-    companyPhone: serverClient.phone || '\u2014',
-    carrier: '\u2014',
-    companyEmail: serverClient.email || '\u2014',
-    personalPhone: '\u2014',
+    companyPhone: (questionnaire.companyPhone as string) || serverClient.phone || '\u2014',
+    carrier: (questionnaire.carrier as string) || '\u2014',
+    companyEmail: (questionnaire.assignedGmail as string) || serverClient.email || '\u2014',
+    personalPhone: serverClient.phone || '\u2014',
     startDate: serverClient.start,
     status: mapIntakeStatusToClientStatus(serverClient.intakeStatus),
     intakeStatus: serverClient.intakeStatus,
@@ -157,7 +240,7 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
         isUsed: false,
         credentials: {
           username: paypalDetail?.username || '\u2014',
-          password: '\u2014',
+          password: getPlatformPassword(creds, 'PAYPAL'),
         },
       },
       {
@@ -168,15 +251,16 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
         bankType: 'Chase' as const,
         credentials: {
           username: bankDetail?.username || '\u2014',
-          password: '\u2014',
+          password: getPlatformPassword(creds, 'BANK'),
+          pin: (creds?.bankPin4 as string) || '\u2014',
         },
         debitCard: {
-          cardNumber: '\u2014',
+          cardNumber: '\u2014', // Not stored as structured data (screenshot-only)
           cvv: '\u2014',
           expiration: '\u2014',
         },
         bankInfo: {
-          routingNumber: '\u2014',
+          routingNumber: '\u2014', // Not stored as structured data (screenshot-only)
           accountNumber: '\u2014',
         },
       },
@@ -187,10 +271,10 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
         balance: 0,
         credentials: {
           username: edgeboostDetail?.username || '\u2014',
-          password: '\u2014',
+          password: getPlatformPassword(creds, 'EDGEBOOST'),
         },
         debitCard: {
-          cardNumber: '\u2014',
+          cardNumber: '\u2014', // Not stored as structured data (screenshot-only)
           cvv: '\u2014',
           expiration: '\u2014',
         },
@@ -200,6 +284,7 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
       serverClient.platforms,
       serverClient.activePlatforms,
       serverClient.platformDetails,
+      creds,
     ),
     agent: serverClient.agent || undefined,
     betmgmScreenshots: betmgmDetail?.screenshots ?? [],
@@ -209,28 +294,42 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
       zellePhone: (questionnaire.zellePhone as string) || '\u2014',
       edgeboostDebit: '\u2014',
       bankDebit: '\u2014',
-      state: serverClient.state || '\u2014',
+      state: state || serverClient.state || '\u2014',
     },
     profile: {
       fullName: serverClient.name,
-      dob: (questionnaire.dateOfBirth as string) || '\u2014',
+      dob: formatDate(questionnaire.dateOfBirth as string),
       gender:
         ((questionnaire.gender as string) as 'Male' | 'Female') || 'Male',
       idImageUrl: serverClient.idDocument || undefined,
-      idExpiryDate: (questionnaire.idExpiry as string) || '\u2014',
-      ssn: '\u2022\u2022\u2022\u2022', // Never expose real SSN client-side
+      idExpiryDate: formatDate(questionnaire.idExpiry as string),
+      ssn: (questionnaire.ssnNumber as string) || '\u2014',
       citizenship: (questionnaire.citizenship as string) || '\u2014',
       personalEmail: serverClient.email || '\u2014',
-      primaryAddress: serverClient.address
-        ? `${serverClient.address}, ${serverClient.city}, ${serverClient.state} ${serverClient.zipCode}`
-        : '\u2014',
+      primaryAddress,
+      secondaryAddress,
     },
     platformAddresses: {
-      paypal: '\u2014',
-      bank: '\u2014',
-      edgeboost: '\u2014',
+      paypal: primaryAddress !== '\u2014' ? primaryAddress : '\u2014',
+      bank: primaryAddress !== '\u2014' ? primaryAddress : '\u2014',
+      edgeboost: primaryAddress !== '\u2014' ? primaryAddress : '\u2014',
     },
-    alertFlags: {},
+    gmailPassword: (questionnaire.gmailPassword as string) || '\u2014',
+    alertFlags: {
+      paypalPreviouslyUsed: questionnaire.paypalPreviouslyUsed === true,
+      idExpiring: (() => {
+        const idExpiry = (questionnaire.idExpiry as string) || null
+        if (!idExpiry) return false
+        const expiry = new Date(idExpiry)
+        const today = new Date()
+        const diffDays = Math.floor((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+        return diffDays < 100
+      })(),
+      debankedHistory: questionnaire.debankedHistory === true,
+      criminalRecord: questionnaire.criminalRecord === true,
+      undisclosedInfo: questionnaire.undisclosedInfo === true,
+      addressMismatch: questionnaire.addressMismatch === true || questionnaire.livesAtDifferentAddress === true,
+    },
     transactions: serverClient.transactions.map((t) => ({
       id: t.id,
       type:
@@ -241,7 +340,7 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
             : ('deposit' as const),
       amount: t.amount,
       date: new Date(t.date).toLocaleDateString(),
-      platform: t.platformType || '\u2014',
+      platform: PLATFORM_TYPE_TO_NAME[t.platformType || ''] || t.platformType || '\u2014',
     })),
     timeline: serverClient.eventLogs.map((e) => ({
       id: e.id,

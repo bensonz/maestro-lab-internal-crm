@@ -46,6 +46,9 @@ export async function getCommissionOverview(): Promise<CommissionOverviewData> {
         amount: a.amount,
         status: a.status,
         paidAt: a.paidAt,
+        createdAt: a.createdAt,
+        clientName: `${p.client.firstName} ${p.client.lastName}`,
+        closerName: p.closer.name,
       }),
     ),
   }))
@@ -89,6 +92,12 @@ export async function getAgentEarnings(
     orderBy: { createdAt: 'desc' },
     include: {
       agent: { select: { id: true, name: true } },
+      pool: {
+        select: {
+          client: { select: { firstName: true, lastName: true } },
+          closer: { select: { id: true, name: true } },
+        },
+      },
     },
   })
 
@@ -102,6 +111,9 @@ export async function getAgentEarnings(
     amount: a.amount,
     status: a.status,
     paidAt: a.paidAt,
+    createdAt: a.createdAt,
+    clientName: `${a.pool.client.firstName} ${a.pool.client.lastName}`,
+    closerName: a.pool.closer.name,
   }))
 
   const totalEarned = lines.reduce((s, a) => s + a.amount, 0)
