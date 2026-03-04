@@ -51,7 +51,6 @@ import { ClientIntakeList } from './client-intake-list'
 import { DraftReviewDialog } from './draft-review-dialog'
 import { DeviceAssignDialog } from './device-assign-dialog'
 import { AssignTodoDialog } from './assign-todo-dialog'
-import { ApproveConfirmDialog } from './approve-confirm-dialog'
 import { VerificationTasksTable } from './verification-tasks-table'
 import { ClientDetail } from '../../client-management/_components/client-detail'
 import { mapServerClientToClient } from '../../client-management/_components/map-client'
@@ -263,19 +262,17 @@ export function SalesInteractionView({
   const [assigningInitialPhone, setAssigningInitialPhone] = useState<string | null>(null)
   const [assigningInitialCarrier, setAssigningInitialCarrier] = useState<string | null>(null)
 
-  // Approve confirm dialog state
-  const [approvingClientId, setApprovingClientId] = useState<string | null>(null)
-  const [approvingClientName, setApprovingClientName] = useState('')
-  const [approvingHasDebitCards, setApprovingHasDebitCards] = useState(false)
-
   // Track which step to open the review dialog at
   const [reviewInitialStep, setReviewInitialStep] = useState<1 | 2 | 3 | 4>(1)
+  // Track if we should auto-scroll to debit cards on Step 3
+  const [reviewScrollToDebit, setReviewScrollToDebit] = useState(false)
 
   const handleReviewDraft = useCallback((id: string, name: string, resultClientId?: string | null) => {
     setReviewingDraftId(id)
     setReviewingDraftName(name)
     setReviewingResultClientId(resultClientId ?? null)
     setReviewInitialStep(1)
+    setReviewScrollToDebit(false)
   }, [])
 
   const handleUploadCard = useCallback((draftId: string, clientName: string, resultClientId?: string | null) => {
@@ -284,12 +281,16 @@ export function SalesInteractionView({
     setReviewingDraftName(clientName)
     setReviewingResultClientId(resultClientId ?? null)
     setReviewInitialStep(3)
+    setReviewScrollToDebit(true)
   }, [])
 
-  const handleApproveClick = useCallback((resultClientId: string, clientName: string, hasDebitCards: boolean) => {
-    setApprovingClientId(resultClientId)
-    setApprovingClientName(clientName)
-    setApprovingHasDebitCards(hasDebitCards)
+  const handleApproveClick = useCallback((draftId: string, resultClientId: string, clientName: string) => {
+    // Open the review dialog directly at Step 4 (Contract + Approve)
+    setReviewingDraftId(draftId)
+    setReviewingDraftName(clientName)
+    setReviewingResultClientId(resultClientId)
+    setReviewInitialStep(4)
+    setReviewScrollToDebit(false)
   }, [])
 
   const handleAssignDevice = useCallback((draftId: string, clientName: string, agentName: string, phone?: string | null, carrier?: string | null) => {
@@ -1117,7 +1118,8 @@ export function SalesInteractionView({
         draftName={reviewingDraftName}
         resultClientId={reviewingResultClientId}
         initialStep={reviewInitialStep}
-        onClose={() => { setReviewingDraftId(null); setReviewInitialStep(1) }}
+        scrollToDebitCards={reviewScrollToDebit}
+        onClose={() => { setReviewingDraftId(null); setReviewInitialStep(1); setReviewScrollToDebit(false) }}
       />
 
       <DeviceAssignDialog
@@ -1135,12 +1137,6 @@ export function SalesInteractionView({
         clients={clientIntake}
       />
 
-      <ApproveConfirmDialog
-        clientId={approvingClientId}
-        clientName={approvingClientName}
-        hasDebitCards={approvingHasDebitCards}
-        onClose={() => setApprovingClientId(null)}
-      />
     </div>
   )
 }
@@ -1165,7 +1161,7 @@ function SubStageSection({
   onReviewDraft?: (draftId: string, name: string, resultClientId?: string | null) => void
   onAssignDevice?: (draftId: string, clientName: string, agentName: string) => void
   onUploadCard?: (draftId: string, clientName: string) => void
-  onApprove?: (resultClientId: string, clientName: string, hasDebitCards: boolean) => void
+  onApprove?: (draftId: string, resultClientId: string, clientName: string) => void
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const Icon = stage.icon

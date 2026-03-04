@@ -117,6 +117,7 @@ export async function saveClientDraft(
     'agentConfidenceLevel',
     'clientHidingInfo',
     'clientHidingInfoNotes',
+    'backofficeReviewedStep',
   ]
 
   const updateData: Record<string, unknown> = {}

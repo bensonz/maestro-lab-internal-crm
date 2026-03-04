@@ -323,6 +323,9 @@ model ClientDraft {
   debankedBank         String?
   undisclosedInfo      Boolean @default(false)
 
+  // Backoffice review tracking
+  backofficeReviewedStep Int @default(0)
+
   // Relations
   closerId       String
   closer         User    @relation("DraftCloser", fields: [closerId], references: [id])

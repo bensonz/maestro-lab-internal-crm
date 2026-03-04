@@ -27,7 +27,7 @@ interface ClientIntakeListProps {
   onReviewDraft?: (draftId: string, name: string, resultClientId?: string | null) => void
   onAssignDevice?: (draftId: string, clientName: string, agentName: string) => void
   onUploadCard?: (draftId: string, clientName: string, resultClientId?: string | null) => void
-  onApprove?: (resultClientId: string, clientName: string, hasDebitCards: boolean) => void
+  onApprove?: (draftId: string, resultClientId: string, clientName: string) => void
 }
 
 export function ClientIntakeList({
@@ -241,7 +241,7 @@ export function ClientIntakeList({
                     size="sm"
                     variant="outline"
                     className="h-7 gap-1 px-2.5 text-xs"
-                    onClick={() => onApprove?.(client.resultClientId!, client.name, !!client.hasDebitCards)}
+                    onClick={() => onApprove?.(client.id, client.resultClientId!, client.name)}
                     data-testid={`approve-${client.id}`}
                   >
                     <Check className="h-3 w-3" />
