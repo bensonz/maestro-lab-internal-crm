@@ -533,24 +533,26 @@ export function Step3Platforms({
                     status === 'not-started' && 'bg-muted-foreground/30',
                   )}
                 />
-                <span className="text-sm font-medium flex-1">{info.name}</span>
-                {/* Image count badge */}
-                {imgCount > 0 && (
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      'h-5 px-1.5 font-mono text-[10px]',
-                      imgCount === 3
-                        ? 'border-success/40 bg-success/10 text-success'
-                        : 'text-muted-foreground',
-                    )}
-                  >
-                    {imgCount}/3
-                  </Badge>
-                )}
+                <span className="min-w-0 flex-1 text-sm font-medium">{info.name}</span>
+                {/* Image count badge — fixed width slot so status text aligns */}
+                <span className="w-9 shrink-0 text-center">
+                  {imgCount > 0 && (
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        'h-5 px-1.5 font-mono text-[10px]',
+                        imgCount === 3
+                          ? 'border-success/40 bg-success/10 text-success'
+                          : 'text-muted-foreground',
+                      )}
+                    >
+                      {imgCount}/3
+                    </Badge>
+                  )}
+                </span>
                 <span
                   className={cn(
-                    'text-[10px] font-medium',
+                    'w-16 shrink-0 text-right text-[10px] font-medium',
                     status === 'verified' && 'text-success',
                     status === 'in-progress' && 'text-amber-600 dark:text-amber-400',
                     status === 'not-started' && 'text-muted-foreground/60',

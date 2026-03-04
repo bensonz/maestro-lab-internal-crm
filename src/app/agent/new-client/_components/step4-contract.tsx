@@ -10,6 +10,10 @@ import {
   MapPin,
   Pencil,
   AlertTriangle,
+  PhoneOff,
+  ShieldAlert,
+  FileWarning,
+  UserX,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -65,9 +69,7 @@ function SectionCard({
 interface RiskFlagDef {
   key: string
   label: string
-  description: string
   getActive: (flags: RiskAssessment['flags']) => boolean
-  getImpact: (flags: RiskAssessment['flags']) => string
   severity: 'high' | 'medium' | 'info'
 }
 
@@ -75,85 +77,93 @@ const RISK_FLAG_DEFS: RiskFlagDef[] = [
   {
     key: 'criminalRecord',
     label: 'Criminal Record',
-    description: 'Client has disclosed a criminal record',
     getActive: (f) => !!f.criminalRecord,
-    getImpact: () => '-30 pts',
     severity: 'high',
   },
   {
     key: 'debankedHistory',
     label: 'De-banked History',
-    description: 'Client was previously de-banked by a financial institution',
     getActive: (f) => !!f.debankedHistory,
-    getImpact: () => '-30 pts',
     severity: 'high',
   },
   {
     key: 'idExpiryRisk',
     label: 'ID Expiring Soon',
-    description: 'Client ID document is expiring within 100 days',
     getActive: (f) => f.idExpiryRisk !== 'none',
-    getImpact: (f) => f.idExpiryRisk === 'high' ? '-20 pts (< 75 days)' : '-10 pts (75-99 days)',
     severity: 'medium',
   },
   {
     key: 'paypalPreviouslyUsed',
     label: 'PayPal Previously Used',
-    description: 'Client has an existing PayPal account with prior usage',
     getActive: (f) => !!f.paypalPreviouslyUsed,
-    getImpact: () => '-10 pts',
     severity: 'medium',
   },
   {
     key: 'missingIdCount',
     label: 'Missing IDs',
-    description: 'Client is missing one or more required identification documents',
     getActive: (f) => (f.missingIdCount ?? 0) > 0,
-    getImpact: (f) => {
-      const count = f.missingIdCount ?? 0
-      return count > 0 ? `-${count * 10} pts (${count} missing)` : '0 pts'
-    },
     severity: 'medium',
   },
   {
     key: 'multipleAddresses',
     label: 'Multiple Addresses',
-    description: 'Different addresses detected across platform registrations',
     getActive: (f) => (f.discoveredAddressCount ?? 0) >= 2,
-    getImpact: (f) => `${f.discoveredAddressCount ?? 0} addresses found`,
     severity: 'info',
   },
   {
     key: 'householdAwareness',
     label: 'Household Awareness Concern',
-    description: 'Household members may not be aware of or supportive of the client\'s activity',
     getActive: (f) => !!f.householdAwareness && f.householdAwareness !== 'supportive' && f.householdAwareness !== 'not_applicable',
-    getImpact: () => 'up to -8 pts',
     severity: 'info',
   },
   {
     key: 'familyTechSupport',
     label: 'Family Tech Support',
-    description: 'Client lacks family or household support for tech/device usage',
     getActive: (f) => !!f.familyTechSupport && f.familyTechSupport !== 'willing_to_help',
-    getImpact: () => 'up to -15 pts',
     severity: 'medium',
   },
   {
     key: 'financialAutonomy',
     label: 'Financial Autonomy',
-    description: 'Client does not have full financial independence or decision-making authority',
     getActive: (f) => !!f.financialAutonomy && f.financialAutonomy !== 'fully_independent',
-    getImpact: () => 'up to -15 pts',
     severity: 'medium',
+  },
+]
+
+/* ─── Integrity assessment questions ─── */
+const INTEGRITY_QUESTIONS = [
+  {
+    key: 'integrityOwnPhone',
+    label: 'Did the client try to use their own phone instead of the assigned device?',
+    icon: PhoneOff,
+  },
+  {
+    key: 'integrityBypassSteps',
+    label: 'Did the client attempt to bypass or alter any registration steps?',
+    icon: ShieldAlert,
+  },
+  {
+    key: 'integrityInconsistent',
+    label: 'Did the client provide inconsistent or contradictory information?',
+    icon: FileWarning,
+  },
+  {
+    key: 'integrityEvasive',
+    label: 'Did the client seem reluctant or evasive when asked to provide documents?',
+    icon: UserX,
   },
 ]
 
 export function Step4Contract({ formData, onChange, discoveredAddresses, onAddressUpdate, riskAssessment }: Step4Props) {
   const [addressesConfirmed, setAddressesConfirmed] = useState(false)
   const [riskFlagsReviewed, setRiskFlagsReviewed] = useState(false)
+  const [reviewedWithBackoffice, setReviewedWithBackoffice] = useState(false)
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
   const [editValue, setEditValue] = useState('')
+
+  // Integrity question local state (syncs to formData.clientHidingInfo)
+  const [integrityFlags, setIntegrityFlags] = useState<Record<string, boolean>>({})
+
   const handleContractUpload = useCallback(
     async (file: File) => {
       const body = new FormData()
@@ -171,15 +181,25 @@ export function Step4Contract({ formData, onChange, discoveredAddresses, onAddre
     [onChange],
   )
 
-  const hasContract = !!(formData.contractDocument as string)
-  const hasFirstName = !!(formData.firstName as string)
-  const hasLastName = !!(formData.lastName as string)
   const hasConfidence = !!(formData.agentConfidenceLevel as string)
   const addressCount = discoveredAddresses.length
-  const allReady = hasContract && hasFirstName && hasLastName
-    && (addressCount === 0 || addressesConfirmed)
-    && hasConfidence
+
+  // Risk assessment data
+  const activeFlags = RISK_FLAG_DEFS.filter((def) => def.getActive(riskAssessment.flags))
+  const needsBackofficeReview = activeFlags.length > 3
+  const levelConfig = {
+    low: { color: 'text-success', bg: 'bg-success/10 border-success/30', icon: CheckCircle2, label: 'Low Risk' },
+    medium: { color: 'text-warning', bg: 'bg-warning/10 border-warning/30', icon: AlertTriangle, label: 'Medium Risk' },
+    high: { color: 'text-destructive', bg: 'bg-destructive/10 border-destructive/30', icon: AlertTriangle, label: 'High Risk' },
+  }
+  const levelCfg = levelConfig[riskAssessment.level]
+  const LevelIcon = levelCfg.icon
+
+  const allReady =
+    (addressCount === 0 || addressesConfirmed)
     && riskFlagsReviewed
+    && hasConfidence
+    && (!needsBackofficeReview || reviewedWithBackoffice)
 
   const addressCountColor = addressCount <= 1
     ? 'text-success border-success/30 bg-success/10'
@@ -195,22 +215,22 @@ export function Step4Contract({ formData, onChange, discoveredAddresses, onAddre
     setEditValue('')
   }
 
-  // Risk assessment data
-  const activeFlags = RISK_FLAG_DEFS.filter((def) => def.getActive(riskAssessment.flags))
-  const levelConfig = {
-    low: { color: 'text-success', bg: 'bg-success/10 border-success/30', icon: CheckCircle2, label: 'Low Risk' },
-    medium: { color: 'text-warning', bg: 'bg-warning/10 border-warning/30', icon: AlertTriangle, label: 'Medium Risk' },
-    high: { color: 'text-destructive', bg: 'bg-destructive/10 border-destructive/30', icon: AlertTriangle, label: 'High Risk' },
+  const handleIntegrityChange = (key: string, checked: boolean) => {
+    const updated = { ...integrityFlags, [key]: checked }
+    setIntegrityFlags(updated)
+    const anyFlagged = Object.values(updated).some(Boolean)
+    onChange('clientHidingInfo', anyFlagged)
+    if (!anyFlagged) onChange('clientHidingInfoNotes', '')
   }
-  const levelCfg = levelConfig[riskAssessment.level]
-  const LevelIcon = levelCfg.icon
+
+  const anyIntegrityFlagged = Object.values(integrityFlags).some(Boolean)
 
   return (
     <div className="space-y-4" data-testid="step4-contract">
 
       {/* ═══ Tab 1: Contract Document ═══ */}
       <SectionCard title="Contract Document">
-        {hasContract ? (
+        {!!(formData.contractDocument as string) ? (
           <div className="space-y-3">
             <div className="flex items-center gap-3">
               <ScreenshotThumbnail
@@ -240,7 +260,7 @@ export function Step4Contract({ formData, onChange, discoveredAddresses, onAddre
         )}
       </SectionCard>
 
-      {/* ═══ Tab 2: Submission Checklist (includes address summary, risk flags, agent questions, checklist) ═══ */}
+      {/* ═══ Tab 2: Submission Checklist ═══ */}
       <SectionCard title="Submission Checklist">
         <div className="space-y-6" data-testid="submission-checklist">
 
@@ -337,38 +357,33 @@ export function Step4Contract({ formData, onChange, discoveredAddresses, onAddre
               Risk Assessment Flags
             </p>
 
-            {/* Risk level badge */}
-            <div className={cn('inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium', levelCfg.bg, levelCfg.color)}>
-              <LevelIcon className="h-4 w-4" />
+            {/* Risk level badge — compact, no score */}
+            <div className={cn('inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium', levelCfg.bg, levelCfg.color)}>
+              <LevelIcon className="h-3.5 w-3.5" />
               {levelCfg.label}
-              <span className="font-mono text-xs opacity-70">Score: {riskAssessment.score}</span>
             </div>
 
-            {/* Active risk flags with specific descriptions */}
+            {/* Active risk flags — horizontal inline badges */}
             {activeFlags.length > 0 ? (
-              <div className="space-y-1.5">
+              <div className="flex flex-wrap gap-1.5">
                 {activeFlags.map((def) => (
                   <div
                     key={def.key}
-                    className="flex items-start gap-2 rounded-md border border-border p-2.5 text-xs"
+                    className={cn(
+                      'inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium',
+                      def.severity === 'high'
+                        ? 'border-destructive/30 bg-destructive/10 text-destructive'
+                        : def.severity === 'medium'
+                          ? 'border-warning/30 bg-warning/10 text-warning'
+                          : 'border-border bg-muted/50 text-muted-foreground',
+                    )}
                     data-testid={`risk-flag-${def.key}`}
                   >
                     <span className={cn(
-                      'mt-0.5 h-2 w-2 shrink-0 rounded-full',
+                      'h-1.5 w-1.5 shrink-0 rounded-full',
                       def.severity === 'high' ? 'bg-destructive' : def.severity === 'medium' ? 'bg-warning' : 'bg-muted-foreground',
                     )} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{def.label}</span>
-                        <span className={cn(
-                          'ml-auto shrink-0 font-mono text-[10px]',
-                          def.severity === 'high' ? 'text-destructive' : def.severity === 'medium' ? 'text-warning' : 'text-muted-foreground',
-                        )}>
-                          {def.getImpact(riskAssessment.flags)}
-                        </span>
-                      </div>
-                      <p className="mt-0.5 text-muted-foreground">{def.description}</p>
-                    </div>
+                    {def.label}
                   </div>
                 ))}
               </div>
@@ -376,6 +391,21 @@ export function Step4Contract({ formData, onChange, discoveredAddresses, onAddre
               <div className="flex items-center gap-2 text-xs text-success">
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 No active risk flags
+              </div>
+            )}
+
+            {/* Backoffice review checkbox (when >3 flags) */}
+            {needsBackofficeReview && (
+              <div className="flex items-center gap-2 rounded-md border border-warning/30 bg-warning/5 px-3 py-2">
+                <Checkbox
+                  id="reviewedWithBackoffice"
+                  checked={reviewedWithBackoffice}
+                  onCheckedChange={(checked) => setReviewedWithBackoffice(!!checked)}
+                  data-testid="reviewed-with-backoffice-checkbox"
+                />
+                <label htmlFor="reviewedWithBackoffice" className="text-xs font-medium text-warning">
+                  Please review this with back office over phone
+                </label>
               </div>
             )}
 
@@ -391,19 +421,9 @@ export function Step4Contract({ formData, onChange, discoveredAddresses, onAddre
                 I have reviewed all risk flags
               </label>
             </div>
-          </div>
 
-          {/* ── Divider ── */}
-          <div className="border-t border-border" />
-
-          {/* ── Section C: Agent Assessment Questions ── */}
-          <div className="space-y-4" data-testid="agent-assessment">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Agent Assessment
-            </p>
-
-            {/* Confidence Level */}
-            <div className="space-y-2">
+            {/* Confidence Level — moved here from Agent Assessment */}
+            <div className="space-y-2 pt-1">
               <label className="text-sm font-medium">
                 How confident are you about this client?
               </label>
@@ -421,81 +441,75 @@ export function Step4Contract({ formData, onChange, discoveredAddresses, onAddre
                 </SelectContent>
               </Select>
             </div>
-
-            {/* Hiding Info */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">
-                Did the client try to hide information during the application process?
-              </label>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="clientHidingInfo"
-                  checked={formData.clientHidingInfo === true}
-                  onCheckedChange={(checked) => {
-                    onChange('clientHidingInfo', !!checked)
-                    if (!checked) onChange('clientHidingInfoNotes', '')
-                  }}
-                  data-testid="client-hiding-info-checkbox"
-                />
-                <label htmlFor="clientHidingInfo" className="text-sm cursor-pointer">
-                  Yes
-                </label>
-              </div>
-              {formData.clientHidingInfo === true && (
-                <Textarea
-                  value={(formData.clientHidingInfoNotes as string) || ''}
-                  onChange={(e) => onChange('clientHidingInfoNotes', e.target.value)}
-                  placeholder="e.g., while at the bank, did they try to use their own phone instead of the assigned device?"
-                  className="min-h-[80px]"
-                  data-testid="client-hiding-info-notes"
-                />
-              )}
-            </div>
           </div>
 
           {/* ── Divider ── */}
           <div className="border-t border-border" />
 
-          {/* ── Section D: Final Checklist ── */}
-          <div className="space-y-3">
-            {allReady && (
-              <div className="flex items-center gap-2 rounded-md border border-success/30 bg-success/5 px-3 py-2 text-xs text-success">
-                <CheckCircle2 className="h-4 w-4 shrink-0" />
-                All required items are complete. Ready to submit.
+          {/* ── Section C: Client Integrity Assessment ── */}
+          <div className="space-y-4" data-testid="client-integrity-assessment">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Client Integrity Assessment
+            </p>
+
+            <div className="space-y-2.5">
+              {INTEGRITY_QUESTIONS.map((q) => {
+                const Icon = q.icon
+                return (
+                  <div
+                    key={q.key}
+                    className={cn(
+                      'flex items-start gap-2.5 rounded-md border p-2.5 transition-colors',
+                      integrityFlags[q.key]
+                        ? 'border-destructive/30 bg-destructive/5'
+                        : 'border-border',
+                    )}
+                  >
+                    <Checkbox
+                      id={q.key}
+                      checked={integrityFlags[q.key] || false}
+                      onCheckedChange={(checked) => handleIntegrityChange(q.key, !!checked)}
+                      className="mt-0.5"
+                      data-testid={`integrity-${q.key}`}
+                    />
+                    <Icon className={cn(
+                      'mt-0.5 h-3.5 w-3.5 shrink-0',
+                      integrityFlags[q.key] ? 'text-destructive' : 'text-muted-foreground',
+                    )} />
+                    <label htmlFor={q.key} className="cursor-pointer text-xs leading-relaxed">
+                      {q.label}
+                    </label>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Notes textarea — shown when any integrity question is flagged */}
+            {anyIntegrityFlagged && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-destructive">
+                  Describe what happened
+                </label>
+                <Textarea
+                  value={(formData.clientHidingInfoNotes as string) || ''}
+                  onChange={(e) => onChange('clientHidingInfoNotes', e.target.value)}
+                  placeholder="Provide details about the flagged behavior(s) — what did you observe, when did it happen, and how did the client respond when confronted?"
+                  className="min-h-[80px] border-destructive/30"
+                  data-testid="client-hiding-info-notes"
+                />
               </div>
             )}
-
-            <ul className="space-y-2 text-sm">
-              <ChecklistItem checked={hasFirstName} label="First name provided" />
-              <ChecklistItem checked={hasLastName} label="Last name provided" />
-              <ChecklistItem checked={hasContract} label="Contract document uploaded" />
-              {addressCount > 0 && (
-                <ChecklistItem
-                  checked={addressesConfirmed}
-                  label={`All addresses confirmed (${addressCount} unique ${addressCount === 1 ? 'address' : 'addresses'})`}
-                />
-              )}
-              <ChecklistItem checked={riskFlagsReviewed} label="Risk assessment reviewed" />
-              <ChecklistItem checked={hasConfidence} label="Agent confidence level selected" />
-            </ul>
           </div>
+
+          {/* ── Ready banner ── */}
+          {allReady && (
+            <div className="flex items-center gap-2 rounded-md border border-success/30 bg-success/5 px-3 py-2 text-xs text-success">
+              <CheckCircle2 className="h-4 w-4 shrink-0" />
+              All required items are complete. Ready to submit.
+            </div>
+          )}
         </div>
       </SectionCard>
     </div>
-  )
-}
-
-function ChecklistItem({ checked, label }: { checked: boolean; label: string }) {
-  return (
-    <li className="flex items-center gap-2">
-      {checked ? (
-        <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />
-      ) : (
-        <XCircle className="h-4 w-4 shrink-0 text-destructive/60" />
-      )}
-      <span className={checked ? 'text-foreground' : 'text-muted-foreground'}>
-        {label}
-      </span>
-    </li>
   )
 }

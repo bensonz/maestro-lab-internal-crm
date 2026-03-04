@@ -125,6 +125,11 @@ export function NewClientView({ initialStep, drafts, selectedDraft, activeAssign
   // Risk flags state — fully reconstructed from draft data so nothing is lost on refresh
   const [riskFlags, setRiskFlags] = useState(() => computeAllRiskFlags(selectedDraft))
 
+  // Re-compute risk flags when switching between drafts
+  useEffect(() => {
+    setRiskFlags(computeAllRiskFlags(selectedDraft))
+  }, [selectedDraft?.id])
+
   const riskAssessment: RiskAssessment = useMemo(
     () => calculateRiskScore(riskFlags),
     [riskFlags],
@@ -215,9 +220,9 @@ export function NewClientView({ initialStep, drafts, selectedDraft, activeAssign
             />
           ) : (
             <div className="mt-12 text-center text-muted-foreground" data-testid="no-draft-selected">
-              <p className="text-lg font-medium">No draft selected</p>
+              <p className="text-lg font-medium">Ready to onboard</p>
               <p className="mt-1 text-sm">
-                Create a new draft or select an existing one from the left panel.
+                Start a new client or select an existing one from the left panel.
               </p>
             </div>
           )}
@@ -280,7 +285,6 @@ function computeAllRiskFlags(draft: SerializedDraft | null) {
   }
   const storedPwds = creds.platformPasswords ?? {}
   for (const p of platforms) {
-    if (!p.screenshot) continue
     const suggestedPw = storedPwds[p.platform] ?? ''
     const suggestedUser = p.platform === 'BANK' ? '' : (creds.gmailSuggestion ?? '')
     credentialMismatches[p.platform] = {

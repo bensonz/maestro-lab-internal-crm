@@ -13,6 +13,7 @@ import {
   KeyRound,
   MapPin,
   Save,
+  AlertTriangle,
 } from 'lucide-react'
 import {
   Dialog,
@@ -365,6 +366,34 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, initialS
                 {getField<boolean | null>(draft, editedFields, 'hasCriminalRecord') && <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] text-destructive">Criminal</span>}
               </div>
             </div>
+
+            {/* High-risk warning banner */}
+            {(() => {
+              const highRiskFlags = [
+                getField<boolean>(draft, editedFields, 'debankedHistory') && 'De-banked History',
+                getField<boolean | null>(draft, editedFields, 'hasCriminalRecord') && 'Criminal Record',
+              ].filter(Boolean) as string[]
+              const mediumRiskFlags = [
+                getField<boolean>(draft, editedFields, 'paypalPreviouslyUsed') && 'PayPal Previously Used',
+                getField<boolean>(draft, editedFields, 'undisclosedInfo') && 'Undisclosed Information',
+              ].filter(Boolean) as string[]
+              const isHighRisk = highRiskFlags.length > 0 || (mediumRiskFlags.length >= 2 && highRiskFlags.length === 0)
+              if (!isHighRisk) return null
+              return (
+                <div
+                  className="flex items-start gap-3 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3"
+                  data-testid="high-risk-banner"
+                >
+                  <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-destructive">High Risk Client</p>
+                    <p className="mt-0.5 text-xs text-destructive/80">
+                      {[...highRiskFlags, ...mediumRiskFlags].join(' · ')}
+                    </p>
+                  </div>
+                </div>
+              )
+            })()}
 
             {/* Step indicator */}
             <div className="flex items-center justify-center gap-1.5" data-testid="draft-review-step-indicator">

@@ -108,7 +108,7 @@ export function DraftsPanel({
           disabled={creating}
           data-testid="new-draft-button"
         >
-          {creating ? 'Creating...' : 'New Draft'}
+          {creating ? 'Setting up...' : 'Start New Client'}
         </Button>
       </div>
 
