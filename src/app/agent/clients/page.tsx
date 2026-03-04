@@ -214,13 +214,18 @@ export default async function MyClientsPage() {
       c.intakeStatus === IntakeStatus.PENDING_EXTERNAL ||
       c.intakeStatus === IntakeStatus.EXECUTION_DELAYED
     ).length
+    const approvedCount = clients.filter((c) => c.intakeStatus === IntakeStatus.APPROVED).length
+    const rejectedCount = clients.filter((c) => c.intakeStatus === IntakeStatus.REJECTED).length
+    const abortedCount = 0
     const stats = {
-      total: clients.length,
+      // Total = approved + rejected + aborted + in-progress (drafts)
+      // Excludes verification-needed to avoid double-counting active clients
+      total: approvedCount + rejectedCount + abortedCount + drafts.length,
       inProgress: inProgressClientCount + drafts.length,
       verificationNeeded: verificationCount,
-      approved: clients.filter((c) => c.intakeStatus === IntakeStatus.APPROVED).length,
-      rejected: clients.filter((c) => c.intakeStatus === IntakeStatus.REJECTED).length,
-      aborted: 0,
+      approved: approvedCount,
+      rejected: rejectedCount,
+      aborted: abortedCount,
       draftsCount: drafts.length,
     }
 

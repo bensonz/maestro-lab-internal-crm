@@ -1037,76 +1037,77 @@ export function SalesInteractionView({
               )}
             </div>
 
-            {/* ── Activity Timeline (always visible) ── */}
-            {(
-              <div data-testid="todo-activity-timeline">
-                <div className="border-t border-border" />
-                <div className="pt-3">
-                  {timelineOpen && (
-                    <div className="mb-1 max-h-64 overflow-hidden overflow-y-auto rounded-lg border border-border">
-                      {todoTimeline.length === 0 ? (
-                        <p className="py-6 text-center text-sm text-muted-foreground">
-                          No activity yet
-                        </p>
-                      ) : (
-                      <div className="divide-y divide-border">
-                      {todoTimeline.map((entry) => {
-                        const actionConfigs: Record<string, { label: string; badgeClass: string }> = {
-                          assigned: { label: 'Assigned', badgeClass: 'bg-primary/20 text-primary border-primary/30' },
-                          completed: { label: 'Completed', badgeClass: 'bg-success/20 text-success border-success/30' },
-                          reverted: { label: 'Reverted', badgeClass: 'bg-warning/20 text-warning border-warning/30' },
-                          device_out: { label: 'Device Out', badgeClass: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' },
-                          device_returned: { label: 'Returned', badgeClass: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
-                          device_reissued: { label: 'Re-issued', badgeClass: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
-                          client_approved: { label: 'Approved', badgeClass: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
-                          client_reverted: { label: 'Reverted', badgeClass: 'bg-destructive/20 text-destructive border-destructive/30' },
+            {/* ── Activity Timeline ── */}
+            <div className="border-t border-border" />
+            <div data-testid="todo-activity-timeline" className="pt-0.5">
+              <button
+                type="button"
+                onClick={() => setTimelineOpen(!timelineOpen)}
+                className="flex w-full cursor-pointer items-center gap-2 rounded-lg border border-border bg-muted/30 px-4 py-2 text-left transition-colors hover:bg-muted/50"
+                data-testid="toggle-todo-timeline"
+              >
+                <span className="flex-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Activity Timeline ({todoTimeline.length})
+                </span>
+                {timelineOpen ? (
+                  <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                )}
+              </button>
+              {timelineOpen && (
+                <div className="mt-1 max-h-72 overflow-y-auto rounded-lg border border-border bg-card">
+                  {todoTimeline.length === 0 ? (
+                    <p className="py-6 text-center text-sm text-muted-foreground">
+                      No activity yet
+                    </p>
+                  ) : (
+                    <div className="px-4 py-3">
+                      {todoTimeline.map((entry, idx) => {
+                        const dotColors: Record<string, string> = {
+                          assigned: 'bg-primary',
+                          completed: 'bg-success',
+                          reverted: 'bg-warning',
+                          device_out: 'bg-cyan-500',
+                          device_returned: 'bg-emerald-500',
+                          device_reissued: 'bg-amber-500',
+                          client_approved: 'bg-emerald-500',
+                          client_reverted: 'bg-destructive',
                         }
-                        const actionConfig = actionConfigs[entry.action] ?? actionConfigs.assigned
+                        const dotColor = dotColors[entry.action] ?? 'bg-muted-foreground'
+                        const isLast = idx === todoTimeline.length - 1
+
                         return (
                           <div
                             key={entry.id}
-                            className="flex items-center gap-2 px-3 py-1"
+                            className="relative flex gap-3"
                             data-testid={`todo-timeline-${entry.id}`}
                           >
-                            <Badge className={`shrink-0 px-1.5 py-0 text-[9px] ${actionConfig.badgeClass}`}>
-                              {actionConfig.label}
-                            </Badge>
-                            <span className="truncate text-[11px] text-foreground">
-                              {entry.event}
-                            </span>
-                            <span className="ml-auto shrink-0 whitespace-nowrap text-[9px] text-muted-foreground">
-                              {entry.date} {entry.time}
-                            </span>
-                            {entry.actor && (
-                              <span className="shrink-0 whitespace-nowrap text-[9px] text-muted-foreground">
-                                by {entry.actor}
-                              </span>
-                            )}
+                            {/* Vertical line + dot */}
+                            <div className="flex w-2.5 shrink-0 flex-col items-center">
+                              <div className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', dotColor)} />
+                              {!isLast && (
+                                <div className="w-px flex-1 bg-border" />
+                              )}
+                            </div>
+                            {/* Content */}
+                            <div className={cn('min-w-0 flex-1', isLast ? 'pb-0' : 'pb-3')}>
+                              <p className="truncate text-[11px] leading-snug text-foreground">
+                                {entry.event}
+                              </p>
+                              <p className="mt-0.5 text-[10px] text-muted-foreground">
+                                {entry.actor && <span>{entry.actor} · </span>}
+                                {formatDistanceToNow(new Date(entry.createdAt), { addSuffix: true })}
+                              </p>
+                            </div>
                           </div>
                         )
                       })}
-                      </div>
-                      )}
                     </div>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => setTimelineOpen(!timelineOpen)}
-                    className="flex w-full cursor-pointer items-center gap-2 rounded-lg border border-border bg-muted/30 px-4 py-2 text-left transition-colors hover:bg-muted/50"
-                    data-testid="toggle-todo-timeline"
-                  >
-                    <span className="flex-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                      Activity Timeline ({todoTimeline.length})
-                    </span>
-                    {timelineOpen ? (
-                      <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                    ) : (
-                      <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
-                    )}
-                  </button>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </ScrollArea>
       </div>

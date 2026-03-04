@@ -453,6 +453,7 @@ export interface TodoTimelineEntry {
   id: string
   date: string
   time: string
+  createdAt: Date
   event: string
   type: 'info' | 'success' | 'warning'
   actor: string | null

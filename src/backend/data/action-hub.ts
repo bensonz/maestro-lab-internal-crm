@@ -192,6 +192,7 @@ async function getActionHubTimeline(): Promise<TodoTimelineEntry[]> {
     id: e.id,
     date: format(e.createdAt, 'MMM d, yyyy'),
     time: format(e.createdAt, 'h:mm a'),
+    createdAt: e.createdAt,
     event: e.description,
     type: typeMap[e.eventType] ?? 'info',
     actor: e.user?.name ?? null,

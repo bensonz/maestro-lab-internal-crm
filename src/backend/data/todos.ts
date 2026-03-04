@@ -156,6 +156,7 @@ export async function getTodoTimeline() {
     id: e.id,
     date: format(e.createdAt, 'MMM d, yyyy'),
     time: format(e.createdAt, 'h:mm a'),
+    createdAt: e.createdAt,
     event: e.description,
     type: typeMap[e.eventType] ?? ('info' as const),
     actor: e.user?.name ?? null,
