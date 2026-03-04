@@ -6,6 +6,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  CreditCard,
   Loader2,
   CheckCircle2,
   Minus,
@@ -200,10 +201,12 @@ interface DraftReviewDialogProps {
   draftName: string
   /** The linked Client ID when draft is SUBMITTED (PENDING approval) */
   resultClientId?: string | null
+  /** Open dialog at a specific step (1-4). Defaults to 1. */
+  initialStep?: 1 | 2 | 3 | 4
   onClose: () => void
 }
 
-export function DraftReviewDialog({ draftId, draftName, resultClientId, onClose }: DraftReviewDialogProps) {
+export function DraftReviewDialog({ draftId, draftName, resultClientId, initialStep, onClose }: DraftReviewDialogProps) {
   const router = useRouter()
   const [state, dispatch] = useReducer(dialogReducer, INITIAL_STATE)
   const { draft, loading, error, step, loadedDraftId, approving, editedFields, editedPlatformData, isSaving, hasChanges } = state
@@ -285,17 +288,21 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, onClose 
     getFullDraft(draftId).then((result) => {
       if (result.success) {
         dispatch({ type: 'FETCH_SUCCESS', draft: result.draft as unknown as FullDraftData })
+        // Jump to initialStep if provided (e.g. step 3 when opening from Upload Card #)
+        if (initialStep && initialStep !== 1) {
+          dispatch({ type: 'SET_STEP', step: initialStep })
+        }
       } else {
         dispatch({ type: 'FETCH_ERROR', error: result.error ?? 'Failed to load draft' })
       }
     })
-  }, [draftId, loadedDraftId])
+  }, [draftId, loadedDraftId, initialStep])
 
   // Helper to get effective platform data (merged with edits)
   const getPlatformData = useCallback((platform: string) => {
     const base = (draft?.platformData as Record<string, Record<string, unknown>> | null)?.[platform] || {}
     const edits = editedPlatformData?.[platform] || {}
-    return { ...base, ...edits } as { username?: string; accountId?: string; screenshot?: string; screenshots?: string[]; pin?: string; bank?: string; bankPhoneEmailConfirmed?: boolean }
+    return { ...base, ...edits } as { username?: string; accountId?: string; screenshot?: string; screenshots?: string[]; pin?: string; bank?: string; bankPhoneEmailConfirmed?: boolean; cardNumber?: string; cvv?: string; cardExpiry?: string; cardImages?: string[] }
   }, [draft?.platformData, editedPlatformData])
 
   return (
@@ -679,6 +686,100 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, onClose 
                     )
                   })}
                 </div>
+
+                {/* Debit Card Section */}
+                {(() => {
+                  const bankCard = getPlatformData('onlineBanking')
+                  const edgeboostCard = getPlatformData('edgeboost')
+                  const hasBankCard = !!bankCard?.cardNumber
+                  const hasEdgeboostCard = !!edgeboostCard?.cardNumber
+                  const bothDone = hasBankCard && hasEdgeboostCard
+
+                  return (
+                    <div className="space-y-2" data-testid="draft-review-debit-cards">
+                      <p className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                        <CreditCard className="h-3 w-3" />
+                        Debit Cards
+                        {bothDone && <CheckCircle2 className="ml-1 h-3 w-3 text-success" />}
+                      </p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {/* Bank debit card */}
+                        <div className={cn(
+                          'rounded border p-2 text-xs',
+                          hasBankCard ? 'border-success/40 bg-success/5' : 'border-warning/40 bg-warning/5',
+                        )}>
+                          <div className="mb-1.5 flex items-center justify-between">
+                            <span className="font-medium">Online Banking</span>
+                            {hasBankCard ? (
+                              <CheckCircle2 className="h-3 w-3 text-success" />
+                            ) : (
+                              <div className="h-3 w-3 rounded-full border-2 border-warning" />
+                            )}
+                          </div>
+                          <div className="space-y-1">
+                            <EditableText
+                              label="Card Number"
+                              value={bankCard?.cardNumber ?? null}
+                              onChange={(v) => setPlatformField('onlineBanking', 'cardNumber', v)}
+                              mono
+                            />
+                            <div className="grid grid-cols-2 gap-1">
+                              <EditableText
+                                label="CVV"
+                                value={bankCard?.cvv ?? null}
+                                onChange={(v) => setPlatformField('onlineBanking', 'cvv', v)}
+                                mono
+                              />
+                              <EditableText
+                                label="Expiry"
+                                value={bankCard?.cardExpiry ?? null}
+                                onChange={(v) => setPlatformField('onlineBanking', 'cardExpiry', v)}
+                                mono
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Edgeboost debit card */}
+                        <div className={cn(
+                          'rounded border p-2 text-xs',
+                          hasEdgeboostCard ? 'border-success/40 bg-success/5' : 'border-warning/40 bg-warning/5',
+                        )}>
+                          <div className="mb-1.5 flex items-center justify-between">
+                            <span className="font-medium">EdgeBoost</span>
+                            {hasEdgeboostCard ? (
+                              <CheckCircle2 className="h-3 w-3 text-success" />
+                            ) : (
+                              <div className="h-3 w-3 rounded-full border-2 border-warning" />
+                            )}
+                          </div>
+                          <div className="space-y-1">
+                            <EditableText
+                              label="Card Number"
+                              value={edgeboostCard?.cardNumber ?? null}
+                              onChange={(v) => setPlatformField('edgeboost', 'cardNumber', v)}
+                              mono
+                            />
+                            <div className="grid grid-cols-2 gap-1">
+                              <EditableText
+                                label="CVV"
+                                value={edgeboostCard?.cvv ?? null}
+                                onChange={(v) => setPlatformField('edgeboost', 'cvv', v)}
+                                mono
+                              />
+                              <EditableText
+                                label="Expiry"
+                                value={edgeboostCard?.cardExpiry ?? null}
+                                onChange={(v) => setPlatformField('edgeboost', 'cardExpiry', v)}
+                                mono
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
 
                 {/* Credentials summary */}
                 <div className="space-y-1.5" data-testid="draft-review-credentials">

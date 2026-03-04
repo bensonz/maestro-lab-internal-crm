@@ -76,6 +76,11 @@ export async function getClientsByCloser(closerId: string) {
 
 export async function getAllClients() {
   const clients = await prisma.client.findMany({
+    where: {
+      // Exclude PENDING clients — they're still in the draft/approval pipeline
+      // and belong on the sales interaction page, not client management
+      status: { not: 'PENDING' },
+    },
     orderBy: { createdAt: 'desc' },
     include: {
       closer: { select: { id: true, name: true, zelle: true } },

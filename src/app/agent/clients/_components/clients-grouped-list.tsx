@@ -13,8 +13,10 @@ import {
   Shield,
   ClipboardCheck,
   Mail,
+  CreditCard,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Collapsible,
   CollapsibleContent,
@@ -246,36 +248,70 @@ function ApprovedClientRow({ client }: { client: AgentClient }) {
 }
 
 /* ─── Draft row ─── */
-function DraftRow({ draft }: { draft: AgentDraft }) {
+function DraftRow({
+  draft,
+  onUploadCard,
+}: {
+  draft: AgentDraft
+  onUploadCard?: (draftId: string, name: string) => void
+}) {
   const progressPct = draft.innerStepTotal > 0
     ? Math.round((draft.innerStepCompleted / draft.innerStepTotal) * 100)
     : 0
 
+  const isSubmitted = draft.status === 'SUBMITTED'
+
   return (
     <Link href={`/agent/new-client?draft=${draft.id}`}>
       <div
-        className="group grid cursor-pointer grid-cols-[1fr_100px_140px_40px] items-center gap-3 border-b border-dashed border-border/50 bg-muted/20 px-5 py-2 transition-colors hover:bg-muted/40"
+        className="group grid cursor-pointer grid-cols-[1fr_auto_140px_40px] items-center gap-3 border-b border-dashed border-border/50 bg-muted/20 px-5 py-2 transition-colors hover:bg-muted/40"
         data-testid={`draft-row-${draft.id}`}
       >
+        {/* Name */}
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-foreground transition-colors group-hover:text-primary">
             {draft.name}
           </p>
         </div>
+
+        {/* Column 2: Progress for steps 1-3, Upload Card button for submitted, nothing for step 4 */}
         <div className="flex items-center gap-2">
-          <span className="font-mono text-xs text-muted-foreground">
-            {draft.innerStepCompleted}/{draft.innerStepTotal}
-          </span>
-          <div className="h-1.5 w-12 overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full rounded-full bg-primary/60 transition-all"
-              style={{ width: `${progressPct}%` }}
-            />
-          </div>
+          {isSubmitted && onUploadCard ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-6 shrink-0 gap-1 px-2 text-[10px]"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                onUploadCard(draft.id, draft.name)
+              }}
+              data-testid={`upload-card-${draft.id}`}
+            >
+              <CreditCard className="h-3 w-3" />
+              Upload Card #
+            </Button>
+          ) : draft.innerStepTotal > 0 ? (
+            <>
+              <span className="font-mono text-xs text-muted-foreground">
+                {draft.innerStepCompleted}/{draft.innerStepTotal}
+              </span>
+              <div className="h-1.5 w-12 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-primary/60 transition-all"
+                  style={{ width: `${progressPct}%` }}
+                />
+              </div>
+            </>
+          ) : null}
         </div>
+
+        {/* Timing */}
         <span className="font-mono text-xs text-muted-foreground">
           {formatRelativeTime(draft.updatedAt)}
         </span>
+
+        {/* Arrow */}
         <div className="flex justify-end">
           <ArrowRight className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary" />
         </div>
@@ -288,9 +324,11 @@ function DraftRow({ draft }: { draft: AgentDraft }) {
 function SubStepSection({
   step,
   drafts,
+  onUploadCard,
 }: {
   step: InProgressStep
   drafts: AgentDraft[]
+  onUploadCard?: (draftId: string, name: string) => void
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const Icon = step.icon
@@ -336,7 +374,11 @@ function SubStepSection({
       <CollapsibleContent>
         <div className="border-b border-border/20 bg-muted/10">
           {drafts.map((draft) => (
-            <DraftRow key={draft.id} draft={draft} />
+            <DraftRow
+              key={draft.id}
+              draft={draft}
+              onUploadCard={step.key === 'pending-approval' ? onUploadCard : undefined}
+            />
           ))}
         </div>
       </CollapsibleContent>
@@ -347,8 +389,10 @@ function SubStepSection({
 /* ─── In Progress collapsible (parent with sub-steps) ─── */
 function InProgressSection({
   drafts,
+  onUploadCard,
 }: {
   drafts: AgentDraft[]
+  onUploadCard?: (draftId: string, name: string) => void
 }) {
   const [isOpen, setIsOpen] = useState(true)
 
@@ -402,6 +446,7 @@ function InProgressSection({
                 key={step.key}
                 step={step}
                 drafts={stepDrafts}
+                onUploadCard={onUploadCard}
               />
             )
           })}
@@ -595,9 +640,10 @@ function GroupSection({
 interface ClientsGroupedListProps {
   clients: AgentClient[]
   drafts: AgentDraft[]
+  onUploadCard?: (draftId: string, name: string) => void
 }
 
-export function ClientsGroupedList({ clients, drafts }: ClientsGroupedListProps) {
+export function ClientsGroupedList({ clients, drafts, onUploadCard }: ClientsGroupedListProps) {
   // Separate verification clients from the rest
   const verificationClients = clients.filter(
     (c) => c.verificationSubCategory != null,
@@ -609,7 +655,7 @@ export function ClientsGroupedList({ clients, drafts }: ClientsGroupedListProps)
   return (
     <div className="space-y-1">
       {/* In Progress section (drafts only, with sub-steps) */}
-      <InProgressSection drafts={drafts} />
+      <InProgressSection drafts={drafts} onUploadCard={onUploadCard} />
 
       {/* Verification Needed section (with sub-categories) */}
       <VerificationSection clients={verificationClients} />

@@ -48,6 +48,11 @@ export const SPORTS_PLATFORMS = ALL_PLATFORMS.filter(
   (p) => PLATFORM_INFO[p].category === 'sports',
 )
 
+/** Sports platforms shown in Step 3 (BetMGM handled in Step 1) */
+export const STEP3_SPORTS_PLATFORMS = SPORTS_PLATFORMS.filter(
+  (p) => p !== 'BETMGM',
+)
+
 /** Financial platforms only */
 export const FINANCIAL_PLATFORMS = ALL_PLATFORMS.filter(
   (p) => PLATFORM_INFO[p].category === 'financial',

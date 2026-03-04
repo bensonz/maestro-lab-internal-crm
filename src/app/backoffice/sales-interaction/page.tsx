@@ -1,4 +1,5 @@
 import { SalesInteractionView } from './_components/sales-interaction-view'
+import { LiveRefreshWrapper } from '@/components/live-refresh-wrapper'
 import { getAllDraftsForBackoffice, getApprovedDraftsForBackoffice } from '@/backend/data/client-drafts'
 import { getActivePhoneAssignments, getReturnedPhoneAssignments } from '@/backend/data/phone-assignments'
 import { getPendingTodosForBackoffice, getCompletedTodosForBackoffice, getTodoTimeline } from '@/backend/data/todos'
@@ -6,7 +7,8 @@ import { getApprovedClientsForBackoffice } from '@/backend/data/clients'
 import prisma from '@/backend/prisma/client'
 import { getAgentsForHierarchy } from '@/backend/data/users'
 import { getAgentDisplayTier, LEADERSHIP_TIERS, STAR_THRESHOLDS } from '@/lib/commission-constants'
-import type { IntakeClient, InProgressSubStage, VerificationTask, CompletedTodoEntry, TodoTimelineEntry, ApprovedClientEntry, PostApprovalClient } from '@/types/backend-types'
+import { SPORTS_PLATFORMS, FINANCIAL_PLATFORMS, STEP3_SPORTS_PLATFORMS } from '@/lib/platforms'
+import type { IntakeClient, InProgressSubStage, VerificationTask, CompletedTodoEntry, TodoTimelineEntry, ApprovedClientEntry, PostApprovalClient, PlatformEntry } from '@/types/backend-types'
 
 function stepToSubStage(step: number): InProgressSubStage {
   const map: Record<number, InProgressSubStage> = {
@@ -16,6 +18,46 @@ function stepToSubStage(step: number): InProgressSubStage {
     4: 'step-4',
   }
   return map[step] || 'step-1'
+}
+
+/** Check if both debit cards (Bank + Edgeboost) have been uploaded in platformData */
+function hasDebitCardsUploaded(platformData: unknown): boolean {
+  if (!platformData) return false
+  // Object format (from updateDebitCardInfo): { onlineBanking: { cardNumber: '...' }, edgeboost: { cardNumber: '...' } }
+  if (typeof platformData === 'object' && !Array.isArray(platformData)) {
+    const pd = platformData as Record<string, Record<string, unknown>>
+    return !!(pd.onlineBanking?.cardNumber) && !!(pd.edgeboost?.cardNumber)
+  }
+  return false
+}
+
+/** Compute platform registration progress (X/11) from draft data.
+ *  BetMGM is handled in Step 1 (stored in draft-level fields), so we count it separately. */
+function computePlatformProgress(
+  platformData: unknown,
+  betmgmDone: boolean,
+): { verified: number; total: number } {
+  const total = STEP3_SPORTS_PLATFORMS.length + FINANCIAL_PLATFORMS.length + 1 // 7 + 3 + 1 (BetMGM) = 11
+  let verified = 0
+  // BetMGM — counted from Step 1 draft-level fields
+  if (betmgmDone) verified++
+  if (platformData && Array.isArray(platformData)) {
+    const pd = platformData as PlatformEntry[]
+    // Step 3 sportsbooks (7 platforms, excluding BetMGM)
+    for (const key of STEP3_SPORTS_PLATFORMS) {
+      const entry = pd.find((e) => e.platform === key)
+      if (entry && (entry.screenshot || entry.screenshotPersonalInfo || entry.screenshotDeposit || entry.username)) {
+        verified++
+      }
+    }
+    for (const key of FINANCIAL_PLATFORMS) {
+      const entry = pd.find((e) => e.platform === key)
+      if (entry && (entry.screenshot || entry.username)) {
+        verified++
+      }
+    }
+  }
+  return { verified, total }
 }
 
 // Tier sort order: leadership tiers first (CMO→MD→SED→ED), then star levels descending (4-Star→Rookie)
@@ -130,7 +172,7 @@ export default async function SalesInteractionPage() {
         executionDeadline: null,
         deadlineExtensions: 0,
         pendingExtensionRequest: null,
-        platformProgress: { verified: 0, total: 0 },
+        platformProgress: computePlatformProgress(d.platformData, !!(d.betmgmRegScreenshot && d.betmgmLoginScreenshot)),
         exceptionStates: [],
         rejectedPlatforms: [],
         resultClientId: d.resultClientId,
@@ -138,6 +180,7 @@ export default async function SalesInteractionPage() {
         returnedAssignmentId,
         assignedPhone: draftToPhoneNumber.get(d.id) ?? null,
         assignedCarrier: draftToCarrier.get(d.id) ?? null,
+        hasDebitCards: isSubmitted ? hasDebitCardsUploaded(d.platformData) : undefined,
       }
     })
   } catch (e) {
@@ -304,16 +347,20 @@ export default async function SalesInteractionPage() {
     // DB not available — post-approval will be empty
   }
 
+  const hasActiveDrafts = clientIntake.length > 0 || verificationTasks.length > 0
+
   return (
-    <SalesInteractionView
-      stats={stats}
-      agentHierarchy={agentHierarchy}
-      clientIntake={clientIntake}
-      verificationTasks={verificationTasks}
-      completedTodos={completedTodos}
-      approvedClients={approvedClients}
-      todoTimeline={todoTimeline}
-      lifecycleClients={[]}
-    />
+    <LiveRefreshWrapper enabled={hasActiveDrafts} interval={10000}>
+      <SalesInteractionView
+        stats={stats}
+        agentHierarchy={agentHierarchy}
+        clientIntake={clientIntake}
+        verificationTasks={verificationTasks}
+        completedTodos={completedTodos}
+        approvedClients={approvedClients}
+        todoTimeline={todoTimeline}
+        lifecycleClients={[]}
+      />
+    </LiveRefreshWrapper>
   )
 }

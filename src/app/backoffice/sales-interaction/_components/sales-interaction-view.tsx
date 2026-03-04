@@ -50,8 +50,8 @@ import { revertApproval } from '@/app/actions/clients'
 import { ClientIntakeList } from './client-intake-list'
 import { DraftReviewDialog } from './draft-review-dialog'
 import { DeviceAssignDialog } from './device-assign-dialog'
-import { UploadCardDialog } from './upload-card-dialog'
 import { AssignTodoDialog } from './assign-todo-dialog'
+import { ApproveConfirmDialog } from './approve-confirm-dialog'
 import { VerificationTasksTable } from './verification-tasks-table'
 import { ClientDetail } from '../../client-management/_components/client-detail'
 import { mapServerClientToClient } from '../../client-management/_components/map-client'
@@ -263,19 +263,33 @@ export function SalesInteractionView({
   const [assigningInitialPhone, setAssigningInitialPhone] = useState<string | null>(null)
   const [assigningInitialCarrier, setAssigningInitialCarrier] = useState<string | null>(null)
 
-  // Upload card dialog state
-  const [uploadCardDraftId, setUploadCardDraftId] = useState<string | null>(null)
-  const [uploadCardDraftName, setUploadCardDraftName] = useState('')
+  // Approve confirm dialog state
+  const [approvingClientId, setApprovingClientId] = useState<string | null>(null)
+  const [approvingClientName, setApprovingClientName] = useState('')
+  const [approvingHasDebitCards, setApprovingHasDebitCards] = useState(false)
+
+  // Track which step to open the review dialog at
+  const [reviewInitialStep, setReviewInitialStep] = useState<1 | 2 | 3 | 4>(1)
 
   const handleReviewDraft = useCallback((id: string, name: string, resultClientId?: string | null) => {
     setReviewingDraftId(id)
     setReviewingDraftName(name)
     setReviewingResultClientId(resultClientId ?? null)
+    setReviewInitialStep(1)
   }, [])
 
-  const handleUploadCard = useCallback((draftId: string, clientName: string) => {
-    setUploadCardDraftId(draftId)
-    setUploadCardDraftName(clientName)
+  const handleUploadCard = useCallback((draftId: string, clientName: string, resultClientId?: string | null) => {
+    // Open the review dialog directly at Step 3 (Platforms + Debit Cards)
+    setReviewingDraftId(draftId)
+    setReviewingDraftName(clientName)
+    setReviewingResultClientId(resultClientId ?? null)
+    setReviewInitialStep(3)
+  }, [])
+
+  const handleApproveClick = useCallback((resultClientId: string, clientName: string, hasDebitCards: boolean) => {
+    setApprovingClientId(resultClientId)
+    setApprovingClientName(clientName)
+    setApprovingHasDebitCards(hasDebitCards)
   }, [])
 
   const handleAssignDevice = useCallback((draftId: string, clientName: string, agentName: string, phone?: string | null, carrier?: string | null) => {
@@ -423,6 +437,19 @@ export function SalesInteractionView({
     }
     return counts
   }, [inProgressClients])
+
+  // Compute a fixed name-column width from the longest client name across ALL
+  // sections (intake + verification + reviewed) so Col 1/2 align everywhere.
+  // ~7.8px per char at text-sm (14px) + 8px padding buffer, capped at 220px.
+  const nameColumnWidth = useMemo(() => {
+    const intakeMax = filteredIntake.reduce((mx, c) => Math.max(mx, c.name.length), 0)
+    const taskMax = filteredTasks.reduce((mx, t) => Math.max(mx, t.clientName.length), 0)
+    const approvedMax = filteredApprovedClients.reduce((mx, c) => Math.max(mx, c.clientName.length), 0)
+    const todoMax = filteredCompletedTodos.reduce((mx, t) => Math.max(mx, t.clientName.length), 0)
+    const maxLen = Math.max(intakeMax, taskMax, approvedMax, todoMax)
+    if (maxLen === 0) return undefined
+    return Math.min(Math.ceil(maxLen * 7.8) + 8, 220)
+  }, [filteredIntake, filteredTasks, filteredApprovedClients, filteredCompletedTodos])
 
   // What sections to show based on summary filter
   const showInProgress =
@@ -739,10 +766,12 @@ export function SalesInteractionView({
                             stage={stage}
                             clients={stageClients}
                             exceptionCount={subStageExceptionCounts[stage.key] || 0}
+                            nameColumnWidth={nameColumnWidth}
                             onSelectClient={handleSelectClient}
                             onReviewDraft={handleReviewDraft}
                             onAssignDevice={handleAssignDevice}
                             onUploadCard={handleUploadCard}
+                            onApprove={handleApproveClick}
                           />
                         )
                       })}
@@ -796,6 +825,7 @@ export function SalesInteractionView({
                           <ClientIntakeList
                             clients={verificationClients}
                             selectedAgentId={selectedAgentId}
+                            nameColumnWidth={nameColumnWidth}
                             onSelectClient={handleSelectClient}
                             onReviewDraft={handleReviewDraft}
                           />
@@ -804,6 +834,7 @@ export function SalesInteractionView({
                           <VerificationTasksTable
                             tasks={filteredTasks}
                             selectedAgentId={selectedAgentId}
+                            nameColumnWidth={nameColumnWidth}
                             onSelectClient={handleSelectClient}
                             onAssignDevice={handleAssignDevice}
                             onCompleteTodo={handleCompleteTodo}
@@ -840,7 +871,12 @@ export function SalesInteractionView({
                       No reviewed items yet
                     </p>
                   ) : (
-                  <div className="divide-y divide-border">
+                  <div
+                    className="grid gap-x-1.5"
+                    style={{
+                      gridTemplateColumns: `${nameColumnWidth ? `${nameColumnWidth}px` : 'auto'} 110px 1fr auto auto`,
+                    }}
+                  >
                   {/* Approved clients */}
                   {filteredApprovedClients.map((client) => {
                     const minutesSince = (Date.now() - new Date(client.approvedAt).getTime()) / (1000 * 60)
@@ -868,72 +904,80 @@ export function SalesInteractionView({
                     return (
                       <div
                         key={`approved-${client.id}`}
-                        className="flex items-center gap-3 px-4 py-2"
+                        className="col-span-full grid grid-cols-subgrid items-center border-b border-border/20 px-5 py-2 transition-colors last:border-b-0 hover:bg-muted/30"
                         data-testid={`reviewed-approved-${client.id}`}
                       >
-                        <Badge
-                          className="shrink-0 border-emerald-500/30 bg-emerald-500/20 px-1.5 py-0 text-[10px] text-emerald-400"
-                        >
-                          Approved
-                        </Badge>
-                        <span className="shrink-0 text-xs font-medium">
+                        {/* Col 1: Client name */}
+                        <span className="truncate text-sm font-medium text-foreground">
                           {client.clientName}
                         </span>
-                        <span className="shrink-0 text-[10px] text-muted-foreground">
+                        {/* Col 2: Agent name (aligned — same 110px) */}
+                        <span className="truncate text-[11px] text-muted-foreground">
                           {client.agentName}
                         </span>
-                        <span className="text-[10px] text-muted-foreground opacity-50">&middot;</span>
-                        <TooltipProvider delayDuration={200}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="truncate text-[10px] text-muted-foreground cursor-default">
-                                {poolLabel}
-                              </span>
-                            </TooltipTrigger>
-                            {pool && (
-                              <TooltipContent side="bottom" className="max-w-xs">
-                                <div className="space-y-1 text-xs">
-                                  <p className="font-medium">$400 Bonus Pool Breakdown</p>
-                                  {pool.allocations.map((a, i) => (
-                                    <div key={i} className="flex items-center justify-between gap-4">
-                                      <span>
-                                        {a.type === 'DIRECT' ? 'Direct' : a.type === 'STAR_SLICE' ? `Star (${a.slices} slice${a.slices !== 1 ? 's' : ''})` : `Backfill (${a.slices})`}
-                                        {' → '}{a.agentName}
-                                      </span>
-                                      <span className="font-mono font-semibold">${a.amount}</span>
-                                    </div>
-                                  ))}
-                                  {pool.recycledSlices > 0 && (
-                                    <div className="flex items-center justify-between gap-4 text-muted-foreground">
-                                      <span>Recycled ({pool.recycledSlices} slice{pool.recycledSlices !== 1 ? 's' : ''})</span>
-                                      <span className="font-mono">${pool.recycledSlices * 50}</span>
-                                    </div>
-                                  )}
-                                </div>
-                              </TooltipContent>
-                            )}
-                          </Tooltip>
-                        </TooltipProvider>
-                        <span className="ml-auto shrink-0 whitespace-nowrap text-[10px] text-muted-foreground">
+                        {/* Col 3: Badge + pool breakdown */}
+                        <div className="flex items-center gap-2 overflow-hidden">
+                          <Badge
+                            className="shrink-0 border-emerald-500/30 bg-emerald-500/20 px-1.5 py-0 text-[10px] text-emerald-400"
+                          >
+                            Approved
+                          </Badge>
+                          <TooltipProvider delayDuration={200}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="cursor-default truncate text-[10px] text-muted-foreground">
+                                  {poolLabel}
+                                </span>
+                              </TooltipTrigger>
+                              {pool && (
+                                <TooltipContent side="bottom" className="max-w-xs">
+                                  <div className="space-y-1 text-xs">
+                                    <p className="font-medium">$400 Bonus Pool Breakdown</p>
+                                    {pool.allocations.map((a, i) => (
+                                      <div key={i} className="flex items-center justify-between gap-4">
+                                        <span>
+                                          {a.type === 'DIRECT' ? 'Direct' : a.type === 'STAR_SLICE' ? `Star (${a.slices} slice${a.slices !== 1 ? 's' : ''})` : `Backfill (${a.slices})`}
+                                          {' → '}{a.agentName}
+                                        </span>
+                                        <span className="font-mono font-semibold">${a.amount}</span>
+                                      </div>
+                                    ))}
+                                    {pool.recycledSlices > 0 && (
+                                      <div className="flex items-center justify-between gap-4 text-muted-foreground">
+                                        <span>Recycled ({pool.recycledSlices} slice{pool.recycledSlices !== 1 ? 's' : ''})</span>
+                                        <span className="font-mono">${pool.recycledSlices * 50}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </TooltipContent>
+                              )}
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                        {/* Col 4: Time ago */}
+                        <span className="shrink-0 whitespace-nowrap text-[10px] text-muted-foreground">
                           {formatDistanceToNow(new Date(client.approvedAt), { addSuffix: true })}
                         </span>
-                        {canRevert && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 shrink-0 gap-1 px-2 text-[10px] text-destructive hover:bg-destructive/10 hover:text-destructive"
-                            onClick={() => handleRevertApproval(client.id, client.clientName)}
-                            disabled={revertingApprovalId === client.id}
-                            data-testid={`revert-approval-${client.id}`}
-                          >
-                            {revertingApprovalId === client.id ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <Undo2 className="h-3 w-3" />
-                            )}
-                            Revert
-                          </Button>
-                        )}
+                        {/* Col 5: Revert */}
+                        <div className="flex items-center justify-end">
+                          {canRevert && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 shrink-0 gap-1 px-2 text-[10px] text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              onClick={() => handleRevertApproval(client.id, client.clientName)}
+                              disabled={revertingApprovalId === client.id}
+                              data-testid={`revert-approval-${client.id}`}
+                            >
+                              {revertingApprovalId === client.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Undo2 className="h-3 w-3" />
+                              )}
+                              Revert
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     )
                   })}
@@ -941,47 +985,50 @@ export function SalesInteractionView({
                   {filteredCompletedTodos.map((todo) => (
                     <div
                       key={todo.id}
-                      className="flex items-start gap-3 px-4 py-2"
+                      className="col-span-full grid grid-cols-subgrid items-center border-b border-border/20 px-5 py-2 transition-colors last:border-b-0 hover:bg-muted/30"
                       data-testid={`reviewed-todo-${todo.id}`}
                     >
-                      <Badge
-                        className="mt-0.5 shrink-0 border-success/30 bg-success/20 px-1.5 py-0 text-[10px] text-success"
-                      >
-                        {todo.issueCategory}
-                      </Badge>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="truncate text-xs font-medium">
-                            {todo.clientName}
-                          </span>
-                          <span className="truncate text-[10px] text-muted-foreground">
-                            {todo.agentName}
-                          </span>
-                        </div>
-                        <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
-                          <span>by {todo.completedByName}</span>
-                          <span className="opacity-50">&middot;</span>
-                          <span>assigned by {todo.createdByName}</span>
-                        </div>
+                      {/* Col 1: Client name */}
+                      <span className="truncate text-sm font-medium text-foreground">
+                        {todo.clientName}
+                      </span>
+                      {/* Col 2: Agent name (aligned — same 110px) */}
+                      <span className="truncate text-[11px] text-muted-foreground">
+                        {todo.agentName}
+                      </span>
+                      {/* Col 3: Badge + details */}
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        <Badge
+                          className="shrink-0 border-success/30 bg-success/20 px-1.5 py-0 text-[10px] text-success"
+                        >
+                          {todo.issueCategory}
+                        </Badge>
+                        <span className="truncate text-[10px] text-muted-foreground">
+                          by {todo.completedByName} · assigned by {todo.createdByName}
+                        </span>
                       </div>
-                      <span className="mt-0.5 shrink-0 whitespace-nowrap text-[10px] text-muted-foreground">
+                      {/* Col 4: Time ago */}
+                      <span className="shrink-0 whitespace-nowrap text-[10px] text-muted-foreground">
                         {formatDistanceToNow(new Date(todo.completedAt), { addSuffix: true })}
                       </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 shrink-0 gap-1 px-2 text-[10px] text-muted-foreground hover:text-foreground"
-                        onClick={() => handleRevertTodo(todo.id, todo.clientName)}
-                        disabled={revertingTodoId === todo.id}
-                        data-testid={`revert-todo-${todo.id}`}
-                      >
-                        {revertingTodoId === todo.id ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <Undo2 className="h-3 w-3" />
-                        )}
-                        Revert
-                      </Button>
+                      {/* Col 5: Revert */}
+                      <div className="flex items-center justify-end">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 shrink-0 gap-1 px-2 text-[10px] text-muted-foreground hover:text-foreground"
+                          onClick={() => handleRevertTodo(todo.id, todo.clientName)}
+                          disabled={revertingTodoId === todo.id}
+                          data-testid={`revert-todo-${todo.id}`}
+                        >
+                          {revertingTodoId === todo.id ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Undo2 className="h-3 w-3" />
+                          )}
+                          Revert
+                        </Button>
+                      </div>
                     </div>
                   ))}
                   </div>
@@ -1068,7 +1115,8 @@ export function SalesInteractionView({
         draftId={reviewingDraftId}
         draftName={reviewingDraftName}
         resultClientId={reviewingResultClientId}
-        onClose={() => setReviewingDraftId(null)}
+        initialStep={reviewInitialStep}
+        onClose={() => { setReviewingDraftId(null); setReviewInitialStep(1) }}
       />
 
       <DeviceAssignDialog
@@ -1080,16 +1128,17 @@ export function SalesInteractionView({
         onClose={() => setAssigningDraftId(null)}
       />
 
-      <UploadCardDialog
-        draftId={uploadCardDraftId}
-        clientName={uploadCardDraftName}
-        onClose={() => setUploadCardDraftId(null)}
-      />
-
       <AssignTodoDialog
         open={todoDialogOpen}
         onClose={() => setTodoDialogOpen(false)}
         clients={clientIntake}
+      />
+
+      <ApproveConfirmDialog
+        clientId={approvingClientId}
+        clientName={approvingClientName}
+        hasDebitCards={approvingHasDebitCards}
+        onClose={() => setApprovingClientId(null)}
       />
     </div>
   )
@@ -1100,18 +1149,22 @@ function SubStageSection({
   stage,
   clients,
   exceptionCount,
+  nameColumnWidth,
   onSelectClient,
   onReviewDraft,
   onAssignDevice,
   onUploadCard,
+  onApprove,
 }: {
   stage: SubStageGroup
   clients: IntakeClient[]
   exceptionCount: number
+  nameColumnWidth?: number
   onSelectClient?: (clientId: string) => void
   onReviewDraft?: (draftId: string, name: string, resultClientId?: string | null) => void
   onAssignDevice?: (draftId: string, clientName: string, agentName: string) => void
   onUploadCard?: (draftId: string, clientName: string) => void
+  onApprove?: (resultClientId: string, clientName: string, hasDebitCards: boolean) => void
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const Icon = stage.icon
@@ -1166,7 +1219,7 @@ function SubStageSection({
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="border-b border-border/20 bg-muted/10">
-          <ClientIntakeList clients={clients} selectedAgentId={null} onSelectClient={onSelectClient} onReviewDraft={onReviewDraft} onAssignDevice={onAssignDevice} onUploadCard={onUploadCard} />
+          <ClientIntakeList clients={clients} selectedAgentId={null} nameColumnWidth={nameColumnWidth} onSelectClient={onSelectClient} onReviewDraft={onReviewDraft} onAssignDevice={onAssignDevice} onUploadCard={onUploadCard} onApprove={onApprove} />
         </div>
       </CollapsibleContent>
     </Collapsible>

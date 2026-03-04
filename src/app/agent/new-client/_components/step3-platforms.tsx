@@ -1,18 +1,20 @@
 'use client'
 
-import { useCallback, useRef, useMemo } from 'react'
-import { PLATFORM_INFO, FINANCIAL_PLATFORMS, SPORTS_PLATFORMS } from '@/lib/platforms'
+import { useCallback, useRef, useMemo, useState } from 'react'
+import { PLATFORM_INFO, FINANCIAL_PLATFORMS, STEP3_SPORTS_PLATFORMS } from '@/lib/platforms'
 import { PlatformCard } from './step3-platform-card'
 import { PayPalCard } from './step3-paypal-card'
 import { BulkUploadZone } from './bulk-upload-zone'
+import { SportsbookHubModal, getSportsbookImageCount } from './sportsbook-platform-modal'
 import { Badge } from '@/components/ui/badge'
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
-import { ChevronDown, Phone, Mail, CheckCircle2 } from 'lucide-react'
+import { ChevronDown, Phone, Mail, CheckCircle2, Trash2 } from 'lucide-react'
 import { DeadlineCountdown } from '@/components/deadline-countdown'
+import { cn } from '@/lib/utils'
 import type { PlatformEntry, DiscoveredAddress } from '@/types/backend-types'
 import type { PlatformType } from '@/types'
 import type { SerializedPhoneAssignment } from './new-client-view'
@@ -91,6 +93,29 @@ function getEntryForPlatform(
   return base
 }
 
+// ── Sportsbook status helper ────────────────────────────────────────────────
+
+function getSportsbookStatus(entry: PlatformEntry): 'verified' | 'in-progress' | 'not-started' {
+  const imgCount = getSportsbookImageCount(entry)
+  const hasCreds = !!(entry.username && entry.accountId)
+  const isVerified =
+    imgCount === 3 &&
+    hasCreds &&
+    entry.depositPageVerified &&
+    entry.addressMatchesBenchmark !== false
+  if (isVerified) return 'verified'
+  if (imgCount > 0 || hasCreds) return 'in-progress'
+  return 'not-started'
+}
+
+function getFinancialStatus(entry: PlatformEntry): 'verified' | 'in-progress' | 'not-started' {
+  const hasScreenshot = !!entry.screenshot
+  const hasCreds = !!(entry.username || entry.accountId)
+  if (hasScreenshot && hasCreds) return 'verified'
+  if (hasScreenshot || hasCreds) return 'in-progress'
+  return 'not-started'
+}
+
 export function Step3Platforms({
   formData,
   onChange,
@@ -103,6 +128,10 @@ export function Step3Platforms({
   onAddressDismiss,
 }: Step3Props) {
   const platformData = (formData.platformData as PlatformEntry[]) || []
+
+  // ── Hub modal state ──
+  const [hubModalOpen, setHubModalOpen] = useState(false)
+  const [hubInitialPlatform, setHubInitialPlatform] = useState<string>(STEP3_SPORTS_PLATFORMS[0])
 
   // Track per-platform credential mismatches for risk panel
   const mismatchesRef = useRef<Record<string, { username: boolean; password: boolean }>>({})
@@ -128,7 +157,6 @@ export function Step3Platforms({
   const storedPwds = creds.platformPasswords ?? {}
   const passwords = {
     sportsbook: storedPwds.sportsbook ?? '',
-    BETMGM:     storedPwds.BETMGM     ?? '',
     PAYPAL:     storedPwds.PAYPAL     ?? '',
     EDGEBOOST:  storedPwds.EDGEBOOST  ?? '',
     BANK:       storedPwds.BANK       ?? '',
@@ -170,7 +198,24 @@ export function Step3Platforms({
     [formData.platformData, onChange, onRiskFlagsChange],
   )
 
+  // ── Hub modal: update a sportsbook entry by platform key ──
+  const handleHubPlatformChange = useCallback(
+    (platform: string, updated: PlatformEntry) => {
+      const current = (formData.platformData as PlatformEntry[]) || []
+      const idx = current.findIndex((e) => e.platform === platform)
+      const next = [...current]
+      if (idx >= 0) {
+        next[idx] = updated
+      } else {
+        next.push({ ...updated, platform })
+      }
+      onChange('platformData', next)
+    },
+    [formData.platformData, onChange],
+  )
+
   // Handle bulk upload distribution: sort screenshots into platform entries
+  // Auto-fills the 3 named slots (login, personal info, deposit) from uploaded images
   const handleBulkScreenshotsSorted = useCallback(
     (sorted: Map<PlatformType, string[]>) => {
       const current = (formData.platformData as PlatformEntry[]) || []
@@ -182,18 +227,28 @@ export function Step3Platforms({
           // Merge new screenshots with existing
           const existing = next[idx].screenshots ?? []
           const merged = [...existing, ...paths.filter((p) => !existing.includes(p))]
-          next[idx] = {
+          const updated = {
             ...next[idx],
-            screenshot: next[idx].screenshot || merged[0] || '',
             screenshots: merged,
           }
+          // Auto-fill named slots only if they are empty
+          if (!updated.screenshot && merged[0]) updated.screenshot = merged[0]
+          if (!updated.screenshotPersonalInfo && merged[1]) updated.screenshotPersonalInfo = merged[1]
+          if (!updated.screenshotDeposit && merged[2]) {
+            updated.screenshotDeposit = merged[2]
+            updated.depositDetected = true
+          }
+          next[idx] = updated
         } else {
-          // Create new platform entry
+          // Create new platform entry with smart slot assignment
           next.push({
             platform,
             username: assignedGmail,
             accountId: '',
             screenshot: paths[0] || '',
+            screenshotPersonalInfo: paths[1] || '',
+            screenshotDeposit: paths[2] || '',
+            depositDetected: !!(paths[2]),
             status: '',
             screenshots: paths,
           })
@@ -205,16 +260,65 @@ export function Step3Platforms({
     [formData.platformData, onChange, assignedGmail],
   )
 
-  // ── Deposit readiness tracking ──
-  const depositStats = useMemo(() => {
-    const total = SPORTS_PLATFORMS.length // 8
-    let ready = 0
-    for (const p of SPORTS_PLATFORMS) {
+  // ── Auto-popup hub modal after bulk upload ──
+  const handleUploadComplete = useCallback(
+    (firstPlatform: PlatformType | null) => {
+      if (firstPlatform) {
+        setHubInitialPlatform(firstPlatform)
+        setHubModalOpen(true)
+      }
+    },
+    [],
+  )
+
+  // ── Clear all sportsbook images ──
+  const handleClearAllSportsbookImages = useCallback(() => {
+    const current = (formData.platformData as PlatformEntry[]) || []
+    const next = current.map((e) => {
+      if (!(STEP3_SPORTS_PLATFORMS as string[]).includes(e.platform)) return e
+      return {
+        ...e,
+        screenshot: '',
+        screenshotPersonalInfo: '',
+        screenshotDeposit: '',
+        screenshots: [],
+        depositDetected: false,
+        depositPageVerified: false,
+        detectedAddress: undefined,
+      }
+    })
+    onChange('platformData', next)
+  }, [formData.platformData, onChange])
+
+  // ── Derive benchmark address #2 from financial platform addresses ──
+  const benchmark2Info = useMemo(() => {
+    for (const p of ['EDGEBOOST', 'PAYPAL', 'BANK']) {
       const entry = platformData.find((e) => e.platform === p)
-      if (entry?.depositDetected) ready++
+      if (entry?.detectedAddress) {
+        return { address: entry.detectedAddress, source: PLATFORM_INFO[p as PlatformType]?.name ?? p }
+      }
     }
-    return { ready, total, allReady: ready === total }
-  }, [platformData])
+    // Also check discovered addresses from financial platforms
+    if (discoveredAddresses?.length) {
+      const sourceMap: Record<string, string> = { EDGEBOOST: 'EdgeBoost', PAYPAL: 'PayPal', BANK: 'Online Banking', EdgeBoost: 'EdgeBoost', PayPal: 'PayPal', 'Online Banking': 'Online Banking' }
+      const financialAddr = discoveredAddresses.find((d) =>
+        Object.keys(sourceMap).includes(d.source),
+      )
+      if (financialAddr) return { address: financialAddr.address, source: sourceMap[financialAddr.source] ?? financialAddr.source }
+    }
+    return null
+  }, [platformData, discoveredAddresses])
+  const benchmarkAddress2 = benchmark2Info?.address ?? null
+
+  // Pre-compute bank entry for status indicator
+  const bankEntry = getEntryForPlatform(platformData, 'BANK', pinPair, gmailPrefix)
+  const bankStatus = getFinancialStatus(bankEntry)
+
+  // Check if any sportsbook has images (for clear all button visibility)
+  const hasSportsbookImages = STEP3_SPORTS_PLATFORMS.some((p) => {
+    const entry = platformData.find((e) => e.platform === p)
+    return entry && getSportsbookImageCount(entry) > 0
+  })
 
   return (
     <div className="space-y-4" data-testid="step3-platforms">
@@ -257,122 +361,229 @@ export function Step3Platforms({
           {/* Left column: PayPal + EdgeBoost */}
           <div className="flex flex-1 flex-col gap-2">
             {FINANCIAL_PLATFORMS.filter((p) => p !== 'BANK').map((platform) => {
-              if (platform === 'PAYPAL') {
-                return (
-                  <PayPalCard
-                    key="PAYPAL"
-                    entry={getEntryForPlatform(platformData, 'PAYPAL', undefined, assignedGmail)}
-                    onChange={handlePlatformChange}
-                    paypalPreviouslyUsed={formData.paypalPreviouslyUsed as boolean | null | undefined}
-                    paypalSsnLinked={formData.paypalSsnLinked as boolean | null | undefined}
-                    assignedGmail={assignedGmail}
-                    suggestedPassword={passwords.PAYPAL}
-                    onMismatchChange={handleMismatchChange}
-                    recordedAddress={(formData.address as string) || null}
-                    detectedNewAddress={pendingAddresses?.['PAYPAL'] ?? null}
-                    onAddressConfirm={onAddressConfirm}
-                    onAddressDismiss={onAddressDismiss}
-                  />
-                )
-              }
+              const entry = getEntryForPlatform(platformData, platform, undefined, assignedGmail)
+              const status = getFinancialStatus(entry)
               const info = PLATFORM_INFO[platform as PlatformType]
               return (
-                <PlatformCard
+                <div
                   key={platform}
-                  platform={platform}
-                  displayName={info.name}
-                  entry={getEntryForPlatform(platformData, platform, undefined, assignedGmail)}
-                  onChange={handlePlatformChange}
-                  suggestedUsername={assignedGmail}
-                  suggestedPassword={passwords.EDGEBOOST}
-                  onMismatchChange={handleMismatchChange}
-                  detectedNewAddress={pendingAddresses?.[platform] ?? null}
-                  onAddressConfirm={onAddressConfirm}
-                  onAddressDismiss={onAddressDismiss}
-                  recordedAddress={(formData.address as string) || null}
-                />
+                  className={cn(
+                    'rounded-lg overflow-hidden border-l-[3px]',
+                    status === 'verified' && 'border-l-success',
+                    status === 'in-progress' && 'border-l-amber-500',
+                    status === 'not-started' && 'border-l-border',
+                  )}
+                >
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/20 border-b border-border/30">
+                    <div
+                      className={cn(
+                        'h-2 w-2 rounded-full',
+                        status === 'verified' && 'bg-success',
+                        status === 'in-progress' && 'bg-amber-500',
+                        status === 'not-started' && 'bg-muted-foreground/30',
+                      )}
+                    />
+                    <span className="text-xs font-medium">{info.name}</span>
+                    <span
+                      className={cn(
+                        'ml-auto text-[10px] font-medium',
+                        status === 'verified' && 'text-success',
+                        status === 'in-progress' && 'text-amber-600 dark:text-amber-400',
+                        status === 'not-started' && 'text-muted-foreground/60',
+                      )}
+                    >
+                      {status === 'verified' ? 'Verified' : status === 'in-progress' ? 'In Progress' : 'Not Started'}
+                    </span>
+                  </div>
+                  {platform === 'PAYPAL' ? (
+                    <PayPalCard
+                      entry={entry}
+                      onChange={handlePlatformChange}
+                      paypalPreviouslyUsed={formData.paypalPreviouslyUsed as boolean | null | undefined}
+                      paypalSsnLinked={formData.paypalSsnLinked as boolean | null | undefined}
+                      assignedGmail={assignedGmail}
+                      suggestedPassword={passwords.PAYPAL}
+                      onMismatchChange={handleMismatchChange}
+                      recordedAddress={(formData.address as string) || null}
+                      detectedNewAddress={pendingAddresses?.['PAYPAL'] ?? null}
+                      onAddressConfirm={onAddressConfirm}
+                      onAddressDismiss={onAddressDismiss}
+                    />
+                  ) : (
+                    <PlatformCard
+                      platform={platform}
+                      displayName={info.name}
+                      entry={entry}
+                      onChange={handlePlatformChange}
+                      suggestedUsername={assignedGmail}
+                      suggestedPassword={passwords.EDGEBOOST}
+                      onMismatchChange={handleMismatchChange}
+                      detectedNewAddress={pendingAddresses?.[platform] ?? null}
+                      onAddressConfirm={onAddressConfirm}
+                      onAddressDismiss={onAddressDismiss}
+                      recordedAddress={(formData.address as string) || null}
+                    />
+                  )}
+                </div>
               )
             })}
           </div>
           {/* Right column: Bank */}
           <div className="flex-1">
-            <PlatformCard
-              platform="BANK"
-              displayName={PLATFORM_INFO['BANK' as PlatformType].name}
-              entry={getEntryForPlatform(platformData, 'BANK', pinPair, gmailPrefix)}
-              onChange={handlePlatformChange}
-              suggestedUsername={gmailPrefix}
-              suggestedPassword={passwords.BANK}
-              onMismatchChange={handleMismatchChange}
-              detectedNewAddress={pendingAddresses?.['BANK'] ?? null}
-              onAddressConfirm={onAddressConfirm}
-              onAddressDismiss={onAddressDismiss}
-            />
+            <div
+              className={cn(
+                'rounded-lg overflow-hidden border-l-[3px]',
+                bankStatus === 'verified' && 'border-l-success',
+                bankStatus === 'in-progress' && 'border-l-amber-500',
+                bankStatus === 'not-started' && 'border-l-border',
+              )}
+            >
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/20 border-b border-border/30">
+                <div
+                  className={cn(
+                    'h-2 w-2 rounded-full',
+                    bankStatus === 'verified' && 'bg-success',
+                    bankStatus === 'in-progress' && 'bg-amber-500',
+                    bankStatus === 'not-started' && 'bg-muted-foreground/30',
+                  )}
+                />
+                <span className="text-xs font-medium">{PLATFORM_INFO['BANK' as PlatformType].name}</span>
+                <span
+                  className={cn(
+                    'ml-auto text-[10px] font-medium',
+                    bankStatus === 'verified' && 'text-success',
+                    bankStatus === 'in-progress' && 'text-amber-600 dark:text-amber-400',
+                    bankStatus === 'not-started' && 'text-muted-foreground/60',
+                  )}
+                >
+                  {bankStatus === 'verified' ? 'Verified' : bankStatus === 'in-progress' ? 'In Progress' : 'Not Started'}
+                </span>
+              </div>
+              <PlatformCard
+                platform="BANK"
+                displayName={PLATFORM_INFO['BANK' as PlatformType].name}
+                entry={bankEntry}
+                onChange={handlePlatformChange}
+                suggestedUsername={gmailPrefix}
+                suggestedPassword={passwords.BANK}
+                onMismatchChange={handleMismatchChange}
+                detectedNewAddress={pendingAddresses?.['BANK'] ?? null}
+                onAddressConfirm={onAddressConfirm}
+                onAddressDismiss={onAddressDismiss}
+              />
+            </div>
           </div>
         </div>
       </SectionCard>
 
-      {/* Sports Platforms */}
+      {/* Sportsbook Platforms */}
       <SectionCard title="Sportsbook Platforms">
-        {/* Deposit Readiness Banner */}
-        <div
-          className={`flex items-center gap-2.5 rounded-md border px-3 py-2 ${
-            depositStats.allReady
-              ? 'border-success/30 bg-success/10'
-              : 'border-border/50 bg-muted/20'
-          }`}
-          data-testid="deposit-progress-banner"
-        >
-          {depositStats.allReady ? (
-            <CheckCircle2 className="h-4 w-4 text-success" />
-          ) : null}
-          <span className={`text-sm font-medium ${depositStats.allReady ? 'text-success' : 'text-foreground'}`}>
-            {depositStats.allReady
-              ? 'All platforms deposit-ready'
-              : 'Deposit Ready'}
-          </span>
-          <Badge
-            variant="outline"
-            className={`ml-auto h-5 px-2 font-mono text-[11px] ${
-              depositStats.allReady
-                ? 'border-success/40 bg-success/10 text-success'
-                : depositStats.ready > 0
-                  ? 'border-primary/30 bg-primary/10 text-primary'
-                  : 'text-muted-foreground'
-            }`}
-          >
-            {depositStats.ready}/{depositStats.total}
-          </Badge>
-        </div>
-
-        {/* Bulk Upload Zone — drop 20-30 screenshots at once */}
+        {/* Bulk Upload Zone — drop screenshots at once */}
         <BulkUploadZone
-          platforms={SPORTS_PLATFORMS as PlatformType[]}
+          platforms={STEP3_SPORTS_PLATFORMS as PlatformType[]}
           onScreenshotsSorted={handleBulkScreenshotsSorted}
+          onUploadComplete={handleUploadComplete}
+          existingEntries={platformData}
         />
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {SPORTS_PLATFORMS.map((platform) => {
+
+        {hasSportsbookImages && (
+          <div className="flex justify-end -mt-2">
+            <button
+              type="button"
+              onClick={handleClearAllSportsbookImages}
+              className="flex items-center gap-1 text-[10px] font-medium text-destructive/70 hover:text-destructive transition-colors"
+              data-testid="clear-all-sportsbook-images"
+            >
+              <Trash2 className="h-3 w-3" />
+              Clear all images
+            </button>
+          </div>
+        )}
+
+        {/* Simplified sportsbook status cards */}
+        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+          {STEP3_SPORTS_PLATFORMS.map((platform) => {
             const info = PLATFORM_INFO[platform as PlatformType]
-            // BetMGM gets its own unique password; the other 7 share one password
-            const suggestedPassword = platform === 'BETMGM' ? passwords.BETMGM : passwords.sportsbook
+            const entry = getEntryForPlatform(platformData, platform, undefined, assignedGmail)
+            const status = getSportsbookStatus(entry)
+            const imgCount = getSportsbookImageCount(entry)
+
             return (
-              <PlatformCard
+              <button
                 key={platform}
-                platform={platform}
-                displayName={info.name}
-                entry={getEntryForPlatform(platformData, platform, undefined, assignedGmail)}
-                onChange={handlePlatformChange}
-                suggestedUsername={assignedGmail}
-                suggestedPassword={suggestedPassword}
-                onMismatchChange={handleMismatchChange}
-                detectedNewAddress={pendingAddresses?.[platform] ?? null}
-                onAddressConfirm={onAddressConfirm}
-                onAddressDismiss={onAddressDismiss}
-              />
+                type="button"
+                onClick={() => {
+                  setHubInitialPlatform(platform)
+                  setHubModalOpen(true)
+                }}
+                className={cn(
+                  'flex w-full items-center gap-2.5 rounded-md border px-3 py-2.5 text-left transition-colors hover:bg-muted/40',
+                  status === 'verified' && 'border-success/30 bg-success/5',
+                  status === 'in-progress' && 'border-amber-500/30 bg-amber-500/5',
+                  status === 'not-started' && 'border-border/50',
+                )}
+                data-testid={`sportsbook-card-${platform}`}
+              >
+                {/* Status dot */}
+                <div
+                  className={cn(
+                    'h-2.5 w-2.5 shrink-0 rounded-full',
+                    status === 'verified' && 'bg-success',
+                    status === 'in-progress' && 'bg-amber-500',
+                    status === 'not-started' && 'bg-muted-foreground/30',
+                  )}
+                />
+                <span className="text-sm font-medium flex-1">{info.name}</span>
+                {/* Image count badge */}
+                {imgCount > 0 && (
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      'h-5 px-1.5 font-mono text-[10px]',
+                      imgCount === 3
+                        ? 'border-success/40 bg-success/10 text-success'
+                        : 'text-muted-foreground',
+                    )}
+                  >
+                    {imgCount}/3
+                  </Badge>
+                )}
+                <span
+                  className={cn(
+                    'text-[10px] font-medium',
+                    status === 'verified' && 'text-success',
+                    status === 'in-progress' && 'text-amber-600 dark:text-amber-400',
+                    status === 'not-started' && 'text-muted-foreground/60',
+                  )}
+                >
+                  {status === 'verified'
+                    ? 'Verified'
+                    : status === 'in-progress'
+                      ? 'In Progress'
+                      : 'Not Started'}
+                </span>
+              </button>
             )
           })}
         </div>
       </SectionCard>
+
+      {/* ── Sportsbook Hub Modal ── */}
+      <SportsbookHubModal
+        open={hubModalOpen}
+        onOpenChange={setHubModalOpen}
+        platforms={STEP3_SPORTS_PLATFORMS as PlatformType[]}
+        entries={platformData}
+        onChange={handleHubPlatformChange}
+        suggestedUsername={assignedGmail}
+        suggestedPassword={passwords.sportsbook}
+        onMismatchChange={handleMismatchChange}
+        initialPlatform={hubInitialPlatform}
+        benchmarkAddress1={(formData.address as string) || null}
+        benchmarkAddress2={benchmarkAddress2}
+        benchmarkAddress2Source={benchmark2Info?.source ?? null}
+        onAddressDiscovered={onAddressDetected}
+      />
     </div>
   )
 }

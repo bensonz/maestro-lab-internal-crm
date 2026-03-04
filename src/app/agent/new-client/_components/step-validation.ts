@@ -1,4 +1,4 @@
-import { SPORTS_PLATFORMS, FINANCIAL_PLATFORMS } from '@/lib/platforms'
+import { STEP3_SPORTS_PLATFORMS, FINANCIAL_PLATFORMS } from '@/lib/platforms'
 import type { PlatformEntry } from '@/types/backend-types'
 
 /* ─── Per-step required field validation ─────────────────────────────── */
@@ -49,9 +49,9 @@ export function isStepComplete(
       break
     }
     case 3: {
-      // Sportsbooks: each needs 3 screenshots
+      // Sportsbooks: each needs 3 screenshots (BetMGM excluded — handled in Step 1)
       const platformData = (formData.platformData as PlatformEntry[]) || []
-      for (const p of SPORTS_PLATFORMS) {
+      for (const p of STEP3_SPORTS_PLATFORMS) {
         const entry = platformData.find((e) => e.platform === p)
         if (!entry) {
           missing.push(`${p}: all 3 images`)

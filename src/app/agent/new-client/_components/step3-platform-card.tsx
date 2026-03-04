@@ -20,9 +20,6 @@ import {
   DialogContent,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { SportsbookModal, getSportsbookImageCount } from './sportsbook-platform-modal'
-import { isSportsPlatform } from '@/lib/platforms'
-import type { PlatformType } from '@/types'
 import type { PlatformEntry } from '@/types/backend-types'
 
 const BANK_OPTIONS = [
@@ -359,15 +356,7 @@ export function PlatformCard({
       className="rounded-md border p-2.5 space-y-2"
       data-testid={`platform-card-${platform}`}
     >
-      <p className="text-sm">
-        {displayName}
-        {!isEdgeBoost && !isBank && !isSportsPlatform(platform as PlatformType) && screenshots.length > 0 && (
-          <span className="ml-1.5 text-muted-foreground"> — {screenshots.length} upload{screenshots.length !== 1 ? 's' : ''}</span>
-        )}
-        {isBank && bankFilledCount > 0 && (
-          <span className="ml-1.5 text-muted-foreground"> — {bankFilledCount} upload{bankFilledCount !== 1 ? 's' : ''}</span>
-        )}
-      </p>
+      {/* Name removed — shown in parent status header */}
 
       {isBank && (
         <>
@@ -854,16 +843,6 @@ export function PlatformCard({
             </DialogContent>
           </Dialog>
         </>
-      ) : isSportsPlatform(platform as PlatformType) ? (
-        <SportsbookCompactCard
-          platform={platform}
-          displayName={displayName}
-          entry={entry}
-          onChange={onChange}
-          suggestedUsername={suggestedUsername}
-          suggestedPassword={suggestedPassword}
-          onMismatchChange={onMismatchChange}
-        />
       ) : (
         <div className="flex items-center gap-2 mt-3">
           <Input
@@ -925,8 +904,8 @@ export function PlatformCard({
         </div>
       )}
 
-      {/* Mismatch warning — skip for sportsbooks (handled in modal) */}
-      {mismatch && !isSportsPlatform(platform as PlatformType) && (
+      {/* Mismatch warning */}
+      {mismatch && (
         <p className="flex items-center gap-1 text-xs text-destructive" data-testid={`platform-mismatch-${platform}`}>
           <AlertTriangle className="h-3 w-3 shrink-0" />
           {[mismatch.username && 'username', mismatch.password && 'password']
@@ -936,8 +915,8 @@ export function PlatformCard({
         </p>
       )}
 
-      {/* Multi-screenshot thumbnail row — skip for sportsbooks (handled in modal) */}
-      {!isBank && !isEdgeBoost && !isSportsPlatform(platform as PlatformType) && screenshots.length > 1 && (
+      {/* Multi-screenshot thumbnail row */}
+      {!isBank && !isEdgeBoost && screenshots.length > 1 && (
         <div className="flex flex-wrap items-center gap-1.5" data-testid={`platform-thumbnails-${platform}`}>
           {screenshots.map((src, idx) => (
             <ScreenshotThumbnail
@@ -985,91 +964,5 @@ export function PlatformCard({
         </div>
       )}
     </div>
-  )
-}
-
-/* ─── Sportsbook Compact Card ─────────────────────────────────────── */
-
-interface SportsbookCompactCardProps {
-  platform: string
-  displayName: string
-  entry: PlatformEntry
-  onChange: (updated: PlatformEntry) => void
-  suggestedUsername?: string
-  suggestedPassword?: string
-  onMismatchChange?: (platform: string, mismatch: { username: boolean; password: boolean } | null) => void
-}
-
-function SportsbookCompactCard({
-  platform,
-  displayName,
-  entry,
-  onChange,
-  suggestedUsername,
-  suggestedPassword,
-  onMismatchChange,
-}: SportsbookCompactCardProps) {
-  const [modalOpen, setModalOpen] = useState(false)
-  const imageCount = getSportsbookImageCount(entry)
-  const allImages = imageCount === 3
-
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => setModalOpen(true)}
-        className="flex w-full items-center gap-2 rounded-md px-1 py-1 text-left transition-colors hover:bg-muted/40"
-        data-testid={`sportsbook-open-${platform}`}
-      >
-        {/* Image count badge */}
-        <Badge
-          variant="outline"
-          className={`h-5 shrink-0 px-1.5 font-mono text-[10px] ${
-            allImages
-              ? 'border-success/40 bg-success/10 text-success'
-              : imageCount > 0
-                ? 'border-primary/30 bg-primary/10 text-primary'
-                : 'border-border text-muted-foreground'
-          }`}
-        >
-          {imageCount}/3
-        </Badge>
-
-        {/* Deposit ready badge */}
-        {entry.depositDetected && (
-          <Badge
-            variant="outline"
-            className="h-5 shrink-0 gap-1 border-success/40 bg-success/10 px-1.5 text-[10px] text-success"
-          >
-            <CheckCircle2 className="h-2.5 w-2.5" />
-            Deposit
-          </Badge>
-        )}
-
-        {/* Username preview */}
-        {entry.username && (
-          <span className="truncate text-xs text-muted-foreground">
-            {entry.username}
-          </span>
-        )}
-
-        {/* Open indicator */}
-        <span className="ml-auto shrink-0 text-[10px] text-muted-foreground/60">
-          Open &rarr;
-        </span>
-      </button>
-
-      <SportsbookModal
-        open={modalOpen}
-        onOpenChange={setModalOpen}
-        platform={platform}
-        displayName={displayName}
-        entry={entry}
-        onChange={onChange}
-        suggestedUsername={suggestedUsername}
-        suggestedPassword={suggestedPassword}
-        onMismatchChange={onMismatchChange}
-      />
-    </>
   )
 }

@@ -1,27 +1,15 @@
 'use client'
 
 import { useCallback, useRef, useState } from 'react'
-import { Upload, Loader2, X, Check, Eye } from 'lucide-react'
+import { Upload, Loader2, AlertTriangle } from 'lucide-react'
 import { PLATFORM_INFO } from '@/lib/platforms'
 import { mockDetectPlatformFromScreenshot } from './mock-extract-id'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import type { PlatformType } from '@/types'
+import type { PlatformEntry } from '@/types/backend-types'
 
 interface SortedScreenshot {
   file: File
   path: string // uploaded URL
-  objectUrl: string // local blob URL for preview
   platform: PlatformType
   confidence: number
   isUnidentified: boolean
@@ -30,15 +18,51 @@ interface SortedScreenshot {
 interface BulkUploadZoneProps {
   platforms: PlatformType[]
   onScreenshotsSorted: (sorted: Map<PlatformType, string[]>) => void
+  /** Called after a batch upload completes — receives the first platform that got new images */
+  onUploadComplete?: (firstPlatform: PlatformType | null) => void
+  /** Current platform entries — used for duplicate filename detection */
+  existingEntries?: PlatformEntry[]
 }
 
-export function BulkUploadZone({ platforms, onScreenshotsSorted }: BulkUploadZoneProps) {
+export function BulkUploadZone({
+  platforms,
+  onScreenshotsSorted,
+  onUploadComplete,
+  existingEntries,
+}: BulkUploadZoneProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [sorted, setSorted] = useState<SortedScreenshot[]>([])
   const [error, setError] = useState<string | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+
+  // ── Duplicate detection state ──
+  const [duplicatePrompt, setDuplicatePrompt] = useState<{
+    fileName: string
+    existingPlatform: string
+    resolve: (action: 'replace' | 'skip') => void
+  } | null>(null)
+
+  /** Check if a filename already exists in any platform's screenshots */
+  const findDuplicate = useCallback(
+    (fileName: string): string | null => {
+      const lowerName = fileName.toLowerCase()
+      for (const entry of existingEntries ?? []) {
+        const allPaths = [
+          entry.screenshot,
+          entry.screenshotPersonalInfo,
+          entry.screenshotDeposit,
+          ...(entry.screenshots ?? []),
+        ].filter((p): p is string => !!p)
+        for (const path of allPaths) {
+          const existingName = path.split('/').pop()?.toLowerCase()
+          if (existingName === lowerName) return entry.platform
+        }
+      }
+      return null
+    },
+    [existingEntries],
+  )
 
   const processFiles = useCallback(
     async (files: File[]) => {
@@ -47,9 +71,26 @@ export function BulkUploadZone({ platforms, onScreenshotsSorted }: BulkUploadZon
       setError(null)
 
       const results: SortedScreenshot[] = []
+      let firstPlatformWithNew: PlatformType | null = null
 
       for (const file of files) {
         try {
+          // Check for duplicates before uploading
+          const dupPlatform = findDuplicate(file.name)
+          if (dupPlatform) {
+            // Wait for user decision
+            const action = await new Promise<'replace' | 'skip'>((resolve) => {
+              setDuplicatePrompt({
+                fileName: file.name,
+                existingPlatform: dupPlatform,
+                resolve,
+              })
+            })
+            setDuplicatePrompt(null)
+            if (action === 'skip') continue
+            // If replace, proceed with upload (will overwrite via new URL)
+          }
+
           // 1. Upload file
           const body = new FormData()
           body.append('file', file)
@@ -58,7 +99,6 @@ export function BulkUploadZone({ platforms, onScreenshotsSorted }: BulkUploadZon
             results.push({
               file,
               path: '',
-              objectUrl: URL.createObjectURL(file),
               platform: platforms[0],
               confidence: 0,
               isUnidentified: true,
@@ -71,15 +111,20 @@ export function BulkUploadZone({ platforms, onScreenshotsSorted }: BulkUploadZon
           const detection = await mockDetectPlatformFromScreenshot(file)
           const isKnownPlatform = platforms.includes(detection.platform)
           const isLowConfidence = detection.confidence < 0.7
+          const assignedPlatform = isKnownPlatform ? detection.platform : platforms[0]
 
           results.push({
             file,
             path: data.url,
-            objectUrl: URL.createObjectURL(file),
-            platform: isKnownPlatform ? detection.platform : platforms[0],
+            platform: assignedPlatform,
             confidence: detection.confidence,
             isUnidentified: !isKnownPlatform || isLowConfidence,
           })
+
+          // Track first platform that received a successful upload
+          if (!firstPlatformWithNew && data.url) {
+            firstPlatformWithNew = assignedPlatform
+          }
         } catch {
           // Upload/detection failed for this file — skip
         }
@@ -91,8 +136,11 @@ export function BulkUploadZone({ platforms, onScreenshotsSorted }: BulkUploadZon
       // Build and emit sorted map
       const allResults = [...sorted, ...results]
       emitSorted(allResults)
+
+      // Notify parent that upload batch is complete
+      onUploadComplete?.(firstPlatformWithNew)
     },
-    [platforms, sorted],
+    [platforms, sorted, findDuplicate, onUploadComplete],
   )
 
   const emitSorted = useCallback(
@@ -107,25 +155,6 @@ export function BulkUploadZone({ platforms, onScreenshotsSorted }: BulkUploadZon
       onScreenshotsSorted(map)
     },
     [onScreenshotsSorted],
-  )
-
-  const handleReassign = useCallback(
-    (index: number, newPlatform: PlatformType) => {
-      const updated = [...sorted]
-      updated[index] = { ...updated[index], platform: newPlatform, isUnidentified: false }
-      setSorted(updated)
-      emitSorted(updated)
-    },
-    [sorted, emitSorted],
-  )
-
-  const handleRemove = useCallback(
-    (index: number) => {
-      const updated = sorted.filter((_, i) => i !== index)
-      setSorted(updated)
-      emitSorted(updated)
-    },
-    [sorted, emitSorted],
   )
 
   const handleDrop = useCallback(
@@ -148,10 +177,6 @@ export function BulkUploadZone({ platforms, onScreenshotsSorted }: BulkUploadZon
     },
     [processFiles],
   )
-
-  // Build summary counts
-  const confirmedCount = sorted.filter((s) => !s.isUnidentified).length
-  const unidentifiedCount = sorted.filter((s) => s.isUnidentified).length
 
   return (
     <div className="space-y-2" data-testid="bulk-upload-zone">
@@ -192,114 +217,33 @@ export function BulkUploadZone({ platforms, onScreenshotsSorted }: BulkUploadZon
         )}
       </div>
 
-      {/* All uploaded screenshots — review grid */}
-      {sorted.length > 0 && (
-        <div className="space-y-1.5">
-          {/* Summary bar */}
-          <div className="flex items-center gap-2 text-[10px]">
-            <span className="text-muted-foreground font-medium">{sorted.length} uploaded</span>
-            {confirmedCount > 0 && (
-              <span className="rounded-full bg-success/15 px-2 py-0.5 text-success">
-                {confirmedCount} auto-sorted
-              </span>
-            )}
-            {unidentifiedCount > 0 && (
-              <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-amber-700 dark:text-amber-400">
-                {unidentifiedCount} need review
-              </span>
-            )}
-          </div>
-
-          {/* Screenshot review list — ALL items shown */}
-          <div className="grid grid-cols-1 gap-1">
-            {sorted.map((s, i) => (
-              <div
-                key={i}
-                className={`flex items-center gap-2 rounded-md border px-2 py-1.5 ${
-                  s.isUnidentified
-                    ? 'border-amber-500/30 bg-amber-500/5'
-                    : 'border-border/40 bg-muted/20'
-                }`}
-              >
-                {/* Preview thumbnail — clickable to enlarge */}
-                <button
-                  type="button"
-                  onClick={() => setPreviewUrl(s.objectUrl)}
-                  className="group relative h-10 w-14 shrink-0 overflow-hidden rounded border border-border/40 bg-muted"
-                  title="Click to preview"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={s.objectUrl}
-                    alt={s.file.name}
-                    className="h-full w-full object-cover"
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover:bg-black/30 group-hover:opacity-100">
-                    <Eye className="h-3.5 w-3.5 text-white" />
-                  </div>
-                </button>
-
-                {/* Filename */}
-                <span className="min-w-0 flex-1 truncate text-[10px] text-muted-foreground" title={s.file.name}>
-                  {s.file.name}
-                </span>
-
-                {/* Confidence + platform assignment */}
-                {!s.isUnidentified ? (
-                  <span className="flex shrink-0 items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-[10px] text-success">
-                    <Check className="h-2.5 w-2.5" />
-                    {PLATFORM_INFO[s.platform]?.abbrev ?? s.platform}
-                  </span>
-                ) : (
-                  <span className="shrink-0 text-[10px] text-amber-600">?</span>
-                )}
-
-                {/* Platform picker — always available to reassign */}
-                <Select
-                  value={s.platform}
-                  onValueChange={(val) => handleReassign(i, val as PlatformType)}
-                >
-                  <SelectTrigger className={`h-6 w-24 text-[10px] ${s.isUnidentified ? 'border-amber-500/40' : ''}`}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {platforms.map((p) => (
-                      <SelectItem key={p} value={p} className="text-xs">
-                        {PLATFORM_INFO[p].name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                {/* Remove */}
-                <button
-                  type="button"
-                  onClick={() => handleRemove(i)}
-                  className="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
-                  title="Remove"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
-            ))}
-          </div>
+      {/* Duplicate detection prompt */}
+      {duplicatePrompt && (
+        <div className="flex items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+          <span className="flex-1 text-xs text-amber-700 dark:text-amber-400">
+            &quot;{duplicatePrompt.fileName}&quot; already exists in{' '}
+            <strong>{PLATFORM_INFO[duplicatePrompt.existingPlatform as PlatformType]?.name ?? duplicatePrompt.existingPlatform}</strong>.
+            Replace it?
+          </span>
+          <button
+            type="button"
+            onClick={() => duplicatePrompt.resolve('replace')}
+            className="rounded bg-amber-600 px-2.5 py-1 text-[11px] font-medium text-white hover:bg-amber-700"
+            data-testid="duplicate-replace-btn"
+          >
+            Replace
+          </button>
+          <button
+            type="button"
+            onClick={() => duplicatePrompt.resolve('skip')}
+            className="rounded border border-border px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted"
+            data-testid="duplicate-skip-btn"
+          >
+            Skip
+          </button>
         </div>
       )}
-
-      {/* Image preview dialog */}
-      <Dialog open={!!previewUrl} onOpenChange={(open) => { if (!open) setPreviewUrl(null) }}>
-        <DialogContent className="max-w-2xl p-2">
-          <DialogTitle className="sr-only">Screenshot Preview</DialogTitle>
-          {previewUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={previewUrl}
-              alt="Screenshot preview"
-              className="w-full rounded"
-            />
-          )}
-        </DialogContent>
-      </Dialog>
 
       {error && (
         <p className="text-xs text-destructive">{error}</p>

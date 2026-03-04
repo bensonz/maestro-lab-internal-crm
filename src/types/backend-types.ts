@@ -81,6 +81,8 @@ export interface IntakeClient {
   assignedCarrier?: string | null
   /** Number of unique addresses discovered across platform screenshots */
   addressCount?: number
+  /** Whether both debit cards (Bank + Edgeboost) have been uploaded */
+  hasDebitCards?: boolean
 }
 
 export interface PostApprovalClient {
@@ -391,6 +393,10 @@ export interface PlatformEntry {
   screenshotDeposit?: string
   /** True when screenshotDeposit is present — platform is deposit-ready */
   depositDetected?: boolean
+  /** Agent confirmed deposit page is accessible (sportsbook only) */
+  depositPageVerified?: boolean
+  /** Agent confirmed address matches a benchmark address (sportsbook only) */
+  addressMatchesBenchmark?: boolean
 }
 
 // --- Discovered Address Types ---

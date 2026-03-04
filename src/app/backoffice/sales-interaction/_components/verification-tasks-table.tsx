@@ -11,6 +11,8 @@ import { DeadlineCountdown } from '@/components/deadline-countdown'
 interface VerificationTasksTableProps {
   tasks: VerificationTask[]
   selectedAgentId: string | null
+  /** Fixed width (px) for the client-name column — aligns with sibling ClientIntakeList */
+  nameColumnWidth?: number
   onSelectClient?: (clientId: string) => void
   onAssignDevice?: (draftId: string, clientName: string, agentName: string, phone?: string | null, carrier?: string | null) => void
   onCompleteTodo?: (todoId: string, clientName: string) => void
@@ -19,6 +21,7 @@ interface VerificationTasksTableProps {
 export function VerificationTasksTable({
   tasks,
   selectedAgentId,
+  nameColumnWidth,
   onSelectClient,
   onAssignDevice,
   onCompleteTodo,
@@ -34,43 +37,48 @@ export function VerificationTasksTable({
   }
 
   return (
-    <div className="grid grid-cols-[auto_auto_1fr_auto_auto_auto] gap-x-3">
+    <div
+      className="grid gap-x-1.5"
+      style={{
+        gridTemplateColumns: `${nameColumnWidth ? `${nameColumnWidth}px` : 'auto'} 110px 1fr auto auto auto auto`,
+      }}
+    >
       {tasks.map((task) => (
         <div
           key={task.id}
-          className="col-span-6 grid grid-cols-subgrid items-center border-b border-border/20 px-5 py-2 transition-colors last:border-b-0 hover:bg-muted/30"
+          className="col-span-full grid grid-cols-subgrid items-center border-b border-border/20 px-5 py-2 transition-colors last:border-b-0 hover:bg-muted/30"
           data-testid={`verification-row-${task.id}`}
         >
-          {/* Col 1: Client name + agent name */}
-          <div className="flex min-w-0 items-center gap-2">
-            {task.clientId ? (
-              <button
-                type="button"
-                onClick={() => onSelectClient?.(task.clientId!)}
-                className="truncate text-sm font-medium text-foreground hover:text-primary hover:underline"
-                data-testid={`client-name-${task.clientId}`}
-              >
-                {task.clientName}
-              </button>
-            ) : (
-              <span className="truncate text-sm font-medium text-foreground">
-                {task.clientName}
-              </span>
-            )}
-            <span className="shrink-0 text-[11px] text-muted-foreground">
-              {task.agentName}
+          {/* Col 1: Client name (aligned with ClientIntakeList) */}
+          {task.clientId ? (
+            <button
+              type="button"
+              onClick={() => onSelectClient?.(task.clientId!)}
+              className="truncate text-left text-sm font-medium text-foreground hover:text-primary hover:underline"
+              data-testid={`client-name-${task.clientId}`}
+            >
+              {task.clientName}
+            </button>
+          ) : (
+            <span className="truncate text-sm font-medium text-foreground">
+              {task.clientName}
             </span>
-          </div>
+          )}
 
-          {/* Col 2: Platform badge (vertically aligned across rows) */}
-          <PlatformBadge platformType={task.platformType} label={task.platformLabel} />
+          {/* Col 2: Agent name (aligned with ClientIntakeList — same 110px) */}
+          <span className="truncate text-[11px] text-muted-foreground">
+            {task.agentName}
+          </span>
 
-          {/* Col 3: Task description (vertically aligned across rows) */}
+          {/* Col 3: Task description */}
           <span className="truncate text-xs text-muted-foreground">
             {task.task}
           </span>
 
-          {/* Col 3: Assign Device button (always visible) */}
+          {/* Col 4: Platform badge */}
+          <PlatformBadge platformType={task.platformType} label={task.platformLabel} />
+
+          {/* Col 5: Assign Device button */}
           <Button
             size="sm"
             variant="outline"
@@ -82,7 +90,7 @@ export function VerificationTasksTable({
             Assign Device
           </Button>
 
-          {/* Col 4: Countdown */}
+          {/* Col 6: Countdown */}
           <div className="flex items-center justify-end">
             {task.clientDeadline ? (
               <DeadlineCountdown
@@ -96,7 +104,7 @@ export function VerificationTasksTable({
             ) : null}
           </div>
 
-          {/* Col 5: Done button (far right) */}
+          {/* Col 7: Done button */}
           <Button
             size="sm"
             variant="outline"

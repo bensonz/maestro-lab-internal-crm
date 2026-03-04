@@ -4,7 +4,7 @@ import { requireAgent } from '../_require-agent'
 import { getClientsByCloser } from '@/backend/data/clients'
 import { getDraftsByCloser } from '@/backend/data/client-drafts'
 import { IntakeStatus } from '@/types'
-import { ALL_PLATFORMS, SPORTS_PLATFORMS, FINANCIAL_PLATFORMS } from '@/lib/platforms'
+import { ALL_PLATFORMS, SPORTS_PLATFORMS, FINANCIAL_PLATFORMS, STEP3_SPORTS_PLATFORMS } from '@/lib/platforms'
 import type { PlatformEntry } from '@/types/backend-types'
 import type { AgentClient, AgentDraft } from './_components/types'
 
@@ -44,11 +44,15 @@ function computeInnerStepProgress(draft: Awaited<ReturnType<typeof getDraftsByCl
       // 11 inner-steps: one per platform registration
       const total = ALL_PLATFORMS.length // 11
       let completed = 0
+      // BetMGM is handled in Step 1 — count from draft-level fields, not platformData
+      if (draft.betmgmRegScreenshot && draft.betmgmLoginScreenshot) {
+        completed++
+      }
       if (draft.platformData && Array.isArray(draft.platformData)) {
         const pd = draft.platformData as unknown as PlatformEntry[]
-        for (const key of SPORTS_PLATFORMS) {
+        // Count Step 3 sportsbooks (7 platforms, excluding BetMGM)
+        for (const key of STEP3_SPORTS_PLATFORMS) {
           const entry = pd.find((e) => e.platform === key)
-          // Sportsbook: count as done when any data entered (screenshot, username, or credentials)
           if (entry && (entry.screenshot || entry.screenshotPersonalInfo || entry.screenshotDeposit || entry.username)) {
             completed++
           }
@@ -64,13 +68,8 @@ function computeInnerStepProgress(draft: Awaited<ReturnType<typeof getDraftsByCl
       return { completed, total }
     }
     case 4: {
-      // 11 inner-steps: backoffice verifies login credentials for all 11 platforms
-      const total = ALL_PLATFORMS.length // 11
-      // For now, agents see 0/11 — verification is done by backoffice
-      // TODO: read platform verification status from draft when backoffice marks them
-      let completed = 0
-      if (draft.contractDocument) completed++ // count contract upload as 1 for now
-      return { completed: Math.min(completed, total), total }
+      // Step 4 is contract upload + submission — no platform progress to track
+      return { completed: 0, total: 0 }
     }
     default:
       return { completed: 0, total: 3 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -31,6 +31,7 @@ import { IntakeStatus } from '@/types'
 import { ClientsSummaryPanel, type StatusFilter } from './clients-summary-panel'
 import { ClientsGroupedList } from './clients-grouped-list'
 import { ClientsCardView } from './clients-card-view'
+import { UploadCardDialog } from '@/app/backoffice/sales-interaction/_components/upload-card-dialog'
 import type { AgentClient, AgentDraft } from './types'
 
 type SortOption = 'priority' | 'newest' | 'oldest'
@@ -81,6 +82,15 @@ export function ClientsView({ clients, drafts, stats }: ClientsViewProps) {
   const [sort, setSort] = useState<SortOption>('priority')
   const [viewMode, setViewMode] = useState<ViewMode>('list')
   const [hideCompleted, setHideCompleted] = useState(false)
+
+  // Upload Card dialog state
+  const [uploadCardDraftId, setUploadCardDraftId] = useState<string | null>(null)
+  const [uploadCardDraftName, setUploadCardDraftName] = useState('')
+
+  const handleUploadCard = useCallback((draftId: string, clientName: string) => {
+    setUploadCardDraftId(draftId)
+    setUploadCardDraftName(clientName)
+  }, [])
 
   // Keyboard shortcut for Active Only toggle (A key)
   useEffect(() => {
@@ -286,13 +296,20 @@ export function ClientsView({ clients, drafts, stats }: ClientsViewProps) {
                 </CardContent>
               </Card>
             ) : viewMode === 'list' ? (
-              <ClientsGroupedList clients={filteredClients} drafts={visibleDrafts} />
+              <ClientsGroupedList clients={filteredClients} drafts={visibleDrafts} onUploadCard={handleUploadCard} />
             ) : (
               <ClientsCardView clients={filteredClients} drafts={visibleDrafts} />
             )}
           </div>
         </ScrollArea>
       </div>
+
+      {/* Upload Card Dialog */}
+      <UploadCardDialog
+        draftId={uploadCardDraftId}
+        clientName={uploadCardDraftName}
+        onClose={() => setUploadCardDraftId(null)}
+      />
     </div>
   )
 }

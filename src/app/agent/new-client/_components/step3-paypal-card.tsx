@@ -203,12 +203,7 @@ export function PayPalCard({
 
   return (
     <div className="rounded-md border p-2.5 space-y-2" data-testid="platform-card-PAYPAL">
-      <p className="text-sm">
-        PayPal
-        {filledCount > 0 && (
-          <span className="ml-1.5 text-muted-foreground"> — {filledCount} upload{filledCount !== 1 ? 's' : ''}</span>
-        )}
-      </p>
+      {/* Name removed — shown in parent status header */}
 
       {/* Inline amber instruction */}
       <p className="text-xs text-amber-700 dark:text-amber-400">

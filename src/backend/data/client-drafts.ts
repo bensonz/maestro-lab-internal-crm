@@ -2,7 +2,13 @@ import prisma from '@/backend/prisma/client'
 
 export async function getDraftsByCloser(closerId: string) {
   return prisma.clientDraft.findMany({
-    where: { closerId, status: 'DRAFT' },
+    where: {
+      closerId,
+      OR: [
+        { status: 'DRAFT' },
+        { status: 'SUBMITTED', resultClient: { status: 'PENDING' } },
+      ],
+    },
     orderBy: { updatedAt: 'desc' },
     select: {
       id: true,
