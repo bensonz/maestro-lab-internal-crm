@@ -537,6 +537,27 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, initialS
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft, editedFields])
 
+  // Enter key = Next step (when focused on an input)
+  useEffect(() => {
+    if (!draftId || !draft) return
+    const draftMaxStep = draft.step ?? 1
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Enter' || e.shiftKey || e.ctrlKey || e.metaKey) return
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'SELECT') {
+        e.preventDefault()
+        target.blur()
+        // Navigate to next step if possible
+        const nextStep = Math.min(step + 1, Math.min(draftMaxStep, 4))
+        if (nextStep > step) {
+          dispatch({ type: 'SET_STEP', step: nextStep as 1 | 2 | 3 | 4 })
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [draftId, draft, step])
+
   // Auto-scroll to debit cards section when opening Step 3 via Upload Card button
   useEffect(() => {
     if (scrollToDebitCards && step === 3 && draft && !loading) {
@@ -699,6 +720,49 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, initialS
                       )
                     })()}
                   </div>
+
+                  {/* Password Changes — show when backoffice has edited credential fields */}
+                  {(() => {
+                    const credentialEdits: { platform: string; fields: string[] }[] = []
+                    // Check top-level credential fields
+                    const topLevelCreds: [string, string, string][] = [
+                      ['Gmail', 'assignedGmail', 'gmailPassword'],
+                      ['BetMGM', 'betmgmLogin', 'betmgmPassword'],
+                    ]
+                    for (const [name, userField, passField] of topLevelCreds) {
+                      const changed: string[] = []
+                      if (userField in editedFields) changed.push('email')
+                      if (passField in editedFields) changed.push('password')
+                      if (changed.length > 0) credentialEdits.push({ platform: name, fields: changed })
+                    }
+                    // Check platform data edits
+                    if (editedPlatformData) {
+                      for (const [platform, fields] of Object.entries(editedPlatformData)) {
+                        const changed: string[] = []
+                        if ('username' in fields) changed.push('username')
+                        if ('accountId' in fields) changed.push('password')
+                        if (changed.length > 0) {
+                          const name = CREDENTIAL_DISPLAY_NAMES[platform] || CREDENTIAL_DISPLAY_NAMES[platform.toUpperCase()] || platform
+                          credentialEdits.push({ platform: name, fields: changed })
+                        }
+                      }
+                    }
+                    if (credentialEdits.length === 0) return null
+                    return (
+                      <div className="space-y-1.5">
+                        <span className="flex items-center gap-1 text-[10px] text-warning">
+                          <AlertTriangle className="h-2.5 w-2.5" />
+                          Changes Made
+                        </span>
+                        {credentialEdits.map((e) => (
+                          <div key={e.platform} className="flex items-center justify-between text-[10px]">
+                            <span className="text-warning">{e.platform}</span>
+                            <span className="text-warning/70">{e.fields.join(', ')}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  })()}
                 </>
               )}
             </div>
@@ -886,28 +950,6 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, initialS
                       </div>
                     </div>
 
-                    {/* Discovered Addresses */}
-                    {(draft.discoveredAddresses ?? []).length > 0 && (
-                      <div className="space-y-2" data-testid="draft-review-addresses">
-                        <SectionHeader>Discovered Addresses</SectionHeader>
-                        <div className="space-y-1">
-                          {(draft.discoveredAddresses ?? []).map((addr, i) => (
-                            <div key={i} className="flex items-start gap-2 rounded border border-border p-2 text-xs">
-                              <MapPin className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground" />
-                              <div>
-                                <span className="rounded bg-muted px-1 py-0.5 text-[10px] font-medium text-muted-foreground">
-                                  From {addr.source}
-                                </span>
-                                <p className="mt-0.5 font-medium">{addr.address}</p>
-                              </div>
-                              {addr.confirmedByAgent && (
-                                <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0 text-success" />
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )}
 
@@ -915,20 +957,10 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, initialS
                 {step === 2 && (
                   <div className="space-y-3" data-testid="draft-review-step-2-content">
 
-                    {/* A. Identity & Document */}
-                    <div className="space-y-2">
-                      <SectionHeader>Identity & Document</SectionHeader>
-                      <div className="grid grid-cols-3 gap-x-3 gap-y-1.5">
-                        <div>
-                          <span className="text-[10px] text-muted-foreground">SSN Document</span>
-                          <p className="mt-0.5 text-xs font-medium">
-                            {draft.ssnDocument ? (
-                              <span className="flex items-center gap-1 text-success">
-                                <CheckCircle2 className="h-3 w-3" /> Uploaded
-                              </span>
-                            ) : '\u2014'}
-                          </p>
-                        </div>
+                    {/* Identity & Compliance card */}
+                    <div className="rounded-md border border-border p-3 space-y-2">
+                      <SectionHeader>Identity & Compliance</SectionHeader>
+                      <div className="grid grid-cols-[1fr_1fr_auto] items-end gap-3">
                         <EditableText
                           label="SSN Number"
                           value={getField<string | null>(draft, editedFields, 'ssnNumber')}
@@ -936,142 +968,139 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, initialS
                           mono
                         />
                         <InfoRow label="Citizenship" value={CITIZENSHIP_LABELS[draft.citizenship ?? ''] ?? draft.citizenship} />
+                        <div className="pb-0.5">
+                          {draft.ssnDocument ? (
+                            <span className="flex items-center gap-1 text-[10px] text-success"><CheckCircle2 className="h-3 w-3" /> SSN Doc</span>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground">No SSN Doc</span>
+                          )}
+                        </div>
                       </div>
-
-                      {/* Missing IDs */}
                       {draft.missingIdType && draft.missingIdType.length > 0 && (
-                        <div>
-                          <span className="text-[10px] text-muted-foreground">Missing IDs</span>
-                          <div className="mt-1 flex flex-wrap gap-1">
-                            {draft.missingIdType.split(',').filter(Boolean).map((id) => (
-                              <InfoBadge key={id} variant="warning">{MISSING_ID_LABELS[id] ?? id}</InfoBadge>
-                            ))}
-                          </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-muted-foreground">Missing:</span>
+                          {draft.missingIdType.split(',').filter(Boolean).map((id) => (
+                            <InfoBadge key={id} variant="warning">{MISSING_ID_LABELS[id] ?? id}</InfoBadge>
+                          ))}
                         </div>
                       )}
-
-                      {/* Criminal Record */}
-                      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+                      <div className="flex items-center gap-4">
                         <EditableCheckbox
                           label="Has Criminal Record"
                           checked={getField<boolean | null>(draft, editedFields, 'hasCriminalRecord')}
                           onChange={(v) => setField('hasCriminalRecord', v)}
                         />
-                        <EditableText
-                          label="Criminal Record Notes"
-                          value={getField<string | null>(draft, editedFields, 'criminalRecordNotes')}
-                          onChange={(v) => setField('criminalRecordNotes', v)}
-                        />
+                        {getField<boolean | null>(draft, editedFields, 'hasCriminalRecord') && (
+                          <EditableText
+                            label="Notes"
+                            value={getField<string | null>(draft, editedFields, 'criminalRecordNotes')}
+                            onChange={(v) => setField('criminalRecordNotes', v)}
+                            className="flex-1"
+                          />
+                        )}
                       </div>
                     </div>
 
-                    {/* B. Address */}
-                    <div className="space-y-2">
-                      <SectionHeader>Address</SectionHeader>
-                      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
-                        <EditableText
-                          label="Secondary Address"
-                          value={getField<string | null>(draft, editedFields, 'secondAddress')}
-                          onChange={(v) => setField('secondAddress', v)}
-                        />
-                        <div>
-                          <span className="text-[10px] text-muted-foreground">Address Proof</span>
-                          <p className="mt-0.5 text-xs font-medium">
-                            {draft.secondAddressProof ? (
-                              <span className="flex items-center gap-1 text-success"><CheckCircle2 className="h-3 w-3" /> Uploaded</span>
-                            ) : '\u2014'}
-                          </p>
-                        </div>
-                      </div>
-                      {getField<boolean | null>(draft, editedFields, 'bankNegativeBalance') && (
-                        <InfoBadge variant="warning">Owes Bank / Negative Balance</InfoBadge>
-                      )}
-                    </div>
-
-                    {/* C. Banking & Financial History */}
-                    <div className="space-y-2">
-                      <SectionHeader>Banking & Financial History</SectionHeader>
-                      <div className="space-y-1.5">
-                        {/* Banks opened */}
+                    {/* Two-column: Financial + Address/Sportsbook */}
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* Financial History card */}
+                      <div className="rounded-md border border-border p-3 space-y-2">
+                        <SectionHeader>Financial History</SectionHeader>
                         {draft.bankingHistory && (
-                          <div>
-                            <span className="text-[10px] text-muted-foreground">Banks Opened</span>
-                            <div className="mt-1 flex flex-wrap gap-1">
-                              {draft.bankingHistory.split(',').filter(Boolean).map((b) => (
-                                <InfoBadge key={b}>{BANK_LABELS[b] ?? b}</InfoBadge>
-                              ))}
-                            </div>
+                          <div className="flex flex-wrap gap-1">
+                            {draft.bankingHistory.split(',').filter(Boolean).map((b) => (
+                              <InfoBadge key={b}>{BANK_LABELS[b] ?? b}</InfoBadge>
+                            ))}
                           </div>
                         )}
-                        <div className="grid grid-cols-2 gap-x-3">
+                        <div className="flex items-center gap-3">
                           <EditableCheckbox
-                            label="De-banked History"
+                            label="De-banked"
                             checked={getField<boolean>(draft, editedFields, 'debankedHistory')}
                             onChange={(v) => setField('debankedHistory', v)}
                           />
-                          <EditableText
-                            label="De-banked Bank"
-                            value={getField<string | null>(draft, editedFields, 'debankedBank')}
-                            onChange={(v) => setField('debankedBank', v)}
+                          {getField<boolean>(draft, editedFields, 'debankedHistory') && (
+                            <EditableText
+                              label="Bank"
+                              value={getField<string | null>(draft, editedFields, 'debankedBank')}
+                              onChange={(v) => setField('debankedBank', v)}
+                              className="flex-1"
+                            />
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <EditableCheckbox
+                            label="PayPal Used"
+                            checked={getField<boolean>(draft, editedFields, 'paypalPreviouslyUsed')}
+                            onChange={(v) => setField('paypalPreviouslyUsed', v)}
                           />
+                          {draft.paypalSsnLinked && <InfoBadge variant="success">SSN Linked</InfoBadge>}
+                          {draft.paypalBrowserVerified && <InfoBadge variant="success">Browser OK</InfoBadge>}
                         </div>
+                        {getField<boolean | null>(draft, editedFields, 'bankNegativeBalance') && (
+                          <InfoBadge variant="warning">Negative Balance</InfoBadge>
+                        )}
+                      </div>
+
+                      {/* Address + Sportsbook card */}
+                      <div className="space-y-3">
+                        <div className="rounded-md border border-border p-3 space-y-2">
+                          <SectionHeader>Address</SectionHeader>
+                          <EditableText
+                            label="Secondary Address"
+                            value={getField<string | null>(draft, editedFields, 'secondAddress')}
+                            onChange={(v) => setField('secondAddress', v)}
+                          />
+                          <div className="flex items-center gap-2 text-[10px]">
+                            <span className="text-muted-foreground">Proof:</span>
+                            {draft.secondAddressProof ? (
+                              <span className="flex items-center gap-1 text-success"><CheckCircle2 className="h-3 w-3" /> Uploaded</span>
+                            ) : (
+                              <span className="text-muted-foreground">{'\u2014'}</span>
+                            )}
+                          </div>
+                        </div>
+                        {draft.sportsbookUsedList && (
+                          <div className="rounded-md border border-border p-3 space-y-2">
+                            <SectionHeader>Sportsbook History</SectionHeader>
+                            <div className="flex flex-wrap gap-1">
+                              {(() => {
+                                const list = draft.sportsbookUsedList?.split(',').filter(Boolean) ?? []
+                                let statuses: Record<string, string> = {}
+                                try { statuses = draft.sportsbookStatuses ? JSON.parse(draft.sportsbookStatuses) : {} } catch { /* */ }
+                                return list.map((sb) => {
+                                  const status = statuses[sb] ?? 'active'
+                                  const variant = status === 'active' ? 'success' : status === 'suspended' ? 'warning' : status === 'banned' ? 'destructive' : 'default'
+                                  return (
+                                    <InfoBadge key={sb} variant={variant}>
+                                      {SPORTSBOOK_LABELS[sb] ?? sb} {status !== 'active' ? `(${status})` : ''}
+                                    </InfoBadge>
+                                  )
+                                })
+                              })()}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
 
-                    {/* D. PayPal History */}
-                    <div className="space-y-2">
-                      <SectionHeader>PayPal History</SectionHeader>
-                      <div className="flex flex-wrap items-center gap-3">
-                        <EditableCheckbox
-                          label="PayPal Previously Used"
-                          checked={getField<boolean>(draft, editedFields, 'paypalPreviouslyUsed')}
-                          onChange={(v) => setField('paypalPreviouslyUsed', v)}
-                        />
-                        {draft.paypalSsnLinked && <InfoBadge variant="success">SSN Linked</InfoBadge>}
-                        {draft.paypalBrowserVerified && <InfoBadge variant="success">Browser Verified</InfoBadge>}
-                      </div>
-                    </div>
-
-                    {/* E. Sportsbook History */}
-                    {draft.sportsbookUsedList && (
-                      <div className="space-y-2">
-                        <SectionHeader>Sportsbook History</SectionHeader>
-                        <div className="flex flex-wrap gap-1.5">
-                          {(() => {
-                            const list = draft.sportsbookUsedList?.split(',').filter(Boolean) ?? []
-                            let statuses: Record<string, string> = {}
-                            try { statuses = draft.sportsbookStatuses ? JSON.parse(draft.sportsbookStatuses) : {} } catch { /* */ }
-                            return list.map((sb) => {
-                              const status = statuses[sb] ?? 'active'
-                              const variant = status === 'active' ? 'success' : status === 'suspended' ? 'warning' : status === 'banned' ? 'destructive' : 'default'
-                              return (
-                                <InfoBadge key={sb} variant={variant}>
-                                  {SPORTSBOOK_LABELS[sb] ?? sb} {status !== 'active' ? `(${status})` : ''}
-                                </InfoBadge>
-                              )
-                            })
-                          })()}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* F. Client Background */}
-                    <div className="space-y-2">
-                      <SectionHeader>Client Background</SectionHeader>
-                      <div className="grid grid-cols-3 gap-x-3 gap-y-1.5">
+                    {/* Demographics card */}
+                    <div className="rounded-md border border-border p-3 space-y-2">
+                      <SectionHeader>Demographics</SectionHeader>
+                      <div className="grid grid-cols-4 gap-x-3 gap-y-1.5">
                         <InfoRow label="Occupation" value={draft.occupation} />
                         <InfoRow label="Employment" value={EMPLOYMENT_LABELS[draft.employmentStatus ?? ''] ?? draft.employmentStatus} />
-                        <InfoRow label="Annual Income" value={INCOME_LABELS[draft.annualIncome ?? ''] ?? draft.annualIncome} />
-                        <InfoRow label="Marital Status" value={MARITAL_LABELS[draft.maritalStatus ?? ''] ?? draft.maritalStatus} />
-                        <InfoRow label="Credit Score" value={CREDIT_LABELS[draft.creditScoreRange ?? ''] ?? draft.creditScoreRange} />
+                        <InfoRow label="Income" value={INCOME_LABELS[draft.annualIncome ?? ''] ?? draft.annualIncome} />
+                        <InfoRow label="Marital" value={MARITAL_LABELS[draft.maritalStatus ?? ''] ?? draft.maritalStatus} />
+                        <InfoRow label="Credit" value={CREDIT_LABELS[draft.creditScoreRange ?? ''] ?? draft.creditScoreRange} />
                         <InfoRow label="Dependents" value={draft.dependents} />
                         <InfoRow label="Education" value={EDUCATION_LABELS[draft.educationLevel ?? ''] ?? draft.educationLevel} />
                       </div>
                     </div>
 
-                    {/* G. Risk Assessment Questions */}
-                    <div className="space-y-2">
-                      <SectionHeader>Risk Assessment Questions</SectionHeader>
+                    {/* Risk Assessment card */}
+                    <div className="rounded-md border border-border p-3 space-y-2">
+                      <SectionHeader>Risk Assessment</SectionHeader>
                       <div className="grid grid-cols-2 gap-2">
                         {[
                           { label: 'Household Awareness', value: draft.householdAwareness, labels: HOUSEHOLD_LABELS, good: ['supportive', 'not_applicable'] },
@@ -1079,7 +1108,7 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, initialS
                           { label: 'Financial Autonomy', value: draft.financialAutonomy, labels: AUTONOMY_LABELS, good: ['fully_independent'] },
                           { label: 'Digital Comfort', value: draft.digitalComfort, labels: DIGITAL_COMFORT_LABELS, good: ['very_comfortable'] },
                         ].map((q) => (
-                          <div key={q.label} className="flex items-center justify-between rounded border border-border p-2 text-xs">
+                          <div key={q.label} className="flex items-center justify-between rounded border border-border px-2.5 py-1.5 text-xs">
                             <span className="text-muted-foreground">{q.label}</span>
                             {q.value ? (
                               <InfoBadge variant={assessmentVariant(q.value, q.good)}>
@@ -1272,79 +1301,101 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, initialS
                       )
                     })()}
 
-                    {/* Credentials summary */}
-                    <div className="space-y-1.5" data-testid="draft-review-credentials">
-                      <p className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                        <KeyRound className="h-3 w-3" />
-                        Credentials
-                      </p>
-                      <div className="space-y-1 text-xs">
-                        {/* Step 1 credentials: Gmail + BetMGM */}
-                        {[
-                          { key: 'Gmail', user: getField<string | null>(draft, editedFields, 'assignedGmail'), pass: getField<string | null>(draft, editedFields, 'gmailPassword') },
-                          { key: 'BetMGM', user: getField<string | null>(draft, editedFields, 'betmgmLogin'), pass: getField<string | null>(draft, editedFields, 'betmgmPassword') },
-                        ].map(({ key, user, pass }) => {
-                          const hasUser = !!user
-                          const hasPass = !!pass
-                          const filled = hasUser && hasPass
-                          return (
-                            <div key={key} className="flex items-center justify-between">
-                              <span className={cn('flex items-center gap-1', filled ? 'text-foreground' : 'text-muted-foreground')}>
-                                <span className={cn('inline-block h-1.5 w-1.5 rounded-full', filled ? 'bg-success' : hasUser || hasPass ? 'bg-warning' : 'bg-muted-foreground/30')} />
-                                {key}
-                              </span>
-                              <span className="text-[10px] text-muted-foreground/60">
-                                {hasUser && hasPass ? 'filled' : hasUser ? 'email only' : hasPass ? 'password only' : '\u2014'}
-                              </span>
-                            </div>
-                          )
-                        })}
-                        {/* Step 3 platform credentials */}
-                        {ALL_PLATFORMS.map((platform) => {
-                          const info = PLATFORM_INFO[platform]
-                          const data = getPlatformData(platform as string)
-                          const hasUser = !!data?.username
-                          const hasPass = !!data?.accountId
-                          const filled = hasUser && hasPass
-                          if (!hasUser && !hasPass) return null
-                          return (
-                            <div key={platform} className="flex items-center justify-between">
-                              <span className={cn('flex items-center gap-1', filled ? 'text-foreground' : 'text-muted-foreground')}>
-                                <span className={cn('inline-block h-1.5 w-1.5 rounded-full', filled ? 'bg-success' : 'bg-warning')} />
-                                {info.name}
-                              </span>
-                              <span className="text-[10px] text-muted-foreground/60">
-                                {hasUser && hasPass ? 'filled' : hasUser ? 'username only' : 'password only'}
-                              </span>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
+                    {/* Discovered Addresses — shown on Step 3 when PayPal has data */}
+                    {(() => {
+                      const addresses = draft.discoveredAddresses ?? []
+                      if (addresses.length === 0) return null
+                      const paypalData = getPlatformData('paypal')
+                      const hasPaypal = paypalData?.username || paypalData?.accountId
+                      if (!hasPaypal) return null
+                      return (
+                        <div className="space-y-2" data-testid="draft-review-addresses">
+                          <SectionHeader>Discovered Addresses</SectionHeader>
+                          <div className="space-y-1">
+                            {addresses.map((addr, i) => (
+                              <div key={i} className="flex items-start gap-2 rounded border border-border p-2 text-xs">
+                                <MapPin className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground" />
+                                <div>
+                                  <span className="rounded bg-muted px-1 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                    From {addr.source}
+                                  </span>
+                                  <p className="mt-0.5 font-medium">{addr.address}</p>
+                                </div>
+                                {addr.confirmedByAgent && (
+                                  <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0 text-success" />
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    })()}
                   </div>
                 )}
 
                 {/* ═══════════ Step 4 — Contract ═══════════ */}
                 {step === 4 && (
                   <div className="space-y-3" data-testid="draft-review-step-4-content">
+                    {/* ─── Auto Approve Section (top of Step 4) ─── */}
+                    {resultClientId && draft.status === 'SUBMITTED' && (
+                      <div data-testid="step4-approve-section">
+                        <ApproveGate
+                          draft={draft}
+                          approving={approving}
+                          hasChanges={hasChanges}
+                          onApprove={handleApprove}
+                          editedPlatformData={editedPlatformData}
+                        />
+                      </div>
+                    )}
+
                     {/* Contract Document */}
-                    <div className="space-y-2">
+                    <div className="rounded-md border border-border p-3 space-y-2">
                       <SectionHeader>Contract Document</SectionHeader>
                       {draft.contractDocument ? (
-                        <div className="flex items-center gap-2 rounded border border-success/30 bg-success/5 px-3 py-2 text-xs text-success">
-                          <CheckCircle2 className="h-4 w-4" />
+                        <div className="flex items-center gap-2 text-xs text-success">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
                           Contract uploaded
                         </div>
                       ) : (
-                        <div className="flex items-center justify-center rounded border border-dashed border-border px-3 py-4 text-xs text-muted-foreground">
-                          Not uploaded
+                        <div className="text-xs text-muted-foreground">Not uploaded</div>
+                      )}
+                    </div>
+
+                    {/* Agent Assessment */}
+                    <div className="rounded-md border border-border p-3 space-y-2">
+                      <SectionHeader>Agent Assessment</SectionHeader>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="flex items-center justify-between rounded border border-border px-2.5 py-1.5 text-xs">
+                          <span className="text-muted-foreground">Confidence</span>
+                          {draft.agentConfidenceLevel ? (
+                            <InfoBadge variant={draft.agentConfidenceLevel === 'high' ? 'success' : draft.agentConfidenceLevel === 'low' ? 'destructive' : 'warning'}>
+                              {CONFIDENCE_LABELS[draft.agentConfidenceLevel] ?? draft.agentConfidenceLevel}
+                            </InfoBadge>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground/50">Not set</span>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between rounded border border-border px-2.5 py-1.5 text-xs">
+                          <span className="text-muted-foreground">Integrity</span>
+                          {draft.clientHidingInfo ? (
+                            <InfoBadge variant="destructive">Flagged</InfoBadge>
+                          ) : (
+                            <InfoBadge variant="success">Clear</InfoBadge>
+                          )}
+                        </div>
+                      </div>
+                      {draft.clientHidingInfo && draft.clientHidingInfoNotes && (
+                        <div className="rounded border border-destructive/30 bg-destructive/5 p-2">
+                          <span className="text-[10px] font-medium text-destructive">Integrity Notes</span>
+                          <p className="mt-0.5 text-xs text-foreground">{draft.clientHidingInfoNotes}</p>
                         </div>
                       )}
                     </div>
 
-                    {/* Discovered Addresses summary */}
+                    {/* Discovered Addresses */}
                     {(draft.discoveredAddresses ?? []).length > 0 && (
-                      <div className="space-y-2" data-testid="draft-review-step4-addresses">
+                      <div className="rounded-md border border-border p-3 space-y-2" data-testid="draft-review-step4-addresses">
                         <SectionHeader>Addresses</SectionHeader>
                         <div className="space-y-1">
                           {(draft.discoveredAddresses ?? []).map((addr, i) => (
@@ -1356,53 +1407,6 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, initialS
                             </div>
                           ))}
                         </div>
-                      </div>
-                    )}
-
-                    {/* Agent Assessment */}
-                    <div className="space-y-2">
-                      <SectionHeader>Agent Assessment</SectionHeader>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="flex items-center justify-between rounded border border-border p-2 text-xs">
-                          <span className="text-muted-foreground">Confidence Level</span>
-                          {draft.agentConfidenceLevel ? (
-                            <InfoBadge variant={draft.agentConfidenceLevel === 'high' ? 'success' : draft.agentConfidenceLevel === 'low' ? 'destructive' : 'warning'}>
-                              {CONFIDENCE_LABELS[draft.agentConfidenceLevel] ?? draft.agentConfidenceLevel}
-                            </InfoBadge>
-                          ) : (
-                            <span className="text-[10px] text-muted-foreground/50">Not set</span>
-                          )}
-                        </div>
-                        <div className="flex items-center justify-between rounded border border-border p-2 text-xs">
-                          <span className="text-muted-foreground">Client Integrity</span>
-                          {draft.clientHidingInfo ? (
-                            <InfoBadge variant="destructive">Flagged</InfoBadge>
-                          ) : (
-                            <InfoBadge variant="success">Clear</InfoBadge>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Integrity notes if flagged */}
-                      {draft.clientHidingInfo && draft.clientHidingInfoNotes && (
-                        <div className="rounded border border-destructive/30 bg-destructive/5 p-2.5">
-                          <span className="text-[10px] font-medium text-destructive">Integrity Concern Notes</span>
-                          <p className="mt-1 text-xs text-foreground">{draft.clientHidingInfoNotes}</p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* ─── Approve Section (inline in Step 4) ─── */}
-                    {resultClientId && draft.status === 'SUBMITTED' && (
-                      <div className="space-y-2" data-testid="step4-approve-section">
-                        <SectionHeader>Approval</SectionHeader>
-                        <ApproveGate
-                          draft={draft}
-                          approving={approving}
-                          hasChanges={hasChanges}
-                          onApprove={handleApprove}
-                          editedPlatformData={editedPlatformData}
-                        />
                       </div>
                     )}
                   </div>
@@ -1536,52 +1540,59 @@ function ApproveGate({
   const canApprove = cardsReady && allStepsReviewed && !hasChanges
 
   return (
-    <div className="rounded-md border border-border p-3" data-testid="approve-gate">
+    <div className={cn(
+      'rounded-md border p-3 transition-all',
+      canApprove ? 'border-success/50 bg-success/5 ring-1 ring-success/20' : 'border-border',
+    )} data-testid="approve-gate">
       {/* Checklist status */}
       <div className="mb-3 grid grid-cols-3 gap-2">
         <div className={cn(
-          'flex items-center gap-2 rounded border px-2.5 py-2 text-xs',
+          'flex items-center gap-1.5 rounded border px-2 py-1.5 text-[11px]',
           hasBankCard ? 'border-success/40 bg-success/5 text-success' : 'border-warning/40 bg-warning/5 text-warning',
         )}>
-          {hasBankCard ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> : <CreditCard className="h-3.5 w-3.5 shrink-0" />}
-          <span className="font-medium">Bank Card {hasBankCard ? '✓' : 'Missing'}</span>
+          {hasBankCard ? <CheckCircle2 className="h-3 w-3 shrink-0" /> : <CreditCard className="h-3 w-3 shrink-0" />}
+          <span className="font-medium">Bank Card</span>
         </div>
         <div className={cn(
-          'flex items-center gap-2 rounded border px-2.5 py-2 text-xs',
+          'flex items-center gap-1.5 rounded border px-2 py-1.5 text-[11px]',
           hasEdgeboostCard ? 'border-success/40 bg-success/5 text-success' : 'border-warning/40 bg-warning/5 text-warning',
         )}>
-          {hasEdgeboostCard ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> : <CreditCard className="h-3.5 w-3.5 shrink-0" />}
-          <span className="font-medium">EdgeBoost Card {hasEdgeboostCard ? '✓' : 'Missing'}</span>
+          {hasEdgeboostCard ? <CheckCircle2 className="h-3 w-3 shrink-0" /> : <CreditCard className="h-3 w-3 shrink-0" />}
+          <span className="font-medium">EdgeBoost Card</span>
         </div>
         <div className={cn(
-          'flex items-center gap-2 rounded border px-2.5 py-2 text-xs',
+          'flex items-center gap-1.5 rounded border px-2 py-1.5 text-[11px]',
           allStepsReviewed ? 'border-success/40 bg-success/5 text-success' : 'border-warning/40 bg-warning/5 text-warning',
         )}>
-          {allStepsReviewed ? <ShieldCheck className="h-3.5 w-3.5 shrink-0" /> : <Shield className="h-3.5 w-3.5 shrink-0" />}
+          {allStepsReviewed ? <ShieldCheck className="h-3 w-3 shrink-0" /> : <Shield className="h-3 w-3 shrink-0" />}
           <span className="font-medium">Review {draft?.backofficeReviewedStep ?? 0}/4</span>
         </div>
       </div>
 
-      {/* Approve button */}
+      {/* Approve button — prominent when all conditions met */}
       <Button
         size="sm"
         className={cn(
-          'h-8 w-full text-xs',
-          canApprove && 'bg-success text-success-foreground hover:bg-success/90',
+          'h-9 w-full text-xs font-semibold',
+          canApprove
+            ? 'bg-success text-success-foreground hover:bg-success/90 shadow-[0_0_12px_rgba(34,197,94,0.3)]'
+            : '',
         )}
         onClick={onApprove}
         disabled={approving || !canApprove}
         data-testid="draft-review-approve-btn"
       >
         {approving ? (
-          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+          <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+        ) : canApprove ? (
+          <Check className="mr-1 h-3.5 w-3.5" />
         ) : (
-          <Check className="mr-1 h-3 w-3" />
+          <Shield className="mr-1 h-3.5 w-3.5" />
         )}
-        {!allStepsReviewed
-          ? `Review All 4 Steps First (${draft?.backofficeReviewedStep ?? 0}/4)`
-          : cardsReady
-            ? 'Approve Client'
+        {canApprove
+          ? 'Approve Client'
+          : !allStepsReviewed
+            ? `Review All 4 Steps First (${draft?.backofficeReviewedStep ?? 0}/4)`
             : !hasBankCard && !hasEdgeboostCard
               ? 'Both Debit Cards Required'
               : !hasBankCard
