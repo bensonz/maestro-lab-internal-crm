@@ -1,8 +1,8 @@
 /**
- * Deterministic credential generators for client drafts.
+ * Deterministic credential generators for client records.
  * These produce the same output for the same input (name + DOB).
- * Generated values are persisted in ClientDraft.generatedCredentials
- * so they're only computed once per draft.
+ * Generated values are persisted in ClientRecord.generatedCredentials
+ * so they're only computed once per record.
  */
 
 function pad2(n: number): string {

@@ -23,7 +23,7 @@ export async function assignAndSignOutDevice(
     return { success: false, error: 'Phone number is required' }
   }
 
-  const draft = await prisma.clientDraft.findUnique({
+  const record = await prisma.clientRecord.findUnique({
     where: { id: draftId },
     select: {
       id: true,
@@ -34,14 +34,14 @@ export async function assignAndSignOutDevice(
     },
   })
 
-  if (!draft) return { success: false, error: 'Draft not found' }
-  if (!draft.deviceReservationDate) {
+  if (!record) return { success: false, error: 'Draft not found' }
+  if (!record.deviceReservationDate) {
     return { success: false, error: 'Draft has no device reservation date' }
   }
 
-  // Check for existing active assignment on this draft
+  // Check for existing active assignment on this record
   const existingActive = await prisma.phoneAssignment.findFirst({
-    where: { clientDraftId: draftId, status: 'SIGNED_OUT' },
+    where: { clientRecordId: draftId, status: 'SIGNED_OUT' },
     select: { id: true },
   })
 
@@ -58,8 +58,8 @@ export async function assignAndSignOutDevice(
       carrier: carrier?.trim() || null,
       deviceId: deviceId?.trim() || null,
       notes: notes?.trim() || null,
-      clientDraftId: draftId,
-      agentId: draft.closerId,
+      clientRecordId: draftId,
+      agentId: record.closerId,
       signedOutById: session.user.id,
       signedOutAt: now,
       dueBackAt,
@@ -67,8 +67,8 @@ export async function assignAndSignOutDevice(
     },
   })
 
-  // Auto-advance draft to step 3 — device assignment unlocks platform registration
-  await prisma.clientDraft.update({
+  // Auto-advance record to step 3 — device assignment unlocks platform registration
+  await prisma.clientRecord.update({
     where: { id: draftId },
     data: { step: 3 },
   })
@@ -76,12 +76,12 @@ export async function assignAndSignOutDevice(
   await prisma.eventLog.create({
     data: {
       eventType: 'DEVICE_SIGNED_OUT',
-      description: `Device signed out for ${draft.firstName} ${draft.lastName}: ${phoneNumber.trim()}`,
+      description: `Device signed out for ${record.firstName} ${record.lastName}: ${phoneNumber.trim()}`,
       userId: session.user.id,
       metadata: {
         assignmentId: assignment.id,
         draftId,
-        agentId: draft.closerId,
+        agentId: record.closerId,
         phoneNumber: phoneNumber.trim(),
         dueBackAt: dueBackAt.toISOString(),
       },
@@ -110,9 +110,9 @@ export async function returnDevice(assignmentId: string) {
       id: true,
       status: true,
       phoneNumber: true,
-      clientDraftId: true,
+      clientRecordId: true,
       agentId: true,
-      clientDraft: { select: { firstName: true, lastName: true } },
+      clientRecord: { select: { firstName: true, lastName: true } },
     },
   })
 
@@ -134,11 +134,11 @@ export async function returnDevice(assignmentId: string) {
   await prisma.eventLog.create({
     data: {
       eventType: 'DEVICE_RETURNED',
-      description: `Device returned for ${assignment.clientDraft?.firstName ?? ''} ${assignment.clientDraft?.lastName ?? ''}: ${assignment.phoneNumber}`.trim(),
+      description: `Device returned for ${assignment.clientRecord?.firstName ?? ''} ${assignment.clientRecord?.lastName ?? ''}: ${assignment.phoneNumber}`.trim(),
       userId: session.user.id,
       metadata: {
         assignmentId,
-        draftId: assignment.clientDraftId,
+        draftId: assignment.clientRecordId,
         agentId: assignment.agentId,
         phoneNumber: assignment.phoneNumber,
       },
@@ -166,10 +166,10 @@ export async function reissueDevice(assignmentId: string) {
       id: true,
       status: true,
       phoneNumber: true,
-      clientDraftId: true,
+      clientRecordId: true,
       agentId: true,
       dueBackAt: true,
-      clientDraft: { select: { firstName: true, lastName: true } },
+      clientRecord: { select: { firstName: true, lastName: true } },
     },
   })
 
@@ -190,11 +190,11 @@ export async function reissueDevice(assignmentId: string) {
   await prisma.eventLog.create({
     data: {
       eventType: 'DEVICE_REISSUED',
-      description: `Device re-issued for ${assignment.clientDraft?.firstName ?? ''} ${assignment.clientDraft?.lastName ?? ''}: ${assignment.phoneNumber}`.trim(),
+      description: `Device re-issued for ${assignment.clientRecord?.firstName ?? ''} ${assignment.clientRecord?.lastName ?? ''}: ${assignment.phoneNumber}`.trim(),
       userId: session.user.id,
       metadata: {
         assignmentId,
-        draftId: assignment.clientDraftId,
+        draftId: assignment.clientRecordId,
         agentId: assignment.agentId,
         phoneNumber: assignment.phoneNumber,
       },

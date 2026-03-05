@@ -69,8 +69,6 @@ export interface IntakeClient {
   platformProgress: { verified: number; total: number }
   exceptionStates: ExceptionState[]
   rejectedPlatforms: string[]
-  /** For SUBMITTED drafts: the linked PENDING Client ID */
-  resultClientId?: string | null
   /** For step-3 clients with active device sign-out: the PhoneAssignment ID */
   activeAssignmentId?: string | null
   /** For step-4 clients with returned device: the RETURNED PhoneAssignment ID (for undo/re-issue) */
@@ -98,8 +96,7 @@ export interface PostApprovalClient {
 
 export interface VerificationTask {
   id: string
-  clientId: string | null
-  draftId: string | null
+  clientRecordId: string
   clientName: string
   platformType: PlatformType | null
   platformLabel: string
@@ -224,7 +221,7 @@ export interface ActionHubTodo {
   dueDate: Date
   daysUntilDue: number
   overdue: boolean
-  draftId: string
+  clientRecordId: string
   source: string
 }
 
@@ -332,7 +329,7 @@ export interface AIDetection {
 
 // --- Client Draft Types ---
 
-export interface ClientDraftSummary {
+export interface ClientRecordSummary {
   id: string
   firstName: string | null
   lastName: string | null
@@ -421,7 +418,6 @@ export interface PoolAllocationSummary {
 
 export interface ApprovedClientEntry {
   id: string
-  draftId: string
   clientName: string
   agentId: string
   agentName: string
@@ -445,7 +441,7 @@ export interface CompletedTodoEntry {
   title: string
   completedAt: Date
   completedByName: string
-  draftId: string
+  clientRecordId: string
   createdByName: string
 }
 
@@ -479,7 +475,7 @@ export interface AllocationLine {
 
 export interface BonusPoolData {
   id: string
-  clientId: string
+  clientRecordId: string
   clientName: string
   closerId: string
   closerName: string
@@ -527,7 +523,7 @@ export interface AgentLeaderboardEntry {
 // --- Device / Phone Assignment Types ---
 
 export interface DeviceRequestItem {
-  draftId: string
+  clientRecordId: string
   clientName: string
   agentId: string
   agentName: string
@@ -542,7 +538,7 @@ export interface ActiveDeviceSignOut {
   carrier: string | null
   deviceId: string | null
   clientName: string
-  draftId: string
+  clientRecordId: string
   agentId: string
   agentName: string
   signedOutAt: Date

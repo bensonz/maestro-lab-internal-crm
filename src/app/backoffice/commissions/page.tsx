@@ -65,7 +65,7 @@ export default async function CommissionsPage() {
     agentId: a.agentId,
     agentName: a.agent.name,
     agentStarLevel: a.agentStarLevel,
-    clientName: `${a.pool.client.firstName} ${a.pool.client.lastName}`,
+    clientName: `${a.pool.clientRecord.firstName} ${a.pool.clientRecord.lastName}`,
     type: a.type,
     slices: a.slices,
     amount: a.amount,

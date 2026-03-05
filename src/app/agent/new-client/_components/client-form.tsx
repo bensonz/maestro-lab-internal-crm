@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { ChevronLeft, ChevronRight, Loader2, Smartphone, AlertTriangle } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
-import { saveClientDraft, submitClientDraft } from '@/app/actions/client-drafts'
+import { saveClientRecord, submitClientRecord } from '@/app/actions/client-records'
 import { toast } from 'sonner'
 import { Step1PreQual } from './step1-prequal'
 import { Step2Background } from './step2-background'
@@ -108,7 +108,7 @@ export function ClientForm({
 
       setSaveStatus('saving')
       try {
-        const result = await saveClientDraft(draft.id, {
+        const result = await saveClientRecord(draft.id, {
           ...data,
           step: highestStepRef.current,
         })
@@ -273,7 +273,7 @@ export function ClientForm({
 
     setSubmitting(true)
     try {
-      const result = await submitClientDraft(draft.id)
+      const result = await submitClientRecord(draft.id)
       if (result.success) {
         toast.success('Client submitted successfully')
         router.push('/agent/clients')

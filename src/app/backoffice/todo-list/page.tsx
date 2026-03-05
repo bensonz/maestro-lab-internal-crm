@@ -43,7 +43,7 @@ export default async function BackofficeActionHubPage() {
     const dueAt = new Date(d.dueBackAt)
     const diffMs = now.getTime() - dueAt.getTime()
     const daysOverdue = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)))
-    const clientName = [d.clientDraft?.firstName, d.clientDraft?.lastName].filter(Boolean).join(' ') || 'Unknown'
+    const clientName = [d.clientRecord?.firstName, d.clientRecord?.lastName].filter(Boolean).join(' ') || 'Unknown'
     return {
       assignmentId: d.id,
       phoneNumber: d.phoneNumber,
@@ -61,8 +61,8 @@ export default async function BackofficeActionHubPage() {
     const diffMs = dueDate.getTime() - now.getTime()
     const daysUntilDue = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
     const clientName = [
-      t.clientDraft?.firstName ?? t.client?.firstName,
-      t.clientDraft?.lastName ?? t.client?.lastName,
+      t.clientRecord?.firstName,
+      t.clientRecord?.lastName,
     ].filter(Boolean).join(' ') || 'Unknown'
     return {
       id: t.id,
@@ -74,7 +74,7 @@ export default async function BackofficeActionHubPage() {
       dueDate,
       daysUntilDue,
       overdue: daysUntilDue < 0,
-      draftId: t.clientDraftId ?? '',
+      clientRecordId: t.clientRecordId ?? '',
       source: t.source,
     }
   })

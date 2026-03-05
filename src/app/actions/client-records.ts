@@ -5,11 +5,11 @@ import { auth } from '@/backend/auth'
 import { revalidatePath } from 'next/cache'
 import { clientDraftSubmitSchema } from '@/lib/validations/client-draft'
 
-export async function createClientDraft() {
+export async function createClientRecord() {
   const session = await auth()
   if (!session?.user) return { success: false, error: 'Not authenticated' }
 
-  const draft = await prisma.clientDraft.create({
+  const record = await prisma.clientRecord.create({
     data: {
       closerId: session.user.id,
       step: 1,
@@ -20,35 +20,35 @@ export async function createClientDraft() {
   await prisma.eventLog.create({
     data: {
       eventType: 'CLIENT_DRAFT_CREATED',
-      description: 'New client draft created',
+      description: 'New client record created',
       userId: session.user.id,
-      metadata: { draftId: draft.id },
+      metadata: { draftId: record.id },
     },
   })
 
   revalidatePath('/agent/new-client')
 
-  return { success: true, draftId: draft.id }
+  return { success: true, draftId: record.id }
 }
 
-export async function saveClientDraft(
+export async function saveClientRecord(
   draftId: string,
   data: Record<string, unknown>,
 ) {
   const session = await auth()
   if (!session?.user) return { success: false, error: 'Not authenticated' }
 
-  // Ownership check — backoffice/admin can edit any draft (including submitted ones)
+  // Ownership check — backoffice/admin can edit any record (including submitted ones)
   const role = session.user.role
   const isPrivileged = role === 'ADMIN' || role === 'BACKOFFICE'
-  const draft = await prisma.clientDraft.findFirst({
+  const record = await prisma.clientRecord.findFirst({
     where: isPrivileged ? { id: draftId } : { id: draftId, closerId: session.user.id },
     select: { id: true, status: true },
   })
 
-  if (!draft) return { success: false, error: 'Draft not found' }
+  if (!record) return { success: false, error: 'Draft not found' }
   // Agents can only edit DRAFT status; backoffice can edit any status
-  if (!isPrivileged && draft.status !== 'DRAFT') {
+  if (!isPrivileged && record.status !== 'DRAFT') {
     return { success: false, error: 'Draft already submitted' }
   }
 
@@ -131,7 +131,7 @@ export async function saveClientDraft(
     }
   }
 
-  await prisma.clientDraft.update({
+  await prisma.clientRecord.update({
     where: { id: draftId },
     data: updateData,
   })
@@ -139,25 +139,25 @@ export async function saveClientDraft(
   return { success: true }
 }
 
-export async function submitClientDraft(draftId: string) {
+export async function submitClientRecord(draftId: string) {
   const session = await auth()
   if (!session?.user) return { success: false, error: 'Not authenticated' }
 
-  const draft = await prisma.clientDraft.findFirst({
+  const record = await prisma.clientRecord.findFirst({
     where: { id: draftId, closerId: session.user.id },
   })
 
-  if (!draft) return { success: false, error: 'Draft not found' }
-  if (draft.status !== 'DRAFT') {
+  if (!record) return { success: false, error: 'Draft not found' }
+  if (record.status !== 'DRAFT') {
     return { success: false, error: 'Draft already submitted' }
   }
 
   // Validate required fields
   const validation = clientDraftSubmitSchema.safeParse({
-    firstName: draft.firstName,
-    lastName: draft.lastName,
-    contractDocument: draft.contractDocument,
-    agentConfidenceLevel: draft.agentConfidenceLevel,
+    firstName: record.firstName,
+    lastName: record.lastName,
+    contractDocument: record.contractDocument,
+    agentConfidenceLevel: record.agentConfidenceLevel,
   })
 
   if (!validation.success) {
@@ -165,44 +165,31 @@ export async function submitClientDraft(draftId: string) {
     return { success: false, error: firstError }
   }
 
-  // Create the real Client record
-  const client = await prisma.client.create({
-    data: {
-      firstName: draft.firstName!,
-      lastName: draft.lastName!,
-      email: draft.email || null,
-      phone: draft.phone || null,
-      closerId: session.user.id,
-      status: 'PENDING',
-    },
-  })
-
-  // Mark draft as submitted
-  await prisma.clientDraft.update({
+  // Update the record status to SUBMITTED (no separate Client record needed)
+  await prisma.clientRecord.update({
     where: { id: draftId },
     data: {
       status: 'SUBMITTED',
-      resultClientId: client.id,
     },
   })
 
   await prisma.eventLog.create({
     data: {
       eventType: 'CLIENT_DRAFT_SUBMITTED',
-      description: `Client draft submitted: ${draft.firstName} ${draft.lastName}`,
+      description: `Client record submitted: ${record.firstName} ${record.lastName}`,
       userId: session.user.id,
-      metadata: { draftId, clientId: client.id },
+      metadata: { draftId, clientRecordId: draftId },
     },
   })
 
   // Auto-create todo: Collect Debit Card Information (cards arrive ~7 days after intake)
-  const draftName = `${draft.firstName} ${draft.lastName}`
+  const clientName = `${record.firstName} ${record.lastName}`
   await prisma.todo.create({
     data: {
       title: 'Collect Debit Card Information',
-      description: `Collect Debit Card Information — ${draftName}`,
+      description: `Collect Debit Card Information — ${clientName}`,
       issueCategory: 'Collect Debit Card Information',
-      clientDraftId: draftId,
+      clientRecordId: draftId,
       assignedToId: session.user.id,
       createdById: session.user.id,
       dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
@@ -216,13 +203,13 @@ export async function submitClientDraft(draftId: string) {
   revalidatePath('/backoffice/client-management')
   revalidatePath('/backoffice/sales-interaction')
 
-  return { success: true, clientId: client.id }
+  return { success: true, clientRecordId: draftId }
 }
 
 /**
- * Update debit card information for a submitted draft.
+ * Update debit card information for a submitted record.
  * Called from the Upload Card dialog on the sales interaction page.
- * Merges card data into the draft's platformData JSON.
+ * Merges card data into the record's platformData JSON.
  */
 export async function updateDebitCardInfo(
   draftId: string,
@@ -237,15 +224,15 @@ export async function updateDebitCardInfo(
   // Allow backoffice/admin or the closing agent
   const role = session.user.role
   const isPrivileged = role === 'ADMIN' || role === 'BACKOFFICE'
-  const draft = await prisma.clientDraft.findFirst({
+  const record = await prisma.clientRecord.findFirst({
     where: isPrivileged ? { id: draftId } : { id: draftId, closerId: session.user.id },
-    select: { id: true, platformData: true, resultClientId: true, firstName: true, lastName: true },
+    select: { id: true, platformData: true, firstName: true, lastName: true },
   })
 
-  if (!draft) return { success: false, error: 'Draft not found' }
+  if (!record) return { success: false, error: 'Draft not found' }
 
   // Merge card data into platformData
-  const platformData = (draft.platformData as Record<string, Record<string, unknown>>) || {}
+  const platformData = (record.platformData as Record<string, Record<string, unknown>>) || {}
 
   if (data.bankCard) {
     if (!platformData.onlineBanking) platformData.onlineBanking = {}
@@ -263,14 +250,14 @@ export async function updateDebitCardInfo(
     platformData.edgeboost.cardImages = data.edgeboostCard.images
   }
 
-  await prisma.clientDraft.update({
+  await prisma.clientRecord.update({
     where: { id: draftId },
     // Roundtrip through JSON to produce a clean Prisma-compatible JsonValue
     data: { platformData: JSON.parse(JSON.stringify(platformData)) },
   })
 
   // Log event
-  const clientName = `${draft.firstName || ''} ${draft.lastName || ''}`.trim()
+  const clientName = `${record.firstName || ''} ${record.lastName || ''}`.trim()
   const cardsUploaded = [
     data.bankCard ? 'Bank' : null,
     data.edgeboostCard ? 'Edgeboost' : null,
@@ -283,7 +270,7 @@ export async function updateDebitCardInfo(
       userId: session.user.id,
       metadata: {
         draftId,
-        clientId: draft.resultClientId,
+        clientRecordId: draftId,
         clientName,
         cardsUploaded,
       },
@@ -313,19 +300,19 @@ export async function approveReviewStep(draftId: string, stepNumber: number) {
     return { success: false, error: 'Invalid step number' }
   }
 
-  const draft = await prisma.clientDraft.findFirst({
+  const record = await prisma.clientRecord.findFirst({
     where: { id: draftId },
     select: { id: true, backofficeReviewedStep: true },
   })
 
-  if (!draft) return { success: false, error: 'Draft not found' }
+  if (!record) return { success: false, error: 'Draft not found' }
 
   // Only advance, never go backwards
-  if (stepNumber <= draft.backofficeReviewedStep) {
-    return { success: true, reviewedStep: draft.backofficeReviewedStep }
+  if (stepNumber <= record.backofficeReviewedStep) {
+    return { success: true, reviewedStep: record.backofficeReviewedStep }
   }
 
-  const updated = await prisma.clientDraft.update({
+  const updated = await prisma.clientRecord.update({
     where: { id: draftId },
     data: { backofficeReviewedStep: stepNumber },
     select: { backofficeReviewedStep: true },
@@ -336,55 +323,56 @@ export async function approveReviewStep(draftId: string, stepNumber: number) {
   return { success: true, reviewedStep: updated.backofficeReviewedStep }
 }
 
-export async function getFullDraft(draftId: string) {
+export async function getFullRecord(draftId: string) {
   const session = await auth()
   if (!session?.user) return { success: false as const, error: 'Not authenticated' }
 
-  // Backoffice/admin can view any draft; agents can only view their own
+  // Backoffice/admin can view any record; agents can only view their own
   const role = session.user.role
   const where = role === 'ADMIN' || role === 'BACKOFFICE'
     ? { id: draftId }
     : { id: draftId, closerId: session.user.id }
 
-  const draft = await prisma.clientDraft.findFirst({ where })
+  const record = await prisma.clientRecord.findFirst({ where })
 
-  if (!draft) return { success: false as const, error: 'Draft not found' }
+  if (!record) return { success: false as const, error: 'Draft not found' }
 
   return {
     success: true as const,
     draft: {
-      ...draft,
-      idExpiry: draft.idExpiry?.toISOString() ?? null,
-      dateOfBirth: draft.dateOfBirth?.toISOString() ?? null,
-      createdAt: draft.createdAt.toISOString(),
-      updatedAt: draft.updatedAt.toISOString(),
+      ...record,
+      idExpiry: record.idExpiry?.toISOString() ?? null,
+      dateOfBirth: record.dateOfBirth?.toISOString() ?? null,
+      approvedAt: record.approvedAt?.toISOString() ?? null,
+      createdAt: record.createdAt.toISOString(),
+      updatedAt: record.updatedAt.toISOString(),
     },
   }
 }
 
-export async function deleteClientDraft(draftId: string) {
+export async function deleteClientRecord(draftId: string) {
   const session = await auth()
   if (!session?.user) return { success: false, error: 'Not authenticated' }
 
-  const draft = await prisma.clientDraft.findFirst({
+  const record = await prisma.clientRecord.findFirst({
     where: { id: draftId, closerId: session.user.id },
     select: { id: true, status: true, idDocument: true },
   })
 
-  if (!draft) return { success: false, error: 'Draft not found' }
-  if (draft.status !== 'DRAFT') {
+  if (!record) return { success: false, error: 'Draft not found' }
+  if (record.status !== 'DRAFT') {
     return { success: false, error: 'Cannot delete submitted draft' }
   }
-  if (draft.idDocument) {
+  if (record.idDocument) {
     return { success: false, error: 'Cannot delete draft after ID has been uploaded' }
   }
 
   // Delete related phone assignments first (FK constraint)
   await prisma.phoneAssignment.deleteMany({
-    where: { clientDraftId: draftId },
+    where: { clientRecordId: draftId },
   })
 
-  await prisma.clientDraft.delete({
+  await prisma.clientRecord.delete({
     where: { id: draftId },
   })
 

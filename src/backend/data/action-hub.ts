@@ -30,10 +30,7 @@ export async function getActionHubData() {
     prisma.todo.findMany({
       where: { status: 'PENDING' },
       include: {
-        clientDraft: {
-          select: { id: true, firstName: true, lastName: true },
-        },
-        client: {
+        clientRecord: {
           select: { id: true, firstName: true, lastName: true },
         },
         assignedTo: { select: { id: true, name: true } },
@@ -50,15 +47,15 @@ export async function getActionHubData() {
       },
       include: {
         agent: { select: { id: true, name: true } },
-        clientDraft: {
+        clientRecord: {
           select: { id: true, firstName: true, lastName: true },
         },
       },
       orderBy: { dueBackAt: 'asc' },
     }),
 
-    // Device reservations waiting (draft has reservation date but no active SIGNED_OUT assignment)
-    prisma.clientDraft.findMany({
+    // Device reservations waiting (record has reservation date but no active SIGNED_OUT assignment)
+    prisma.clientRecord.findMany({
       where: {
         deviceReservationDate: { not: null },
         status: 'DRAFT',
@@ -72,11 +69,10 @@ export async function getActionHubData() {
       orderBy: { updatedAt: 'desc' },
     }),
 
-    // Step-4 SUBMITTED drafts (ready to approve)
-    prisma.clientDraft.findMany({
+    // SUBMITTED records (ready to approve)
+    prisma.clientRecord.findMany({
       where: {
         status: 'SUBMITTED',
-        resultClient: { status: 'PENDING' },
       },
       include: {
         closer: { select: { id: true, name: true } },
@@ -84,8 +80,8 @@ export async function getActionHubData() {
       orderBy: { updatedAt: 'desc' },
     }),
 
-    // Draft counts by step (active drafts only)
-    prisma.clientDraft.groupBy({
+    // Record counts by step (active drafts only)
+    prisma.clientRecord.groupBy({
       by: ['step'],
       where: { status: 'DRAFT' },
       _count: true,

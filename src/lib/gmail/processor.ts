@@ -143,8 +143,7 @@ async function processEmail(email: ParsedEmail) {
         title: todoCategory,
         description: `${todoCategory} — ${clientInfo.clientName} (auto-detected from email)`,
         issueCategory: todoCategory,
-        clientDraftId: clientInfo.draftId ?? null,
-        clientId: clientInfo.clientId ?? null,
+        clientRecordId: clientInfo.clientRecordId,
         assignedToId: clientInfo.agentId,
         createdById: clientInfo.agentId, // system-created, attributed to agent
         dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3-day default
@@ -209,7 +208,7 @@ function getTodoCategory(detection: { type: DetectionType; data: Record<string, 
 
 /**
  * Try to identify which client an email belongs to, based on the "to" address.
- * Matches against ClientDraft.assignedGmail.
+ * Matches against ClientRecord.assignedGmail.
  */
 async function identifyClient(toAddress: string) {
   if (!toAddress) return null
@@ -218,8 +217,8 @@ async function identifyClient(toAddress: string) {
   const emailMatch = toAddress.match(/<([^>]+)>/) ?? [null, toAddress]
   const email = (emailMatch[1] ?? toAddress).trim().toLowerCase()
 
-  // Look for a draft with this assigned Gmail
-  const draft = await prisma.clientDraft.findFirst({
+  // Look for a client record with this assigned Gmail
+  const record = await prisma.clientRecord.findFirst({
     where: {
       assignedGmail: { equals: email, mode: 'insensitive' },
     },
@@ -228,19 +227,17 @@ async function identifyClient(toAddress: string) {
       firstName: true,
       lastName: true,
       closerId: true,
-      resultClientId: true,
     },
     orderBy: { updatedAt: 'desc' },
   })
 
-  if (!draft) return null
+  if (!record) return null
 
-  const clientName = [draft.firstName, draft.lastName].filter(Boolean).join(' ') || 'Unknown Client'
+  const clientName = [record.firstName, record.lastName].filter(Boolean).join(' ') || 'Unknown Client'
 
   return {
-    draftId: draft.id,
-    clientId: draft.resultClientId ?? undefined,
+    clientRecordId: record.id,
     clientName,
-    agentId: draft.closerId,
+    agentId: record.closerId,
   }
 }

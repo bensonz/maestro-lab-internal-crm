@@ -44,7 +44,7 @@ export function AssignTodoDialog({
 }: AssignTodoDialogProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const [selectedDraftId, setSelectedDraftId] = useState('')
+  const [selectedRecordId, setSelectedRecordId] = useState('')
   const [issueCategory, setIssueCategory] = useState('')
   const [dueDate, setDueDate] = useState(getDefaultDueDate)
   const [search, setSearch] = useState('')
@@ -60,12 +60,12 @@ export function AssignTodoDialog({
   }, [clients, search])
 
   const selectedClient = useMemo(
-    () => clients.find((c) => c.id === selectedDraftId),
-    [clients, selectedDraftId],
+    () => clients.find((c) => c.id === selectedRecordId),
+    [clients, selectedRecordId],
   )
 
   const handleClose = () => {
-    setSelectedDraftId('')
+    setSelectedRecordId('')
     setIssueCategory('')
     setDueDate(getDefaultDueDate())
     setSearch('')
@@ -73,10 +73,10 @@ export function AssignTodoDialog({
   }
 
   const handleSubmit = () => {
-    if (!selectedDraftId || !issueCategory || !dueDate) return
+    if (!selectedRecordId || !issueCategory || !dueDate) return
 
     startTransition(async () => {
-      const result = await assignTodo(issueCategory, dueDate, { clientDraftId: selectedDraftId })
+      const result = await assignTodo(issueCategory, dueDate, { clientRecordId: selectedRecordId })
 
       if (result.success) {
         toast.success(`To-do assigned to ${selectedClient?.agentName ?? 'agent'}`)
@@ -102,7 +102,7 @@ export function AssignTodoDialog({
           {/* Client picker */}
           <Field>
             <FieldLabel htmlFor="todo-client">Client *</FieldLabel>
-            <Select value={selectedDraftId} onValueChange={setSelectedDraftId}>
+            <Select value={selectedRecordId} onValueChange={setSelectedRecordId}>
               <SelectTrigger id="todo-client" data-testid="todo-client-select">
                 <SelectValue placeholder="Select client..." />
               </SelectTrigger>
@@ -196,7 +196,7 @@ export function AssignTodoDialog({
           <Button
             variant="terminal"
             onClick={handleSubmit}
-            disabled={isPending || !selectedDraftId || !issueCategory || !dueDate}
+            disabled={isPending || !selectedRecordId || !issueCategory || !dueDate}
             data-testid="assign-todo-submit-btn"
           >
             {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

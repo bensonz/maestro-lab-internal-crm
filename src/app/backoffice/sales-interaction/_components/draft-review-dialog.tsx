@@ -30,7 +30,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { ALL_PLATFORMS, PLATFORM_INFO } from '@/lib/platforms'
-import { getFullDraft, saveClientDraft, approveReviewStep } from '@/app/actions/client-drafts'
+import { getFullRecord, saveClientRecord, approveReviewStep } from '@/app/actions/client-records'
 import { approveClient } from '@/app/actions/clients'
 import { calculateRiskScore } from '@/lib/risk-score'
 import { toast } from 'sonner'
@@ -114,7 +114,6 @@ interface FullDraftData {
   backofficeReviewedStep: number
   // Meta
   closerId: string
-  resultClientId: string | null
   createdAt: string
   updatedAt: string
 }
@@ -274,7 +273,7 @@ type DialogState = {
   loading: boolean
   error: string | null
   step: 1 | 2 | 3 | 4
-  loadedDraftId: string | null
+  loadedRecordId: string | null
   approving: boolean
   editedFields: Record<string, unknown>
   editedPlatformData: Record<string, Record<string, unknown>> | null
@@ -284,7 +283,7 @@ type DialogState = {
 }
 
 type DialogAction =
-  | { type: 'FETCH_START'; draftId: string }
+  | { type: 'FETCH_START'; clientRecordId: string }
   | { type: 'FETCH_SUCCESS'; draft: FullDraftData }
   | { type: 'FETCH_ERROR'; error: string }
   | { type: 'SET_STEP'; step: 1 | 2 | 3 | 4 }
@@ -302,7 +301,7 @@ type DialogAction =
 function dialogReducer(state: DialogState, action: DialogAction): DialogState {
   switch (action.type) {
     case 'FETCH_START':
-      return { ...INITIAL_STATE, loading: true, loadedDraftId: action.draftId }
+      return { ...INITIAL_STATE, loading: true, loadedRecordId: action.clientRecordId }
     case 'FETCH_SUCCESS':
       return { ...state, draft: action.draft, loading: false }
     case 'FETCH_ERROR':
@@ -355,7 +354,7 @@ const INITIAL_STATE: DialogState = {
   loading: false,
   error: null,
   step: 1,
-  loadedDraftId: null,
+  loadedRecordId: null,
   approving: false,
   editedFields: {},
   editedPlatformData: null,
@@ -375,30 +374,29 @@ function getField<T>(draft: FullDraftData, editedFields: Record<string, unknown>
    ═══════════════════════════════════════════════════════════ */
 
 interface DraftReviewDialogProps {
-  draftId: string | null
-  draftName: string
-  resultClientId?: string | null
+  clientRecordId: string | null
+  clientName: string
   initialStep?: 1 | 2 | 3 | 4
   /** When true, auto-scroll to debit cards section on Step 3 load */
   scrollToDebitCards?: boolean
   onClose: () => void
 }
 
-export function DraftReviewDialog({ draftId, draftName, resultClientId, initialStep, scrollToDebitCards, onClose }: DraftReviewDialogProps) {
+export function DraftReviewDialog({ clientRecordId, clientName, initialStep, scrollToDebitCards, onClose }: DraftReviewDialogProps) {
   const router = useRouter()
   const [state, dispatch] = useReducer(dialogReducer, INITIAL_STATE)
-  const { draft, loading, error, step, loadedDraftId, approving, editedFields, editedPlatformData, isSaving, hasChanges, approvingStep } = state
+  const { draft, loading, error, step, loadedRecordId, approving, editedFields, editedPlatformData, isSaving, hasChanges, approvingStep } = state
   const fetchingRef = useRef<string | null>(null)
   const contentScrollRef = useRef<HTMLDivElement>(null)
 
   const handleApprove = async () => {
-    if (!resultClientId) return
+    if (!draft) return
     dispatch({ type: 'APPROVE_START' })
     try {
-      const result = await approveClient(resultClientId)
+      const result = await approveClient(draft.id)
       dispatch({ type: 'APPROVE_DONE' })
       if (result.success) {
-        toast.success(`${draftName} approved! $400 bonus pool created (${result.distributedSlices} slices distributed, ${result.recycledSlices} recycled). Agent notified.`)
+        toast.success(`${clientName} approved! $400 bonus pool created (${result.distributedSlices} slices distributed, ${result.recycledSlices} recycled). Agent notified.`)
         onClose()
         router.refresh()
       } else {
@@ -427,9 +425,9 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, initialS
       payload.platformData = mergedPlatformData
     }
 
-    const result = await saveClientDraft(draft.id, payload)
+    const result = await saveClientRecord(draft.id, payload)
     if (result.success) {
-      const freshResult = await getFullDraft(draft.id)
+      const freshResult = await getFullRecord(draft.id)
       if (freshResult.success) {
         dispatch({ type: 'SAVE_SUCCESS', draft: freshResult.draft as unknown as FullDraftData })
       } else {
@@ -477,17 +475,17 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, initialS
     dispatch({ type: 'SET_PLATFORM_FIELD', platform, field, value })
   }, [])
 
-  // Fetch draft data when draftId changes
+  // Fetch draft data when clientRecordId changes
   useEffect(() => {
-    if (!draftId) {
+    if (!clientRecordId) {
       dispatch({ type: 'RESET' })
       fetchingRef.current = null
       return
     }
-    if (draftId === loadedDraftId || draftId === fetchingRef.current) return
-    fetchingRef.current = draftId
-    dispatch({ type: 'FETCH_START', draftId })
-    getFullDraft(draftId).then((result) => {
+    if (clientRecordId === loadedRecordId || clientRecordId === fetchingRef.current) return
+    fetchingRef.current = clientRecordId
+    dispatch({ type: 'FETCH_START', clientRecordId })
+    getFullRecord(clientRecordId).then((result) => {
       if (result.success) {
         const d = result.draft as unknown as FullDraftData
         dispatch({ type: 'FETCH_SUCCESS', draft: d })
@@ -507,7 +505,7 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, initialS
         dispatch({ type: 'FETCH_ERROR', error: result.error ?? 'Failed to load draft' })
       }
     })
-  }, [draftId, loadedDraftId, initialStep])
+  }, [clientRecordId, loadedRecordId, initialStep])
 
   // Helper to get effective platform data (merged with edits)
   const getPlatformData = useCallback((platform: string) => {
@@ -539,7 +537,7 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, initialS
 
   // Enter key = Next step (when focused on an input)
   useEffect(() => {
-    if (!draftId || !draft) return
+    if (!clientRecordId || !draft) return
     const draftMaxStep = draft.step ?? 1
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Enter' || e.shiftKey || e.ctrlKey || e.metaKey) return
@@ -556,7 +554,7 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, initialS
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [draftId, draft, step])
+  }, [clientRecordId, draft, step])
 
   // Auto-scroll to debit cards section when opening Step 3 via Upload Card button
   useEffect(() => {
@@ -575,11 +573,11 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, initialS
   const maxStep = draft?.step ?? 1
 
   return (
-    <Dialog open={!!draftId} onOpenChange={(open) => { if (!open) onClose() }}>
+    <Dialog open={!!clientRecordId} onOpenChange={(open) => { if (!open) onClose() }}>
       <DialogContent className="max-h-[85vh] max-w-5xl overflow-hidden p-0" data-testid="draft-review-dialog">
         <DialogHeader className="border-b px-4 py-3">
           <DialogTitle className="text-sm">
-            Review — {draftName}
+            Review — {clientName}
             {hasChanges && <span className="ml-2 text-[10px] font-normal text-warning">Unsaved changes</span>}
           </DialogTitle>
         </DialogHeader>
@@ -790,7 +788,6 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, initialS
                           ? `Reviewed Step ${draft.backofficeReviewedStep}/${draft.step}`
                           : 'Not Reviewed'}
                     </Badge>
-                    <span className="text-muted-foreground">Agent on Step {draft.step}/4</span>
                   </div>
                   <span className="text-[10px] text-muted-foreground">
                     Reviewed {draft.backofficeReviewedStep}/4
@@ -890,65 +887,123 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, initialS
                     )}
 
                     {/* Company Gmail */}
-                    <div className="space-y-2">
-                      <SectionHeader>Company Gmail</SectionHeader>
-                      <ImageThumb src={draft.gmailScreenshot} alt="Gmail Screenshot" />
-                      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
-                        <EditableText
-                          label="Gmail Address"
-                          value={getField<string | null>(draft, editedFields, 'assignedGmail')}
-                          onChange={(v) => setField('assignedGmail', v)}
-                        />
-                        <EditableText
-                          label="Gmail Password"
-                          value={getField<string | null>(draft, editedFields, 'gmailPassword')}
-                          onChange={(v) => setField('gmailPassword', v)}
-                        />
-                      </div>
-                    </div>
-
-                    {/* BetMGM */}
-                    <div className="space-y-2">
-                      <SectionHeader>BetMGM Verification</SectionHeader>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <span className="text-[10px] text-muted-foreground">Registration</span>
-                          <ImageThumb src={draft.betmgmRegScreenshot} alt="BetMGM Registration" />
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-muted-foreground">Login</span>
-                          <ImageThumb src={draft.betmgmLoginScreenshot} alt="BetMGM Login" />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
-                        <EditableText
-                          label="BetMGM Login"
-                          value={getField<string | null>(draft, editedFields, 'betmgmLogin')}
-                          onChange={(v) => setField('betmgmLogin', v)}
-                        />
-                        <EditableText
-                          label="BetMGM Password"
-                          value={getField<string | null>(draft, editedFields, 'betmgmPassword')}
-                          onChange={(v) => setField('betmgmPassword', v)}
-                        />
-                        <EditableText
-                          label="Phone"
-                          value={getField<string | null>(draft, editedFields, 'phone')}
-                          onChange={(v) => setField('phone', v)}
-                          mono
-                        />
-                        <div>
-                          <span className="text-[10px] text-muted-foreground">BetMGM Check</span>
-                          <div className="mt-1">
-                            <EditableCheckbox
-                              label="Passed"
-                              checked={getField<boolean | null>(draft, editedFields, 'betmgmCheckPassed')}
-                              onChange={(v) => setField('betmgmCheckPassed', v)}
+                    {(() => {
+                      const creds = draft.generatedCredentials as Record<string, unknown> | null
+                      const suggestedGmail = (creds?.gmailSuggestion as string) ?? null
+                      const suggestedGmailPw = (creds?.gmailPassword as string) ?? null
+                      const actualGmail = getField<string | null>(draft, editedFields, 'assignedGmail')
+                      const actualGmailPw = getField<string | null>(draft, editedFields, 'gmailPassword')
+                      const gmailMatch = suggestedGmail && actualGmail ? actualGmail === suggestedGmail : null
+                      const gmailPwMatch = suggestedGmailPw && actualGmailPw ? actualGmailPw === suggestedGmailPw : null
+                      return (
+                        <div className="space-y-2">
+                          <SectionHeader>Company Gmail</SectionHeader>
+                          <ImageThumb src={draft.gmailScreenshot} alt="Gmail Screenshot" />
+                          <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+                            <EditableText
+                              label="Gmail Address"
+                              value={actualGmail}
+                              onChange={(v) => setField('assignedGmail', v)}
+                            />
+                            <EditableText
+                              label="Gmail Password"
+                              value={actualGmailPw}
+                              onChange={(v) => setField('gmailPassword', v)}
                             />
                           </div>
+                          {(suggestedGmail || suggestedGmailPw) && (
+                            <div className="rounded bg-muted/40 px-2 py-1 text-[9px]">
+                              <p className="mb-0.5 font-medium text-muted-foreground">Suggested Credentials</p>
+                              <div className="grid grid-cols-2 gap-x-3">
+                                {suggestedGmail && (
+                                  <p className="text-muted-foreground">
+                                    Email: <span className="font-mono">{suggestedGmail}</span>
+                                    {gmailMatch !== null && (
+                                      <span className={cn('ml-1 font-medium', gmailMatch ? 'text-success' : 'text-destructive')}>
+                                        {gmailMatch ? '\u2713' : '\u2717'}
+                                      </span>
+                                    )}
+                                  </p>
+                                )}
+                                {suggestedGmailPw && (
+                                  <p className="text-muted-foreground">
+                                    Password: <span className="font-mono">{suggestedGmailPw}</span>
+                                    {gmailPwMatch !== null && (
+                                      <span className={cn('ml-1 font-medium', gmailPwMatch ? 'text-success' : 'text-destructive')}>
+                                        {gmailPwMatch ? '\u2713' : '\u2717'}
+                                      </span>
+                                    )}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    </div>
+                      )
+                    })()}
+
+                    {/* BetMGM */}
+                    {(() => {
+                      const creds = draft.generatedCredentials as Record<string, unknown> | null
+                      const suggestedBetmgmPw = (creds?.betmgmPassword as string) ?? null
+                      const actualBetmgmPw = getField<string | null>(draft, editedFields, 'betmgmPassword')
+                      const betmgmPwMatch = suggestedBetmgmPw && actualBetmgmPw ? actualBetmgmPw === suggestedBetmgmPw : null
+                      return (
+                        <div className="space-y-2">
+                          <SectionHeader>BetMGM Verification</SectionHeader>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <span className="text-[10px] text-muted-foreground">Registration</span>
+                              <ImageThumb src={draft.betmgmRegScreenshot} alt="BetMGM Registration" />
+                            </div>
+                            <div>
+                              <span className="text-[10px] text-muted-foreground">Login</span>
+                              <ImageThumb src={draft.betmgmLoginScreenshot} alt="BetMGM Login" />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+                            <EditableText
+                              label="BetMGM Login"
+                              value={getField<string | null>(draft, editedFields, 'betmgmLogin')}
+                              onChange={(v) => setField('betmgmLogin', v)}
+                            />
+                            <EditableText
+                              label="BetMGM Password"
+                              value={getField<string | null>(draft, editedFields, 'betmgmPassword')}
+                              onChange={(v) => setField('betmgmPassword', v)}
+                            />
+                            <EditableText
+                              label="Phone"
+                              value={getField<string | null>(draft, editedFields, 'phone')}
+                              onChange={(v) => setField('phone', v)}
+                              mono
+                            />
+                            <div>
+                              <span className="text-[10px] text-muted-foreground">BetMGM Check</span>
+                              <div className="mt-1">
+                                <EditableCheckbox
+                                  label="Passed"
+                                  checked={getField<boolean | null>(draft, editedFields, 'betmgmCheckPassed')}
+                                  onChange={(v) => setField('betmgmCheckPassed', v)}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                          {suggestedBetmgmPw && (
+                            <div className="rounded bg-muted/40 px-2 py-1 text-[9px]">
+                              <p className="text-muted-foreground">
+                                Suggested PW: <span className="font-mono">{suggestedBetmgmPw}</span>
+                                {betmgmPwMatch !== null && (
+                                  <span className={cn('ml-1 font-medium', betmgmPwMatch ? 'text-success' : 'text-destructive')}>
+                                    {betmgmPwMatch ? '\u2713 Match' : '\u2717 Different'}
+                                  </span>
+                                )}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()}
 
                   </div>
                 )}
@@ -1129,23 +1184,17 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, initialS
                   <div className="space-y-3" data-testid="draft-review-step-3-content">
                     {/* Summary bar */}
                     {(() => {
-                      const filled = ALL_PLATFORMS.filter((p) => {
+                      const step3Platforms = ALL_PLATFORMS.filter((p) => p !== 'BETMGM')
+                      const total = step3Platforms.length
+                      const filled = step3Platforms.filter((p) => {
                         const d = getPlatformData(p as string)
                         return d && (d.username || d.accountId)
-                      }).length
-                      const withScreenshot = ALL_PLATFORMS.filter((p) => {
-                        const d = getPlatformData(p as string)
-                        return d?.screenshot
                       }).length
                       return (
                         <div className="flex items-center gap-4 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs">
                           <span className="text-muted-foreground">Platforms filled:</span>
-                          <span className={cn('font-mono font-semibold', filled === ALL_PLATFORMS.length ? 'text-success' : filled > 0 ? 'text-warning' : 'text-muted-foreground')}>
-                            {filled}/{ALL_PLATFORMS.length}
-                          </span>
-                          <span className="text-muted-foreground">Screenshots:</span>
-                          <span className={cn('font-mono font-semibold', withScreenshot === ALL_PLATFORMS.length ? 'text-success' : withScreenshot > 0 ? 'text-warning' : 'text-muted-foreground')}>
-                            {withScreenshot}/{ALL_PLATFORMS.length}
+                          <span className={cn('font-mono font-semibold', filled === total ? 'text-success' : filled > 0 ? 'text-warning' : 'text-muted-foreground')}>
+                            {filled}/{total}
                           </span>
                         </div>
                       )
@@ -1153,15 +1202,22 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, initialS
 
                     <SectionHeader>Platform Registration</SectionHeader>
                     <div className="grid grid-cols-2 gap-2">
-                      {ALL_PLATFORMS.map((platform) => {
+                      {ALL_PLATFORMS.filter((p) => p !== 'BETMGM').map((platform) => {
                         const info = PLATFORM_INFO[platform]
                         const data = getPlatformData(platform as string)
                         const hasUsername = !!data?.username
-                        const hasAccountId = !!data?.accountId
+                        const hasPassword = !!data?.accountId
                         const hasScreenshot = !!data?.screenshot
-                        const hasBoth = hasUsername && hasAccountId
-                        const hasPartial = hasUsername || hasAccountId || hasScreenshot
+                        const hasBoth = hasUsername && hasPassword
+                        const hasPartial = hasUsername || hasPassword || hasScreenshot
                         const fillColor = hasBoth ? 'border-success/40 bg-success/5' : hasPartial ? 'border-warning/40 bg-warning/5' : 'bg-muted/20 opacity-50'
+
+                        // Generated/suggested credentials from the application
+                        const creds = draft.generatedCredentials as Record<string, unknown> | null
+                        const platformPasswords = (creds?.platformPasswords ?? {}) as Record<string, string>
+                        const suggestedPassword = platformPasswords[platform as string] ?? null
+                        const actualPassword = data?.accountId ?? ''
+                        const passwordMatches = suggestedPassword && actualPassword ? actualPassword === suggestedPassword : null
 
                         return (
                           <div
@@ -1195,11 +1251,24 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, initialS
                                 onChange={(v) => setPlatformField(platform as string, 'username', v)}
                               />
                               <EditableText
-                                label="Account ID"
+                                label="Password"
                                 value={data?.accountId ?? null}
                                 onChange={(v) => setPlatformField(platform as string, 'accountId', v)}
                                 mono
                               />
+                              {/* Show suggested vs actual credential detection */}
+                              {suggestedPassword && (
+                                <div className="mt-0.5 rounded bg-muted/40 px-1.5 py-0.5">
+                                  <p className="text-[9px] text-muted-foreground">
+                                    Suggested: <span className="font-mono">{suggestedPassword}</span>
+                                  </p>
+                                  {passwordMatches !== null && (
+                                    <p className={cn('text-[9px] font-medium', passwordMatches ? 'text-success' : 'text-destructive')}>
+                                      {passwordMatches ? '\u2713 Matches suggestion' : '\u2717 Different from suggestion'}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
                               {data?.screenshot && <p className="text-[10px] text-success">Screenshot uploaded</p>}
                             </div>
                           </div>
@@ -1337,7 +1406,7 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, initialS
                 {step === 4 && (
                   <div className="space-y-3" data-testid="draft-review-step-4-content">
                     {/* ─── Auto Approve Section (top of Step 4) ─── */}
-                    {resultClientId && draft.status === 'SUBMITTED' && (
+                    {draft.status === 'SUBMITTED' && (
                       <div data-testid="step4-approve-section">
                         <ApproveGate
                           draft={draft}
@@ -1492,7 +1561,7 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, initialS
                     </Button>
                   ) : step === maxStep ? (
                     <span className="text-[11px] text-muted-foreground" data-testid="draft-review-pending-submit">
-                      {maxStep < 4 ? `Agent on Step ${maxStep}` : step === 4 && resultClientId ? 'Approve above ↑' : 'Awaiting agent submission'}
+                      {step === 4 && draft.status === 'SUBMITTED' ? 'Approve above \u2191' : 'Awaiting submission'}
                     </span>
                   ) : (
                     <Button

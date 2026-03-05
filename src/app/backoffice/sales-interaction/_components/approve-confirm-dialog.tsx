@@ -17,8 +17,8 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
 interface ApproveConfirmDialogProps {
-  /** The PENDING Client ID to approve */
-  clientId: string | null
+  /** The ClientRecord ID to approve */
+  clientRecordId: string | null
   clientName: string
   /** Whether debit cards have been uploaded (auto-detected) */
   hasDebitCards: boolean
@@ -26,7 +26,7 @@ interface ApproveConfirmDialogProps {
 }
 
 export function ApproveConfirmDialog({
-  clientId,
+  clientRecordId,
   clientName,
   hasDebitCards,
   onClose,
@@ -39,10 +39,10 @@ export function ApproveConfirmDialog({
   const canApprove = reviewChecked && cardsChecked && !isPending
 
   const handleApprove = () => {
-    if (!clientId || !canApprove) return
+    if (!clientRecordId || !canApprove) return
     startTransition(async () => {
       try {
-        const result = await approveClient(clientId)
+        const result = await approveClient(clientRecordId)
         if (result.success) {
           toast.success(
             `${clientName} approved! $400 bonus pool created (${result.distributedSlices} slices distributed, ${result.recycledSlices} recycled).`,
@@ -67,7 +67,7 @@ export function ApproveConfirmDialog({
   }
 
   return (
-    <Dialog open={!!clientId} onOpenChange={handleOpenChange}>
+    <Dialog open={!!clientRecordId} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-sm" data-testid="approve-confirm-dialog">
         <DialogHeader>
           <DialogTitle className="text-sm">

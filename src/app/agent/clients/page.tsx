@@ -1,26 +1,25 @@
 import { ClientsView } from './_components/clients-view'
 import { LiveRefreshWrapper } from './_components/live-refresh-wrapper'
 import { requireAgent } from '../_require-agent'
-import { getClientsByCloser } from '@/backend/data/clients'
-import { getDraftsByCloser } from '@/backend/data/client-drafts'
+import { getApprovedRecordsByCloser, getRecordsByCloser } from '@/backend/data/client-records'
 import { IntakeStatus } from '@/types'
 import { ALL_PLATFORMS, SPORTS_PLATFORMS, FINANCIAL_PLATFORMS, STEP3_SPORTS_PLATFORMS } from '@/lib/platforms'
 import type { PlatformEntry } from '@/types/backend-types'
 import type { AgentClient, AgentDraft } from './_components/types'
 
-function mapClientStatus(status: string): IntakeStatus {
+function mapRecordStatus(status: string): IntakeStatus {
   switch (status) {
     case 'APPROVED': return IntakeStatus.APPROVED
     case 'REJECTED': return IntakeStatus.REJECTED
-    case 'IN_PROGRESS': return IntakeStatus.IN_EXECUTION
+    case 'SUBMITTED': return IntakeStatus.READY_FOR_APPROVAL
     case 'CLOSED': return IntakeStatus.PARTNERSHIP_ENDED
-    case 'PENDING':
+    case 'DRAFT':
     default: return IntakeStatus.PENDING
   }
 }
 
 /** Compute inner-step progress for a draft based on its current step */
-function computeInnerStepProgress(draft: Awaited<ReturnType<typeof getDraftsByCloser>>[number]): { completed: number; total: number } {
+function computeInnerStepProgress(draft: Awaited<ReturnType<typeof getRecordsByCloser>>[number]): { completed: number; total: number } {
   switch (draft.step) {
     case 1: {
       // 3 inner-steps: ID document, Gmail (address + screenshot), BetMGM (reg + login screenshots)
@@ -121,23 +120,23 @@ function getStatusLabel(status: string): { label: string; color: string } {
   switch (status) {
     case 'APPROVED': return { label: 'Approved', color: 'text-success' }
     case 'REJECTED': return { label: 'Rejected', color: 'text-destructive' }
-    case 'IN_PROGRESS': return { label: 'In Progress', color: 'text-primary' }
+    case 'SUBMITTED': return { label: 'Pending Approval', color: 'text-primary' }
     case 'CLOSED': return { label: 'Closed', color: 'text-muted-foreground' }
-    case 'PENDING':
-    default: return { label: 'Pending', color: 'text-warning' }
+    case 'DRAFT':
+    default: return { label: 'Draft', color: 'text-warning' }
   }
 }
 
 export default async function MyClientsPage() {
   const agent = await requireAgent()
 
-  // Fetch drafts and DB clients in parallel
-  let dbClients: Awaited<ReturnType<typeof getClientsByCloser>> = []
-  let dbDrafts: Awaited<ReturnType<typeof getDraftsByCloser>> = []
+  // Fetch draft records and approved/submitted records in parallel
+  let dbRecords: Awaited<ReturnType<typeof getApprovedRecordsByCloser>> = []
+  let dbDrafts: Awaited<ReturnType<typeof getRecordsByCloser>> = []
   try {
-    ;[dbClients, dbDrafts] = await Promise.all([
-      getClientsByCloser(agent.id),
-      getDraftsByCloser(agent.id),
+    ;[dbRecords, dbDrafts] = await Promise.all([
+      getApprovedRecordsByCloser(agent.id),
+      getRecordsByCloser(agent.id),
     ])
   } catch {
     // DB not available
@@ -160,44 +159,41 @@ export default async function MyClientsPage() {
     }
   })
 
-  // If we have real clients or drafts, map them; otherwise fall back to mock data
-  if (dbClients.length > 0 || drafts.length > 0) {
-    // Filter out PENDING clients (they exist as drafts, not yet approved)
-    const clients: AgentClient[] = dbClients
-      .filter((c) => c.status !== 'PENDING')
-      .map((c) => {
-        const { label, color } = getStatusLabel(c.status)
-        const draft = c.fromDraft
-        const addr = draft?.currentAddress || draft?.address || null
-        const dob = draft?.dateOfBirth ?? null
+  // If we have real records or drafts, map them; otherwise show empty state
+  if (dbRecords.length > 0 || drafts.length > 0) {
+    // Filter out DRAFT/SUBMITTED — those are shown in the drafts panel
+    const clients: AgentClient[] = dbRecords
+      .filter((r) => r.status !== 'DRAFT' && r.status !== 'SUBMITTED')
+      .map((r) => {
+        const { label, color } = getStatusLabel(r.status)
+        const addr = r.currentAddress || r.address || null
+        const dob = r.dateOfBirth ?? null
 
-        // Duration from draft creation (scan ID) to submission
+        // Duration from record creation (scan ID) to approval
         let intakeDuration: string | null = null
-        if (draft && draft.status === 'SUBMITTED') {
-          intakeDuration = formatDuration(draft.createdAt, draft.updatedAt)
+        if (r.status === 'APPROVED') {
+          intakeDuration = formatDuration(r.createdAt, r.updatedAt)
         }
 
         return {
-          id: c.id,
-          name: `${c.firstName} ${c.lastName}`,
-          intakeStatus: mapClientStatus(c.status),
+          id: r.id,
+          name: `${r.firstName} ${r.lastName}`,
+          intakeStatus: mapRecordStatus(r.status),
           status: label,
           statusColor: color,
           nextTask: null,
-          step: c.status === 'APPROVED' ? 1 : 0,
+          step: r.status === 'APPROVED' ? 1 : 0,
           totalSteps: 1,
-          progress: c.status === 'APPROVED' ? 100 : 0,
-          lastUpdated: c.updatedAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          updatedAt: c.updatedAt.toISOString(),
+          progress: r.status === 'APPROVED' ? 100 : 0,
+          lastUpdated: r.updatedAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          updatedAt: r.updatedAt.toISOString(),
           deadline: null,
-          phone: c._phone || c.phone || null,
+          phone: r._phone || r.phone || null,
           age: computeAge(dob),
           state: extractState(addr),
-          zelle: c.closer?.zelle ?? null,
+          zelle: r.closer?.zelle ?? null,
           intakeDuration,
-          startDate: draft
-            ? draft.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-            : null,
+          startDate: r.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
           verificationSubCategory: null,
           verificationTask: null,
           verificationPlatform: null,

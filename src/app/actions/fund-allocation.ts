@@ -74,7 +74,7 @@ export async function recordFundMovement(data: Record<string, unknown>): Promise
 
     await prisma.transaction.create({
       data: {
-        clientId: fromClientId,
+        clientRecordId: fromClientId,
         type: transactionType,
         amount,
         description: desc,
@@ -86,7 +86,7 @@ export async function recordFundMovement(data: Record<string, unknown>): Promise
     if (flowType === 'cross_client' && toClientId && toClientId !== fromClientId) {
       await prisma.transaction.create({
         data: {
-          clientId: toClientId,
+          clientRecordId: toClientId,
           type: 'DEPOSIT',
           amount,
           description: `Transfer from ${fromPlatform}: ${notes || ''}`.trim(),
@@ -102,7 +102,7 @@ export async function recordFundMovement(data: Record<string, unknown>): Promise
         description: `Fund ${direction} recorded: $${amount} on ${fromPlatform}`,
         userId: session.user.id,
         metadata: {
-          clientId: fromClientId,
+          clientRecordId: fromClientId,
           type,
           flowType,
           fromPlatform,

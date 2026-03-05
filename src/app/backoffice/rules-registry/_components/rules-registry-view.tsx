@@ -83,7 +83,7 @@ const RULES: TodoRule[] = [
   {
     id: 'DEVICE_PENDING_ASSIGN',
     title: 'Device Pending Assignment',
-    trigger: 'ClientDraft where deviceReservationDate IS NOT NULL AND no PhoneAssignment exists',
+    trigger: 'ClientRecord where deviceReservationDate IS NOT NULL AND no PhoneAssignment exists',
     owner: 'backoffice',
     priority: 'warning',
     type: 'computed',
@@ -113,7 +113,7 @@ const RULES: TodoRule[] = [
   {
     id: 'DRAFT_STALE',
     title: 'Stale Draft',
-    trigger: 'ClientDraft where status = DRAFT AND updatedAt < now() - 7 days',
+    trigger: 'ClientRecord where status = DRAFT AND updatedAt < now() - 7 days',
     owner: 'both',
     priority: 'warning',
     type: 'computed',
@@ -128,7 +128,7 @@ const RULES: TodoRule[] = [
   {
     id: 'STEP4_AWAITING_APPROVAL',
     title: 'Awaiting Approval',
-    trigger: 'ClientDraft where status = SUBMITTED AND linked Client.status = PENDING',
+    trigger: 'ClientRecord where status = SUBMITTED',
     owner: 'backoffice',
     priority: 'warning',
     type: 'computed',
@@ -137,13 +137,13 @@ const RULES: TodoRule[] = [
     backofficeMessage: 'Client {clientName} submitted by {agentName} — review and approve',
     sourcePage: 'Sales Interaction (In Progress, Step 4)',
     action: 'Open Review dialog → Approve Client',
-    notes: 'Primary backoffice workflow action. Shows as step-4 with resultClientId set.',
+    notes: 'Primary backoffice workflow action. Shows as step-4 with status SUBMITTED.',
     category: 'Draft Progress',
   },
   {
     id: 'STEP4_LONG_WAIT',
     title: 'Approval Long Wait',
-    trigger: 'ClientDraft where status = SUBMITTED AND Client.status = PENDING AND updatedAt < now() - 3 days',
+    trigger: 'ClientRecord where status = SUBMITTED AND updatedAt < now() - 3 days',
     owner: 'both',
     priority: 'urgent',
     type: 'computed',

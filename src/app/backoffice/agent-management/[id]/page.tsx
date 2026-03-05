@@ -3,8 +3,7 @@ import { AgentDetailView } from './_components/agent-detail-view'
 import { requireAdmin } from '../../_require-admin'
 import prisma from '@/backend/prisma/client'
 import { getAgentEarnings } from '@/backend/data/bonus-pools'
-import { countApprovedClients, getClientsByCloser } from '@/backend/data/clients'
-import { getDraftsByCloser } from '@/backend/data/client-drafts'
+import { countApprovedRecords, getApprovedRecordsByCloser, getRecordsByCloser } from '@/backend/data/client-records'
 import { STAR_THRESHOLDS } from '@/lib/commission-constants'
 import { getAgentTimeline } from '@/backend/data/event-logs'
 import type { AgentDetailData } from '@/types/backend-types'
@@ -43,11 +42,11 @@ export default async function AgentDetailPage({
   }
 
   // Fetch earnings, client counts, drafts, and timeline in parallel
-  const [earningsData, approvedClients, allClients, drafts, timeline] = await Promise.all([
+  const [earningsData, approvedClients, allRecords, drafts, timeline] = await Promise.all([
     getAgentEarnings(id).catch(() => null),
-    countApprovedClients(id).catch(() => 0),
-    getClientsByCloser(id).catch(() => []),
-    getDraftsByCloser(id).catch(() => []),
+    countApprovedRecords(id).catch(() => 0),
+    getApprovedRecordsByCloser(id).catch(() => []),
+    getRecordsByCloser(id).catch(() => []),
     getAgentTimeline(id).catch(() => []),
   ])
 
@@ -68,15 +67,15 @@ export default async function AgentDetailPage({
         .reduce((sum, a) => sum + a.amount, 0)
     : 0
 
-  const approvedThisMonth = allClients.filter(
-    (c) => c.status === 'APPROVED' && c.createdAt >= startOfMonth
+  const approvedThisMonth = allRecords.filter(
+    (r) => r.status === 'APPROVED' && r.createdAt >= startOfMonth
   )
   const newClientsThisMonth = approvedThisMonth.length
 
   const clientsInProgress = drafts.length
 
-  const totalClients = allClients.length
-  const approvedCount = allClients.filter((c) => c.status === 'APPROVED').length
+  const totalClients = allRecords.length
+  const approvedCount = allRecords.filter((r) => r.status === 'APPROVED').length
   const successRate = totalClients > 0 ? Math.round((approvedCount / totalClients) * 100) : 0
 
   // Monthly clients chart (last 6 months)
@@ -84,8 +83,8 @@ export default async function AgentDetailPage({
   for (let i = 5; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
     const end = new Date(d.getFullYear(), d.getMonth() + 1, 1)
-    const count = allClients.filter(
-      (c) => c.status === 'APPROVED' && c.createdAt >= d && c.createdAt < end
+    const count = allRecords.filter(
+      (r) => r.status === 'APPROVED' && r.createdAt >= d && r.createdAt < end
     ).length
     monthlyClients.push({
       month: d.toLocaleDateString('en-US', { month: 'short' }),

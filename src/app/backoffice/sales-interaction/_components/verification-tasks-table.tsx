@@ -14,7 +14,7 @@ interface VerificationTasksTableProps {
   /** Fixed width (px) for the client-name column — aligns with sibling ClientIntakeList */
   nameColumnWidth?: number
   onSelectClient?: (clientId: string) => void
-  onAssignDevice?: (draftId: string, clientName: string, agentName: string, phone?: string | null, carrier?: string | null) => void
+  onAssignDevice?: (clientRecordId: string, clientName: string, agentName: string, phone?: string | null, carrier?: string | null) => void
   onCompleteTodo?: (todoId: string, clientName: string) => void
 }
 
@@ -50,12 +50,12 @@ export function VerificationTasksTable({
           data-testid={`verification-row-${task.id}`}
         >
           {/* Col 1: Client name (aligned with ClientIntakeList) */}
-          {task.clientId ? (
+          {task.clientRecordId ? (
             <button
               type="button"
-              onClick={() => onSelectClient?.(task.clientId!)}
+              onClick={() => onSelectClient?.(task.clientRecordId!)}
               className="truncate text-left text-sm font-medium text-foreground hover:text-primary hover:underline"
-              data-testid={`client-name-${task.clientId}`}
+              data-testid={`client-name-${task.clientRecordId}`}
             >
               {task.clientName}
             </button>
@@ -83,7 +83,7 @@ export function VerificationTasksTable({
             size="sm"
             variant="outline"
             className="h-7 gap-1 px-2.5 text-xs"
-            onClick={() => onAssignDevice?.(task.draftId ?? task.id, task.clientName, task.agentName, task.assignedPhone, task.assignedCarrier)}
+            onClick={() => onAssignDevice?.(task.clientRecordId ?? task.id, task.clientName, task.agentName, task.assignedPhone, task.assignedCarrier)}
             data-testid={`assign-phone-${task.id}`}
           >
             <Phone className="h-3 w-3" />

@@ -38,7 +38,7 @@ export async function getAllAgents() {
       supervisor: { select: { id: true, name: true } },
       _count: { select: { subordinates: true } },
       allocations: { select: { amount: true, createdAt: true } },
-      closedClients: {
+      clientRecords: {
         where: { status: 'APPROVED' },
         select: { createdAt: true },
       },
@@ -136,7 +136,7 @@ export async function getAgentsForHierarchy() {
       name: true,
       starLevel: true,
       leadershipTier: true,
-      _count: { select: { closedClients: true } },
+      _count: { select: { clientRecords: true } },
     },
   })
 }
@@ -159,7 +159,7 @@ export async function getAgentHierarchy(agentId: string) {
       isActive: true,
       role: true,
       supervisorId: true,
-      closedClients: {
+      clientRecords: {
         select: { status: true },
       },
     },
@@ -168,8 +168,8 @@ export async function getAgentHierarchy(agentId: string) {
   type AgentRow = (typeof allAgents)[number]
 
   function toHierarchyAgent(a: AgentRow) {
-    const totalClients = a.closedClients.length
-    const approvedClients = a.closedClients.filter(c => c.status === 'APPROVED').length
+    const totalClients = a.clientRecords.length
+    const approvedClients = a.clientRecords.filter(c => c.status === 'APPROVED').length
     return {
       id: a.id,
       name: a.name,

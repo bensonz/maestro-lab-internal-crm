@@ -25,21 +25,21 @@ export async function createClient(formData: FormData) {
     return { success: false, error: 'First name and last name are required' }
   }
 
-  const client = await prisma.client.create({
+  const record = await prisma.clientRecord.create({
     data: {
       firstName,
       lastName,
       email: email || null,
       phone: phone || null,
       closerId,
-      status: 'PENDING',
+      status: 'SUBMITTED',
     },
   })
 
   revalidatePath('/backoffice/client-management')
   revalidatePath('/agent/clients')
 
-  return { success: true, clientId: client.id }
+  return { success: true, clientRecordId: record.id }
 }
 
 export async function approveClient(clientId: string) {
@@ -51,18 +51,18 @@ export async function approveClient(clientId: string) {
     return { success: false, error: 'Not authorized' }
   }
 
-  const client = await prisma.client.findUnique({
+  const record = await prisma.clientRecord.findUnique({
     where: { id: clientId },
     select: { id: true, status: true, closerId: true, firstName: true, lastName: true },
   })
 
-  if (!client) return { success: false, error: 'Client not found' }
-  if (client.status === 'APPROVED') {
+  if (!record) return { success: false, error: 'Client not found' }
+  if (record.status === 'APPROVED') {
     return { success: false, error: 'Client already approved' }
   }
 
-  // Update client status
-  await prisma.client.update({
+  // Update record status
+  await prisma.clientRecord.update({
     where: { id: clientId },
     data: { status: 'APPROVED', approvedAt: new Date() },
   })
@@ -71,26 +71,26 @@ export async function approveClient(clientId: string) {
   await prisma.eventLog.create({
     data: {
       eventType: 'CLIENT_APPROVED',
-      description: `Client ${client.firstName} ${client.lastName} approved`,
+      description: `Client ${record.firstName} ${record.lastName} approved`,
       userId: session.user.id,
-      metadata: { clientId, closerId: client.closerId },
+      metadata: { clientRecordId: clientId, closerId: record.closerId },
     },
   })
 
   // Recalculate closer's star level
-  await recalculateAgentStarLevel(client.closerId)
+  await recalculateAgentStarLevel(record.closerId)
 
   // Create and distribute bonus pool
-  const poolResult = await createAndDistributeBonusPool(clientId, client.closerId)
+  const poolResult = await createAndDistributeBonusPool(clientId, record.closerId)
 
   // Notify the agent — congratulatory event log entry visible on agent timeline
   await prisma.eventLog.create({
     data: {
       eventType: 'CLIENT_APPROVED_NOTIFICATION',
-      description: `Congratulations! Your client ${client.firstName} ${client.lastName} has been approved. A $400 bonus pool has been created and distributed.`,
-      userId: client.closerId,
+      description: `Congratulations! Your client ${record.firstName} ${record.lastName} has been approved. A $400 bonus pool has been created and distributed.`,
+      userId: record.closerId,
       metadata: {
-        clientId,
+        clientRecordId: clientId,
         poolId: poolResult.poolId,
         distributedSlices: poolResult.distributedSlices,
         recycledSlices: poolResult.recycledSlices,
@@ -111,12 +111,12 @@ export async function approveClient(clientId: string) {
     poolId: poolResult.poolId,
     distributedSlices: poolResult.distributedSlices,
     recycledSlices: poolResult.recycledSlices,
-    clientName: `${client.firstName} ${client.lastName}`,
+    clientName: `${record.firstName} ${record.lastName}`,
   }
 }
 
 /**
- * Revert an approved client back to PENDING.
+ * Revert an approved client record back to SUBMITTED.
  * Only allowed within 5 minutes of approval.
  * Deletes bonus pool + allocations, recalculates star level.
  */
@@ -129,7 +129,7 @@ export async function revertApproval(clientId: string) {
     return { success: false, error: 'Not authorized' }
   }
 
-  const client = await prisma.client.findUnique({
+  const record = await prisma.clientRecord.findUnique({
     where: { id: clientId },
     select: {
       id: true,
@@ -141,22 +141,22 @@ export async function revertApproval(clientId: string) {
     },
   })
 
-  if (!client) return { success: false, error: 'Client not found' }
-  if (client.status !== 'APPROVED') {
+  if (!record) return { success: false, error: 'Client not found' }
+  if (record.status !== 'APPROVED') {
     return { success: false, error: 'Client is not approved' }
   }
 
   // Enforce 5-minute revert window
-  if (client.approvedAt) {
-    const minutesSinceApproval = (Date.now() - new Date(client.approvedAt).getTime()) / (1000 * 60)
+  if (record.approvedAt) {
+    const minutesSinceApproval = (Date.now() - new Date(record.approvedAt).getTime()) / (1000 * 60)
     if (minutesSinceApproval > 5) {
       return { success: false, error: 'Revert window expired (5 minutes)' }
     }
   }
 
-  // Delete bonus allocations + pool for this client
+  // Delete bonus allocations + pool for this client record
   const pool = await prisma.bonusPool.findFirst({
-    where: { clientId },
+    where: { clientRecordId: clientId },
     select: { id: true },
   })
 
@@ -165,24 +165,24 @@ export async function revertApproval(clientId: string) {
     await prisma.bonusPool.delete({ where: { id: pool.id } })
   }
 
-  // Revert client status
-  await prisma.client.update({
+  // Revert record status
+  await prisma.clientRecord.update({
     where: { id: clientId },
-    data: { status: 'PENDING', approvedAt: null },
+    data: { status: 'SUBMITTED', approvedAt: null },
   })
 
   // Recalculate closer's star level (removal of an approved client)
-  await recalculateAgentStarLevel(client.closerId)
+  await recalculateAgentStarLevel(record.closerId)
 
   // Log revert event
   await prisma.eventLog.create({
     data: {
       eventType: 'CLIENT_APPROVAL_REVERTED',
-      description: `Approval reverted for ${client.firstName} ${client.lastName} — bonus pool removed, star level recalculated`,
+      description: `Approval reverted for ${record.firstName} ${record.lastName} — bonus pool removed, star level recalculated`,
       userId: session.user.id,
       metadata: {
-        clientId,
-        closerId: client.closerId,
+        clientRecordId: clientId,
+        closerId: record.closerId,
         poolId: pool?.id ?? null,
       },
     },
@@ -197,6 +197,6 @@ export async function revertApproval(clientId: string) {
 
   return {
     success: true,
-    clientName: `${client.firstName} ${client.lastName}`,
+    clientName: `${record.firstName} ${record.lastName}`,
   }
 }

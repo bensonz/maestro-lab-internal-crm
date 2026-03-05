@@ -169,7 +169,7 @@ export interface SummaryMetric {
 }
 
 // ============================================================================
-// Server data shape from getAllClients + getClientStats
+// Server data shape from getAllApprovedRecords + stats
 // ============================================================================
 
 export interface ServerPlatformDetail {

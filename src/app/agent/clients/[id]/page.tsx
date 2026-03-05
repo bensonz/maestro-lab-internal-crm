@@ -1,6 +1,6 @@
 import { ClientDetailView } from './_components/client-detail-view'
 import { requireAgent } from '../../_require-agent'
-import { getDraftDetailForAgent } from '@/backend/data/client-drafts'
+import { getRecordDetailForAgent } from '@/backend/data/client-records'
 import { redirect } from 'next/navigation'
 import { IntakeStatus, PlatformType, PlatformStatus, ToDoType, ToDoStatus, EventType } from '@/types'
 import { PLATFORM_INFO } from '@/lib/platforms'
@@ -89,7 +89,7 @@ export default async function ClientDetailPage({ params }: PageProps) {
   const agent = await requireAgent()
   const { id } = await params
 
-  const draft = await getDraftDetailForAgent(id, agent.id)
+  const draft = await getRecordDetailForAgent(id, agent.id)
 
   if (!draft) {
     redirect('/agent/clients')
@@ -97,7 +97,8 @@ export default async function ClientDetailPage({ params }: PageProps) {
 
   const hasPhone = (draft.phoneAssignments?.length ?? 0) > 0
   const phone = hasPhone ? draft.phoneAssignments[0] : null
-  const clientStatus = draft.resultClient?.status ?? null
+  // Status is directly on the record (no separate Client model)
+  const clientStatus = draft.status === 'APPROVED' || draft.status === 'REJECTED' ? draft.status : null
   const intakeStatus = deriveIntakeStatus(draft.step, draft.status, hasPhone, clientStatus)
 
   const client = {

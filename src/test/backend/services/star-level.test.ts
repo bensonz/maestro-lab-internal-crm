@@ -8,7 +8,7 @@ const { mockPrisma } = vi.hoisted(() => ({
       findUnique: vi.fn(),
       update: vi.fn(),
     },
-    client: {
+    clientRecord: {
       count: vi.fn(),
     },
     promotionLog: {
@@ -121,7 +121,7 @@ describe('recalculateAgentStarLevel', () => {
       leadershipTier: 'NONE',
       role: 'AGENT',
     })
-    mockPrisma.client.count.mockResolvedValue(5) // still 1★
+    mockPrisma.clientRecord.count.mockResolvedValue(5) // still 1★
 
     const result = await recalculateAgentStarLevel('u1')
     expect(result).toEqual({ starLevel: 1, changed: false })
@@ -135,7 +135,7 @@ describe('recalculateAgentStarLevel', () => {
       leadershipTier: 'NONE',
       role: 'AGENT',
     })
-    mockPrisma.client.count.mockResolvedValue(7) // 2★
+    mockPrisma.clientRecord.count.mockResolvedValue(7) // 2★
 
     const result = await recalculateAgentStarLevel('u1')
     expect(result).toEqual({ starLevel: 2, changed: true })

@@ -10,7 +10,7 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 // Mock Prisma
 const { mockPrisma } = vi.hoisted(() => ({
   mockPrisma: {
-    client: {
+    clientRecord: {
       create: vi.fn(),
       findUnique: vi.fn(),
       update: vi.fn(),
@@ -43,7 +43,7 @@ import { createClient, approveClient } from '@/app/actions/clients'
 describe('createClient', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockPrisma.client.create.mockResolvedValue({ id: 'client-new' })
+    mockPrisma.clientRecord.create.mockResolvedValue({ id: 'client-new' })
   })
 
   it('rejects unauthenticated users', async () => {
@@ -86,8 +86,8 @@ describe('createClient', () => {
 
     const result = await createClient(fd)
     expect(result.success).toBe(true)
-    expect(result.clientId).toBe('client-new')
-    expect(mockPrisma.client.create).toHaveBeenCalledTimes(1)
+    expect(result.clientRecordId).toBe('client-new')
+    expect(mockPrisma.clientRecord.create).toHaveBeenCalledTimes(1)
   })
 
   it('uses session user as default closerId for AGENT', async () => {
@@ -98,7 +98,7 @@ describe('createClient', () => {
 
     await createClient(fd)
 
-    const createCall = mockPrisma.client.create.mock.calls[0][0]
+    const createCall = mockPrisma.clientRecord.create.mock.calls[0][0]
     expect(createCall.data.closerId).toBe('agent-1')
   })
 })
@@ -106,7 +106,7 @@ describe('createClient', () => {
 describe('approveClient', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockPrisma.client.update.mockResolvedValue({})
+    mockPrisma.clientRecord.update.mockResolvedValue({})
     mockPrisma.eventLog.create.mockResolvedValue({})
     mockRecalc.mockResolvedValue({ starLevel: 1, changed: true })
     mockCreatePool.mockResolvedValue({
@@ -132,7 +132,7 @@ describe('approveClient', () => {
 
   it('returns error for non-existent client', async () => {
     mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } })
-    mockPrisma.client.findUnique.mockResolvedValue(null)
+    mockPrisma.clientRecord.findUnique.mockResolvedValue(null)
 
     const result = await approveClient('nonexistent')
     expect(result.success).toBe(false)
@@ -141,7 +141,7 @@ describe('approveClient', () => {
 
   it('returns error if already approved', async () => {
     mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } })
-    mockPrisma.client.findUnique.mockResolvedValue({
+    mockPrisma.clientRecord.findUnique.mockResolvedValue({
       id: 'client-1',
       status: 'APPROVED',
       closerId: 'agent-1',
@@ -156,7 +156,7 @@ describe('approveClient', () => {
 
   it('approves client, recalculates star level, creates bonus pool', async () => {
     mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } })
-    mockPrisma.client.findUnique.mockResolvedValue({
+    mockPrisma.clientRecord.findUnique.mockResolvedValue({
       id: 'client-1',
       status: 'PENDING',
       closerId: 'agent-1',
@@ -170,7 +170,7 @@ describe('approveClient', () => {
     expect(result.recycledSlices).toBe(0)
 
     // Verify the chain: update client → log event → recalculate → create pool
-    expect(mockPrisma.client.update).toHaveBeenCalledWith({
+    expect(mockPrisma.clientRecord.update).toHaveBeenCalledWith({
       where: { id: 'client-1' },
       data: { status: 'APPROVED', approvedAt: expect.any(Date) },
     })

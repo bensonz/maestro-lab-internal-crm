@@ -9,7 +9,7 @@ import { ISSUE_CATEGORIES, type IssueCategory } from '@/lib/todo-categories'
 export async function assignTodo(
   issueCategory: string,
   dueDate: string,
-  target: { clientDraftId?: string; clientId?: string },
+  target: { clientRecordId: string },
 ) {
   const session = await auth()
   if (!session?.user) return { success: false, error: 'Not authenticated' }
@@ -24,9 +24,9 @@ export async function assignTodo(
     return { success: false, error: 'Invalid issue category' }
   }
 
-  const { clientDraftId, clientId } = target
-  if (!clientDraftId?.trim() && !clientId?.trim()) {
-    return { success: false, error: 'Client draft or client ID is required' }
+  const { clientRecordId } = target
+  if (!clientRecordId?.trim()) {
+    return { success: false, error: 'Client record ID is required' }
   }
 
   if (!dueDate?.trim()) {
@@ -38,49 +38,22 @@ export async function assignTodo(
     return { success: false, error: 'Invalid due date' }
   }
 
-  let clientName = 'Unknown Client'
-  let agentId: string
-  let agentName: string
-  let resolvedDraftId: string | undefined
-  let resolvedClientId: string | undefined
+  // Look up the client record to get agent and client name
+  const record = await prisma.clientRecord.findUnique({
+    where: { id: clientRecordId },
+    select: {
+      id: true,
+      closerId: true,
+      firstName: true,
+      lastName: true,
+      closer: { select: { name: true } },
+    },
+  })
+  if (!record) return { success: false, error: 'Client record not found' }
 
-  if (clientDraftId?.trim()) {
-    // Look up the draft to get agent and client name
-    const draft = await prisma.clientDraft.findUnique({
-      where: { id: clientDraftId },
-      select: {
-        id: true,
-        closerId: true,
-        firstName: true,
-        lastName: true,
-        closer: { select: { name: true } },
-      },
-    })
-    if (!draft) return { success: false, error: 'Client draft not found' }
-
-    clientName = [draft.firstName, draft.lastName].filter(Boolean).join(' ') || 'Unknown Client'
-    agentId = draft.closerId
-    agentName = draft.closer.name
-    resolvedDraftId = draft.id
-  } else {
-    // Look up the client to get closer agent
-    const client = await prisma.client.findUnique({
-      where: { id: clientId! },
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        closerId: true,
-        closer: { select: { name: true } },
-      },
-    })
-    if (!client) return { success: false, error: 'Client not found' }
-
-    clientName = [client.firstName, client.lastName].filter(Boolean).join(' ') || 'Unknown Client'
-    agentId = client.closerId
-    agentName = client.closer.name
-    resolvedClientId = client.id
-  }
+  const clientName = [record.firstName, record.lastName].filter(Boolean).join(' ') || 'Unknown Client'
+  const agentId = record.closerId
+  const agentName = record.closer.name
 
   // Create todo + event log
   const todo = await prisma.todo.create({
@@ -88,8 +61,7 @@ export async function assignTodo(
       title: issueCategory,
       description: `${issueCategory} — ${clientName}`,
       issueCategory,
-      clientDraftId: resolvedDraftId ?? null,
-      clientId: resolvedClientId ?? null,
+      clientRecordId: record.id,
       assignedToId: agentId,
       createdById: session.user.id,
       dueDate: parsedDueDate,
@@ -103,8 +75,7 @@ export async function assignTodo(
       userId: session.user.id,
       metadata: {
         todoId: todo.id,
-        clientDraftId: resolvedDraftId,
-        clientId: resolvedClientId,
+        clientRecordId: record.id,
         clientName,
         agentId,
         agentName,
@@ -136,8 +107,7 @@ export async function completeTodo(todoId: string) {
   const todo = await prisma.todo.findUnique({
     where: { id: todoId },
     include: {
-      clientDraft: { select: { firstName: true, lastName: true } },
-      client: { select: { firstName: true, lastName: true } },
+      clientRecord: { select: { firstName: true, lastName: true } },
       assignedTo: { select: { id: true, name: true } },
       createdBy: { select: { name: true } },
     },
@@ -147,8 +117,8 @@ export async function completeTodo(todoId: string) {
   if (todo.status !== 'PENDING') return { success: false, error: 'Todo is not pending' }
 
   const clientName = [
-    todo.clientDraft?.firstName ?? todo.client?.firstName,
-    todo.clientDraft?.lastName ?? todo.client?.lastName,
+    todo.clientRecord?.firstName,
+    todo.clientRecord?.lastName,
   ].filter(Boolean).join(' ') || 'Unknown'
 
   await prisma.todo.update({
@@ -170,7 +140,7 @@ export async function completeTodo(todoId: string) {
       userId: session.user.id,
       metadata: {
         todoId: todo.id,
-        clientDraftId: todo.clientDraftId,
+        clientRecordId: todo.clientRecordId,
         clientName,
         agentId: todo.assignedTo.id,
         agentName: todo.assignedTo.name,
@@ -201,8 +171,7 @@ export async function revertTodo(todoId: string) {
   const todo = await prisma.todo.findUnique({
     where: { id: todoId },
     include: {
-      clientDraft: { select: { firstName: true, lastName: true } },
-      client: { select: { firstName: true, lastName: true } },
+      clientRecord: { select: { firstName: true, lastName: true } },
       assignedTo: { select: { id: true, name: true } },
     },
   })
@@ -211,8 +180,8 @@ export async function revertTodo(todoId: string) {
   if (todo.status !== 'COMPLETED') return { success: false, error: 'Todo is not completed' }
 
   const clientName = [
-    todo.clientDraft?.firstName ?? todo.client?.firstName,
-    todo.clientDraft?.lastName ?? todo.client?.lastName,
+    todo.clientRecord?.firstName,
+    todo.clientRecord?.lastName,
   ].filter(Boolean).join(' ') || 'Unknown'
 
   await prisma.todo.update({
@@ -235,7 +204,7 @@ export async function revertTodo(todoId: string) {
       userId: session.user.id,
       metadata: {
         todoId: todo.id,
-        clientDraftId: todo.clientDraftId,
+        clientRecordId: todo.clientRecordId,
         clientName,
         agentId: todo.assignedTo.id,
         agentName: todo.assignedTo.name,

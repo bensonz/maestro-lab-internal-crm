@@ -35,7 +35,7 @@ export interface FundStats {
  * Fetch approved clients for the fund allocation form dropdowns.
  */
 export async function getFundClients(): Promise<FundClient[]> {
-  const clients = await prisma.client.findMany({
+  const clients = await prisma.clientRecord.findMany({
     where: { status: 'APPROVED' },
     select: { id: true, firstName: true, lastName: true },
     orderBy: { firstName: 'asc' },
@@ -71,7 +71,7 @@ export async function getRecentFundMovements(
   // Batch-fetch client names
   const clientNameMap = new Map<string, string>()
   if (clientIds.size > 0) {
-    const clients = await prisma.client.findMany({
+    const clients = await prisma.clientRecord.findMany({
       where: { id: { in: [...clientIds] } },
       select: { id: true, firstName: true, lastName: true },
     })

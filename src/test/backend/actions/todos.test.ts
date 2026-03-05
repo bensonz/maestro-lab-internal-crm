@@ -15,10 +15,7 @@ const { mockPrisma } = vi.hoisted(() => ({
       create: vi.fn(),
       update: vi.fn(),
     },
-    clientDraft: {
-      findUnique: vi.fn(),
-    },
-    client: {
+    clientRecord: {
       findUnique: vi.fn(),
     },
     eventLog: {
@@ -41,41 +38,41 @@ describe('assignTodo', () => {
 
   it('rejects unauthenticated users', async () => {
     mockAuth.mockResolvedValue(null)
-    const result = await assignTodo('Contact Bank', '2026-03-01', { clientDraftId: 'draft-1' })
+    const result = await assignTodo('Contact Bank', '2026-03-01', { clientRecordId: 'draft-1' })
     expect(result.success).toBe(false)
     expect(result.error).toBe('Not authenticated')
   })
 
   it('rejects AGENT role', async () => {
     mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'AGENT' } })
-    const result = await assignTodo('Contact Bank', '2026-03-01', { clientDraftId: 'draft-1' })
+    const result = await assignTodo('Contact Bank', '2026-03-01', { clientRecordId: 'draft-1' })
     expect(result.success).toBe(false)
     expect(result.error).toBe('Unauthorized')
   })
 
   it('rejects invalid issue category', async () => {
     mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } })
-    const result = await assignTodo('Invalid Category', '2026-03-01', { clientDraftId: 'draft-1' })
+    const result = await assignTodo('Invalid Category', '2026-03-01', { clientRecordId: 'draft-1' })
     expect(result.success).toBe(false)
     expect(result.error).toBe('Invalid issue category')
   })
 
   it('accepts new VIP category', async () => {
     mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } })
-    mockPrisma.clientDraft.findUnique.mockResolvedValue({
+    mockPrisma.clientRecord.findUnique.mockResolvedValue({
       id: 'draft-1',
       closerId: 'agent-1',
       firstName: 'John',
       lastName: 'Doe',
       closer: { name: 'Marcus Rivera' },
     })
-    const result = await assignTodo('VIP Account — Reply Required', '2026-03-01', { clientDraftId: 'draft-1' })
+    const result = await assignTodo('VIP Account — Reply Required', '2026-03-01', { clientRecordId: 'draft-1' })
     expect(result.success).toBe(true)
   })
 
   it('accepts new fund confirm categories', async () => {
     mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } })
-    mockPrisma.clientDraft.findUnique.mockResolvedValue({
+    mockPrisma.clientRecord.findUnique.mockResolvedValue({
       id: 'draft-1',
       closerId: 'agent-1',
       firstName: 'Jane',
@@ -83,23 +80,23 @@ describe('assignTodo', () => {
       closer: { name: 'Lisa Wang' },
     })
 
-    const r1 = await assignTodo('Confirm Fund Deposit', '2026-03-01', { clientDraftId: 'draft-1' })
+    const r1 = await assignTodo('Confirm Fund Deposit', '2026-03-01', { clientRecordId: 'draft-1' })
     expect(r1.success).toBe(true)
 
-    const r2 = await assignTodo('Confirm Fund Withdrawal', '2026-03-01', { clientDraftId: 'draft-1' })
+    const r2 = await assignTodo('Confirm Fund Withdrawal', '2026-03-01', { clientRecordId: 'draft-1' })
     expect(r2.success).toBe(true)
   })
 
-  it('requires either clientDraftId or clientId', async () => {
+  it('requires clientRecordId', async () => {
     mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } })
     const result = await assignTodo('Contact Bank', '2026-03-01', {})
     expect(result.success).toBe(false)
-    expect(result.error).toBe('Client draft or client ID is required')
+    expect(result.error).toBe('Client record ID is required')
   })
 
-  it('works with clientDraftId', async () => {
+  it('works with clientRecordId', async () => {
     mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } })
-    mockPrisma.clientDraft.findUnique.mockResolvedValue({
+    mockPrisma.clientRecord.findUnique.mockResolvedValue({
       id: 'draft-1',
       closerId: 'agent-1',
       firstName: 'John',
@@ -107,34 +104,12 @@ describe('assignTodo', () => {
       closer: { name: 'Marcus Rivera' },
     })
 
-    const result = await assignTodo('Contact Bank', '2026-03-01', { clientDraftId: 'draft-1' })
+    const result = await assignTodo('Contact Bank', '2026-03-01', { clientRecordId: 'draft-1' })
     expect(result.success).toBe(true)
     expect(mockPrisma.todo.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
-        clientDraftId: 'draft-1',
-        clientId: null,
+        clientRecordId: 'draft-1',
         assignedToId: 'agent-1',
-      }),
-    })
-  })
-
-  it('works with clientId', async () => {
-    mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } })
-    mockPrisma.client.findUnique.mockResolvedValue({
-      id: 'client-1',
-      firstName: 'Jane',
-      lastName: 'Smith',
-      closerId: 'agent-2',
-      closer: { name: 'Lisa Wang' },
-    })
-
-    const result = await assignTodo('Contact PayPal', '2026-03-01', { clientId: 'client-1' })
-    expect(result.success).toBe(true)
-    expect(mockPrisma.todo.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        clientDraftId: null,
-        clientId: 'client-1',
-        assignedToId: 'agent-2',
       }),
     })
   })
@@ -178,16 +153,15 @@ describe('completeTodo', () => {
     expect(result.error).toBe('Todo not found')
   })
 
-  it('successfully completes a pending todo with clientDraft', async () => {
+  it('successfully completes a pending todo with clientRecord', async () => {
     mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'BACKOFFICE' } })
     mockPrisma.todo.findUnique.mockResolvedValue({
       id: 'todo-1',
       status: 'PENDING',
       issueCategory: 'Contact Bank',
-      clientDraftId: 'draft-1',
+      clientRecordId: 'draft-1',
       metadata: null,
-      clientDraft: { firstName: 'John', lastName: 'Doe' },
-      client: null,
+      clientRecord: { firstName: 'John', lastName: 'Doe' },
       assignedTo: { id: 'a1', name: 'Marcus Rivera' },
       createdBy: { name: 'Nina Patel' },
     })
@@ -201,16 +175,15 @@ describe('completeTodo', () => {
     })
   })
 
-  it('handles todo with clientId instead of clientDraft', async () => {
+  it('handles todo with clientRecord', async () => {
     mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } })
     mockPrisma.todo.findUnique.mockResolvedValue({
       id: 'todo-2',
       status: 'PENDING',
       issueCategory: 'VIP Account — Reply Required',
-      clientDraftId: null,
+      clientRecordId: 'record-1',
       metadata: null,
-      clientDraft: null,
-      client: { firstName: 'Jane', lastName: 'Smith' },
+      clientRecord: { firstName: 'Jane', lastName: 'Smith' },
       assignedTo: { id: 'a2', name: 'Lisa Wang' },
       createdBy: { name: 'Admin' },
     })
@@ -260,8 +233,7 @@ describe('revertTodo', () => {
     mockPrisma.todo.findUnique.mockResolvedValue({
       id: 'todo-1',
       status: 'PENDING',
-      clientDraft: { firstName: 'John', lastName: 'Doe' },
-      client: null,
+      clientRecord: { firstName: 'John', lastName: 'Doe' },
       assignedTo: { id: 'a1', name: 'Agent' },
     })
     const result = await revertTodo('todo-1')
@@ -275,10 +247,9 @@ describe('revertTodo', () => {
       id: 'todo-1',
       status: 'COMPLETED',
       issueCategory: 'Contact Bank',
-      clientDraftId: 'draft-1',
+      clientRecordId: 'draft-1',
       metadata: { completedById: 'u2' },
-      clientDraft: { firstName: 'John', lastName: 'Doe' },
-      client: null,
+      clientRecord: { firstName: 'John', lastName: 'Doe' },
       assignedTo: { id: 'a1', name: 'Marcus Rivera' },
     })
 

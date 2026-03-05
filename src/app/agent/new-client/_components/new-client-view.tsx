@@ -95,7 +95,6 @@ export interface SerializedDraft {
   bankNegativeBalance: boolean | null
   undisclosedInfo: boolean
   closerId: string
-  resultClientId: string | null
   createdAt: string
   updatedAt: string
 }

@@ -88,7 +88,7 @@ export async function ensureGeneratedCredentials<T extends Record<string, any>>(
   }
 
   if (changed) {
-    await prisma.clientDraft.update({
+    await prisma.clientRecord.update({
       where: { id: draft.id },
       data: { generatedCredentials: JSON.parse(JSON.stringify(creds)) },
     })

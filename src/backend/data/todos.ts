@@ -11,16 +11,13 @@ export async function getTodosByAgent(agentId: string) {
       status: 'PENDING',
     },
     include: {
-      clientDraft: {
+      clientRecord: {
         select: {
           id: true,
           firstName: true,
           lastName: true,
           step: true,
         },
-      },
-      client: {
-        select: { id: true, firstName: true, lastName: true },
       },
       createdBy: {
         select: { id: true, name: true },
@@ -39,7 +36,7 @@ export async function getPendingTodosForBackoffice() {
       status: 'PENDING',
     },
     include: {
-      clientDraft: {
+      clientRecord: {
         select: {
           id: true,
           firstName: true,
@@ -55,9 +52,6 @@ export async function getPendingTodosForBackoffice() {
             },
           },
         },
-      },
-      client: {
-        select: { id: true, firstName: true, lastName: true },
       },
       assignedTo: {
         select: { id: true, name: true },
@@ -79,16 +73,13 @@ export async function getCompletedTodosForBackoffice() {
       status: 'COMPLETED',
     },
     include: {
-      clientDraft: {
+      clientRecord: {
         select: {
           id: true,
           firstName: true,
           lastName: true,
           step: true,
         },
-      },
-      client: {
-        select: { id: true, firstName: true, lastName: true },
       },
       assignedTo: {
         select: { id: true, name: true },

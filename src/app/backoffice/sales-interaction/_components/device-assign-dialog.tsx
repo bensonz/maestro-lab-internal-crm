@@ -25,7 +25,7 @@ import { assignAndSignOutDevice } from '@/app/actions/phone-assignments'
 import { toast } from 'sonner'
 
 interface DeviceAssignDialogProps {
-  draftId: string | null
+  clientRecordId: string | null
   clientName: string
   agentName: string
   /** Pre-fill phone number (for verification re-assignments) */
@@ -36,7 +36,7 @@ interface DeviceAssignDialogProps {
 }
 
 export function DeviceAssignDialog({
-  draftId,
+  clientRecordId,
   clientName,
   agentName,
   initialPhone,
@@ -51,10 +51,10 @@ export function DeviceAssignDialog({
   const [notes, setNotes] = useState('')
 
   // Sync pre-fill values when dialog opens with new data
-  const prevDraftIdRef = useState<string | null>(null)
-  if (draftId !== prevDraftIdRef[0]) {
-    prevDraftIdRef[1](draftId)
-    if (draftId) {
+  const prevRecordIdRef = useState<string | null>(null)
+  if (clientRecordId !== prevRecordIdRef[0]) {
+    prevRecordIdRef[1](clientRecordId)
+    if (clientRecordId) {
       setPhoneNumber(initialPhone ?? '')
       setCarrier(initialCarrier ?? '')
       setDeviceId('')
@@ -71,11 +71,11 @@ export function DeviceAssignDialog({
   }
 
   const handleSubmit = () => {
-    if (!draftId || !phoneNumber.trim()) return
+    if (!clientRecordId || !phoneNumber.trim()) return
 
     startTransition(async () => {
       const result = await assignAndSignOutDevice(
-        draftId,
+        clientRecordId,
         phoneNumber,
         carrier || undefined,
         deviceId || undefined,
@@ -93,7 +93,7 @@ export function DeviceAssignDialog({
   }
 
   return (
-    <Dialog open={!!draftId} onOpenChange={(open) => !open && handleClose()}>
+    <Dialog open={!!clientRecordId} onOpenChange={(open) => !open && handleClose()}>
       <DialogContent className="sm:max-w-md" data-testid="device-assign-dialog">
         <DialogHeader>
           <DialogTitle>Assign Device — {clientName}</DialogTitle>

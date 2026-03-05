@@ -1,9 +1,8 @@
 import { SalesInteractionView } from './_components/sales-interaction-view'
 import { LiveRefreshWrapper } from '@/components/live-refresh-wrapper'
-import { getAllDraftsForBackoffice, getApprovedDraftsForBackoffice } from '@/backend/data/client-drafts'
+import { getAllRecordsForBackoffice, getApprovedRecordsForBackoffice } from '@/backend/data/client-records'
 import { getActivePhoneAssignments, getReturnedPhoneAssignments } from '@/backend/data/phone-assignments'
 import { getPendingTodosForBackoffice, getCompletedTodosForBackoffice, getTodoTimeline } from '@/backend/data/todos'
-import { getApprovedClientsForBackoffice } from '@/backend/data/clients'
 import prisma from '@/backend/prisma/client'
 import { getAgentsForHierarchy } from '@/backend/data/users'
 import { getAgentDisplayTier, LEADERSHIP_TIERS, STAR_THRESHOLDS } from '@/lib/commission-constants'
@@ -88,7 +87,7 @@ export default async function SalesInteractionPage() {
           name: a.name ?? 'Unknown',
           level: tierLabel,
           stars: a.starLevel,
-          clientCount: a._count.closedClients,
+          clientCount: a._count.clientRecords,
         })
       }
       // Sort groups by tier rank
@@ -100,41 +99,41 @@ export default async function SalesInteractionPage() {
     console.error('[sales-interaction] agents fetch error:', e)
   }
 
-  // Fetch real drafts + device data from DB
-  let draftIntake: IntakeClient[] = []
+  // Fetch real records + device data from DB
+  let recordIntake: IntakeClient[] = []
 
   try {
-    const [drafts, activeAssignments, returnedAssignments] = await Promise.all([
-      getAllDraftsForBackoffice(),
+    const [records, activeAssignments, returnedAssignments] = await Promise.all([
+      getAllRecordsForBackoffice(),
       getActivePhoneAssignments(),
       getReturnedPhoneAssignments(),
     ])
 
-    // Map draft ID → active assignment ID + phone number + carrier
-    const draftToAssignmentId = new Map<string, string>()
-    const draftToPhoneNumber = new Map<string, string>()
-    const draftToCarrier = new Map<string, string>()
+    // Map record ID → active assignment ID + phone number + carrier
+    const recordToAssignmentId = new Map<string, string>()
+    const recordToPhoneNumber = new Map<string, string>()
+    const recordToCarrier = new Map<string, string>()
     for (const a of activeAssignments) {
-      draftToAssignmentId.set(a.clientDraftId, a.id)
-      draftToPhoneNumber.set(a.clientDraftId, a.phoneNumber)
-      if (a.carrier) draftToCarrier.set(a.clientDraftId, a.carrier)
+      recordToAssignmentId.set(a.clientRecordId, a.id)
+      recordToPhoneNumber.set(a.clientRecordId, a.phoneNumber)
+      if (a.carrier) recordToCarrier.set(a.clientRecordId, a.carrier)
     }
 
-    // Map draft ID → returned assignment ID + phone number (most recent return per draft)
-    const draftToReturnedId = new Map<string, string>()
+    // Map record ID → returned assignment ID + phone number (most recent return per record)
+    const recordToReturnedId = new Map<string, string>()
     for (const a of returnedAssignments) {
-      if (!draftToReturnedId.has(a.clientDraftId)) {
-        draftToReturnedId.set(a.clientDraftId, a.id)
-        draftToPhoneNumber.set(a.clientDraftId, a.phoneNumber)
-        if (a.carrier) draftToCarrier.set(a.clientDraftId, a.carrier)
+      if (!recordToReturnedId.has(a.clientRecordId)) {
+        recordToReturnedId.set(a.clientRecordId, a.id)
+        recordToPhoneNumber.set(a.clientRecordId, a.phoneNumber)
+        if (a.carrier) recordToCarrier.set(a.clientRecordId, a.carrier)
       }
     }
 
-    draftIntake = drafts.map((d) => {
+    recordIntake = records.map((d) => {
       const isSubmitted = d.status === 'SUBMITTED'
       const subStage: InProgressSubStage = isSubmitted ? 'pending-approval' : stepToSubStage(d.step)
-      const activeAssignmentId = draftToAssignmentId.get(d.id) ?? null
-      const returnedAssignmentId = draftToReturnedId.get(d.id) ?? null
+      const activeAssignmentId = recordToAssignmentId.get(d.id) ?? null
+      const returnedAssignmentId = recordToReturnedId.get(d.id) ?? null
 
       // Status based on actual device activity, not step
       let status = ''
@@ -175,19 +174,18 @@ export default async function SalesInteractionPage() {
         platformProgress: computePlatformProgress(d.platformData, !!(d.betmgmRegScreenshot && d.betmgmLoginScreenshot)),
         exceptionStates: [],
         rejectedPlatforms: [],
-        resultClientId: d.resultClientId,
         activeAssignmentId,
         returnedAssignmentId,
-        assignedPhone: draftToPhoneNumber.get(d.id) ?? null,
-        assignedCarrier: draftToCarrier.get(d.id) ?? null,
+        assignedPhone: recordToPhoneNumber.get(d.id) ?? null,
+        assignedCarrier: recordToCarrier.get(d.id) ?? null,
         hasDebitCards: isSubmitted ? hasDebitCardsUploaded(d.platformData) : undefined,
       }
     })
   } catch (e) {
-    console.error('[sales-interaction] drafts fetch error:', e)
+    console.error('[sales-interaction] records fetch error:', e)
   }
 
-  const clientIntake = draftIntake
+  const clientIntake = recordIntake
 
   // Fetch real todos from DB and map to VerificationTask format
   let realTodoTasks: VerificationTask[] = []
@@ -195,15 +193,14 @@ export default async function SalesInteractionPage() {
     const todos = await getPendingTodosForBackoffice()
     realTodoTasks = todos.map((t) => {
       const clientName = [
-        t.clientDraft?.firstName ?? t.client?.firstName,
-        t.clientDraft?.lastName ?? t.client?.lastName,
+        t.clientRecord?.firstName,
+        t.clientRecord?.lastName,
       ].filter(Boolean).join(' ') || 'Unknown'
       const daysUntil = Math.floor((t.dueDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-      const latestPhone = t.clientDraft?.phoneAssignments?.[0] ?? null
+      const latestPhone = t.clientRecord?.phoneAssignments?.[0] ?? null
       return {
         id: t.id,
-        clientId: null,
-        draftId: t.clientDraft?.id ?? t.clientDraftId ?? '',
+        clientRecordId: t.clientRecord?.id ?? t.clientRecordId ?? '',
         clientName,
         platformType: null,
         platformLabel: t.issueCategory,
@@ -241,8 +238,8 @@ export default async function SalesInteractionPage() {
     const completedRaw = await getCompletedTodosForBackoffice()
     completedTodos = completedRaw.map((t) => {
       const clientName = [
-        t.clientDraft?.firstName ?? t.client?.firstName,
-        t.clientDraft?.lastName ?? t.client?.lastName,
+        t.clientRecord?.firstName,
+        t.clientRecord?.lastName,
       ].filter(Boolean).join(' ') || 'Unknown'
       const completionEvent = todoTimeline.find(
         (e) => e.action === 'completed' && e.event.includes(t.issueCategory) && e.event.includes(clientName)
@@ -256,7 +253,7 @@ export default async function SalesInteractionPage() {
         title: t.title,
         completedAt: t.completedAt ?? new Date(),
         completedByName: completionEvent?.actor ?? t.createdBy.name ?? 'Unknown',
-        draftId: t.clientDraft?.id ?? t.clientDraftId ?? '',
+        clientRecordId: t.clientRecord?.id ?? t.clientRecordId ?? '',
         createdByName: t.createdBy.name ?? 'Unknown',
       }
     })
@@ -265,15 +262,13 @@ export default async function SalesInteractionPage() {
   }
 
   try {
-    const approvedDrafts = await getApprovedDraftsForBackoffice()
-    const clientIds = approvedDrafts
-      .filter((d) => d.resultClient?.id)
-      .map((d) => d.resultClient!.id)
+    const approvedRecords = await getApprovedRecordsForBackoffice()
 
-    // Fetch bonus pools + allocations for all approved clients in one query
-    const pools = clientIds.length > 0
+    // Fetch bonus pools + allocations for all approved records in one query
+    const recordIds = approvedRecords.map((r) => r.id)
+    const pools = recordIds.length > 0
       ? await prisma.bonusPool.findMany({
-          where: { clientId: { in: clientIds } },
+          where: { clientRecordId: { in: recordIds } },
           include: {
             allocations: {
               include: { agent: { select: { name: true } } },
@@ -282,17 +277,16 @@ export default async function SalesInteractionPage() {
           },
         })
       : []
-    const poolByClientId = new Map(pools.map((p) => [p.clientId, p]))
+    const poolByRecordId = new Map(pools.map((p) => [p.clientRecordId, p]))
 
-    approvedClients = approvedDrafts.map((d) => {
-      const pool = poolByClientId.get(d.resultClient!.id)
+    approvedClients = approvedRecords.map((r) => {
+      const pool = poolByRecordId.get(r.id)
       return {
-        id: d.resultClient!.id,
-        draftId: d.id,
-        clientName: [d.firstName, d.lastName].filter(Boolean).join(' ') || 'Unknown',
-        agentId: d.closerId,
-        agentName: d.closer?.name ?? 'Unknown',
-        approvedAt: d.resultClient!.approvedAt ?? d.updatedAt,
+        id: r.id,
+        clientName: [r.firstName, r.lastName].filter(Boolean).join(' ') || 'Unknown',
+        agentId: r.closerId,
+        agentName: r.closer?.name ?? 'Unknown',
+        approvedAt: r.approvedAt ?? r.updatedAt,
         poolSummary: pool
           ? {
               totalAmount: pool.totalAmount,
@@ -322,21 +316,21 @@ export default async function SalesInteractionPage() {
     verificationNeeded: clientIntake.filter((c) => c.subStage === 'verification-needed').length,
   }
 
-  // Fetch real approved clients for post-approval tracking
+  // Fetch real approved records for post-approval tracking
   let postApprovalClients: PostApprovalClient[] = []
   try {
-    const dbApprovedClients = await getApprovedClientsForBackoffice()
-    if (dbApprovedClients.length > 0) {
-      postApprovalClients = dbApprovedClients.map((c) => {
-        const daysSinceApproval = c.approvedAt
-          ? Math.floor((Date.now() - new Date(c.approvedAt).getTime()) / (1000 * 60 * 60 * 24))
+    const approvedRecords = await getApprovedRecordsForBackoffice()
+    if (approvedRecords.length > 0) {
+      postApprovalClients = approvedRecords.map((r) => {
+        const daysSinceApproval = r.approvedAt
+          ? Math.floor((Date.now() - new Date(r.approvedAt).getTime()) / (1000 * 60 * 60 * 24))
           : 0
         return {
-          id: c.id,
-          name: `${c.firstName} ${c.lastName}`,
-          agentId: c.closerId,
-          agentName: c.closer?.name ?? 'Unknown',
-          approvedAt: c.approvedAt,
+          id: r.id,
+          name: `${r.firstName} ${r.lastName}`,
+          agentId: r.closerId,
+          agentName: r.closer?.name ?? 'Unknown',
+          approvedAt: r.approvedAt,
           daysSinceApproval,
           limitedPlatforms: [],
           pendingVerificationTodos: 0,

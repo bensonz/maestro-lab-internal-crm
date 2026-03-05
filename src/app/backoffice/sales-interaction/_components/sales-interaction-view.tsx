@@ -190,9 +190,8 @@ export function SalesInteractionView({
   const [summaryFilter, setSummaryFilter] = useState<SummaryFilter>('total')
   const [sortOption, setSortOption] = useState<SortOption>('priority')
   const [verificationOpen, setVerificationOpen] = useState(false)
-  const [reviewingDraftId, setReviewingDraftId] = useState<string | null>(null)
-  const [reviewingDraftName, setReviewingDraftName] = useState('')
-  const [reviewingResultClientId, setReviewingResultClientId] = useState<string | null>(null)
+  const [reviewingRecordId, setReviewingRecordId] = useState<string | null>(null)
+  const [reviewingClientName, setReviewingClientName] = useState('')
 
   // Reviewed section + timeline state
   const [reviewedOpen, setReviewedOpen] = useState(false)
@@ -256,7 +255,7 @@ export function SalesInteractionView({
   const [todoDialogOpen, setTodoDialogOpen] = useState(false)
 
   // Device assign dialog state
-  const [assigningDraftId, setAssigningDraftId] = useState<string | null>(null)
+  const [assigningRecordId, setAssigningRecordId] = useState<string | null>(null)
   const [assigningClientName, setAssigningClientName] = useState('')
   const [assigningAgentName, setAssigningAgentName] = useState('')
   const [assigningInitialPhone, setAssigningInitialPhone] = useState<string | null>(null)
@@ -267,34 +266,31 @@ export function SalesInteractionView({
   // Track if we should auto-scroll to debit cards on Step 3
   const [reviewScrollToDebit, setReviewScrollToDebit] = useState(false)
 
-  const handleReviewDraft = useCallback((id: string, name: string, resultClientId?: string | null) => {
-    setReviewingDraftId(id)
-    setReviewingDraftName(name)
-    setReviewingResultClientId(resultClientId ?? null)
+  const handleReviewDraft = useCallback((id: string, name: string) => {
+    setReviewingRecordId(id)
+    setReviewingClientName(name)
     setReviewInitialStep(1)
     setReviewScrollToDebit(false)
   }, [])
 
-  const handleUploadCard = useCallback((draftId: string, clientName: string, resultClientId?: string | null) => {
+  const handleUploadCard = useCallback((clientRecordId: string, clientName: string) => {
     // Open the review dialog directly at Step 3 (Platforms + Debit Cards)
-    setReviewingDraftId(draftId)
-    setReviewingDraftName(clientName)
-    setReviewingResultClientId(resultClientId ?? null)
+    setReviewingRecordId(clientRecordId)
+    setReviewingClientName(clientName)
     setReviewInitialStep(3)
     setReviewScrollToDebit(true)
   }, [])
 
-  const handleApproveClick = useCallback((draftId: string, resultClientId: string, clientName: string) => {
+  const handleApproveClick = useCallback((clientRecordId: string, clientName: string) => {
     // Open the review dialog directly at Step 4 (Contract + Approve)
-    setReviewingDraftId(draftId)
-    setReviewingDraftName(clientName)
-    setReviewingResultClientId(resultClientId)
+    setReviewingRecordId(clientRecordId)
+    setReviewingClientName(clientName)
     setReviewInitialStep(4)
     setReviewScrollToDebit(false)
   }, [])
 
-  const handleAssignDevice = useCallback((draftId: string, clientName: string, agentName: string, phone?: string | null, carrier?: string | null) => {
-    setAssigningDraftId(draftId)
+  const handleAssignDevice = useCallback((clientRecordId: string, clientName: string, agentName: string, phone?: string | null, carrier?: string | null) => {
+    setAssigningRecordId(clientRecordId)
     setAssigningClientName(clientName)
     setAssigningAgentName(agentName)
     setAssigningInitialPhone(phone ?? null)
@@ -1114,21 +1110,20 @@ export function SalesInteractionView({
       </div>
 
       <DraftReviewDialog
-        draftId={reviewingDraftId}
-        draftName={reviewingDraftName}
-        resultClientId={reviewingResultClientId}
+        clientRecordId={reviewingRecordId}
+        clientName={reviewingClientName}
         initialStep={reviewInitialStep}
         scrollToDebitCards={reviewScrollToDebit}
-        onClose={() => { setReviewingDraftId(null); setReviewInitialStep(1); setReviewScrollToDebit(false) }}
+        onClose={() => { setReviewingRecordId(null); setReviewInitialStep(1); setReviewScrollToDebit(false) }}
       />
 
       <DeviceAssignDialog
-        draftId={assigningDraftId}
+        clientRecordId={assigningRecordId}
         clientName={assigningClientName}
         agentName={assigningAgentName}
         initialPhone={assigningInitialPhone}
         initialCarrier={assigningInitialCarrier}
-        onClose={() => setAssigningDraftId(null)}
+        onClose={() => setAssigningRecordId(null)}
       />
 
       <AssignTodoDialog
@@ -1158,10 +1153,10 @@ function SubStageSection({
   exceptionCount: number
   nameColumnWidth?: number
   onSelectClient?: (clientId: string) => void
-  onReviewDraft?: (draftId: string, name: string, resultClientId?: string | null) => void
-  onAssignDevice?: (draftId: string, clientName: string, agentName: string) => void
-  onUploadCard?: (draftId: string, clientName: string) => void
-  onApprove?: (draftId: string, resultClientId: string, clientName: string) => void
+  onReviewDraft?: (clientRecordId: string, name: string) => void
+  onAssignDevice?: (clientRecordId: string, clientName: string, agentName: string) => void
+  onUploadCard?: (clientRecordId: string, clientName: string) => void
+  onApprove?: (clientRecordId: string, clientName: string) => void
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const Icon = stage.icon

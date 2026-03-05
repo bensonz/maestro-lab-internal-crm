@@ -34,18 +34,17 @@ CRM for client onboarding across sports betting platforms. Two portals:
 
 ## 3. Database
 
-### 13 Prisma Models (`prisma/schema.prisma`)
+### 12 Prisma Models (`prisma/schema.prisma`)
 
 - **User** — staff accounts with hierarchy (supervisorId), star level/tier, leadershipTier (NONE/ED/SED/MD/CMO)
 - **AgentApplication** — PENDING → APPROVED/REJECTED. Stores idDocument + addressDocument
-- **Client** — PENDING → APPROVED. Links to closer (User). Optional BonusPool + fromDraft
-- **ClientDraft** — DRAFT → SUBMITTED. 4-step form data, risk flags, platformData (Json), generatedCredentials (Json), document paths. Many Step 1/2 field columns
-- **BonusPool** — $400 per approved client. Has many BonusAllocation[]
+- **ClientRecord** — unified model: DRAFT → SUBMITTED → APPROVED → REJECTED → CLOSED. 4-step intake form data, risk flags, platformData (Json), generatedCredentials (Json), document paths, `approvedAt` timestamp. Links to closer (User). Replaces the old Client + ClientDraft dual-model pattern.
+- **BonusPool** — $400 per approved client. `clientRecordId` FK. Has many BonusAllocation[]
 - **BonusAllocation** — DIRECT / STAR_SLICE / BACKFILL. Status: PENDING → PAID
 - **PromotionLog** — immutable star level + leadership tier change audit
 - **QuarterlySettlement** — DRAFT → APPROVED → PAID. Unique per [leaderId, year, quarter]
-- **PhoneAssignment** — SIGNED_OUT → RETURNED. Tracks phone, carrier, deviceId, dueBackAt (3-day window). OVERDUE computed at view time
-- **Todo** — PENDING → COMPLETED/CANCELLED. issueCategory (9 predefined), dueDate (default 3 days), metadata (Json), source (MANUAL/EMAIL_AUTO), optional clientDraftId + clientId
+- **PhoneAssignment** — SIGNED_OUT → RETURNED. `clientRecordId` FK. Tracks phone, carrier, deviceId, dueBackAt (3-day window). OVERDUE computed at view time
+- **Todo** — PENDING → COMPLETED/CANCELLED. `clientRecordId` FK (single unified FK). issueCategory (9 predefined), dueDate (default 3 days), metadata (Json), source (MANUAL/EMAIL_AUTO)
 - **FundAllocation** — records every fund allocation with platform, amount (Decimal 12,2), direction (DEPOSIT/WITHDRAWAL), confirmationStatus (UNCONFIRMED/CONFIRMED/DISCREPANCY), confirmedAmount, confirmedBy, discrepancyNotes
 - **GmailIntegration** — stores OAuth tokens for Gmail API inbox connection, historyId for incremental sync
 - **ProcessedEmail** — dedup + audit trail for processed emails. gmailMessageId (unique), detectionType, links to todoId + fundAllocationId
@@ -85,7 +84,7 @@ CRM for client onboarding across sports betting platforms. Two portals:
 ## 5. Current State (Phase 2)
 
 ### Live (real DB)
-Agent Application + review, Agent Directory (table/tree, HoverCard), Login Management (CRUD), Commission system ($400 pool, star distribution), Client drafts (CRUD, auth-guarded), Phone assignments (assign/return/re-issue), Agent Dashboard (earnings/star), Agent Earnings (allocations), Agent Clients, Agent Detail (inline-edit + audit), New Client (4-step intake), Commissions page, Search API, NextAuth v5, **Backoffice Action Hub** (daily rundown, overdue devices, pending todos, fund allocations, activity feed), **FundAllocation** (record/track/confirm allocations), **Auto-todo on client approval** (Collect Debit Card Information, 7-day due), **Gmail Integration** (auto-detect emails, create todos, match funds), **Fund Confirmation** (UNCONFIRMED/CONFIRMED/DISCREPANCY workflow)
+Agent Application + review, Agent Directory (table/tree, HoverCard), Login Management (CRUD), Commission system ($400 pool, star distribution), Client records (CRUD, auth-guarded, unified ClientRecord model), Phone assignments (assign/return/re-issue), Agent Dashboard (earnings/star), Agent Earnings (allocations), Agent Clients, Agent Detail (inline-edit + audit), New Client (4-step intake), Commissions page, Search API, NextAuth v5, **Backoffice Action Hub** (daily rundown, overdue devices, pending todos, fund allocations, activity feed), **FundAllocation** (record/track/confirm allocations), **Auto-todo on client approval** (Collect Debit Card Information, 7-day due), **Gmail Integration** (auto-detect emails, create todos, match funds), **Fund Confirmation** (UNCONFIRMED/CONFIRMED/DISCREPANCY workflow)
 
 ### Partially Wired (DB + mock fallbacks)
 - Agent dashboard — earnings real, pipeline mock
@@ -101,13 +100,13 @@ Agent team/todos/settings. Backoffice overview, client management UI, settlement
 
 ## 6. Business Logic
 
-### Draft/Client Lifecycle
+### Client Record Lifecycle
 
 ```
-ClientDraft (DRAFT) → submit → ClientDraft (SUBMITTED) + Client (PENDING)
-                                    → backoffice approves → Client (APPROVED) + star recalc + $400 pool
+ClientRecord (DRAFT) → submit → ClientRecord (SUBMITTED)
+                                    → backoffice approves → ClientRecord (APPROVED) + star recalc + $400 pool
 ```
-Agent "My Clients" shows drafts grouped by step (1-4) at top, approved/submitted below. PENDING filtered (exist as drafts).
+Single unified model. Agent "My Clients" shows records grouped by step (1-4) at top, approved/submitted below. Client management page shows only APPROVED records.
 
 **Auto-todo on approval:** When a client is approved, a "Collect Debit Card Information" todo is auto-created with 7-day due date, assigned to the closer agent. Once debit card info is confirmed, PayPal should be issued.
 
@@ -138,7 +137,7 @@ Negative scoring from 0: Missing IDs (+10 if none, -10 each), ID expiry (<75d: -
 
 ---
 
-## 8. Feature: Client Draft / New Client
+## 8. Feature: Client Record / New Client
 
 4-step intake form at `/agent/new-client`. 3-panel layout: drafts (w-56), form (full-width), risk panel (w-56).
 
@@ -152,7 +151,7 @@ Negative scoring from 0: Missing IDs (+10 if none, -10 each), ID expiry (<75d: -
 
 **Generated Credentials:** Stored in `generatedCredentials` Json field. Generated at form init (`ensureStep3Credentials`), Step 1 credentials via `useEffect` when name+DOB available. Immediately saved to DB (bypasses debounce). Step components only read, never generate. Key file: `credential-generators.ts`.
 
-**Key files:** `src/app/agent/new-client/_components/client-form.tsx` (state/save/nav), `step1-prequal.tsx`, `step2-background.tsx`, `step3-platforms.tsx`, `step3-platform-card.tsx`, `step4-contract.tsx`, `risk-panel.tsx`, `src/app/actions/client-drafts.ts`, `src/backend/data/client-drafts.ts`
+**Key files:** `src/app/agent/new-client/_components/client-form.tsx` (state/save/nav), `step1-prequal.tsx`, `step2-background.tsx`, `step3-platforms.tsx`, `step3-platform-card.tsx`, `step4-contract.tsx`, `risk-panel.tsx`, `src/app/actions/client-records.ts`, `src/backend/data/client-records.ts`
 
 ---
 
@@ -160,9 +159,9 @@ Negative scoring from 0: Missing IDs (+10 if none, -10 each), ID expiry (<75d: -
 
 Backoffice hub at `/backoffice/sales-interaction`. Queue/Review tab toggle.
 
-**In Progress rows:** Client name + Agent link + badge (PHONE ISSUED/RETURNED only) | Days since update | Actions: Review (always), Assign Device (reservation exists, no device), Mark Returned (active device), Re-issue (returned device), Approve (step-4 submitted). Real DB drafts alongside mock data.
+**In Progress rows:** Client name + Agent link + badge (PHONE ISSUED/RETURNED only) | Days since update | Actions: Review (always), Assign Device (reservation exists, no device), Mark Returned (active device), Re-issue (returned device), Approve (step-4 submitted). All real DB data.
 
-**Device lifecycle:** Integrated into rows by activity, not step. Assign auto-advances draft to step 3. Re-issue preserves original dueBackAt. Badges show phone number on hover.
+**Device lifecycle:** Integrated into rows by activity, not step. Assign auto-advances record to step 3. Re-issue preserves original dueBackAt. Badges show phone number on hover.
 
 **Review dialog:** 4-step read-only, Approve on Step 4. Step 3 shows credential fill status (green=both, amber=partial, dim=empty).
 
@@ -197,7 +196,7 @@ vi.mock('@/backend/auth', () => ({ auth: mockAuth }))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 ```
 
-**19 files, ~280 tests:** Agent Application (5 files, 57), Commission (7 files, 73), Client Draft (2 files, 55), Phone Assignment (1 file, 22), Todo (1 file, ~20), Fund Confirmations (1 file, ~10), Gmail Detectors (1 file, ~25), Gmail Matcher (1 file, ~7)
+**20 files, 292 tests:** Agent Application (5 files, 57), Commission (7 files, 73), Client Records (2 files, 55), Phone Assignment (1 file, 22), Todo (1 file, ~18), Fund Confirmations (1 file, ~8), Gmail Detectors (1 file, ~21), Gmail Matcher (1 file, ~8), Risk Score (1 file, 38), Address Utils (1 file, 17)
 
 ---
 
@@ -214,7 +213,7 @@ Business Gmail inbox connected via Google OAuth. Cron syncs every 5 minutes (`ve
 | Fund Withdrawal | "withdrawal processed" + $ | Todo: "Confirm Fund Withdrawal" | Yes |
 | PayPal | PayPal transfer notifications | Todo: "Confirm Fund Deposit/Withdrawal" | Yes |
 
-**Client identification:** `ClientDraft.assignedGmail` ↔ email "to" address. Todo assigned to closer agent.
+**Client identification:** `ClientRecord.assignedGmail` ↔ email "to" address. Todo assigned to closer agent.
 
 **Fund matching:** Same platform + direction + amount within 5% + 48h window → auto-confirm. 5-25% mismatch → flag discrepancy. No match → manual review todo.
 
@@ -239,7 +238,7 @@ FundAllocation now tracks: `confirmationStatus` (UNCONFIRMED → CONFIRMED/DISCR
 8. Confirm Fund Deposit *(new)*
 9. Confirm Fund Withdrawal *(new)*
 
-`assignTodo()` now accepts `{ clientDraftId?, clientId? }` — at least one required. Auto-created email todos have `source: 'EMAIL_AUTO'` and show a mail icon in the Action Hub.
+`assignTodo()` accepts `{ clientRecordId }` — required. Auto-created email todos have `source: 'EMAIL_AUTO'` and show a mail icon in the Action Hub.
 
 ---
 
@@ -254,7 +253,7 @@ See `prisma/seed.ts` for full details. All passwords: `password123` (except Jami
 - Rachel Kim (SED) → Tony Russo (2★) → Sofia Reyes; Kevin Okafor
 - Victor Hayes (CMO) → Diana Foster (MD) → Ryan Mitchell (4★)
 
-**Sample data:** 3 clients (2 APPROVED w/ bonus pools, 1 PENDING), 1 draft (Sarah Martinez, step 3), 1 phone assignment (SIGNED_OUT), 1 todo (Contact Bank, PENDING), 6 fund allocations (2 confirmed, 1 discrepancy, 3 unconfirmed)
+**Sample data:** 3 client records (2 APPROVED w/ bonus pools, 1 SUBMITTED), 5 draft records (Sarah Martinez step 3, Michael Thompson step 2, Jennifer Rodriguez step 1, Andrew Park step 2, Lisa Nguyen step 1), phone assignments, 1 todo (Contact Bank, PENDING), 6 fund allocations (2 confirmed, 1 discrepancy, 3 unconfirmed)
 
 ---
 

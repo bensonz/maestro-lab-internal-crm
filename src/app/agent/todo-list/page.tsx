@@ -2,22 +2,21 @@ import { MOCK_TEAM_MEMBERS } from '@/lib/mock-data'
 import { TodoPageClient } from './_components/todo-page-client'
 import { requireAgent } from '../_require-agent'
 import { getTodosByAgent } from '@/backend/data/todos'
-import { getDraftsByCloser } from '@/backend/data/client-drafts'
-import { getClientsByCloser } from '@/backend/data/clients'
+import { getRecordsByCloser, getApprovedRecordsByCloser } from '@/backend/data/client-records'
 import { getAgentEarnings } from '@/backend/data/bonus-pools'
 
 export default async function TodoListPage() {
   const agent = await requireAgent()
 
   // Fetch real data from DB in parallel
-  const [realTodosResult, realDrafts, realClients, earningsResult] = await Promise.all([
+  const [realTodosResult, realDrafts, realRecords, earningsResult] = await Promise.all([
     getTodosByAgent(agent.id).catch(() => []),
-    getDraftsByCloser(agent.id).catch(() => []),
-    getClientsByCloser(agent.id).catch(() => []),
+    getRecordsByCloser(agent.id).catch(() => []),
+    getApprovedRecordsByCloser(agent.id).catch(() => []),
     getAgentEarnings(agent.id).catch(() => null),
   ])
 
-  // Map real drafts and clients to the shape expected by TodoPageClient
+  // Map real drafts and approved records to the shape expected by TodoPageClient
   const clientData = [
     ...realDrafts.map((d) => ({
       id: d.id,
@@ -30,14 +29,14 @@ export default async function TodoListPage() {
       totalSteps: 4,
       deadline: null as string | null,
     })),
-    ...realClients
-      .filter((c) => c.status !== 'PENDING')
-      .map((c) => ({
-        id: c.id,
-        name: `${c.firstName} ${c.lastName}`,
-        intakeStatus: c.status === 'APPROVED' ? 'APPROVED' : c.status,
+    ...realRecords
+      .filter((r) => r.status !== 'DRAFT' && r.status !== 'SUBMITTED')
+      .map((r) => ({
+        id: r.id,
+        name: `${r.firstName} ${r.lastName}`,
+        intakeStatus: r.status === 'APPROVED' ? 'APPROVED' : r.status,
         nextTask: null as string | null,
-        step: c.status === 'APPROVED' ? 1 : 0,
+        step: r.status === 'APPROVED' ? 1 : 0,
         totalSteps: 1,
         deadline: null as string | null,
       })),
@@ -47,8 +46,8 @@ export default async function TodoListPage() {
   const now = Date.now()
   const pendingTasks = realTodosResult.map((t) => {
     const clientName = [
-      t.clientDraft?.firstName ?? t.client?.firstName,
-      t.clientDraft?.lastName ?? t.client?.lastName,
+      t.clientRecord?.firstName,
+      t.clientRecord?.lastName,
     ].filter(Boolean).join(' ') || 'Unknown'
     const daysUntil = Math.floor(
       (t.dueDate.getTime() - now) / (1000 * 60 * 60 * 24),
@@ -58,11 +57,11 @@ export default async function TodoListPage() {
       task: t.title,
       description: t.description || `${t.issueCategory} — ${clientName}`,
       client: clientName,
-      clientId: t.clientDraftId ?? '',
+      clientId: t.clientRecordId ?? '',
       due: daysUntil < 0 ? `${Math.abs(daysUntil)}d overdue` : `${daysUntil}d`,
       dueDate: t.dueDate.toISOString(),
       overdue: daysUntil < 0,
-      stepNumber: t.clientDraft?.step ?? 1,
+      stepNumber: t.clientRecord?.step ?? 1,
       createdAt: t.createdAt.toISOString(),
       extensionsUsed: 0,
       maxExtensions: 2,

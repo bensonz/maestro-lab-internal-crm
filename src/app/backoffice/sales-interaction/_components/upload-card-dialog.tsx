@@ -20,7 +20,7 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import { mockExtractFromDebitCard } from '@/app/agent/new-client/_components/mock-extract-id'
-import { updateDebitCardInfo } from '@/app/actions/client-drafts'
+import { updateDebitCardInfo } from '@/app/actions/client-records'
 import { toast } from 'sonner'
 
 interface CardData {
@@ -40,7 +40,7 @@ const EMPTY_CARD: CardData = {
 }
 
 interface UploadCardDialogProps {
-  draftId: string | null
+  clientRecordId: string | null
   clientName: string
   /** Pre-existing bank card data from platformData */
   existingBankCard?: Partial<CardData> | null
@@ -50,7 +50,7 @@ interface UploadCardDialogProps {
 }
 
 export function UploadCardDialog({
-  draftId,
+  clientRecordId,
   clientName,
   existingBankCard,
   existingEdgeboostCard,
@@ -72,10 +72,10 @@ export function UploadCardDialog({
   const [extractingEdge, setExtractingEdge] = useState(false)
 
   // Reset state when dialog opens with new draft
-  const prevDraftIdRef = useState<string | null>(null)
-  if (draftId !== prevDraftIdRef[0]) {
-    prevDraftIdRef[1](draftId)
-    if (draftId) {
+  const prevRecordIdRef = useState<string | null>(null)
+  if (clientRecordId !== prevRecordIdRef[0]) {
+    prevRecordIdRef[1](clientRecordId)
+    if (clientRecordId) {
       setBankCard({
         ...EMPTY_CARD,
         ...existingBankCard,
@@ -143,7 +143,7 @@ export function UploadCardDialog({
   }
 
   const handleSave = () => {
-    if (!draftId) return
+    if (!clientRecordId) return
 
     const payload: Parameters<typeof updateDebitCardInfo>[1] = {}
 
@@ -171,7 +171,7 @@ export function UploadCardDialog({
     }
 
     startTransition(async () => {
-      const result = await updateDebitCardInfo(draftId, payload)
+      const result = await updateDebitCardInfo(clientRecordId, payload)
       if (result.success) {
         toast.success(`Debit card info saved for ${clientName}`)
         handleClose()
@@ -187,7 +187,7 @@ export function UploadCardDialog({
     edgeboostCard.cardNumber || edgeboostCard.images.length > 0
 
   return (
-    <Dialog open={!!draftId} onOpenChange={(open) => !open && handleClose()}>
+    <Dialog open={!!clientRecordId} onOpenChange={(open) => !open && handleClose()}>
       <DialogContent className="sm:max-w-2xl" data-testid="upload-card-dialog">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">

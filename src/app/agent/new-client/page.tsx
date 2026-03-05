@@ -1,6 +1,6 @@
 import { requireAgent } from '../_require-agent'
-import { getDraftsByCloser, getDraftByIdForAgent } from '@/backend/data/client-drafts'
-import { getAssignmentForDraft } from '@/backend/data/phone-assignments'
+import { getRecordsByCloser, getRecordByIdForAgent } from '@/backend/data/client-records'
+import { getAssignmentForRecord } from '@/backend/data/phone-assignments'
 import { ensureGeneratedCredentials } from '@/backend/services/credential-generator'
 import { NewClientView } from './_components/new-client-view'
 
@@ -13,17 +13,17 @@ export default async function NewClientPage({
 
   const params = await searchParams
 
-  let drafts: Awaited<ReturnType<typeof getDraftsByCloser>> = []
+  let drafts: Awaited<ReturnType<typeof getRecordsByCloser>> = []
   try {
-    drafts = await getDraftsByCloser(agent.id)
+    drafts = await getRecordsByCloser(agent.id)
   } catch {
     // DB not available
   }
 
-  let selectedDraft: Awaited<ReturnType<typeof getDraftByIdForAgent>> = null
+  let selectedDraft: Awaited<ReturnType<typeof getRecordByIdForAgent>> = null
   if (params.draft) {
     try {
-      selectedDraft = await getDraftByIdForAgent(params.draft, agent.id)
+      selectedDraft = await getRecordByIdForAgent(params.draft, agent.id)
     } catch {
       // Draft not found or DB issue
     }
@@ -39,10 +39,10 @@ export default async function NewClientPage({
   }
 
   // Load phone assignment for the selected draft (any status — keep visible after return)
-  let activeAssignment: Awaited<ReturnType<typeof getAssignmentForDraft>> = null
+  let activeAssignment: Awaited<ReturnType<typeof getAssignmentForRecord>> = null
   if (selectedDraft) {
     try {
-      activeAssignment = await getAssignmentForDraft(selectedDraft.id)
+      activeAssignment = await getAssignmentForRecord(selectedDraft.id)
     } catch {
       // DB not available
     }

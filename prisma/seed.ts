@@ -551,48 +551,32 @@ async function main() {
 
   // Clean up existing sample clients to allow re-seeding
   await prisma.bonusAllocation.deleteMany({
-    where: { pool: { client: { email: { startsWith: 'sample-client' } } } },
+    where: { pool: { clientRecord: { email: { startsWith: 'sample-client' } } } },
   })
   await prisma.bonusPool.deleteMany({
-    where: { client: { email: { startsWith: 'sample-client' } } },
+    where: { clientRecord: { email: { startsWith: 'sample-client' } } },
   })
   await prisma.transaction.deleteMany({
-    where: { client: { email: { startsWith: 'sample-client' } } },
+    where: { clientRecord: { email: { startsWith: 'sample-client' } } },
   })
-  // Clean up phone assignments linked to sample client drafts
+  // Clean up phone assignments linked to sample client records
   await prisma.phoneAssignment.deleteMany({
-    where: { clientDraft: { resultClient: { email: { startsWith: 'sample-client' } } } },
+    where: { clientRecord: { email: { startsWith: 'sample-client' } } },
   })
-  // Clean up drafts linked to sample clients
-  await prisma.clientDraft.deleteMany({
-    where: { resultClient: { email: { startsWith: 'sample-client' } } },
-  })
-  await prisma.client.deleteMany({
+  // Clean up sample client records
+  await prisma.clientRecord.deleteMany({
     where: { email: { startsWith: 'sample-client' } },
   })
 
   // Client 1 — Approved, closed by Marcus Rivera (2★)
   // Chain: Marcus (2★) → James Park (4★)
   // Distribution: Direct $200 to Marcus, Star pool: Marcus 2 slices ($100) + James 2 slices ($100)
-  const client1 = await prisma.client.create({
+  const client1 = await prisma.clientRecord.create({
     data: {
-      firstName: 'David',
-      lastName: 'Wilson',
-      email: 'sample-client-1@example.com',
-      phone: '(555) 500-0001',
+      closerId: agent.id,
       status: 'APPROVED',
-      closerId: agent.id,
-      approvedAt: new Date('2026-02-10'),
-    },
-  })
-
-  // Create linked ClientDraft for Client 1 (David Wilson) — simulates full intake
-  const draft1 = await prisma.clientDraft.create({
-    data: {
-      closerId: agent.id,
-      status: 'SUBMITTED',
       step: 4,
-      resultClientId: client1.id,
+      approvedAt: new Date('2026-02-10'),
       firstName: 'David',
       lastName: 'Wilson',
       email: 'sample-client-1@example.com',
@@ -658,7 +642,7 @@ async function main() {
 
   await prisma.bonusPool.create({
     data: {
-      clientId: client1.id,
+      clientRecordId: client1.id,
       closerId: agent.id,
       closerStarLevel: 2,
       totalAmount: 400,
@@ -709,25 +693,12 @@ async function main() {
   // Client 2 — Approved, closed by Jamie Torres (0★ rookie)
   // Chain: Jamie (0★) → Marcus (2★) → James Park (4★)
   // Distribution: Direct $200 to Jamie, Star pool: Jamie 0, Marcus 2 ($100), James 2 ($100)
-  const client2 = await prisma.client.create({
+  const client2 = await prisma.clientRecord.create({
     data: {
-      firstName: 'Emily',
-      lastName: 'Chen',
-      email: 'sample-client-2@example.com',
-      phone: '(555) 500-0002',
+      closerId: approvedUser.id,
       status: 'APPROVED',
-      closerId: approvedUser.id,
-      approvedAt: new Date('2026-02-12'),
-    },
-  })
-
-  // Create linked ClientDraft for Client 2 (Emily Chen)
-  const draft2 = await prisma.clientDraft.create({
-    data: {
-      closerId: approvedUser.id,
-      status: 'SUBMITTED',
       step: 4,
-      resultClientId: client2.id,
+      approvedAt: new Date('2026-02-12'),
       firstName: 'Emily',
       lastName: 'Chen',
       email: 'sample-client-2@example.com',
@@ -795,7 +766,7 @@ async function main() {
 
   await prisma.bonusPool.create({
     data: {
-      clientId: client2.id,
+      clientRecordId: client2.id,
       closerId: approvedUser.id,
       closerStarLevel: 0,
       totalAmount: 400,
@@ -837,25 +808,12 @@ async function main() {
   })
   console.log(`  Created client 2 (Emily Chen) + bonus pool — closed by Jamie`)
 
-  // Client 3 — Pending (no bonus pool yet)
-  const client3 = await prisma.client.create({
-    data: {
-      firstName: 'Robert',
-      lastName: 'Kim',
-      email: 'sample-client-3@example.com',
-      phone: '(555) 500-0003',
-      status: 'PENDING',
-      closerId: agent.id,
-    },
-  })
-
-  // Create linked ClientDraft for Client 3 (Robert Kim — submitted, pending approval)
-  const draft3 = await prisma.clientDraft.create({
+  // Client 3 — Submitted, pending approval (no bonus pool yet)
+  const client3 = await prisma.clientRecord.create({
     data: {
       closerId: agent.id,
       status: 'SUBMITTED',
       step: 4,
-      resultClientId: client3.id,
       firstName: 'Robert',
       lastName: 'Kim',
       email: 'sample-client-3@example.com',
@@ -916,7 +874,7 @@ async function main() {
       phoneNumber: '(555) 888-0001',
       carrier: 'Verizon',
       deviceId: 'IMEI-1001001001',
-      clientDraftId: draft1.id,
+      clientRecordId: client1.id,
       agentId: agent.id,
       signedOutById: boStaff.id,
       signedOutAt: new Date('2026-02-06'),
@@ -931,7 +889,7 @@ async function main() {
       phoneNumber: '(555) 888-0002',
       carrier: 'T-Mobile',
       deviceId: 'IMEI-2002002002',
-      clientDraftId: draft2.id,
+      clientRecordId: client2.id,
       agentId: approvedUser.id,
       signedOutById: boStaff.id,
       signedOutAt: new Date('2026-02-09'),
@@ -946,7 +904,7 @@ async function main() {
       phoneNumber: '(555) 888-0003',
       carrier: 'AT&T',
       deviceId: 'IMEI-3003003003',
-      clientDraftId: draft3.id,
+      clientRecordId: client3.id,
       agentId: agent.id,
       signedOutById: boStaff.id,
       signedOutAt: new Date('2026-02-21'),
@@ -963,7 +921,7 @@ async function main() {
   await prisma.transaction.createMany({
     data: [
       {
-        clientId: client1.id,
+        clientRecordId: client1.id,
         type: 'DEPOSIT',
         amount: 500.00,
         description: 'Initial deposit to DraftKings',
@@ -971,7 +929,7 @@ async function main() {
         createdAt: new Date('2026-02-11'),
       },
       {
-        clientId: client1.id,
+        clientRecordId: client1.id,
         type: 'DEPOSIT',
         amount: 300.00,
         description: 'Deposit to FanDuel',
@@ -979,7 +937,7 @@ async function main() {
         createdAt: new Date('2026-02-13'),
       },
       {
-        clientId: client1.id,
+        clientRecordId: client1.id,
         type: 'DEPOSIT',
         amount: 200.00,
         description: 'PayPal fund transfer',
@@ -987,7 +945,7 @@ async function main() {
         createdAt: new Date('2026-02-15'),
       },
       {
-        clientId: client1.id,
+        clientRecordId: client1.id,
         type: 'WITHDRAWAL',
         amount: 150.00,
         description: 'Withdrawal from DraftKings',
@@ -1001,7 +959,7 @@ async function main() {
   await prisma.transaction.createMany({
     data: [
       {
-        clientId: client2.id,
+        clientRecordId: client2.id,
         type: 'DEPOSIT',
         amount: 400.00,
         description: 'Initial deposit to BetMGM',
@@ -1009,7 +967,7 @@ async function main() {
         createdAt: new Date('2026-02-13'),
       },
       {
-        clientId: client2.id,
+        clientRecordId: client2.id,
         type: 'DEPOSIT',
         amount: 250.00,
         description: 'Bank transfer deposit',
@@ -1017,7 +975,7 @@ async function main() {
         createdAt: new Date('2026-02-16'),
       },
       {
-        clientId: client2.id,
+        clientRecordId: client2.id,
         type: 'WITHDRAWAL',
         amount: 100.00,
         description: 'PayPal withdrawal',
@@ -1030,19 +988,19 @@ async function main() {
 
   // ── Sample Client Draft ────────────────────────────────
 
-  // Delete in dependency order: Todo → PhoneAssignment → ClientDraft
+  // Delete in dependency order: Todo → PhoneAssignment → ClientRecord
   await prisma.todo.deleteMany({
-    where: { clientDraft: { closerId: agent.id } },
+    where: { clientRecord: { closerId: agent.id } },
   })
   await prisma.phoneAssignment.deleteMany({
-    where: { clientDraft: { closerId: agent.id } },
+    where: { clientRecord: { closerId: agent.id } },
   })
-  await prisma.clientDraft.deleteMany({ where: { closerId: agent.id, resultClientId: null } })
+  await prisma.clientRecord.deleteMany({ where: { closerId: agent.id, status: 'DRAFT' } })
   // Compute future dates for phone assignment (sign out = now, due back = 3 days from now)
   const signOutDate = new Date()
   const dueBackDate = new Date(signOutDate.getTime() + 3 * 24 * 60 * 60 * 1000)
 
-  const sampleDraft = await prisma.clientDraft.create({
+  const sampleDraft = await prisma.clientRecord.create({
     data: {
       closerId: agent.id,
       status: 'DRAFT',
@@ -1066,7 +1024,7 @@ async function main() {
       phoneNumber: '(555) 777-0001',
       carrier: 'T-Mobile',
       deviceId: 'IMEI-9876543210',
-      clientDraftId: sampleDraft.id,
+      clientRecordId: sampleDraft.id,
       agentId: agent.id,
       signedOutById: boStaff.id,
       signedOutAt: signOutDate,
@@ -1079,7 +1037,7 @@ async function main() {
   // ── Additional Step 3 & 4 Drafts (for testing the last intake steps) ────
 
   // Michael Thompson — Step 3, ~5/11 platforms done
-  const draftMichael = await prisma.clientDraft.create({
+  const draftMichael = await prisma.clientRecord.create({
     data: {
       closerId: agent.id,
       status: 'DRAFT',
@@ -1148,7 +1106,7 @@ async function main() {
       phoneNumber: '(555) 777-0010',
       carrier: 'Verizon',
       deviceId: 'IMEI-1010101010',
-      clientDraftId: draftMichael.id,
+      clientRecordId: draftMichael.id,
       agentId: agent.id,
       signedOutById: boStaff.id,
       signedOutAt: signOutDate,
@@ -1159,7 +1117,7 @@ async function main() {
   console.log(`  Created step-3 draft: Michael Thompson (5/11 platforms)`)
 
   // Jennifer Rodriguez — Step 3, ~9/11 platforms done
-  const draftJennifer = await prisma.clientDraft.create({
+  const draftJennifer = await prisma.clientRecord.create({
     data: {
       closerId: agent.id,
       status: 'DRAFT',
@@ -1228,7 +1186,7 @@ async function main() {
       phoneNumber: '(555) 777-0011',
       carrier: 'AT&T',
       deviceId: 'IMEI-2020202020',
-      clientDraftId: draftJennifer.id,
+      clientRecordId: draftJennifer.id,
       agentId: agent.id,
       signedOutById: boStaff.id,
       signedOutAt: signOutDate,
@@ -1239,7 +1197,7 @@ async function main() {
   console.log(`  Created step-3 draft: Jennifer Rodriguez (9/11 platforms)`)
 
   // Andrew Park — Step 4, all platforms done, no contract yet
-  const draftAndrew = await prisma.clientDraft.create({
+  const draftAndrew = await prisma.clientRecord.create({
     data: {
       closerId: agent.id,
       status: 'DRAFT',
@@ -1308,7 +1266,7 @@ async function main() {
       phoneNumber: '(555) 777-0012',
       carrier: 'T-Mobile',
       deviceId: 'IMEI-3030303030',
-      clientDraftId: draftAndrew.id,
+      clientRecordId: draftAndrew.id,
       agentId: agent.id,
       signedOutById: boStaff.id,
       signedOutAt: signOutDate,
@@ -1319,7 +1277,7 @@ async function main() {
   console.log(`  Created step-4 draft: Andrew Park (11/11 platforms, no contract)`)
 
   // Lisa Nguyen — Step 4, all platforms done + contract uploaded, ready to submit
-  const draftLisa = await prisma.clientDraft.create({
+  const draftLisa = await prisma.clientRecord.create({
     data: {
       closerId: agent.id,
       status: 'DRAFT',
@@ -1390,7 +1348,7 @@ async function main() {
       phoneNumber: '(555) 777-0013',
       carrier: 'Verizon',
       deviceId: 'IMEI-4040404040',
-      clientDraftId: draftLisa.id,
+      clientRecordId: draftLisa.id,
       agentId: agent.id,
       signedOutById: boStaff.id,
       signedOutAt: signOutDate,
@@ -1402,7 +1360,7 @@ async function main() {
 
   // ── Sample Todo ──────────────────────────────────────────
 
-  await prisma.todo.deleteMany({ where: { clientDraftId: sampleDraft.id } })
+  await prisma.todo.deleteMany({ where: { clientRecordId: sampleDraft.id } })
   const todoDueDate = new Date()
   todoDueDate.setDate(todoDueDate.getDate() + 3)
   const sampleTodo = await prisma.todo.create({
@@ -1410,7 +1368,7 @@ async function main() {
       title: 'Contact Bank',
       description: 'Contact Bank — Sarah Martinez',
       issueCategory: 'Contact Bank',
-      clientDraftId: sampleDraft.id,
+      clientRecordId: sampleDraft.id,
       assignedToId: agent.id,
       createdById: boStaff.id,
       dueDate: todoDueDate,
@@ -1519,7 +1477,7 @@ async function main() {
         userId: boStaff.id,
         metadata: {
           todoId: sampleTodo.id,
-          clientDraftId: sampleDraft.id,
+          clientRecordId: sampleDraft.id,
           clientName: 'Sarah Martinez',
           agentId: agent.id,
           agentName: 'Marcus Rivera',
@@ -1529,7 +1487,7 @@ async function main() {
     ],
   })
 
-  // Client-specific event logs (with metadata.clientId for timeline queries)
+  // Client-specific event logs (with metadata.clientRecordId for timeline queries)
   // David Wilson — 7 lifecycle events
   await prisma.eventLog.createMany({
     data: [
@@ -1537,49 +1495,49 @@ async function main() {
         eventType: 'CLIENT_DRAFT_CREATED',
         description: 'Client intake started for David Wilson by Marcus Rivera',
         userId: agent.id,
-        metadata: { clientId: client1.id, clientName: 'David Wilson', agentName: 'Marcus Rivera' },
+        metadata: { clientRecordId: client1.id, clientName: 'David Wilson', agentName: 'Marcus Rivera' },
         createdAt: new Date('2026-02-05'),
       },
       {
         eventType: 'DEVICE_SIGNED_OUT',
         description: 'Device (555) 888-0001 signed out for David Wilson',
         userId: boStaff.id,
-        metadata: { clientId: client1.id, clientName: 'David Wilson', phoneNumber: '(555) 888-0001', carrier: 'Verizon' },
+        metadata: { clientRecordId: client1.id, clientName: 'David Wilson', phoneNumber: '(555) 888-0001', carrier: 'Verizon' },
         createdAt: new Date('2026-02-06'),
       },
       {
         eventType: 'DEVICE_RETURNED',
         description: 'Device (555) 888-0001 returned for David Wilson',
         userId: boStaff.id,
-        metadata: { clientId: client1.id, clientName: 'David Wilson', phoneNumber: '(555) 888-0001' },
+        metadata: { clientRecordId: client1.id, clientName: 'David Wilson', phoneNumber: '(555) 888-0001' },
         createdAt: new Date('2026-02-08'),
       },
       {
         eventType: 'CLIENT_DRAFT_SUBMITTED',
         description: 'Client intake submitted for David Wilson',
         userId: agent.id,
-        metadata: { clientId: client1.id, clientName: 'David Wilson' },
+        metadata: { clientRecordId: client1.id, clientName: 'David Wilson' },
         createdAt: new Date('2026-02-09'),
       },
       {
         eventType: 'CLIENT_APPROVED',
         description: 'Client David Wilson approved',
         userId: boStaff.id,
-        metadata: { clientId: client1.id, clientName: 'David Wilson' },
+        metadata: { clientRecordId: client1.id, clientName: 'David Wilson' },
         createdAt: new Date('2026-02-10'),
       },
       {
         eventType: 'BONUS_POOL_CREATED',
         description: 'Bonus pool ($400) created for David Wilson',
         userId: admin.id,
-        metadata: { clientId: client1.id, clientName: 'David Wilson', totalAmount: 400 },
+        metadata: { clientRecordId: client1.id, clientName: 'David Wilson', totalAmount: 400 },
         createdAt: new Date('2026-02-10T01:00:00'),
       },
       {
         eventType: 'BONUS_POOL_DISTRIBUTED',
         description: 'Bonus pool distributed for David Wilson — $200 direct + 4 star slices',
         userId: agent.id,
-        metadata: { clientId: client1.id, clientName: 'David Wilson', distributedSlices: 4 },
+        metadata: { clientRecordId: client1.id, clientName: 'David Wilson', distributedSlices: 4 },
         createdAt: new Date('2026-02-10T02:00:00'),
       },
     ],
@@ -1592,42 +1550,42 @@ async function main() {
         eventType: 'CLIENT_DRAFT_CREATED',
         description: 'Client intake started for Emily Chen by Jamie Torres',
         userId: approvedUser.id,
-        metadata: { clientId: client2.id, clientName: 'Emily Chen', agentName: 'Jamie Torres' },
+        metadata: { clientRecordId: client2.id, clientName: 'Emily Chen', agentName: 'Jamie Torres' },
         createdAt: new Date('2026-02-08'),
       },
       {
         eventType: 'DEVICE_SIGNED_OUT',
         description: 'Device (555) 888-0002 signed out for Emily Chen',
         userId: boStaff.id,
-        metadata: { clientId: client2.id, clientName: 'Emily Chen', phoneNumber: '(555) 888-0002', carrier: 'T-Mobile' },
+        metadata: { clientRecordId: client2.id, clientName: 'Emily Chen', phoneNumber: '(555) 888-0002', carrier: 'T-Mobile' },
         createdAt: new Date('2026-02-09'),
       },
       {
         eventType: 'DEVICE_RETURNED',
         description: 'Device (555) 888-0002 returned for Emily Chen',
         userId: boStaff.id,
-        metadata: { clientId: client2.id, clientName: 'Emily Chen', phoneNumber: '(555) 888-0002' },
+        metadata: { clientRecordId: client2.id, clientName: 'Emily Chen', phoneNumber: '(555) 888-0002' },
         createdAt: new Date('2026-02-11'),
       },
       {
         eventType: 'CLIENT_DRAFT_SUBMITTED',
         description: 'Client intake submitted for Emily Chen',
         userId: approvedUser.id,
-        metadata: { clientId: client2.id, clientName: 'Emily Chen' },
+        metadata: { clientRecordId: client2.id, clientName: 'Emily Chen' },
         createdAt: new Date('2026-02-11T01:00:00'),
       },
       {
         eventType: 'CLIENT_APPROVED',
         description: 'Client Emily Chen approved',
         userId: boStaff.id,
-        metadata: { clientId: client2.id, clientName: 'Emily Chen' },
+        metadata: { clientRecordId: client2.id, clientName: 'Emily Chen' },
         createdAt: new Date('2026-02-12'),
       },
       {
         eventType: 'BONUS_POOL_DISTRIBUTED',
         description: 'Bonus pool distributed for Emily Chen — $200 direct + 4 star slices',
         userId: approvedUser.id,
-        metadata: { clientId: client2.id, clientName: 'Emily Chen', distributedSlices: 4 },
+        metadata: { clientRecordId: client2.id, clientName: 'Emily Chen', distributedSlices: 4 },
         createdAt: new Date('2026-02-12T01:00:00'),
       },
     ],
@@ -1640,26 +1598,26 @@ async function main() {
         eventType: 'CLIENT_DRAFT_CREATED',
         description: 'Client intake started for Robert Kim by Marcus Rivera',
         userId: agent.id,
-        metadata: { clientId: client3.id, clientName: 'Robert Kim', agentName: 'Marcus Rivera' },
+        metadata: { clientRecordId: client3.id, clientName: 'Robert Kim', agentName: 'Marcus Rivera' },
         createdAt: new Date('2026-02-20'),
       },
       {
         eventType: 'DEVICE_SIGNED_OUT',
         description: 'Device (555) 888-0003 signed out for Robert Kim',
         userId: boStaff.id,
-        metadata: { clientId: client3.id, clientName: 'Robert Kim', phoneNumber: '(555) 888-0003', carrier: 'AT&T' },
+        metadata: { clientRecordId: client3.id, clientName: 'Robert Kim', phoneNumber: '(555) 888-0003', carrier: 'AT&T' },
         createdAt: new Date('2026-02-21'),
       },
       {
         eventType: 'CLIENT_DRAFT_SUBMITTED',
         description: 'Client intake submitted for Robert Kim',
         userId: agent.id,
-        metadata: { clientId: client3.id, clientName: 'Robert Kim' },
+        metadata: { clientRecordId: client3.id, clientName: 'Robert Kim' },
         createdAt: new Date('2026-02-25'),
       },
     ],
   })
-  console.log('  Created event logs (general + client-specific with clientId)')
+  console.log('  Created event logs (general + client-specific with clientRecordId)')
 
   console.log('\nSeeding complete!')
   console.log('\n  Progression ladder: Rookie → 1★ → 2★ → 3★ → 4★ → ED → SED → MD → CMO')

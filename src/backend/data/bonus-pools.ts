@@ -11,7 +11,7 @@ export async function getCommissionOverview(): Promise<CommissionOverviewData> {
   const pools = await prisma.bonusPool.findMany({
     orderBy: { createdAt: 'desc' },
     include: {
-      client: { select: { firstName: true, lastName: true } },
+      clientRecord: { select: { firstName: true, lastName: true } },
       closer: { select: { id: true, name: true } },
       allocations: {
         include: {
@@ -23,8 +23,8 @@ export async function getCommissionOverview(): Promise<CommissionOverviewData> {
 
   const poolData: BonusPoolData[] = pools.map((p) => ({
     id: p.id,
-    clientId: p.clientId,
-    clientName: `${p.client.firstName} ${p.client.lastName}`,
+    clientRecordId: p.clientRecordId,
+    clientName: `${p.clientRecord.firstName} ${p.clientRecord.lastName}`,
     closerId: p.closerId,
     closerName: p.closer.name,
     closerStarLevel: p.closerStarLevel,
@@ -47,7 +47,7 @@ export async function getCommissionOverview(): Promise<CommissionOverviewData> {
         status: a.status,
         paidAt: a.paidAt,
         createdAt: a.createdAt,
-        clientName: `${p.client.firstName} ${p.client.lastName}`,
+        clientName: `${p.clientRecord.firstName} ${p.clientRecord.lastName}`,
         closerName: p.closer.name,
       }),
     ),
@@ -94,7 +94,7 @@ export async function getAgentEarnings(
       agent: { select: { id: true, name: true } },
       pool: {
         select: {
-          client: { select: { firstName: true, lastName: true } },
+          clientRecord: { select: { firstName: true, lastName: true } },
           closer: { select: { id: true, name: true } },
         },
       },
@@ -112,7 +112,7 @@ export async function getAgentEarnings(
     status: a.status,
     paidAt: a.paidAt,
     createdAt: a.createdAt,
-    clientName: `${a.pool.client.firstName} ${a.pool.client.lastName}`,
+    clientName: `${a.pool.clientRecord.firstName} ${a.pool.clientRecord.lastName}`,
     closerName: a.pool.closer.name,
   }))
 
@@ -178,7 +178,7 @@ export async function getAgentLeaderboard(): Promise<AgentLeaderboardEntry[]> {
       id: true,
       name: true,
       starLevel: true,
-      _count: { select: { closedClients: { where: { status: 'APPROVED' } } } },
+      _count: { select: { clientRecords: { where: { status: 'APPROVED' } } } },
       allocations: { select: { amount: true } },
     },
     orderBy: { starLevel: 'desc' },
@@ -188,7 +188,7 @@ export async function getAgentLeaderboard(): Promise<AgentLeaderboardEntry[]> {
     agentId: a.id,
     agentName: a.name,
     starLevel: a.starLevel,
-    approvedClients: a._count.closedClients,
+    approvedClients: a._count.clientRecords,
     totalEarned: a.allocations.reduce((s, al) => s + al.amount, 0),
   }))
 }
@@ -201,7 +201,7 @@ export async function getPendingPayouts() {
       agent: { select: { id: true, name: true } },
       pool: {
         select: {
-          client: { select: { firstName: true, lastName: true } },
+          clientRecord: { select: { firstName: true, lastName: true } },
         },
       },
     },
@@ -215,7 +215,7 @@ export async function getAllocationsByAgent(agentId: string) {
     include: {
       pool: {
         select: {
-          client: { select: { firstName: true, lastName: true } },
+          clientRecord: { select: { firstName: true, lastName: true } },
           closerStarLevel: true,
         },
       },

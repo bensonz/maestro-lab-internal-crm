@@ -10,7 +10,7 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 // Mock Prisma
 const { mockPrisma } = vi.hoisted(() => ({
   mockPrisma: {
-    clientDraft: {
+    clientRecord: {
       findUnique: vi.fn(),
       update: vi.fn(),
     },
@@ -69,7 +69,7 @@ describe('assignAndSignOutDevice', () => {
 
   it('returns error if draft not found', async () => {
     mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } })
-    mockPrisma.clientDraft.findUnique.mockResolvedValue(null)
+    mockPrisma.clientRecord.findUnique.mockResolvedValue(null)
     const result = await assignAndSignOutDevice('draft-999', '555-1234')
     expect(result.success).toBe(false)
     expect(result.error).toBe('Draft not found')
@@ -77,7 +77,7 @@ describe('assignAndSignOutDevice', () => {
 
   it('returns error if draft has no deviceReservationDate', async () => {
     mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } })
-    mockPrisma.clientDraft.findUnique.mockResolvedValue({
+    mockPrisma.clientRecord.findUnique.mockResolvedValue({
       id: 'draft-1',
       closerId: 'agent-1',
       deviceReservationDate: null,
@@ -91,7 +91,7 @@ describe('assignAndSignOutDevice', () => {
 
   it('returns error if draft already has active assignment', async () => {
     mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN' } })
-    mockPrisma.clientDraft.findUnique.mockResolvedValue({
+    mockPrisma.clientRecord.findUnique.mockResolvedValue({
       id: 'draft-1',
       closerId: 'agent-1',
       deviceReservationDate: '2026-02-20',
@@ -106,7 +106,7 @@ describe('assignAndSignOutDevice', () => {
 
   it('creates assignment with dueBackAt +3 days on success (ADMIN)', async () => {
     mockAuth.mockResolvedValue({ user: { id: 'bo-1', role: 'ADMIN' } })
-    mockPrisma.clientDraft.findUnique.mockResolvedValue({
+    mockPrisma.clientRecord.findUnique.mockResolvedValue({
       id: 'draft-1',
       closerId: 'agent-1',
       deviceReservationDate: '2026-02-20',
@@ -115,7 +115,7 @@ describe('assignAndSignOutDevice', () => {
     })
     mockPrisma.phoneAssignment.findFirst.mockResolvedValue(null)
     mockPrisma.phoneAssignment.create.mockResolvedValue({ id: 'pa-new' })
-    mockPrisma.clientDraft.update.mockResolvedValue({})
+    mockPrisma.clientRecord.update.mockResolvedValue({})
 
     const result = await assignAndSignOutDevice('draft-1', '(555) 123-4567', 'T-Mobile', 'IMEI-123')
 
@@ -127,7 +127,7 @@ describe('assignAndSignOutDevice', () => {
     expect(createCall.data.phoneNumber).toBe('(555) 123-4567')
     expect(createCall.data.carrier).toBe('T-Mobile')
     expect(createCall.data.deviceId).toBe('IMEI-123')
-    expect(createCall.data.clientDraftId).toBe('draft-1')
+    expect(createCall.data.clientRecordId).toBe('draft-1')
     expect(createCall.data.agentId).toBe('agent-1')
     expect(createCall.data.signedOutById).toBe('bo-1')
     expect(createCall.data.status).toBe('SIGNED_OUT')
@@ -140,7 +140,7 @@ describe('assignAndSignOutDevice', () => {
     expect(diffHours).toBeLessThan(73)
 
     // Verify draft auto-advanced to step 3
-    expect(mockPrisma.clientDraft.update).toHaveBeenCalledWith({
+    expect(mockPrisma.clientRecord.update).toHaveBeenCalledWith({
       where: { id: 'draft-1' },
       data: { step: 3 },
     })
@@ -154,7 +154,7 @@ describe('assignAndSignOutDevice', () => {
 
   it('works for BACKOFFICE role', async () => {
     mockAuth.mockResolvedValue({ user: { id: 'bo-1', role: 'BACKOFFICE' } })
-    mockPrisma.clientDraft.findUnique.mockResolvedValue({
+    mockPrisma.clientRecord.findUnique.mockResolvedValue({
       id: 'draft-1',
       closerId: 'agent-1',
       deviceReservationDate: '2026-02-20',
@@ -163,7 +163,7 @@ describe('assignAndSignOutDevice', () => {
     })
     mockPrisma.phoneAssignment.findFirst.mockResolvedValue(null)
     mockPrisma.phoneAssignment.create.mockResolvedValue({ id: 'pa-new' })
-    mockPrisma.clientDraft.update.mockResolvedValue({})
+    mockPrisma.clientRecord.update.mockResolvedValue({})
 
     const result = await assignAndSignOutDevice('draft-1', '555-9999')
     expect(result.success).toBe(true)
@@ -212,9 +212,9 @@ describe('returnDevice', () => {
       id: 'pa-1',
       status: 'RETURNED',
       phoneNumber: '555-1234',
-      clientDraftId: 'draft-1',
+      clientRecordId: 'draft-1',
       agentId: 'agent-1',
-      clientDraft: { firstName: 'Test', lastName: 'User' },
+      clientRecord: { firstName: 'Test', lastName: 'User' },
     })
     const result = await returnDevice('pa-1')
     expect(result.success).toBe(false)
@@ -227,9 +227,9 @@ describe('returnDevice', () => {
       id: 'pa-1',
       status: 'SIGNED_OUT',
       phoneNumber: '(555) 123-4567',
-      clientDraftId: 'draft-1',
+      clientRecordId: 'draft-1',
       agentId: 'agent-1',
-      clientDraft: { firstName: 'Sarah', lastName: 'Martinez' },
+      clientRecord: { firstName: 'Sarah', lastName: 'Martinez' },
     })
 
     const result = await returnDevice('pa-1')
@@ -293,9 +293,9 @@ describe('reissueDevice', () => {
       id: 'pa-1',
       status: 'SIGNED_OUT',
       phoneNumber: '555-1234',
-      clientDraftId: 'draft-1',
+      clientRecordId: 'draft-1',
       agentId: 'agent-1',
-      clientDraft: { firstName: 'Test', lastName: 'User' },
+      clientRecord: { firstName: 'Test', lastName: 'User' },
     })
     const result = await reissueDevice('pa-1')
     expect(result.success).toBe(false)
@@ -309,10 +309,10 @@ describe('reissueDevice', () => {
       id: 'pa-1',
       status: 'RETURNED',
       phoneNumber: '(555) 123-4567',
-      clientDraftId: 'draft-1',
+      clientRecordId: 'draft-1',
       agentId: 'agent-1',
       dueBackAt: originalDueBack,
-      clientDraft: { firstName: 'Sarah', lastName: 'Martinez' },
+      clientRecord: { firstName: 'Sarah', lastName: 'Martinez' },
     })
 
     const result = await reissueDevice('pa-1')
@@ -340,9 +340,9 @@ describe('reissueDevice', () => {
       id: 'pa-1',
       status: 'RETURNED',
       phoneNumber: '555-9999',
-      clientDraftId: 'draft-1',
+      clientRecordId: 'draft-1',
       agentId: 'agent-1',
-      clientDraft: { firstName: 'Test', lastName: 'User' },
+      clientRecord: { firstName: 'Test', lastName: 'User' },
     })
 
     const result = await reissueDevice('pa-1')

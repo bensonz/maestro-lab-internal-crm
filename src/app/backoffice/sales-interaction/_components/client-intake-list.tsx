@@ -24,10 +24,10 @@ interface ClientIntakeListProps {
   /** Fixed width (px) for the client-name column — aligns Col 2/3 across sibling lists */
   nameColumnWidth?: number
   onSelectClient?: (clientId: string) => void
-  onReviewDraft?: (draftId: string, name: string, resultClientId?: string | null) => void
-  onAssignDevice?: (draftId: string, clientName: string, agentName: string) => void
-  onUploadCard?: (draftId: string, clientName: string, resultClientId?: string | null) => void
-  onApprove?: (draftId: string, resultClientId: string, clientName: string) => void
+  onReviewDraft?: (clientRecordId: string, name: string) => void
+  onAssignDevice?: (clientRecordId: string, clientName: string, agentName: string) => void
+  onUploadCard?: (clientRecordId: string, clientName: string) => void
+  onApprove?: (clientRecordId: string, clientName: string) => void
 }
 
 export function ClientIntakeList({
@@ -97,8 +97,8 @@ export function ClientIntakeList({
         // Undo/Re-issue — PHONE RETURNED with a returned assignment, any step
         const showReissue = client.status === 'PHONE RETURNED' && !!client.returnedAssignmentId
 
-        // Approve — only pending-approval (submitted) drafts
-        const showApprove = client.subStage === 'pending-approval' && !!client.resultClientId
+        // Approve — only pending-approval (submitted) records
+        const showApprove = client.subStage === 'pending-approval'
 
         return (
           <div
@@ -227,7 +227,7 @@ export function ClientIntakeList({
                       'h-7 gap-1 px-2.5 text-xs',
                       client.hasDebitCards && 'bg-success text-success-foreground hover:bg-success/90',
                     )}
-                    onClick={() => onUploadCard?.(client.id, client.name, client.resultClientId)}
+                    onClick={() => onUploadCard?.(client.id, client.name)}
                     data-testid={`upload-card-${client.id}`}
                   >
                     {client.hasDebitCards ? (
@@ -241,7 +241,7 @@ export function ClientIntakeList({
                     size="sm"
                     variant="outline"
                     className="h-7 gap-1 px-2.5 text-xs"
-                    onClick={() => onApprove?.(client.id, client.resultClientId!, client.name)}
+                    onClick={() => onApprove?.(client.id, client.name)}
                     data-testid={`approve-${client.id}`}
                   >
                     <Check className="h-3 w-3" />
@@ -262,7 +262,7 @@ export function ClientIntakeList({
               size="sm"
               variant="outline"
               className="h-7 cursor-pointer gap-1 px-2 text-xs"
-              onClick={() => onReviewDraft?.(client.id, client.name, client.resultClientId)}
+              onClick={() => onReviewDraft?.(client.id, client.name)}
               data-testid={`review-draft-${client.id}`}
             >
               <Eye className="h-3 w-3" />

@@ -306,7 +306,7 @@ export function ClientsView({ clients, drafts, stats }: ClientsViewProps) {
 
       {/* Upload Card Dialog */}
       <UploadCardDialog
-        draftId={uploadCardDraftId}
+        clientRecordId={uploadCardDraftId}
         clientName={uploadCardDraftName}
         onClose={() => setUploadCardDraftId(null)}
       />
