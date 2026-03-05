@@ -296,6 +296,46 @@ export async function updateDebitCardInfo(
   return { success: true }
 }
 
+/**
+ * Explicitly mark a review step as approved (backoffice/admin only).
+ * Sets backofficeReviewedStep = max(current, stepNumber).
+ */
+export async function approveReviewStep(draftId: string, stepNumber: number) {
+  const session = await auth()
+  if (!session?.user) return { success: false, error: 'Not authenticated' }
+
+  const role = session.user.role
+  if (role !== 'ADMIN' && role !== 'BACKOFFICE') {
+    return { success: false, error: 'Not authorized' }
+  }
+
+  if (stepNumber < 1 || stepNumber > 4) {
+    return { success: false, error: 'Invalid step number' }
+  }
+
+  const draft = await prisma.clientDraft.findFirst({
+    where: { id: draftId },
+    select: { id: true, backofficeReviewedStep: true },
+  })
+
+  if (!draft) return { success: false, error: 'Draft not found' }
+
+  // Only advance, never go backwards
+  if (stepNumber <= draft.backofficeReviewedStep) {
+    return { success: true, reviewedStep: draft.backofficeReviewedStep }
+  }
+
+  const updated = await prisma.clientDraft.update({
+    where: { id: draftId },
+    data: { backofficeReviewedStep: stepNumber },
+    select: { backofficeReviewedStep: true },
+  })
+
+  revalidatePath('/backoffice/sales-interaction')
+
+  return { success: true, reviewedStep: updated.backofficeReviewedStep }
+}
+
 export async function getFullDraft(draftId: string) {
   const session = await auth()
   if (!session?.user) return { success: false as const, error: 'Not authenticated' }

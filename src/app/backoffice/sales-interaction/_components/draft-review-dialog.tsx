@@ -15,6 +15,7 @@ import {
   Save,
   AlertTriangle,
   Shield,
+  ShieldCheck,
   Trophy,
   XCircle,
 } from 'lucide-react'
@@ -29,7 +30,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { ALL_PLATFORMS, PLATFORM_INFO } from '@/lib/platforms'
-import { getFullDraft, saveClientDraft } from '@/app/actions/client-drafts'
+import { getFullDraft, saveClientDraft, approveReviewStep } from '@/app/actions/client-drafts'
 import { approveClient } from '@/app/actions/clients'
 import { calculateRiskScore } from '@/lib/risk-score'
 import { toast } from 'sonner'
@@ -279,6 +280,7 @@ type DialogState = {
   editedPlatformData: Record<string, Record<string, unknown>> | null
   isSaving: boolean
   hasChanges: boolean
+  approvingStep: boolean
 }
 
 type DialogAction =
@@ -288,6 +290,8 @@ type DialogAction =
   | { type: 'SET_STEP'; step: 1 | 2 | 3 | 4 }
   | { type: 'APPROVE_START' }
   | { type: 'APPROVE_DONE' }
+  | { type: 'STEP_APPROVE_START' }
+  | { type: 'STEP_APPROVE_DONE'; reviewedStep: number }
   | { type: 'SET_FIELD'; field: string; value: unknown }
   | { type: 'SET_PLATFORM_FIELD'; platform: string; field: string; value: unknown }
   | { type: 'SAVE_START' }
@@ -309,6 +313,14 @@ function dialogReducer(state: DialogState, action: DialogAction): DialogState {
       return { ...state, approving: true }
     case 'APPROVE_DONE':
       return { ...state, approving: false }
+    case 'STEP_APPROVE_START':
+      return { ...state, approvingStep: true }
+    case 'STEP_APPROVE_DONE':
+      return {
+        ...state,
+        approvingStep: false,
+        draft: state.draft ? { ...state.draft, backofficeReviewedStep: action.reviewedStep } : null,
+      }
     case 'SET_FIELD':
       return {
         ...state,
@@ -349,6 +361,7 @@ const INITIAL_STATE: DialogState = {
   editedPlatformData: null,
   isSaving: false,
   hasChanges: false,
+  approvingStep: false,
 }
 
 /** Get the effective value for a field: edited value if changed, otherwise draft value */
@@ -374,7 +387,7 @@ interface DraftReviewDialogProps {
 export function DraftReviewDialog({ draftId, draftName, resultClientId, initialStep, scrollToDebitCards, onClose }: DraftReviewDialogProps) {
   const router = useRouter()
   const [state, dispatch] = useReducer(dialogReducer, INITIAL_STATE)
-  const { draft, loading, error, step, loadedDraftId, approving, editedFields, editedPlatformData, isSaving, hasChanges } = state
+  const { draft, loading, error, step, loadedDraftId, approving, editedFields, editedPlatformData, isSaving, hasChanges, approvingStep } = state
   const fetchingRef = useRef<string | null>(null)
   const contentScrollRef = useRef<HTMLDivElement>(null)
 
@@ -430,18 +443,29 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, initialS
     }
   }, [draft, hasChanges, editedFields, editedPlatformData, router])
 
-  // Advance to next step and persist the reviewed-step marker
-  const handleNextStep = useCallback(async () => {
+  // Pure navigation — does NOT mark step as reviewed
+  const handleNextStep = useCallback(() => {
     if (!draft) return
     const nextStep = Math.min(step + 1, 4) as 1 | 2 | 3 | 4
-    const newReviewed = Math.max(step, draft.backofficeReviewedStep ?? 0)
     dispatch({ type: 'SET_STEP', step: nextStep })
-    // Persist reviewed progress (fire-and-forget)
-    if (newReviewed > (draft.backofficeReviewedStep ?? 0)) {
-      saveClientDraft(draft.id, { backofficeReviewedStep: newReviewed }).then(() => {
-        // Update local draft so badge refreshes
-        dispatch({ type: 'FETCH_SUCCESS', draft: { ...draft, backofficeReviewedStep: newReviewed } })
-      })
+  }, [draft, step])
+
+  // Explicitly approve the current step
+  const handleApproveStep = useCallback(async () => {
+    if (!draft) return
+    dispatch({ type: 'STEP_APPROVE_START' })
+    const result = await approveReviewStep(draft.id, step)
+    if (result.success) {
+      dispatch({ type: 'STEP_APPROVE_DONE', reviewedStep: result.reviewedStep! })
+      toast.success(`Step ${step} approved`)
+      // Auto-advance to next unreviewed step
+      const nextUnreviewed = result.reviewedStep! + 1
+      if (nextUnreviewed <= Math.min(draft.step, 4)) {
+        dispatch({ type: 'SET_STEP', step: nextUnreviewed as 1 | 2 | 3 | 4 })
+      }
+    } else {
+      dispatch({ type: 'STEP_APPROVE_DONE', reviewedStep: draft.backofficeReviewedStep })
+      toast.error(result.error || 'Failed to approve step')
     }
   }, [draft, step])
 
@@ -713,6 +737,8 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, initialS
                 <div className="flex items-center justify-center gap-1.5" data-testid="draft-review-step-indicator">
                   {STEP_DEFS.map((s) => {
                     const isAccessible = s.number <= maxStep
+                    const isReviewed = draft.backofficeReviewedStep >= s.number
+                    const isCurrent = step === s.number
                     return (
                       <div key={s.number} className="flex items-center gap-1.5">
                         <button
@@ -723,18 +749,20 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, initialS
                             'flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-semibold transition-colors',
                             !isAccessible
                               ? 'bg-muted/50 text-muted-foreground/30 cursor-not-allowed'
-                              : step === s.number
-                                ? 'bg-primary text-primary-foreground'
-                                : step > s.number
-                                  ? 'bg-success/20 text-success hover:ring-2 hover:ring-primary/40 cursor-pointer'
+                              : isCurrent
+                                ? isReviewed
+                                  ? 'bg-success text-success-foreground ring-2 ring-success/40'
+                                  : 'bg-primary text-primary-foreground'
+                                : isReviewed
+                                  ? 'bg-success/20 text-success hover:ring-2 hover:ring-success/40 cursor-pointer'
                                   : 'bg-muted text-muted-foreground hover:ring-2 hover:ring-primary/40 cursor-pointer',
                           )}
                           data-testid={`draft-review-step-${s.number}`}
                         >
-                          {step > s.number && isAccessible ? <Check className="h-3 w-3" /> : s.number}
+                          {isReviewed && !isCurrent ? <Check className="h-3 w-3" /> : s.number}
                         </button>
                         {s.number < 4 && (
-                          <div className={cn('h-px w-6', step > s.number ? 'bg-success' : 'bg-border')} />
+                          <div className={cn('h-px w-6', isReviewed ? 'bg-success' : 'bg-border')} />
                         )}
                       </div>
                     )
@@ -1418,7 +1446,37 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, initialS
                     </Button>
                   )}
 
-                  {step < maxStep && step < 4 ? (
+                  {/* Approve Step button */}
+                  {draft.backofficeReviewedStep < step ? (
+                    <>
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs bg-success text-success-foreground hover:bg-success/90"
+                        onClick={handleApproveStep}
+                        disabled={approvingStep || hasChanges}
+                        data-testid="draft-review-approve-step-btn"
+                      >
+                        {approvingStep ? (
+                          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                        ) : (
+                          <ShieldCheck className="mr-1 h-3 w-3" />
+                        )}
+                        Approve Step {step}
+                      </Button>
+                      {step < maxStep && step < 4 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={handleNextStep}
+                          data-testid="draft-review-next-btn"
+                        >
+                          Next
+                          <ChevronRight className="ml-1 h-3 w-3" />
+                        </Button>
+                      )}
+                    </>
+                  ) : step < maxStep && step < 4 ? (
                     <Button
                       size="sm"
                       className="h-7 text-xs"
@@ -1453,7 +1511,7 @@ export function DraftReviewDialog({ draftId, draftName, resultClientId, initialS
   )
 }
 
-/* ─── Approval gate: require both debit cards before approving ─── */
+/* ─── Approval gate: require all steps reviewed + both debit cards ─── */
 function ApproveGate({
   draft,
   approving,
@@ -1474,11 +1532,13 @@ function ApproveGate({
   const hasBankCard = !!bankData.cardNumber
   const hasEdgeboostCard = !!edgeboostData.cardNumber
   const cardsReady = hasBankCard && hasEdgeboostCard
+  const allStepsReviewed = (draft?.backofficeReviewedStep ?? 0) >= 4
+  const canApprove = cardsReady && allStepsReviewed && !hasChanges
 
   return (
     <div className="rounded-md border border-border p-3" data-testid="approve-gate">
-      {/* Card detection status */}
-      <div className="mb-3 grid grid-cols-2 gap-2">
+      {/* Checklist status */}
+      <div className="mb-3 grid grid-cols-3 gap-2">
         <div className={cn(
           'flex items-center gap-2 rounded border px-2.5 py-2 text-xs',
           hasBankCard ? 'border-success/40 bg-success/5 text-success' : 'border-warning/40 bg-warning/5 text-warning',
@@ -1493,6 +1553,13 @@ function ApproveGate({
           {hasEdgeboostCard ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> : <CreditCard className="h-3.5 w-3.5 shrink-0" />}
           <span className="font-medium">EdgeBoost Card {hasEdgeboostCard ? '✓' : 'Missing'}</span>
         </div>
+        <div className={cn(
+          'flex items-center gap-2 rounded border px-2.5 py-2 text-xs',
+          allStepsReviewed ? 'border-success/40 bg-success/5 text-success' : 'border-warning/40 bg-warning/5 text-warning',
+        )}>
+          {allStepsReviewed ? <ShieldCheck className="h-3.5 w-3.5 shrink-0" /> : <Shield className="h-3.5 w-3.5 shrink-0" />}
+          <span className="font-medium">Review {draft?.backofficeReviewedStep ?? 0}/4</span>
+        </div>
       </div>
 
       {/* Approve button */}
@@ -1500,10 +1567,10 @@ function ApproveGate({
         size="sm"
         className={cn(
           'h-8 w-full text-xs',
-          cardsReady && !hasChanges && 'bg-success text-success-foreground hover:bg-success/90',
+          canApprove && 'bg-success text-success-foreground hover:bg-success/90',
         )}
         onClick={onApprove}
-        disabled={approving || hasChanges || !cardsReady}
+        disabled={approving || !canApprove}
         data-testid="draft-review-approve-btn"
       >
         {approving ? (
@@ -1511,7 +1578,15 @@ function ApproveGate({
         ) : (
           <Check className="mr-1 h-3 w-3" />
         )}
-        {cardsReady ? 'Approve Client' : !hasBankCard && !hasEdgeboostCard ? 'Both Debit Cards Required' : !hasBankCard ? 'Bank Debit Card Required' : 'EdgeBoost Debit Card Required'}
+        {!allStepsReviewed
+          ? `Review All 4 Steps First (${draft?.backofficeReviewedStep ?? 0}/4)`
+          : cardsReady
+            ? 'Approve Client'
+            : !hasBankCard && !hasEdgeboostCard
+              ? 'Both Debit Cards Required'
+              : !hasBankCard
+                ? 'Bank Debit Card Required'
+                : 'EdgeBoost Debit Card Required'}
       </Button>
       {hasChanges && (
         <p className="mt-1.5 text-center text-[10px] text-warning">Save changes before approving</p>
