@@ -4,7 +4,7 @@
     {
       "name": "dev",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["C:/Users/maest/maestro-lab-internal-crm/node_modules/next/dist/bin/next", "dev", "--hostname", "0.0.0.0", "--port", "3000"],
+      "runtimeArgs": ["./node_modules/next/dist/bin/next", "dev", "--hostname", "0.0.0.0", "--port", "3000"],
       "port": 3000
     }
   ]
