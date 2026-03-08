@@ -46,13 +46,13 @@ interface EarningsViewProps {
     supervisorChain: HierarchyAgent[]
     subordinateTree: HierarchyNode
     teamSize: number
-  }
+  } | null
 }
 
 export function EarningsView({ earnings, kpis, hierarchy }: EarningsViewProps) {
   const { toast } = useToast()
 
-  const fourStarLeaders = countFourStarInTree(hierarchy.subordinateTree.subordinates)
+  const fourStarLeaders = hierarchy ? countFourStarInTree(hierarchy.subordinateTree.subordinates) : 0
   const available = earnings.totalEarnings - earnings.pendingPayout
 
   const handleWithdraw = () => {
@@ -79,10 +79,10 @@ export function EarningsView({ earnings, kpis, hierarchy }: EarningsViewProps) {
 
         {/* B. Level Progress Card */}
         <LevelProgressCard
-          starLevel={hierarchy.agent.starLevel}
+          starLevel={hierarchy?.agent.starLevel ?? 0}
           approvedClients={kpis.approvedClients}
           fourStarLeaders={fourStarLeaders}
-          teamSize={hierarchy.teamSize}
+          teamSize={hierarchy?.teamSize ?? 0}
         />
 
         {/* C. Earnings Breakdown Table */}

@@ -276,6 +276,43 @@ export async function mockDetectPlatformFromScreenshot(
   return { platform: SPORTS_PLATFORMS[idx], confidence: 0.55 }
 }
 
+// ─── Debit Card OCR Extraction ─────────────────
+
+export interface DebitCardExtractionResult {
+  cardNumber: string
+  cvv: string
+  expiry: string
+  confidence: number
+}
+
+/**
+ * Mock OCR extraction from a debit card photo.
+ * Detects card number, CVV, and expiry from the uploaded image.
+ * Replace with real OCR service (e.g., AWS Textract, Google Vision) in production.
+ */
+export async function mockExtractFromDebitCard(_file: File): Promise<DebitCardExtractionResult> {
+  await new Promise((resolve) => setTimeout(resolve, 800))
+
+  // Use filename hints for deterministic testing
+  const name = _file.name.toLowerCase()
+  if (name.includes('edgeboost') || name.includes('edge')) {
+    return {
+      cardNumber: '5412 7534 0000 1234',
+      cvv: '312',
+      expiry: '11/27',
+      confidence: 0.87,
+    }
+  }
+
+  // Default: bank card
+  return {
+    cardNumber: '4532 1234 5678 9012',
+    cvv: '847',
+    expiry: '09/28',
+    confidence: 0.85,
+  }
+}
+
 // ─── Address Detection from Screenshot OCR ─────────────────
 
 export interface AddressDetectionResult {

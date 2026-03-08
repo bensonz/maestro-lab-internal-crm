@@ -10,7 +10,7 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
 import { cn } from '@/lib/utils'
-import { createClientDraft, deleteClientDraft } from '@/app/actions/client-drafts'
+import { createClientRecord, deleteClientRecord } from '@/app/actions/client-records'
 import { toast } from 'sonner'
 
 interface DraftItem {
@@ -64,7 +64,7 @@ export function DraftsPanel({
   async function handleCreate() {
     setCreating(true)
     try {
-      const result = await createClientDraft()
+      const result = await createClientRecord()
       if (result.success && result.draftId) {
         toast.success('Draft created')
         onCreated(result.draftId)
@@ -82,7 +82,7 @@ export function DraftsPanel({
     e.stopPropagation()
     setDeletingId(draftId)
     try {
-      const result = await deleteClientDraft(draftId)
+      const result = await deleteClientRecord(draftId)
       if (result.success) {
         toast.success('Draft deleted')
       } else {
@@ -108,7 +108,7 @@ export function DraftsPanel({
           disabled={creating}
           data-testid="new-draft-button"
         >
-          {creating ? 'Creating...' : 'New Draft'}
+          {creating ? 'Setting up...' : 'Start New Client'}
         </Button>
       </div>
 

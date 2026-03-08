@@ -69,8 +69,6 @@ export interface IntakeClient {
   platformProgress: { verified: number; total: number }
   exceptionStates: ExceptionState[]
   rejectedPlatforms: string[]
-  /** For SUBMITTED drafts: the linked PENDING Client ID */
-  resultClientId?: string | null
   /** For step-3 clients with active device sign-out: the PhoneAssignment ID */
   activeAssignmentId?: string | null
   /** For step-4 clients with returned device: the RETURNED PhoneAssignment ID (for undo/re-issue) */
@@ -81,6 +79,8 @@ export interface IntakeClient {
   assignedCarrier?: string | null
   /** Number of unique addresses discovered across platform screenshots */
   addressCount?: number
+  /** Whether both debit cards (Bank + Edgeboost) have been uploaded */
+  hasDebitCards?: boolean
 }
 
 export interface PostApprovalClient {
@@ -96,8 +96,7 @@ export interface PostApprovalClient {
 
 export interface VerificationTask {
   id: string
-  clientId: string | null
-  draftId: string | null
+  clientRecordId: string
   clientName: string
   platformType: PlatformType | null
   platformLabel: string
@@ -179,65 +178,65 @@ export interface TeamRollup {
 
 // --- From backend/data/action-hub.ts ---
 
-export interface ActionHubStats {
-  pnlCompleted: boolean
-  pendingActions: number
-  overdueCount: number
-  fundAlertsCount: number
-  pendingSettlements: number
-  transfersToday: number
+export interface ActionHubKPIs {
+  pendingTodos: number
+  overdueTodos: number
+  overdueDevices: number
+  todayAllocations: number
+  readyToApprove: number
+  unconfirmedAllocations: number
 }
 
-export interface PnlStatus {
-  completed: boolean
-  completedBy: string | null
-  completedAtFormatted: string | null
+export interface RundownBlock {
+  label: string
+  phase: string
+  items: RundownItem[]
 }
 
-export interface FundAlert {
-  clientId: string
-  clientName: string
-  issue: 'shortfall' | 'surplus' | 'paypal_frequent'
-  platformType: string
-  balance: number
-  description: string
+export interface RundownItem {
+  label: string
+  description?: string
+  count?: number
+  link?: string
+  done?: boolean
 }
 
-export type PendingActionType =
-  | 'screenshot_review'
-  | 'extension_request'
-  | 'client_approval'
-  | 'settlement_review'
-
-export interface PendingAction {
-  id: string
-  type: PendingActionType
-  title: string
-  clientName: string
-  agentName: string
-  urgency: 'critical' | 'high' | 'normal'
-  createdAt: Date
-  ageFormatted: string
-  link: string
-}
-
-export interface EnhancedTask {
-  id: string
-  title: string
-  client: string
-  clientId: string | null
-  category: string
-  type: string
-  status: string
-  dueIn: string
-  dueDate: Date | null
-  overdue: boolean
-}
-
-export interface EnhancedAgentTasks {
+export interface OverdueDevice {
+  assignmentId: string
+  phoneNumber: string
   agentId: string
   agentName: string
-  tasks: EnhancedTask[]
+  clientName: string
+  dueBackAt: Date
+  daysOverdue: number
+}
+
+export interface ActionHubTodo {
+  id: string
+  title: string
+  issueCategory: string
+  clientName: string
+  agentId: string
+  agentName: string
+  dueDate: Date
+  daysUntilDue: number
+  overdue: boolean
+  clientRecordId: string
+  source: string
+}
+
+export interface FundAllocationEntry {
+  id: string
+  amount: number
+  platform: string
+  direction: string
+  notes: string | null
+  recordedBy: string
+  createdAt: Date
+  confirmationStatus: string
+  confirmedAmount: number | null
+  confirmedAt: Date | null
+  confirmedBy: string | null
 }
 
 export interface ActiveAgent {
@@ -330,7 +329,7 @@ export interface AIDetection {
 
 // --- Client Draft Types ---
 
-export interface ClientDraftSummary {
+export interface ClientRecordSummary {
   id: string
   firstName: string | null
   lastName: string | null
@@ -385,6 +384,16 @@ export interface PlatformEntry {
   screenshots?: string[]
   /** Address detected from OCR on this platform's screenshots */
   detectedAddress?: string
+  /** Personal info page screenshot (sportsbook only) */
+  screenshotPersonalInfo?: string
+  /** Ready-to-deposit page screenshot (sportsbook only) */
+  screenshotDeposit?: string
+  /** True when screenshotDeposit is present — platform is deposit-ready */
+  depositDetected?: boolean
+  /** Agent confirmed deposit page is accessible (sportsbook only) */
+  depositPageVerified?: boolean
+  /** Agent confirmed address matches a benchmark address (sportsbook only) */
+  addressMatchesBenchmark?: boolean
 }
 
 // --- Discovered Address Types ---
@@ -409,7 +418,6 @@ export interface PoolAllocationSummary {
 
 export interface ApprovedClientEntry {
   id: string
-  draftId: string
   clientName: string
   agentId: string
   agentName: string
@@ -433,7 +441,7 @@ export interface CompletedTodoEntry {
   title: string
   completedAt: Date
   completedByName: string
-  draftId: string
+  clientRecordId: string
   createdByName: string
 }
 
@@ -441,6 +449,7 @@ export interface TodoTimelineEntry {
   id: string
   date: string
   time: string
+  createdAt: Date
   event: string
   type: 'info' | 'success' | 'warning'
   actor: string | null
@@ -466,7 +475,7 @@ export interface AllocationLine {
 
 export interface BonusPoolData {
   id: string
-  clientId: string
+  clientRecordId: string
   clientName: string
   closerId: string
   closerName: string
@@ -514,7 +523,7 @@ export interface AgentLeaderboardEntry {
 // --- Device / Phone Assignment Types ---
 
 export interface DeviceRequestItem {
-  draftId: string
+  clientRecordId: string
   clientName: string
   agentId: string
   agentName: string
@@ -529,7 +538,7 @@ export interface ActiveDeviceSignOut {
   carrier: string | null
   deviceId: string | null
   clientName: string
-  draftId: string
+  clientRecordId: string
   agentId: string
   agentName: string
   signedOutAt: Date
@@ -552,4 +561,135 @@ export interface QuarterlySettlementData {
   commissionAmount: number
   teamSize: number
   status: string
+}
+
+// --- Cockpit V2 Types ---
+
+export interface CockpitData {
+  signal: CockpitSignalData
+  fundWarRoom: CockpitFundWarRoom
+  agentActivity: CockpitAgentActivity
+  bottleneck: CockpitOnboardingBottleneck
+}
+
+export interface CockpitSignalData {
+  statusLevel: 'normal' | 'attention' | 'critical'
+  attentionCount: number
+}
+
+// Fund War Room
+
+export interface CockpitFundWarRoom {
+  platforms: CockpitWarRoomPlatform[]
+  bankAlerts: CockpitBankOvernightAlert[]
+  edgeBoostProgress: CockpitEdgeBoostProgress[]
+  insights: CockpitSmartInsight[]
+}
+
+export interface CockpitWarRoomPlatform {
+  platform: string
+  platformName: string
+  abbrev: string
+  totalBalance: number
+  target: number
+  accountCount: number
+  minAccountTarget: number
+  accountsBelowMin: CockpitWarRoomAccount[]
+  burnRate: number | null
+  todayDeposits: number
+  todayWithdrawals: number
+}
+
+export interface CockpitWarRoomAccount {
+  clientId: string
+  clientName: string
+  balance: number
+  agentName: string
+}
+
+export interface CockpitBankOvernightAlert {
+  clientId: string
+  clientName: string
+  agentName: string
+  bankBalance: number
+  oldestDepositHoursAgo: number
+}
+
+export interface CockpitEdgeBoostProgress {
+  clientId: string
+  clientName: string
+  agentName: string
+  depositsCompleted: number
+  totalDeposited: number
+  remaining: number
+  isComplete: boolean
+}
+
+export interface CockpitSmartInsight {
+  id: string
+  text: string
+  severity: 'info' | 'warning' | 'critical'
+}
+
+// Agent Activity
+
+export interface CockpitAgentActivity {
+  ranking: {
+    mostClients: { name: string; count: number } | null
+    fastestAgent: { name: string; avgDays: number } | null
+    monthMostClients: { name: string; count: number } | null
+    monthFastestAgent: { name: string; avgDays: number } | null
+  }
+  teamMetrics: {
+    totalAgents: number
+    activeAgents: number
+    globalAvgDays: number | null
+    globalEndToEndDays: number | null
+    zeroSuccessCount: number
+  }
+  lowSuccessAgents: CockpitLowSuccessAgent[]
+  insights: CockpitSmartInsight[]
+}
+
+export interface CockpitLowSuccessAgent {
+  id: string
+  name: string
+  displayTier: string
+  successRate: number
+  totalClients: number
+  approvedClients: number
+}
+
+// Onboarding Bottleneck
+
+export interface CockpitOnboardingBottleneck {
+  stepPipeline: CockpitStepPipeline[]
+  pipelineAvgDays: number
+  bottleneckStep: number | null
+  bottleneckPct: number
+  devices: {
+    waitingForDevice: number
+    devicesOut: number
+    totalDevices: number
+    needThisWeek: number
+    overdue: number
+  }
+  unusedAccounts: CockpitUnusedAccount[]
+  insights: CockpitSmartInsight[]
+}
+
+export interface CockpitStepPipeline {
+  step: number
+  label: string
+  stuckCount: number
+  avgDays: number
+  totalInStep: number
+}
+
+export interface CockpitUnusedAccount {
+  clientId: string
+  clientName: string
+  platform: string
+  platformName: string
+  daysSinceApproval: number
 }

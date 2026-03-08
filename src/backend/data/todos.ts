@@ -11,7 +11,7 @@ export async function getTodosByAgent(agentId: string) {
       status: 'PENDING',
     },
     include: {
-      clientDraft: {
+      clientRecord: {
         select: {
           id: true,
           firstName: true,
@@ -36,7 +36,7 @@ export async function getPendingTodosForBackoffice() {
       status: 'PENDING',
     },
     include: {
-      clientDraft: {
+      clientRecord: {
         select: {
           id: true,
           firstName: true,
@@ -73,7 +73,7 @@ export async function getCompletedTodosForBackoffice() {
       status: 'COMPLETED',
     },
     include: {
-      clientDraft: {
+      clientRecord: {
         select: {
           id: true,
           firstName: true,
@@ -147,6 +147,7 @@ export async function getTodoTimeline() {
     id: e.id,
     date: format(e.createdAt, 'MMM d, yyyy'),
     time: format(e.createdAt, 'h:mm a'),
+    createdAt: e.createdAt,
     event: e.description,
     type: typeMap[e.eventType] ?? ('info' as const),
     actor: e.user?.name ?? null,

@@ -1,7 +1,7 @@
 import { ClientManagementPage } from './_components/client-management-page'
-import { getAllClients, getClientEventLogs } from '@/backend/data/clients'
+import { getAllApprovedRecords, getRecordEventLogs } from '@/backend/data/client-records'
 import type { ServerClientData, ServerClientStats, ServerPlatformDetail } from './_components/types'
-// Platform data from ClientDraft.platformData JSON — may have extra fields beyond PlatformEntry type
+// Platform data from ClientRecord.platformData JSON — may have extra fields beyond PlatformEntry type
 interface PlatformDataEntry {
   platform?: string
   username?: string
@@ -15,11 +15,11 @@ interface PlatformDataEntry {
 }
 
 /**
- * Build a questionnaire JSON string from ClientDraft fields.
+ * Build a questionnaire JSON string from ClientRecord fields.
  * The client-detail component parses this to populate profile, alert flags, etc.
  */
 function buildQuestionnaire(
-  draft: Record<string, unknown>,
+  record: Record<string, unknown>,
   phoneAssignment?: { phoneNumber: string; carrier: string | null } | null,
   agentZelle?: string | null,
 ): string {
@@ -34,48 +34,48 @@ function buildQuestionnaire(
   // Agent's zelle (from closer User record)
   if (agentZelle) q.zellePhone = agentZelle
 
-  // Step 1 fields (ClientDraft schema field names)
-  if (draft.dateOfBirth) q.dateOfBirth = draft.dateOfBirth
-  if (draft.idNumber) q.idNumber = draft.idNumber
-  if (draft.idExpiry) q.idExpiry = draft.idExpiry
-  if (draft.gmailPassword) q.gmailPassword = draft.gmailPassword
-  if (draft.assignedGmail) q.assignedGmail = draft.assignedGmail
-  if (draft.livesAtDifferentAddress) q.livesAtDifferentAddress = draft.livesAtDifferentAddress
-  if (draft.address) q.address = draft.address
-  if (draft.secondAddress) q.secondaryAddress = draft.secondAddress
-  if (draft.currentAddress) q.currentAddress = draft.currentAddress
-  if (draft.phone) q.phone = draft.phone
-  if (draft.betmgmLogin) q.betmgmLogin = draft.betmgmLogin
-  if (draft.betmgmPassword) q.betmgmPassword = draft.betmgmPassword
+  // Step 1 fields (ClientRecord schema field names)
+  if (record.dateOfBirth) q.dateOfBirth = record.dateOfBirth
+  if (record.idNumber) q.idNumber = record.idNumber
+  if (record.idExpiry) q.idExpiry = record.idExpiry
+  if (record.gmailPassword) q.gmailPassword = record.gmailPassword
+  if (record.assignedGmail) q.assignedGmail = record.assignedGmail
+  if (record.livesAtDifferentAddress) q.livesAtDifferentAddress = record.livesAtDifferentAddress
+  if (record.address) q.address = record.address
+  if (record.secondAddress) q.secondaryAddress = record.secondAddress
+  if (record.currentAddress) q.currentAddress = record.currentAddress
+  if (record.phone) q.phone = record.phone
+  if (record.betmgmLogin) q.betmgmLogin = record.betmgmLogin
+  if (record.betmgmPassword) q.betmgmPassword = record.betmgmPassword
 
-  // Step 2 fields (matching actual ClientDraft column names)
-  if (draft.citizenship) q.citizenship = draft.citizenship
-  if (draft.hasCriminalRecord) q.criminalRecord = draft.hasCriminalRecord
-  if (draft.criminalRecordNotes) q.criminalRecordNotes = draft.criminalRecordNotes
-  if (draft.debankedHistory) q.debankedHistory = draft.debankedHistory
-  if (draft.debankedBank) q.debankedBank = draft.debankedBank
-  if (draft.paypalPreviouslyUsed) q.paypalPreviouslyUsed = draft.paypalPreviouslyUsed
-  if (draft.addressMismatch) q.addressMismatch = draft.addressMismatch
-  if (draft.undisclosedInfo) q.undisclosedInfo = draft.undisclosedInfo
-  if (draft.occupation) q.occupation = draft.occupation
-  if (draft.annualIncome) q.incomeRange = draft.annualIncome
-  if (draft.employmentStatus) q.employmentStatus = draft.employmentStatus
-  if (draft.maritalStatus) q.maritalStatus = draft.maritalStatus
-  if (draft.householdAwareness) q.householdAwareness = draft.householdAwareness
-  if (draft.familyTechSupport) q.familyTechSupport = draft.familyTechSupport
-  if (draft.financialAutonomy) q.financialAutonomy = draft.financialAutonomy
-  if (draft.digitalComfort) q.digitalComfort = draft.digitalComfort
-  if (draft.bankingHistory) q.bankingHistory = draft.bankingHistory
-  if (draft.sportsbookHistory) q.sportsbookHistory = draft.sportsbookHistory
-  if (draft.ssnNumber) q.ssnNumber = draft.ssnNumber
-  if (draft.missingIdType) q.missingIdType = draft.missingIdType
-  if (draft.paypalHistory) q.paypalHistory = draft.paypalHistory
+  // Step 2 fields (matching actual ClientRecord column names)
+  if (record.citizenship) q.citizenship = record.citizenship
+  if (record.hasCriminalRecord) q.criminalRecord = record.hasCriminalRecord
+  if (record.criminalRecordNotes) q.criminalRecordNotes = record.criminalRecordNotes
+  if (record.debankedHistory) q.debankedHistory = record.debankedHistory
+  if (record.debankedBank) q.debankedBank = record.debankedBank
+  if (record.paypalPreviouslyUsed) q.paypalPreviouslyUsed = record.paypalPreviouslyUsed
+  if (record.addressMismatch) q.addressMismatch = record.addressMismatch
+  if (record.undisclosedInfo) q.undisclosedInfo = record.undisclosedInfo
+  if (record.occupation) q.occupation = record.occupation
+  if (record.annualIncome) q.incomeRange = record.annualIncome
+  if (record.employmentStatus) q.employmentStatus = record.employmentStatus
+  if (record.maritalStatus) q.maritalStatus = record.maritalStatus
+  if (record.householdAwareness) q.householdAwareness = record.householdAwareness
+  if (record.familyTechSupport) q.familyTechSupport = record.familyTechSupport
+  if (record.financialAutonomy) q.financialAutonomy = record.financialAutonomy
+  if (record.digitalComfort) q.digitalComfort = record.digitalComfort
+  if (record.bankingHistory) q.bankingHistory = record.bankingHistory
+  if (record.sportsbookHistory) q.sportsbookHistory = record.sportsbookHistory
+  if (record.ssnNumber) q.ssnNumber = record.ssnNumber
+  if (record.missingIdType) q.missingIdType = record.missingIdType
+  if (record.paypalHistory) q.paypalHistory = record.paypalHistory
 
   return JSON.stringify(q)
 }
 
 /**
- * Map platformData JSON from ClientDraft into ServerPlatformDetail array.
+ * Map platformData JSON from ClientRecord into ServerPlatformDetail array.
  */
 function buildPlatformDetails(platformData: unknown): ServerPlatformDetail[] {
   if (!platformData || typeof platformData !== 'object') return []
@@ -116,6 +116,13 @@ function buildPlatformDetails(platformData: unknown): ServerPlatformDetail[] {
       reviewedBy: null,
       reviewedAt: null,
       reviewNotes: null,
+      // Pass through bank/card fields for client detail display
+      routingNumber: (entry as Record<string, unknown>).routingNumber as string || null,
+      bankAccountNumber: (entry as Record<string, unknown>).bankAccountNumber as string || null,
+      pin: (entry as Record<string, unknown>).pin as string || null,
+      cardNumber: (entry as Record<string, unknown>).cardNumber as string || null,
+      cvv: (entry as Record<string, unknown>).cvv as string || null,
+      cardExpiry: (entry as Record<string, unknown>).cardExpiry as string || null,
     })
   }
 
@@ -162,55 +169,56 @@ export default async function ClientManagementServerPage() {
   let stats: ServerClientStats = { total: 0, active: 0, ended: 0, verificationNeeded: 0 }
 
   try {
-    const dbClients = await getAllClients()
+    const dbRecords = await getAllApprovedRecords()
 
-    // Fetch event logs for all clients in parallel
-    const clientIds = dbClients.map((c) => c.id)
-    const eventLogsMap = new Map<string, Awaited<ReturnType<typeof getClientEventLogs>>>()
-    if (clientIds.length > 0) {
+    // Fetch event logs for all records in parallel
+    const recordIds = dbRecords.map((r) => r.id)
+    const eventLogsMap = new Map<string, Awaited<ReturnType<typeof getRecordEventLogs>>>()
+    if (recordIds.length > 0) {
       const allEvents = await Promise.all(
-        clientIds.map((id) => getClientEventLogs(id).catch(() => []))
+        recordIds.map((id) => getRecordEventLogs(id).catch(() => []))
       )
-      clientIds.forEach((id, i) => {
+      recordIds.forEach((id, i) => {
         eventLogsMap.set(id, allEvents[i])
       })
     }
 
-    serverClients = dbClients.map((c) => {
-      const draft = c.fromDraft as Record<string, unknown> | null
-      const platformData = draft?.platformData
+    serverClients = dbRecords.map((r) => {
+      // Data is directly on the record — no fromDraft indirection
+      const record = r as Record<string, unknown>
+      const platformData = record.platformData
       const platformDetails = buildPlatformDetails(platformData)
       const platforms = extractPlatformAbbreviations(platformData)
-      const events = eventLogsMap.get(c.id) || []
+      const events = eventLogsMap.get(r.id) || []
 
       return {
-        id: c.id,
-        name: `${c.firstName} ${c.lastName}`,
-        phone: c.phone ?? (draft?.phone as string) ?? '',
-        email: c.email ?? (draft?.email as string) ?? null,
-        start: c.createdAt.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
-        funds: c.bonusPool ? `$${c.bonusPool.totalAmount}` : '$0',
-        totalPaid: c.bonusPool?.totalAmount ?? 0,
+        id: r.id,
+        name: `${r.firstName} ${r.lastName}`,
+        phone: r.phone ?? '',
+        email: r.email ?? null,
+        start: r.createdAt.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+        funds: r.bonusPool ? `$${r.bonusPool.totalAmount}` : '$0',
+        totalPaid: r.bonusPool?.totalAmount ?? 0,
         platforms,
         activePlatforms: platforms, // All registered platforms considered active
-        intakeStatus: c.status,
-        agent: c.closer?.name ?? null,
-        // Address from draft
-        address: (draft?.address as string) ?? (draft?.currentAddress as string) ?? null,
-        city: null, // Not stored separately in draft
+        intakeStatus: r.status,
+        agent: r.closer?.name ?? null,
+        // Address directly from the record
+        address: r.address ?? r.currentAddress ?? null,
+        city: null, // Not stored separately
         state: null,
         zipCode: null,
         country: null,
-        // ID document from draft
-        idDocument: (draft?.idDocument as string) ?? null,
-        // Questionnaire built from draft fields
-        questionnaire: draft ? buildQuestionnaire(draft, c._phoneAssignment, c.closer?.zelle) : null,
-        // Platform details from draft's platformData JSON
+        // ID document from record
+        idDocument: r.idDocument ?? null,
+        // Questionnaire built from record fields
+        questionnaire: buildQuestionnaire(record, r._phoneAssignment, r.closer?.zelle),
+        // Platform details from record's platformData JSON
         platformDetails,
-        // Generated credentials from draft
-        generatedCredentials: (draft?.generatedCredentials as Record<string, unknown>) ?? null,
+        // Generated credentials from record
+        generatedCredentials: (record.generatedCredentials as Record<string, unknown>) ?? null,
         // Transactions from DB
-        transactions: (c.transactions ?? []).map((t) => ({
+        transactions: (r.transactions ?? []).map((t) => ({
           id: t.id,
           type: t.type,
           amount: Number(t.amount),
@@ -229,15 +237,12 @@ export default async function ClientManagementServerPage() {
       }
     })
 
-    const activeCount = dbClients.filter((c) => c.status === 'APPROVED').length
-    const endedCount = dbClients.filter((c) => c.status === 'CLOSED' || c.status === 'REJECTED').length
-    const verificationCount = dbClients.filter((c) => c.status === 'PENDING').length
-
+    // All records from getAllApprovedRecords are APPROVED
     stats = {
-      total: dbClients.length,
-      active: activeCount,
-      ended: endedCount,
-      verificationNeeded: verificationCount,
+      total: dbRecords.length,
+      active: dbRecords.length,
+      ended: 0,
+      verificationNeeded: 0,
     }
   } catch (e) {
     console.error('[client-management] DB fetch error:', e)

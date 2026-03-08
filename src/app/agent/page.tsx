@@ -1,14 +1,12 @@
-import { MOCK_RANKING } from '@/lib/mock-data'
 import { HeroBanner } from './_components/dashboard/hero-banner'
 import { DoNow } from './_components/dashboard/do-now'
 import { Pipeline, Scorecard } from './_components/dashboard/pipeline-scorecard'
 import { requireAgent } from './_require-agent'
 import { getAgentEarnings } from '@/backend/data/bonus-pools'
-import { countApprovedClients } from '@/backend/data/clients'
+import { countApprovedRecords, getRecordsByCloser } from '@/backend/data/client-records'
 import prisma from '@/backend/prisma/client'
 import { STAR_THRESHOLDS } from '@/lib/commission-constants'
 import { computeAgentKPIs } from '@/backend/services/agent-kpis'
-import { getDraftsByCloser } from '@/backend/data/client-drafts'
 import { getTodosByAgent } from '@/backend/data/todos'
 import type { PriorityAction } from '@/types/backend-types'
 
@@ -20,7 +18,7 @@ export default async function AgentDashboard() {
   // Fetch all real data in parallel
   const [earningsData, approvedCount, kpis, user, drafts, todos] = await Promise.all([
     getAgentEarnings(agent.id).catch(() => null),
-    countApprovedClients(agent.id).catch(() => 0),
+    countApprovedRecords(agent.id).catch(() => 0),
     computeAgentKPIs(agent.id).catch(() => ({
       totalClients: 0, approvedClients: 0, rejectedClients: 0,
       inProgressClients: 0, delayedClients: 0, successRate: 0,
@@ -31,7 +29,7 @@ export default async function AgentDashboard() {
       where: { id: agent.id },
       select: { starLevel: true },
     }).catch(() => null),
-    getDraftsByCloser(agent.id).catch(() => [] as Awaited<ReturnType<typeof getDraftsByCloser>>),
+    getRecordsByCloser(agent.id).catch(() => [] as Awaited<ReturnType<typeof getRecordsByCloser>>),
     getTodosByAgent(agent.id).catch(() => [] as Awaited<ReturnType<typeof getTodosByAgent>>),
   ])
 
@@ -50,7 +48,7 @@ export default async function AgentDashboard() {
 
   // Build real priority actions from todos
   const priorityActions: PriorityAction[] = todos.map((t) => {
-    const clientName = [t.clientDraft.firstName, t.clientDraft.lastName].filter(Boolean).join(' ') || 'Unknown'
+    const clientName = [t.clientRecord?.firstName, t.clientRecord?.lastName].filter(Boolean).join(' ') || 'Unknown'
     const daysUntil = Math.floor((t.dueDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
     let type: PriorityAction['type'] = 'needs-info'
     if (daysUntil < 0) type = 'overdue'
@@ -60,7 +58,7 @@ export default async function AgentDashboard() {
       type,
       title: t.title,
       clientName,
-      clientId: t.clientDraftId,
+      clientId: t.clientRecordId,
       link: '/agent/todo-list',
       createdAt: t.createdAt,
     }
@@ -71,7 +69,7 @@ export default async function AgentDashboard() {
   const submittedCount = drafts.filter((d) => d.status === 'SUBMITTED').length
   const inProgressDraftCount = draftCount - submittedCount
 
-  const ranking = MOCK_RANKING
+  const ranking = { percentile: 0 }
 
   return (
     <div className="space-y-5 p-6 animate-fade-in" data-testid="agent-dashboard">

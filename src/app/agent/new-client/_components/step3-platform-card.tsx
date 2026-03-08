@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState, useEffect } from 'react'
 import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
 import {
   Select,
   SelectContent,
@@ -355,15 +356,7 @@ export function PlatformCard({
       className="rounded-md border p-2.5 space-y-2"
       data-testid={`platform-card-${platform}`}
     >
-      <p className="text-sm">
-        {displayName}
-        {!isEdgeBoost && !isBank && screenshots.length > 0 && (
-          <span className="ml-1.5 text-muted-foreground"> — {screenshots.length} upload{screenshots.length !== 1 ? 's' : ''}</span>
-        )}
-        {isBank && bankFilledCount > 0 && (
-          <span className="ml-1.5 text-muted-foreground"> — {bankFilledCount} upload{bankFilledCount !== 1 ? 's' : ''}</span>
-        )}
-      </p>
+      {/* Name removed — shown in parent status header */}
 
       {isBank && (
         <>
@@ -922,7 +915,7 @@ export function PlatformCard({
         </p>
       )}
 
-      {/* Multi-screenshot thumbnail row — only for sportsbooks with bulk uploads */}
+      {/* Multi-screenshot thumbnail row */}
       {!isBank && !isEdgeBoost && screenshots.length > 1 && (
         <div className="flex flex-wrap items-center gap-1.5" data-testid={`platform-thumbnails-${platform}`}>
           {screenshots.map((src, idx) => (

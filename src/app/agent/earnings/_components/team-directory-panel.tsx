@@ -20,7 +20,7 @@ interface TeamDirectoryPanelProps {
     supervisorChain: HierarchyAgent[]
     subordinateTree: HierarchyNode
     teamSize: number
-  }
+  } | null
 }
 
 function StarDisplay({
@@ -54,11 +54,28 @@ function countAtDepth(node: HierarchyNode, depth: number): number {
 }
 
 export function TeamDirectoryPanel({ hierarchy }: TeamDirectoryPanelProps) {
+  const [showPromotionPath, setShowPromotionPath] = useState(false)
+
+  if (!hierarchy) {
+    return (
+      <div className="flex h-full w-56 min-w-56 flex-col border-r border-sidebar-border bg-sidebar">
+        <div className="border-b border-sidebar-border p-4">
+          <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <Users className="h-3.5 w-3.5" />
+            Team Directory
+          </h3>
+        </div>
+        <div className="flex flex-1 items-center justify-center p-4">
+          <p className="text-xs text-muted-foreground">No team data available</p>
+        </div>
+      </div>
+    )
+  }
+
   const { agent, supervisorChain, subordinateTree } = hierarchy
   const directTeam = subordinateTree.subordinates
   const level2Count = countAtDepth(subordinateTree, 1)
   const level3Count = countAtDepth(subordinateTree, 2)
-  const [showPromotionPath, setShowPromotionPath] = useState(false)
 
   return (
     <div className="flex h-full w-56 min-w-56 flex-col border-r border-sidebar-border bg-sidebar">

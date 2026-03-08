@@ -34,19 +34,21 @@ CRM for client onboarding across sports betting platforms. Two portals:
 
 ## 3. Database
 
-### 11 Prisma Models (`prisma/schema.prisma`)
+### 12 Prisma Models (`prisma/schema.prisma`)
 
 - **User** — staff accounts with hierarchy (supervisorId), star level/tier, leadershipTier (NONE/ED/SED/MD/CMO)
 - **AgentApplication** — PENDING → APPROVED/REJECTED. Stores idDocument + addressDocument
-- **Client** — PENDING → APPROVED. Links to closer (User). Optional BonusPool + fromDraft
-- **ClientDraft** — DRAFT → SUBMITTED. 4-step form data, risk flags, platformData (Json), generatedCredentials (Json), document paths. Many Step 1/2 field columns
-- **BonusPool** — $400 per approved client. Has many BonusAllocation[]
+- **ClientRecord** — unified model: DRAFT → SUBMITTED → APPROVED → REJECTED → CLOSED. 4-step intake form data, risk flags, platformData (Json), generatedCredentials (Json), document paths, `approvedAt` timestamp. Links to closer (User). Replaces the old Client + ClientDraft dual-model pattern.
+- **BonusPool** — $400 per approved client. `clientRecordId` FK. Has many BonusAllocation[]
 - **BonusAllocation** — DIRECT / STAR_SLICE / BACKFILL. Status: PENDING → PAID
 - **PromotionLog** — immutable star level + leadership tier change audit
 - **QuarterlySettlement** — DRAFT → APPROVED → PAID. Unique per [leaderId, year, quarter]
-- **PhoneAssignment** — SIGNED_OUT → RETURNED. Tracks phone, carrier, deviceId, dueBackAt (3-day window). OVERDUE computed at view time
-- **Todo** — PENDING → COMPLETED/CANCELLED. issueCategory (4 predefined), dueDate (default 3 days), metadata (Json)
-- **EventLog** — append-only audit trail for all system events
+- **PhoneAssignment** — SIGNED_OUT → RETURNED. `clientRecordId` FK. Tracks phone, carrier, deviceId, dueBackAt (3-day window). OVERDUE computed at view time
+- **Todo** — PENDING → COMPLETED/CANCELLED. `clientRecordId` FK (single unified FK). issueCategory (9 predefined), dueDate (default 3 days), metadata (Json), source (MANUAL/EMAIL_AUTO)
+- **FundAllocation** — records every fund allocation with platform, amount (Decimal 12,2), direction (DEPOSIT/WITHDRAWAL), confirmationStatus (UNCONFIRMED/CONFIRMED/DISCREPANCY), confirmedAmount, confirmedBy, discrepancyNotes, optional `clientRecordId` FK
+- **GmailIntegration** — stores OAuth tokens for Gmail API inbox connection, historyId for incremental sync
+- **ProcessedEmail** — dedup + audit trail for processed emails. gmailMessageId (unique), detectionType, links to todoId + fundAllocationId
+- **EventLog** — append-only audit trail for all system events. EventType includes `FUND_ALLOCATED`, `GMAIL_SYNCED`, `EMAIL_TODO_CREATED`, `FUND_CONFIRMED`, `FUND_DISCREPANCY_FLAGGED`, `STEP_ADVANCED`
 
 ### Prisma 7 Setup
 
@@ -82,7 +84,7 @@ CRM for client onboarding across sports betting platforms. Two portals:
 ## 5. Current State (Phase 2)
 
 ### Live (real DB)
-Agent Application + review, Agent Directory (table/tree, HoverCard), Login Management (CRUD), Commission system ($400 pool, star distribution), Client drafts (CRUD, auth-guarded), Phone assignments (assign/return/re-issue), Agent Dashboard (earnings/star), Agent Earnings (allocations), Agent Clients, Agent Detail (inline-edit + audit), New Client (4-step intake), Commissions page, Search API, NextAuth v5
+Agent Application + review, Agent Directory (table/tree, HoverCard), Login Management (CRUD), Commission system ($400 pool, star distribution), Client records (CRUD, auth-guarded, unified ClientRecord model), Phone assignments (assign/return/re-issue), Agent Dashboard (earnings/star), Agent Earnings (allocations), Agent Clients, Agent Detail (inline-edit + audit), New Client (4-step intake), Commissions page, Search API, NextAuth v5, **Backoffice Operational Cockpit** (signal bar, fund war room with 8 sportsbook platform cards + bank $250 alert + EdgeBoost tracker, agent activity with ranking/metrics/low-success, onboarding bottleneck with step pipeline/devices/unused accounts — all real DB, information-only, drill-down), **Backoffice Action Hub** (daily rundown, overdue devices, pending todos, fund allocations, activity feed), **FundAllocation** (record/track/confirm allocations, clientRecordId linkage), **Auto-todo on client approval** (Collect Debit Card Information, 7-day due), **Gmail Integration** (auto-detect emails, create todos, match funds), **Fund Confirmation** (UNCONFIRMED/CONFIRMED/DISCREPANCY workflow), **STEP_ADVANCED event logging** (auto-logged on step changes and device assignment)
 
 ### Partially Wired (DB + mock fallbacks)
 - Agent dashboard — earnings real, pipeline mock
@@ -92,19 +94,21 @@ Agent Application + review, Agent Directory (table/tree, HoverCard), Login Manag
 - Agent Action Hub — real todos merged with mock
 
 ### Mock (UI shell only)
-Agent team/todos/settings. Backoffice overview, client management UI, settlements, fund allocation, partners, profit sharing, reports, phone tracking, action hub. Mock data: `src/lib/mock-data.ts`, stubs: `src/lib/mock-actions.ts`.
+Agent team/todos/settings. Client management UI, settlements, fund allocation page, partners, profit sharing, reports, phone tracking. Mock data: `src/lib/mock-data.ts`, stubs: `src/lib/mock-actions.ts`.
 
 ---
 
 ## 6. Business Logic
 
-### Draft/Client Lifecycle
+### Client Record Lifecycle
 
 ```
-ClientDraft (DRAFT) → submit → ClientDraft (SUBMITTED) + Client (PENDING)
-                                    → backoffice approves → Client (APPROVED) + star recalc + $400 pool
+ClientRecord (DRAFT) → submit → ClientRecord (SUBMITTED)
+                                    → backoffice approves → ClientRecord (APPROVED) + star recalc + $400 pool
 ```
-Agent "My Clients" shows drafts grouped by step (1-4) at top, approved/submitted below. PENDING filtered (exist as drafts).
+Single unified model. Agent "My Clients" shows records grouped by step (1-4) at top, approved/submitted below. Client management page shows only APPROVED records.
+
+**Auto-todo on approval:** When a client is approved, a "Collect Debit Card Information" todo is auto-created with 7-day due date, assigned to the closer agent. Once debit card info is confirmed, PayPal should be issued.
 
 ### Commission ($400 pool per approved client)
 - $200 direct to closer, $200 star pool = 4×$50 slices up hierarchy
@@ -133,7 +137,7 @@ Negative scoring from 0: Missing IDs (+10 if none, -10 each), ID expiry (<75d: -
 
 ---
 
-## 8. Feature: Client Draft / New Client
+## 8. Feature: Client Record / New Client
 
 4-step intake form at `/agent/new-client`. 3-panel layout: drafts (w-56), form (full-width), risk panel (w-56).
 
@@ -147,7 +151,7 @@ Negative scoring from 0: Missing IDs (+10 if none, -10 each), ID expiry (<75d: -
 
 **Generated Credentials:** Stored in `generatedCredentials` Json field. Generated at form init (`ensureStep3Credentials`), Step 1 credentials via `useEffect` when name+DOB available. Immediately saved to DB (bypasses debounce). Step components only read, never generate. Key file: `credential-generators.ts`.
 
-**Key files:** `src/app/agent/new-client/_components/client-form.tsx` (state/save/nav), `step1-prequal.tsx`, `step2-background.tsx`, `step3-platforms.tsx`, `step3-platform-card.tsx`, `step4-contract.tsx`, `risk-panel.tsx`, `src/app/actions/client-drafts.ts`, `src/backend/data/client-drafts.ts`
+**Key files:** `src/app/agent/new-client/_components/client-form.tsx` (state/save/nav), `step1-prequal.tsx`, `step2-background.tsx`, `step3-platforms.tsx`, `step3-platform-card.tsx`, `step4-contract.tsx`, `risk-panel.tsx`, `src/app/actions/client-records.ts`, `src/backend/data/client-records.ts`
 
 ---
 
@@ -155,13 +159,13 @@ Negative scoring from 0: Missing IDs (+10 if none, -10 each), ID expiry (<75d: -
 
 Backoffice hub at `/backoffice/sales-interaction`. Queue/Review tab toggle.
 
-**In Progress rows:** Client name + Agent link + badge (PHONE ISSUED/RETURNED only) | Days since update | Actions: Review (always), Assign Device (reservation exists, no device), Mark Returned (active device), Re-issue (returned device), Approve (step-4 submitted). Real DB drafts alongside mock data.
+**In Progress rows:** Client name + Agent link + badge (PHONE ISSUED/RETURNED only) | Days since update | Actions: Review (always), Assign Device (reservation exists, no device), Mark Returned (active device), Re-issue (returned device), Approve (step-4 submitted). All real DB data.
 
-**Device lifecycle:** Integrated into rows by activity, not step. Assign auto-advances draft to step 3. Re-issue preserves original dueBackAt. Badges show phone number on hover.
+**Device lifecycle:** Integrated into rows by activity, not step. Assign auto-advances record to step 3. Re-issue preserves original dueBackAt. Badges show phone number on hover.
 
 **Review dialog:** 4-step read-only, Approve on Step 4. Step 3 shows credential fill status (green=both, amber=partial, dim=empty).
 
-**Todo system:** Done → `completeTodo()` (COMPLETED + event). Revert → `revertTodo()` (back to PENDING + event). Assign dialog: client picker, 4 issue categories, default 3-day due.
+**Todo system:** Done → `completeTodo()` (COMPLETED + event). Revert → `revertTodo()` (back to PENDING + event). Assign dialog: client picker, 5 issue categories (Re-Open Bank, Contact Bank, Contact PayPal, Platforms Verification, Collect Debit Card Information), default 3-day due.
 
 **Key files:** `sales-interaction-view.tsx`, `client-intake-list.tsx`, `draft-review-dialog.tsx`, `device-assign-dialog.tsx`, `assign-todo-dialog.tsx`, `src/app/actions/phone-assignments.ts`, `src/app/actions/todos.ts`
 
@@ -192,11 +196,53 @@ vi.mock('@/backend/auth', () => ({ auth: mockAuth }))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 ```
 
-**16 files, 233 tests:** Agent Application (5 files, 57), Commission (7 files, 73), Client Draft (2 files, 55), Phone Assignment (1 file, 22), Todo (1 file, 16)
+**20 files, 292 tests:** Agent Application (5 files, 57), Commission (7 files, 73), Client Records (2 files, 55), Phone Assignment (1 file, 22), Todo (1 file, ~18), Fund Confirmations (1 file, ~8), Gmail Detectors (1 file, ~21), Gmail Matcher (1 file, ~8), Risk Score (1 file, 38), Address Utils (1 file, 17)
 
 ---
 
-## 12. Seed Data
+## 12. Feature: Gmail Auto-Detection + Fund Confirmation
+
+### Gmail Integration
+Business Gmail inbox connected via Google OAuth. Cron syncs every 5 minutes (`vercel.json`). 5 detectors auto-classify emails:
+
+| Detector | Source | Auto-Creates | Fund Match? |
+|----------|--------|-------------|-------------|
+| VIP | Sportsbook "VIP"/"elevated" emails | Todo: "VIP Account — Reply Required" | No |
+| Verification | Platform "verify"/"action needed" | Todo: "Account Verification — Send to Client" | No |
+| Fund Deposit | "deposit confirmed" + $ amount | Todo: "Confirm Fund Deposit" | Yes |
+| Fund Withdrawal | "withdrawal processed" + $ | Todo: "Confirm Fund Withdrawal" | Yes |
+| PayPal | PayPal transfer notifications | Todo: "Confirm Fund Deposit/Withdrawal" | Yes |
+
+**Client identification:** `ClientRecord.assignedGmail` ↔ email "to" address. Todo assigned to closer agent.
+
+**Fund matching:** Same platform + direction + amount within 5% + 48h window → auto-confirm. 5-25% mismatch → flag discrepancy. No match → manual review todo.
+
+**Key files:** `src/lib/gmail/` (types, client, sync, processor, matcher, detectors/), `src/app/actions/gmail-settings.ts`, `src/app/api/cron/gmail-sync/route.ts`, `src/app/api/gmail/callback/route.ts`, `src/app/backoffice/settings/gmail/`
+
+**Setup:** See `docs/gmail-setup.md`. Requires `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REDIRECT_URI`, `CRON_SECRET` env vars.
+
+### Fund Confirmation
+FundAllocation now tracks: `confirmationStatus` (UNCONFIRMED → CONFIRMED/DISCREPANCY), `confirmedAt`, `confirmedBy`, `confirmedAmount`, `discrepancyNotes`.
+
+- **Action Hub:** Filter tabs (All/Unconfirmed/Confirmed/Discrepancy), "Confirm" button on unconfirmed rows, confirmation dialog, unconfirmed count in header KPIs + daily rundown
+- **Actions:** `confirmFundAllocation()`, `flagDiscrepancy()` in `src/app/actions/fund-confirmations.ts`
+
+### Todo Categories (9 total)
+1. Re-Open Bank Account / Schedule with Client
+2. Contact Bank
+3. Contact PayPal
+4. Platforms Verification
+5. Collect Debit Card Information
+6. VIP Account — Reply Required *(new)*
+7. Account Verification — Send to Client *(new)*
+8. Confirm Fund Deposit *(new)*
+9. Confirm Fund Withdrawal *(new)*
+
+`assignTodo()` accepts `{ clientRecordId }` — required. Auto-created email todos have `source: 'EMAIL_AUTO'` and show a mail icon in the Action Hub.
+
+---
+
+## 13. Seed Data
 
 See `prisma/seed.ts` for full details. All passwords: `password123` (except Jamie Torres: `approved123`).
 
@@ -207,10 +253,33 @@ See `prisma/seed.ts` for full details. All passwords: `password123` (except Jami
 - Rachel Kim (SED) → Tony Russo (2★) → Sofia Reyes; Kevin Okafor
 - Victor Hayes (CMO) → Diana Foster (MD) → Ryan Mitchell (4★)
 
-**Sample data:** 3 clients (2 APPROVED w/ bonus pools, 1 PENDING), 1 draft (Sarah Martinez, step 2), 1 phone assignment (SIGNED_OUT), 1 todo (Contact Bank, PENDING)
+**Sample data:** 3 client records (2 APPROVED w/ bonus pools, 1 SUBMITTED), 5 draft records (Sarah Martinez step 3, Michael Thompson step 2, Jennifer Rodriguez step 1, Andrew Park step 2, Lisa Nguyen step 1), phone assignments, 1 todo (Contact Bank, PENDING), 6 fund allocations (2 confirmed, 1 discrepancy, 3 unconfirmed), 30+ transactions across sportsbook/bank/EdgeBoost platforms (with recent BANK deposits for overnight alert, partial and complete EdgeBoost 4x deposits)
 
 ---
 
-## 13. Documentation
+## 14. Feature: Backoffice Operational Cockpit
+
+Dense, information-first dashboard at `/backoffice`. Zero action buttons — drill-down only. Self-interpreting: every number has context (comparisons, thresholds, suggestions). Anomaly-first: healthy items collapsed, problems expanded.
+
+**Layout:**
+1. **Signal Bar** — green/amber/red status based on overdue devices, overdue todos, unconfirmed funds
+2. **Fund War Room** (full-width, large) — Row 1: 8 sportsbook platform cards horizontal (DK, FD, MGM, FAN, CZR, BB, BR, 365) showing balance vs $100K target, account count, below-$5K accounts, today's deposits/withdrawals. Row 2: Bank $250 Overnight Alert + EdgeBoost Onboarding Tracker (4x$250 deposit dots). Row 3: Smart Insights (collapsible, collapsed by default)
+3. **Two-column:** Onboarding Bottleneck (left) | Agent Activity (right) — vertically expanding
+   - **Onboarding Bottleneck** — Step Pipeline (stacked bar + per-step details with stuck count/avg days), Devices (waiting/out/total/need), Unused Accounts ($0 balance post-approval), Insights (collapsed)
+   - **Agent Activity** — Agent Ranking (Most Clients, Speed Champion, Month's Most, Month's Fastest), Team Metrics (active/total, avg days, end-to-end, zero-success), Low Success Agents (<85%), Insights (collapsed)
+
+**Data layer:** `src/backend/data/cockpit.ts` — single `getCockpitData()` running 16 parallel Prisma queries. Computes per-platform balances from Transaction model (clientRecordId + platformType), bank overnight alerts from recent BANK deposits, EdgeBoost 4x tracking, agent rankings, step dwell times from STEP_ADVANCED events, stuck client detection, unused accounts.
+
+**Schema additions:** `STEP_ADVANCED` EventType (logged on step changes + device assignment auto-advance), `clientRecordId` optional FK on FundAllocation.
+
+**Cockpit types:** `CockpitData`, `CockpitSignalData`, `CockpitFundWarRoom`, `CockpitWarRoomPlatform`, `CockpitWarRoomAccount`, `CockpitBankOvernightAlert`, `CockpitEdgeBoostProgress`, `CockpitSmartInsight`, `CockpitAgentActivity`, `CockpitLowSuccessAgent`, `CockpitOnboardingBottleneck`, `CockpitStepPipeline`, `CockpitUnusedAccount` — all in `src/types/backend-types.ts`.
+
+**Key files:** `src/app/backoffice/page.tsx`, `src/backend/data/cockpit.ts`, `src/app/backoffice/_components/cockpit-signal.tsx`, `fund-war-room.tsx`, `agent-activity.tsx`, `onboarding-bottleneck.tsx`
+
+**Constants:** SPORTSBOOK_TARGET=$100K, MIN_ACCOUNT_TARGET=$5K, BANK_OVERNIGHT_THRESHOLD=$250 (24h), EDGEBOOST_TOTAL_TARGET=$1K (4 deposits), STALE_AGENT_DAYS=7, ATTENTION_SUCCESS_THRESHOLD=85%, STUCK_NO_PROGRESS_DAYS=5, STUCK_DEVICE_WAIT_DAYS=1
+
+---
+
+## 15. Documentation
 
 Update `CLAUDE.md` after every task. Write detail docs to `docs/` directory when needed.

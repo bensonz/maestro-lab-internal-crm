@@ -25,7 +25,7 @@ export async function checkLeadershipEligibility(
   const reqs = tierConfig.requirements
 
   // Count agent's own approved clients
-  const ownClients = await prisma.client.count({
+  const ownClients = await prisma.clientRecord.count({
     where: { closerId: agentId, status: 'APPROVED' },
   })
 
@@ -109,7 +109,7 @@ export async function promoteToLeadership(
     data: { leadershipTier: tier },
   })
 
-  const approvedCount = await prisma.client.count({
+  const approvedCount = await prisma.clientRecord.count({
     where: { closerId: agentId, status: 'APPROVED' },
   })
 

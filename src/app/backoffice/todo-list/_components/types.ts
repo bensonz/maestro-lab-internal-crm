@@ -1,32 +1,29 @@
 import type {
-  ActionHubStats,
-  PnlStatus,
-  FundAlert,
-  PendingAction,
-  PendingActionType,
-  EnhancedAgentTasks,
-  EnhancedTask,
-  ActiveAgent,
+  ActionHubKPIs,
+  RundownBlock,
+  OverdueDevice,
+  ActionHubTodo,
+  FundAllocationEntry,
+  TodoTimelineEntry,
 } from '@/types/backend-types'
 
 export type {
-  ActionHubStats,
-  PnlStatus,
-  FundAlert,
-  PendingAction,
-  PendingActionType,
-  EnhancedAgentTasks,
-  EnhancedTask,
-  ActiveAgent,
+  ActionHubKPIs,
+  RundownBlock,
+  OverdueDevice,
+  ActionHubTodo,
+  FundAllocationEntry,
+  TodoTimelineEntry,
 }
 
 export interface ActionHubViewProps {
-  stats: ActionHubStats
-  pnlStatus: PnlStatus
-  fundAlerts: FundAlert[]
-  pendingActions: PendingAction[]
-  agentTasks: EnhancedAgentTasks[]
-  activeAgents: ActiveAgent[]
   userName: string
   userRole: string
+  kpis: ActionHubKPIs
+  dailyRundown: RundownBlock[]
+  overdueDevices: OverdueDevice[]
+  pendingTodos: ActionHubTodo[]
+  todayAllocations: FundAllocationEntry[]
+  yesterdayAllocCount: number
+  timeline: TodoTimelineEntry[]
 }

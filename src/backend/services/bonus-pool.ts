@@ -11,7 +11,7 @@ import { getSupervisorChain } from '@/backend/data/bonus-pools'
  * All writes happen inside a single Prisma transaction.
  */
 export async function createAndDistributeBonusPool(
-  clientId: string,
+  clientRecordId: string,
   closerId: string,
 ): Promise<{ poolId: string; distributedSlices: number; recycledSlices: number }> {
   // Snapshot closer's current star level
@@ -53,7 +53,7 @@ export async function createAndDistributeBonusPool(
   const pool = await prisma.$transaction(async (tx) => {
     const bonusPool = await tx.bonusPool.create({
       data: {
-        clientId,
+        clientRecordId,
         closerId,
         closerStarLevel: closer.starLevel,
         totalAmount: BONUS_POOL_TOTAL,
@@ -73,11 +73,11 @@ export async function createAndDistributeBonusPool(
     await tx.eventLog.create({
       data: {
         eventType: 'BONUS_POOL_CREATED',
-        description: `Bonus pool created for client ${clientId}`,
+        description: `Bonus pool created for client record ${clientRecordId}`,
         userId: closerId,
         metadata: {
           poolId: bonusPool.id,
-          clientId,
+          clientRecordId,
           closerStarLevel: closer.starLevel,
         },
       },

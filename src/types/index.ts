@@ -67,25 +67,17 @@ export const PhoneAssignmentStatus = {
 export type PhoneAssignmentStatus =
   (typeof PhoneAssignmentStatus)[keyof typeof PhoneAssignmentStatus]
 
-// --- Client Draft Enums ---
+// --- Client Record Enums ---
 
-export const ClientDraftStatus = {
+export const ClientRecordStatus = {
   DRAFT: 'DRAFT',
   SUBMITTED: 'SUBMITTED',
-} as const
-export type ClientDraftStatus =
-  (typeof ClientDraftStatus)[keyof typeof ClientDraftStatus]
-
-// --- Commission System Enums ---
-
-export const ClientStatus = {
-  PENDING: 'PENDING',
-  IN_PROGRESS: 'IN_PROGRESS',
   APPROVED: 'APPROVED',
   REJECTED: 'REJECTED',
   CLOSED: 'CLOSED',
 } as const
-export type ClientStatus = (typeof ClientStatus)[keyof typeof ClientStatus]
+export type ClientRecordStatus =
+  (typeof ClientRecordStatus)[keyof typeof ClientRecordStatus]
 
 export const BonusPoolStatus = {
   PENDING: 'PENDING',

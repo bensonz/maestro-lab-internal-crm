@@ -551,48 +551,32 @@ async function main() {
 
   // Clean up existing sample clients to allow re-seeding
   await prisma.bonusAllocation.deleteMany({
-    where: { pool: { client: { email: { startsWith: 'sample-client' } } } },
+    where: { pool: { clientRecord: { email: { startsWith: 'sample-client' } } } },
   })
   await prisma.bonusPool.deleteMany({
-    where: { client: { email: { startsWith: 'sample-client' } } },
+    where: { clientRecord: { email: { startsWith: 'sample-client' } } },
   })
   await prisma.transaction.deleteMany({
-    where: { client: { email: { startsWith: 'sample-client' } } },
+    where: { clientRecord: { email: { startsWith: 'sample-client' } } },
   })
-  // Clean up phone assignments linked to sample client drafts
+  // Clean up phone assignments linked to sample client records
   await prisma.phoneAssignment.deleteMany({
-    where: { clientDraft: { resultClient: { email: { startsWith: 'sample-client' } } } },
+    where: { clientRecord: { email: { startsWith: 'sample-client' } } },
   })
-  // Clean up drafts linked to sample clients
-  await prisma.clientDraft.deleteMany({
-    where: { resultClient: { email: { startsWith: 'sample-client' } } },
-  })
-  await prisma.client.deleteMany({
+  // Clean up sample client records
+  await prisma.clientRecord.deleteMany({
     where: { email: { startsWith: 'sample-client' } },
   })
 
   // Client 1 — Approved, closed by Marcus Rivera (2★)
   // Chain: Marcus (2★) → James Park (4★)
   // Distribution: Direct $200 to Marcus, Star pool: Marcus 2 slices ($100) + James 2 slices ($100)
-  const client1 = await prisma.client.create({
+  const client1 = await prisma.clientRecord.create({
     data: {
-      firstName: 'David',
-      lastName: 'Wilson',
-      email: 'sample-client-1@example.com',
-      phone: '(555) 500-0001',
+      closerId: agent.id,
       status: 'APPROVED',
-      closerId: agent.id,
-      approvedAt: new Date('2026-02-10'),
-    },
-  })
-
-  // Create linked ClientDraft for Client 1 (David Wilson) — simulates full intake
-  const draft1 = await prisma.clientDraft.create({
-    data: {
-      closerId: agent.id,
-      status: 'SUBMITTED',
       step: 4,
-      resultClientId: client1.id,
+      approvedAt: new Date('2026-02-10'),
       firstName: 'David',
       lastName: 'Wilson',
       email: 'sample-client-1@example.com',
@@ -620,8 +604,17 @@ async function main() {
       maritalStatus: 'Single',
       platformData: {
         paypal: { username: 'david.wilson.work@gmail.com', status: 'VERIFIED' },
-        onlineBanking: { username: 'david.wilson.work@gmail.com', accountId: 'CHK-9901', bank: 'Chase', status: 'VERIFIED' },
-        edgeboost: { username: 'david.wilson.work@gmail.com', accountId: 'EB-4401', status: 'VERIFIED' },
+        onlineBanking: {
+          username: 'david.wilson.work@gmail.com', accountId: 'CHK-9901', bank: 'Chase', status: 'VERIFIED',
+          routingNumber: '021000021', bankAccountNumber: '4839201756',
+          cardNumber: '4532 1234 5678 9012', cvv: '847', cardExpiry: '09/28', pin: '2580',
+          cardImages: ['/uploads/david-wilson-bank-card.jpg'],
+        },
+        edgeboost: {
+          username: 'david.wilson.work@gmail.com', accountId: 'EB-4401', status: 'VERIFIED',
+          cardNumber: '5412 7534 0000 1234', cvv: '312', cardExpiry: '11/27',
+          cardImages: ['/uploads/david-wilson-edgeboost-card.jpg'],
+        },
         draftkings: { username: 'DWilsonDK', accountId: 'DK-7701', status: 'VERIFIED' },
         fanduel: { username: 'DWilsonFD', accountId: 'FD-3301', status: 'VERIFIED' },
         betmgm: { username: 'david.wilson.work@gmail.com', accountId: 'MGM-1101', status: 'VERIFIED' },
@@ -649,7 +642,7 @@ async function main() {
 
   await prisma.bonusPool.create({
     data: {
-      clientId: client1.id,
+      clientRecordId: client1.id,
       closerId: agent.id,
       closerStarLevel: 2,
       totalAmount: 400,
@@ -700,25 +693,12 @@ async function main() {
   // Client 2 — Approved, closed by Jamie Torres (0★ rookie)
   // Chain: Jamie (0★) → Marcus (2★) → James Park (4★)
   // Distribution: Direct $200 to Jamie, Star pool: Jamie 0, Marcus 2 ($100), James 2 ($100)
-  const client2 = await prisma.client.create({
+  const client2 = await prisma.clientRecord.create({
     data: {
-      firstName: 'Emily',
-      lastName: 'Chen',
-      email: 'sample-client-2@example.com',
-      phone: '(555) 500-0002',
+      closerId: approvedUser.id,
       status: 'APPROVED',
-      closerId: approvedUser.id,
-      approvedAt: new Date('2026-02-12'),
-    },
-  })
-
-  // Create linked ClientDraft for Client 2 (Emily Chen)
-  const draft2 = await prisma.clientDraft.create({
-    data: {
-      closerId: approvedUser.id,
-      status: 'SUBMITTED',
       step: 4,
-      resultClientId: client2.id,
+      approvedAt: new Date('2026-02-12'),
       firstName: 'Emily',
       lastName: 'Chen',
       email: 'sample-client-2@example.com',
@@ -748,8 +728,17 @@ async function main() {
       maritalStatus: 'Married',
       platformData: {
         paypal: { username: 'emily.chen.work@gmail.com', status: 'VERIFIED' },
-        onlineBanking: { username: 'emily.chen.work@gmail.com', accountId: 'CHK-5502', bank: 'Citi', status: 'VERIFIED' },
-        edgeboost: { username: 'emily.chen.work@gmail.com', accountId: 'EB-2202', status: 'PENDING_REVIEW' },
+        onlineBanking: {
+          username: 'emily.chen.work@gmail.com', accountId: 'CHK-5502', bank: 'Citi', status: 'VERIFIED',
+          routingNumber: '021000089', bankAccountNumber: '5527801943',
+          cardNumber: '4916 3344 7788 2201', cvv: '523', cardExpiry: '04/28', pin: '1234',
+          cardImages: ['/uploads/emily-chen-bank-card.jpg'],
+        },
+        edgeboost: {
+          username: 'emily.chen.work@gmail.com', accountId: 'EB-2202', status: 'PENDING_REVIEW',
+          cardNumber: '5500 1122 3344 5566', cvv: '789', cardExpiry: '08/27',
+          cardImages: ['/uploads/emily-chen-edgeboost-card.jpg'],
+        },
         draftkings: { username: 'EChenDK', accountId: 'DK-8802', status: 'VERIFIED' },
         fanduel: { username: 'EChenFD', accountId: 'FD-4402', status: 'VERIFIED' },
         betmgm: { username: 'emily.chen.work@gmail.com', accountId: 'MGM-6602', status: 'VERIFIED' },
@@ -777,7 +766,7 @@ async function main() {
 
   await prisma.bonusPool.create({
     data: {
-      clientId: client2.id,
+      clientRecordId: client2.id,
       closerId: approvedUser.id,
       closerStarLevel: 0,
       totalAmount: 400,
@@ -819,25 +808,12 @@ async function main() {
   })
   console.log(`  Created client 2 (Emily Chen) + bonus pool — closed by Jamie`)
 
-  // Client 3 — Pending (no bonus pool yet)
-  const client3 = await prisma.client.create({
-    data: {
-      firstName: 'Robert',
-      lastName: 'Kim',
-      email: 'sample-client-3@example.com',
-      phone: '(555) 500-0003',
-      status: 'PENDING',
-      closerId: agent.id,
-    },
-  })
-
-  // Create linked ClientDraft for Client 3 (Robert Kim — submitted, pending approval)
-  const draft3 = await prisma.clientDraft.create({
+  // Client 3 — Submitted, pending approval (no bonus pool yet)
+  const client3 = await prisma.clientRecord.create({
     data: {
       closerId: agent.id,
       status: 'SUBMITTED',
       step: 4,
-      resultClientId: client3.id,
       firstName: 'Robert',
       lastName: 'Kim',
       email: 'sample-client-3@example.com',
@@ -898,7 +874,7 @@ async function main() {
       phoneNumber: '(555) 888-0001',
       carrier: 'Verizon',
       deviceId: 'IMEI-1001001001',
-      clientDraftId: draft1.id,
+      clientRecordId: client1.id,
       agentId: agent.id,
       signedOutById: boStaff.id,
       signedOutAt: new Date('2026-02-06'),
@@ -913,7 +889,7 @@ async function main() {
       phoneNumber: '(555) 888-0002',
       carrier: 'T-Mobile',
       deviceId: 'IMEI-2002002002',
-      clientDraftId: draft2.id,
+      clientRecordId: client2.id,
       agentId: approvedUser.id,
       signedOutById: boStaff.id,
       signedOutAt: new Date('2026-02-09'),
@@ -928,7 +904,7 @@ async function main() {
       phoneNumber: '(555) 888-0003',
       carrier: 'AT&T',
       deviceId: 'IMEI-3003003003',
-      clientDraftId: draft3.id,
+      clientRecordId: client3.id,
       agentId: agent.id,
       signedOutById: boStaff.id,
       signedOutAt: new Date('2026-02-21'),
@@ -945,7 +921,7 @@ async function main() {
   await prisma.transaction.createMany({
     data: [
       {
-        clientId: client1.id,
+        clientRecordId: client1.id,
         type: 'DEPOSIT',
         amount: 500.00,
         description: 'Initial deposit to DraftKings',
@@ -953,7 +929,7 @@ async function main() {
         createdAt: new Date('2026-02-11'),
       },
       {
-        clientId: client1.id,
+        clientRecordId: client1.id,
         type: 'DEPOSIT',
         amount: 300.00,
         description: 'Deposit to FanDuel',
@@ -961,7 +937,7 @@ async function main() {
         createdAt: new Date('2026-02-13'),
       },
       {
-        clientId: client1.id,
+        clientRecordId: client1.id,
         type: 'DEPOSIT',
         amount: 200.00,
         description: 'PayPal fund transfer',
@@ -969,7 +945,7 @@ async function main() {
         createdAt: new Date('2026-02-15'),
       },
       {
-        clientId: client1.id,
+        clientRecordId: client1.id,
         type: 'WITHDRAWAL',
         amount: 150.00,
         description: 'Withdrawal from DraftKings',
@@ -983,7 +959,7 @@ async function main() {
   await prisma.transaction.createMany({
     data: [
       {
-        clientId: client2.id,
+        clientRecordId: client2.id,
         type: 'DEPOSIT',
         amount: 400.00,
         description: 'Initial deposit to BetMGM',
@@ -991,15 +967,15 @@ async function main() {
         createdAt: new Date('2026-02-13'),
       },
       {
-        clientId: client2.id,
+        clientRecordId: client2.id,
         type: 'DEPOSIT',
         amount: 250.00,
         description: 'Bank transfer deposit',
-        platformType: 'ONLINE_BANKING',
+        platformType: 'BANK',
         createdAt: new Date('2026-02-16'),
       },
       {
-        clientId: client2.id,
+        clientRecordId: client2.id,
         type: 'WITHDRAWAL',
         amount: 100.00,
         description: 'PayPal withdrawal',
@@ -1008,23 +984,64 @@ async function main() {
       },
     ],
   })
-  console.log('  Created transactions for approved clients')
+  // Additional transactions for war room data
+  const now = new Date()
+  const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const recentDate = new Date(todayDate)
+  recentDate.setHours(recentDate.getHours() - 6)
+
+  await prisma.transaction.createMany({
+    data: [
+      // David Wilson — more sportsbook deposits
+      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 2500, description: 'BetMGM deposit', platformType: 'BETMGM', createdAt: new Date('2026-02-18') },
+      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 1800, description: 'Caesars deposit', platformType: 'CAESARS', createdAt: new Date('2026-02-19') },
+      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 3200, description: 'Fanatics deposit', platformType: 'FANATICS', createdAt: new Date('2026-02-20') },
+      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 1500, description: 'BetRivers deposit', platformType: 'BETRIVERS', createdAt: new Date('2026-02-21') },
+      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 900, description: 'Bally Bet deposit', platformType: 'BALLYBET', createdAt: new Date('2026-02-22') },
+      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 750, description: 'Bet365 deposit', platformType: 'BET365', createdAt: new Date('2026-02-23') },
+      // BANK deposit (recent, triggers $250 overnight alert)
+      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 500, description: 'Bank deposit', platformType: 'BANK', createdAt: recentDate },
+      // EdgeBoost deposits (2 of 4 — partial progress)
+      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 250, description: 'EdgeBoost deposit 1', platformType: 'EDGEBOOST', createdAt: new Date('2026-02-25') },
+      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 250, description: 'EdgeBoost deposit 2', platformType: 'EDGEBOOST', createdAt: new Date('2026-02-27') },
+      // Today's activity
+      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 1200, description: 'DraftKings top-up', platformType: 'DRAFTKINGS', createdAt: todayDate },
+
+      // Emily Chen — more sportsbook deposits
+      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 3500, description: 'DraftKings deposit', platformType: 'DRAFTKINGS', createdAt: new Date('2026-02-17') },
+      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 2200, description: 'FanDuel deposit', platformType: 'FANDUEL', createdAt: new Date('2026-02-18') },
+      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 1600, description: 'Caesars deposit', platformType: 'CAESARS', createdAt: new Date('2026-02-20') },
+      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 800, description: 'Fanatics deposit', platformType: 'FANATICS', createdAt: new Date('2026-02-21') },
+      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 2000, description: 'BetRivers deposit', platformType: 'BETRIVERS', createdAt: new Date('2026-02-24') },
+      // BANK deposit (recent, triggers overnight alert)
+      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 350, description: 'Bank transfer', platformType: 'BANK', createdAt: recentDate },
+      // EdgeBoost deposits (complete — 4x$250)
+      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 250, description: 'EdgeBoost deposit 1', platformType: 'EDGEBOOST', createdAt: new Date('2026-02-20') },
+      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 250, description: 'EdgeBoost deposit 2', platformType: 'EDGEBOOST', createdAt: new Date('2026-02-22') },
+      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 250, description: 'EdgeBoost deposit 3', platformType: 'EDGEBOOST', createdAt: new Date('2026-02-24') },
+      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 250, description: 'EdgeBoost deposit 4', platformType: 'EDGEBOOST', createdAt: new Date('2026-02-26') },
+      // Today
+      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 800, description: 'FanDuel top-up', platformType: 'FANDUEL', createdAt: todayDate },
+      { clientRecordId: client2.id, type: 'WITHDRAWAL', amount: 500, description: 'BetMGM withdrawal', platformType: 'BETMGM', createdAt: todayDate },
+    ],
+  })
+  console.log('  Created additional transactions for war room')
 
   // ── Sample Client Draft ────────────────────────────────
 
-  // Delete in dependency order: Todo → PhoneAssignment → ClientDraft
+  // Delete in dependency order: Todo → PhoneAssignment → ClientRecord
   await prisma.todo.deleteMany({
-    where: { clientDraft: { closerId: agent.id } },
+    where: { clientRecord: { closerId: agent.id } },
   })
   await prisma.phoneAssignment.deleteMany({
-    where: { clientDraft: { closerId: agent.id } },
+    where: { clientRecord: { closerId: agent.id } },
   })
-  await prisma.clientDraft.deleteMany({ where: { closerId: agent.id, resultClientId: null } })
+  await prisma.clientRecord.deleteMany({ where: { closerId: agent.id, status: 'DRAFT' } })
   // Compute future dates for phone assignment (sign out = now, due back = 3 days from now)
   const signOutDate = new Date()
   const dueBackDate = new Date(signOutDate.getTime() + 3 * 24 * 60 * 60 * 1000)
 
-  const sampleDraft = await prisma.clientDraft.create({
+  const sampleDraft = await prisma.clientRecord.create({
     data: {
       closerId: agent.id,
       status: 'DRAFT',
@@ -1048,7 +1065,7 @@ async function main() {
       phoneNumber: '(555) 777-0001',
       carrier: 'T-Mobile',
       deviceId: 'IMEI-9876543210',
-      clientDraftId: sampleDraft.id,
+      clientRecordId: sampleDraft.id,
       agentId: agent.id,
       signedOutById: boStaff.id,
       signedOutAt: signOutDate,
@@ -1058,9 +1075,333 @@ async function main() {
   })
   console.log(`  Created sample phone assignment: ${sampleAssignment.id} (signed out, due ${dueBackDate.toISOString().split('T')[0]})`)
 
+  // ── Additional Step 3 & 4 Drafts (for testing the last intake steps) ────
+
+  // Michael Thompson — Step 3, ~5/11 platforms done
+  const draftMichael = await prisma.clientRecord.create({
+    data: {
+      closerId: agent.id,
+      status: 'DRAFT',
+      step: 3,
+      firstName: 'Michael',
+      lastName: 'Thompson',
+      email: 'michael.t@example.com',
+      phone: '(555) 600-0010',
+      idDocument: '/uploads/michael-thompson-id.jpg',
+      idNumber: 'DL-44556677',
+      idExpiry: new Date('2029-04-15'),
+      dateOfBirth: new Date('1988-11-03'),
+      address: '555 Oak Boulevard, Denver, CO 80203',
+      citizenship: 'US',
+      assignedGmail: 'michael.thompson.work@gmail.com',
+      gmailPassword: 'MThom#2026!',
+      gmailScreenshot: '/uploads/michael-gmail-screenshot.jpg',
+      betmgmCheckPassed: true,
+      betmgmLogin: 'michael.thompson.work@gmail.com',
+      betmgmPassword: 'BetMGM#Michael2026',
+      betmgmRegScreenshot: '/uploads/michael-betmgm-reg.jpg',
+      betmgmLoginScreenshot: '/uploads/michael-betmgm-login.jpg',
+      ssnDocument: '/uploads/michael-ssn.jpg',
+      ssnNumber: '***-**-7890',
+      bankingHistory: 'BOA checking, good standing 4yr',
+      paypalPreviouslyUsed: false,
+      debankedHistory: false,
+      hasCriminalRecord: false,
+      addressMismatch: false,
+      undisclosedInfo: false,
+      occupation: 'Sales Manager',
+      annualIncome: '$75,000-$100,000',
+      employmentStatus: 'Employed Full-Time',
+      maritalStatus: 'Married',
+      deviceReservationDate: new Date().toISOString().split('T')[0],
+      platformData: [
+        { platform: 'PAYPAL', username: 'michael.thompson.work@gmail.com', accountId: '', screenshot: '/uploads/michael-paypal.jpg', status: 'VERIFIED' },
+        { platform: 'ONLINE_BANKING', username: 'michael.thompson.work@gmail.com', accountId: 'CHK-8801', screenshot: '/uploads/michael-bank.jpg', bank: 'Bank of America', status: 'VERIFIED', routingNumber: '026009593', bankAccountNumber: '3847291056', pin: '2580' },
+        { platform: 'DRAFTKINGS', username: 'MThompDK', accountId: 'DK-4401', screenshot: '/uploads/michael-dk.jpg', screenshotPersonalInfo: '/uploads/michael-dk-info.jpg', screenshotDeposit: '/uploads/michael-dk-deposit.jpg', status: 'VERIFIED' },
+        { platform: 'FANDUEL', username: 'MThompFD', accountId: 'FD-5501', screenshot: '/uploads/michael-fd.jpg', screenshotPersonalInfo: '/uploads/michael-fd-info.jpg', status: 'VERIFIED' },
+        { platform: 'BETMGM', username: 'michael.thompson.work@gmail.com', accountId: 'MGM-6601', screenshot: '/uploads/michael-mgm.jpg', status: 'VERIFIED' },
+        { platform: 'EDGEBOOST', username: '', accountId: '', screenshot: '', status: '' },
+        { platform: 'CAESARS', username: '', accountId: '', screenshot: '', status: '' },
+        { platform: 'FANATICS', username: '', accountId: '', screenshot: '', status: '' },
+        { platform: 'BETRIVERS', username: '', accountId: '', screenshot: '', status: '' },
+        { platform: 'BET365', username: '', accountId: '', screenshot: '', status: '' },
+        { platform: 'ESPNBET', username: '', accountId: '', screenshot: '', status: '' },
+      ],
+      generatedCredentials: {
+        gmailPassword: 'MThom#2026!',
+        betmgmPassword: 'BetMGM#Michael2026',
+        platformPasswords: {
+          sportsbook: 'SBook#Michael2026',
+          BETMGM: 'BetMGM#Michael2026',
+          PAYPAL: 'PPal#Michael2026',
+          ONLINE_BANKING: 'Bank#Michael2026',
+          EDGEBOOST: 'Edge#Michael2026',
+        },
+        bankPin4: '2580',
+        bankPin6: '258000',
+      },
+    },
+  })
+  await prisma.phoneAssignment.create({
+    data: {
+      phoneNumber: '(555) 777-0010',
+      carrier: 'Verizon',
+      deviceId: 'IMEI-1010101010',
+      clientRecordId: draftMichael.id,
+      agentId: agent.id,
+      signedOutById: boStaff.id,
+      signedOutAt: signOutDate,
+      dueBackAt: dueBackDate,
+      status: 'SIGNED_OUT',
+    },
+  })
+  console.log(`  Created step-3 draft: Michael Thompson (5/11 platforms)`)
+
+  // Jennifer Rodriguez — Step 3, ~9/11 platforms done
+  const draftJennifer = await prisma.clientRecord.create({
+    data: {
+      closerId: agent.id,
+      status: 'DRAFT',
+      step: 3,
+      firstName: 'Jennifer',
+      lastName: 'Rodriguez',
+      email: 'jennifer.r@example.com',
+      phone: '(555) 600-0011',
+      idDocument: '/uploads/jennifer-rodriguez-id.jpg',
+      idNumber: 'DL-99887766',
+      idExpiry: new Date('2028-09-10'),
+      dateOfBirth: new Date('1994-06-22'),
+      address: '1200 Elm Street, Austin, TX 78701',
+      citizenship: 'US',
+      assignedGmail: 'jennifer.rodriguez.work@gmail.com',
+      gmailPassword: 'JRodr#2026!',
+      gmailScreenshot: '/uploads/jennifer-gmail-screenshot.jpg',
+      betmgmCheckPassed: true,
+      betmgmLogin: 'jennifer.rodriguez.work@gmail.com',
+      betmgmPassword: 'BetMGM#Jennifer2026',
+      betmgmRegScreenshot: '/uploads/jennifer-betmgm-reg.jpg',
+      betmgmLoginScreenshot: '/uploads/jennifer-betmgm-login.jpg',
+      ssnDocument: '/uploads/jennifer-ssn.jpg',
+      ssnNumber: '***-**-2345',
+      bankingHistory: 'Wells Fargo checking, 6yr history',
+      paypalPreviouslyUsed: true,
+      debankedHistory: false,
+      hasCriminalRecord: false,
+      addressMismatch: false,
+      undisclosedInfo: false,
+      occupation: 'Graphic Designer',
+      annualIncome: '$50,000-$75,000',
+      employmentStatus: 'Employed Full-Time',
+      maritalStatus: 'Single',
+      deviceReservationDate: new Date().toISOString().split('T')[0],
+      platformData: [
+        { platform: 'PAYPAL', username: 'jennifer.rodriguez.work@gmail.com', accountId: 'PP-2201', screenshot: '/uploads/jennifer-paypal.jpg', status: 'VERIFIED' },
+        { platform: 'ONLINE_BANKING', username: 'jennifer.rodriguez.work@gmail.com', accountId: 'CHK-7702', screenshot: '/uploads/jennifer-bank.jpg', bank: 'Wells Fargo', status: 'VERIFIED', routingNumber: '121000248', bankAccountNumber: '5566778899', pin: '2580' },
+        { platform: 'EDGEBOOST', username: 'jennifer.rodriguez.work@gmail.com', accountId: 'EB-3301', screenshot: '/uploads/jennifer-edge.jpg', status: 'VERIFIED' },
+        { platform: 'DRAFTKINGS', username: 'JRodrDK', accountId: 'DK-9901', screenshot: '/uploads/jennifer-dk.jpg', screenshotPersonalInfo: '/uploads/jennifer-dk-info.jpg', screenshotDeposit: '/uploads/jennifer-dk-deposit.jpg', status: 'VERIFIED' },
+        { platform: 'FANDUEL', username: 'JRodrFD', accountId: 'FD-8801', screenshot: '/uploads/jennifer-fd.jpg', screenshotPersonalInfo: '/uploads/jennifer-fd-info.jpg', screenshotDeposit: '/uploads/jennifer-fd-deposit.jpg', status: 'VERIFIED' },
+        { platform: 'BETMGM', username: 'jennifer.rodriguez.work@gmail.com', accountId: 'MGM-7701', screenshot: '/uploads/jennifer-mgm.jpg', screenshotPersonalInfo: '/uploads/jennifer-mgm-info.jpg', screenshotDeposit: '/uploads/jennifer-mgm-deposit.jpg', status: 'VERIFIED' },
+        { platform: 'CAESARS', username: 'JRodrCZR', accountId: 'CZR-6601', screenshot: '/uploads/jennifer-czr.jpg', screenshotPersonalInfo: '/uploads/jennifer-czr-info.jpg', screenshotDeposit: '/uploads/jennifer-czr-deposit.jpg', status: 'VERIFIED' },
+        { platform: 'FANATICS', username: 'JRodrFAN', accountId: 'FAN-5501', screenshot: '/uploads/jennifer-fan.jpg', screenshotPersonalInfo: '/uploads/jennifer-fan-info.jpg', status: 'VERIFIED' },
+        { platform: 'BETRIVERS', username: 'JRodrBR', accountId: 'BR-4401', screenshot: '/uploads/jennifer-br.jpg', screenshotPersonalInfo: '/uploads/jennifer-br-info.jpg', screenshotDeposit: '/uploads/jennifer-br-deposit.jpg', status: 'VERIFIED' },
+        { platform: 'BET365', username: '', accountId: '', screenshot: '', status: '' },
+        { platform: 'ESPNBET', username: '', accountId: '', screenshot: '', status: '' },
+      ],
+      generatedCredentials: {
+        gmailPassword: 'JRodr#2026!',
+        betmgmPassword: 'BetMGM#Jennifer2026',
+        platformPasswords: {
+          sportsbook: 'SBook#Jennifer2026',
+          BETMGM: 'BetMGM#Jennifer2026',
+          PAYPAL: 'PPal#Jennifer2026',
+          ONLINE_BANKING: 'Bank#Jennifer2026',
+          EDGEBOOST: 'Edge#Jennifer2026',
+        },
+        bankPin4: '2580',
+        bankPin6: '258000',
+      },
+    },
+  })
+  await prisma.phoneAssignment.create({
+    data: {
+      phoneNumber: '(555) 777-0011',
+      carrier: 'AT&T',
+      deviceId: 'IMEI-2020202020',
+      clientRecordId: draftJennifer.id,
+      agentId: agent.id,
+      signedOutById: boStaff.id,
+      signedOutAt: signOutDate,
+      dueBackAt: dueBackDate,
+      status: 'SIGNED_OUT',
+    },
+  })
+  console.log(`  Created step-3 draft: Jennifer Rodriguez (9/11 platforms)`)
+
+  // Andrew Park — Step 4, all platforms done, no contract yet
+  const draftAndrew = await prisma.clientRecord.create({
+    data: {
+      closerId: agent.id,
+      status: 'DRAFT',
+      step: 4,
+      firstName: 'Andrew',
+      lastName: 'Park',
+      email: 'andrew.p@example.com',
+      phone: '(555) 600-0012',
+      idDocument: '/uploads/andrew-park-id.jpg',
+      idNumber: 'DL-12341234',
+      idExpiry: new Date('2029-01-20'),
+      dateOfBirth: new Date('1991-02-14'),
+      address: '890 Pine Street, Seattle, WA 98101',
+      citizenship: 'US',
+      assignedGmail: 'andrew.park.work@gmail.com',
+      gmailPassword: 'APark#2026!',
+      gmailScreenshot: '/uploads/andrew-gmail-screenshot.jpg',
+      betmgmCheckPassed: true,
+      betmgmLogin: 'andrew.park.work@gmail.com',
+      betmgmPassword: 'BetMGM#Andrew2026',
+      betmgmRegScreenshot: '/uploads/andrew-betmgm-reg.jpg',
+      betmgmLoginScreenshot: '/uploads/andrew-betmgm-login.jpg',
+      ssnDocument: '/uploads/andrew-ssn.jpg',
+      ssnNumber: '***-**-6789',
+      bankingHistory: 'US Bank checking + savings, 8yr',
+      paypalPreviouslyUsed: false,
+      debankedHistory: false,
+      hasCriminalRecord: false,
+      addressMismatch: false,
+      undisclosedInfo: false,
+      occupation: 'Data Analyst',
+      annualIncome: '$75,000-$100,000',
+      employmentStatus: 'Employed Full-Time',
+      maritalStatus: 'Single',
+      deviceReservationDate: new Date().toISOString().split('T')[0],
+      platformData: [
+        { platform: 'PAYPAL', username: 'andrew.park.work@gmail.com', accountId: 'PP-1201', screenshot: '/uploads/andrew-paypal.jpg', status: 'VERIFIED' },
+        { platform: 'ONLINE_BANKING', username: 'andrew.park.work@gmail.com', accountId: 'CHK-3401', screenshot: '/uploads/andrew-bank.jpg', bank: 'US Bank', status: 'VERIFIED', routingNumber: '091000019', bankAccountNumber: '1122334455', pin: '2580' },
+        { platform: 'EDGEBOOST', username: 'andrew.park.work@gmail.com', accountId: 'EB-1101', screenshot: '/uploads/andrew-edge.jpg', status: 'VERIFIED' },
+        { platform: 'DRAFTKINGS', username: 'AParkDK', accountId: 'DK-2201', screenshot: '/uploads/andrew-dk.jpg', screenshotPersonalInfo: '/uploads/andrew-dk-info.jpg', screenshotDeposit: '/uploads/andrew-dk-deposit.jpg', status: 'VERIFIED' },
+        { platform: 'FANDUEL', username: 'AParkFD', accountId: 'FD-3301', screenshot: '/uploads/andrew-fd.jpg', screenshotPersonalInfo: '/uploads/andrew-fd-info.jpg', screenshotDeposit: '/uploads/andrew-fd-deposit.jpg', status: 'VERIFIED' },
+        { platform: 'BETMGM', username: 'andrew.park.work@gmail.com', accountId: 'MGM-4401', screenshot: '/uploads/andrew-mgm.jpg', screenshotPersonalInfo: '/uploads/andrew-mgm-info.jpg', screenshotDeposit: '/uploads/andrew-mgm-deposit.jpg', status: 'VERIFIED' },
+        { platform: 'CAESARS', username: 'AParkCZR', accountId: 'CZR-5501', screenshot: '/uploads/andrew-czr.jpg', screenshotPersonalInfo: '/uploads/andrew-czr-info.jpg', screenshotDeposit: '/uploads/andrew-czr-deposit.jpg', status: 'VERIFIED' },
+        { platform: 'FANATICS', username: 'AParkFAN', accountId: 'FAN-6601', screenshot: '/uploads/andrew-fan.jpg', screenshotPersonalInfo: '/uploads/andrew-fan-info.jpg', screenshotDeposit: '/uploads/andrew-fan-deposit.jpg', status: 'VERIFIED' },
+        { platform: 'BETRIVERS', username: 'AParkBR', accountId: 'BR-7701', screenshot: '/uploads/andrew-br.jpg', screenshotPersonalInfo: '/uploads/andrew-br-info.jpg', screenshotDeposit: '/uploads/andrew-br-deposit.jpg', status: 'VERIFIED' },
+        { platform: 'BET365', username: 'APark365', accountId: '365-8801', screenshot: '/uploads/andrew-365.jpg', screenshotPersonalInfo: '/uploads/andrew-365-info.jpg', screenshotDeposit: '/uploads/andrew-365-deposit.jpg', status: 'VERIFIED' },
+        { platform: 'ESPNBET', username: 'AParkESPN', accountId: 'ESPN-9901', screenshot: '/uploads/andrew-espn.jpg', screenshotPersonalInfo: '/uploads/andrew-espn-info.jpg', screenshotDeposit: '/uploads/andrew-espn-deposit.jpg', status: 'VERIFIED' },
+      ],
+      generatedCredentials: {
+        gmailPassword: 'APark#2026!',
+        betmgmPassword: 'BetMGM#Andrew2026',
+        platformPasswords: {
+          sportsbook: 'SBook#Andrew2026',
+          BETMGM: 'BetMGM#Andrew2026',
+          PAYPAL: 'PPal#Andrew2026',
+          ONLINE_BANKING: 'Bank#Andrew2026',
+          EDGEBOOST: 'Edge#Andrew2026',
+        },
+        bankPin4: '2580',
+        bankPin6: '258000',
+      },
+    },
+  })
+  await prisma.phoneAssignment.create({
+    data: {
+      phoneNumber: '(555) 777-0012',
+      carrier: 'T-Mobile',
+      deviceId: 'IMEI-3030303030',
+      clientRecordId: draftAndrew.id,
+      agentId: agent.id,
+      signedOutById: boStaff.id,
+      signedOutAt: signOutDate,
+      dueBackAt: dueBackDate,
+      status: 'SIGNED_OUT',
+    },
+  })
+  console.log(`  Created step-4 draft: Andrew Park (11/11 platforms, no contract)`)
+
+  // Lisa Nguyen — Step 4, all platforms done + contract uploaded, ready to submit
+  const draftLisa = await prisma.clientRecord.create({
+    data: {
+      closerId: agent.id,
+      status: 'DRAFT',
+      step: 4,
+      firstName: 'Lisa',
+      lastName: 'Nguyen',
+      email: 'lisa.n@example.com',
+      phone: '(555) 600-0013',
+      idDocument: '/uploads/lisa-nguyen-id.jpg',
+      idNumber: 'DL-56785678',
+      idExpiry: new Date('2028-12-05'),
+      dateOfBirth: new Date('1993-09-18'),
+      address: '2300 Market Street, Philadelphia, PA 19103',
+      citizenship: 'US',
+      assignedGmail: 'lisa.nguyen.work@gmail.com',
+      gmailPassword: 'LNguy#2026!',
+      gmailScreenshot: '/uploads/lisa-gmail-screenshot.jpg',
+      betmgmCheckPassed: true,
+      betmgmLogin: 'lisa.nguyen.work@gmail.com',
+      betmgmPassword: 'BetMGM#Lisa2026',
+      betmgmRegScreenshot: '/uploads/lisa-betmgm-reg.jpg',
+      betmgmLoginScreenshot: '/uploads/lisa-betmgm-login.jpg',
+      ssnDocument: '/uploads/lisa-ssn.jpg',
+      ssnNumber: '***-**-4321',
+      bankingHistory: 'PNC checking, good standing 5yr',
+      paypalPreviouslyUsed: false,
+      debankedHistory: false,
+      hasCriminalRecord: false,
+      addressMismatch: false,
+      undisclosedInfo: false,
+      occupation: 'Nurse Practitioner',
+      annualIncome: '$100,000+',
+      employmentStatus: 'Employed Full-Time',
+      maritalStatus: 'Married',
+      agentConfidenceLevel: 'high',
+      deviceReservationDate: new Date().toISOString().split('T')[0],
+      platformData: [
+        { platform: 'PAYPAL', username: 'lisa.nguyen.work@gmail.com', accountId: 'PP-5501', screenshot: '/uploads/lisa-paypal.jpg', status: 'VERIFIED' },
+        { platform: 'ONLINE_BANKING', username: 'lisa.nguyen.work@gmail.com', accountId: 'CHK-6601', screenshot: '/uploads/lisa-bank.jpg', bank: 'PNC', status: 'VERIFIED', routingNumber: '031100089', bankAccountNumber: '9988776655', pin: '2580' },
+        { platform: 'EDGEBOOST', username: 'lisa.nguyen.work@gmail.com', accountId: 'EB-7701', screenshot: '/uploads/lisa-edge.jpg', status: 'VERIFIED' },
+        { platform: 'DRAFTKINGS', username: 'LNguyDK', accountId: 'DK-1101', screenshot: '/uploads/lisa-dk.jpg', screenshotPersonalInfo: '/uploads/lisa-dk-info.jpg', screenshotDeposit: '/uploads/lisa-dk-deposit.jpg', status: 'VERIFIED' },
+        { platform: 'FANDUEL', username: 'LNguyFD', accountId: 'FD-2201', screenshot: '/uploads/lisa-fd.jpg', screenshotPersonalInfo: '/uploads/lisa-fd-info.jpg', screenshotDeposit: '/uploads/lisa-fd-deposit.jpg', status: 'VERIFIED' },
+        { platform: 'BETMGM', username: 'lisa.nguyen.work@gmail.com', accountId: 'MGM-3301', screenshot: '/uploads/lisa-mgm.jpg', screenshotPersonalInfo: '/uploads/lisa-mgm-info.jpg', screenshotDeposit: '/uploads/lisa-mgm-deposit.jpg', status: 'VERIFIED' },
+        { platform: 'CAESARS', username: 'LNguyCZR', accountId: 'CZR-4401', screenshot: '/uploads/lisa-czr.jpg', screenshotPersonalInfo: '/uploads/lisa-czr-info.jpg', screenshotDeposit: '/uploads/lisa-czr-deposit.jpg', status: 'VERIFIED' },
+        { platform: 'FANATICS', username: 'LNguyFAN', accountId: 'FAN-5501', screenshot: '/uploads/lisa-fan.jpg', screenshotPersonalInfo: '/uploads/lisa-fan-info.jpg', screenshotDeposit: '/uploads/lisa-fan-deposit.jpg', status: 'VERIFIED' },
+        { platform: 'BETRIVERS', username: 'LNguyBR', accountId: 'BR-6601', screenshot: '/uploads/lisa-br.jpg', screenshotPersonalInfo: '/uploads/lisa-br-info.jpg', screenshotDeposit: '/uploads/lisa-br-deposit.jpg', status: 'VERIFIED' },
+        { platform: 'BET365', username: 'LNguy365', accountId: '365-7701', screenshot: '/uploads/lisa-365.jpg', screenshotPersonalInfo: '/uploads/lisa-365-info.jpg', screenshotDeposit: '/uploads/lisa-365-deposit.jpg', status: 'VERIFIED' },
+        { platform: 'ESPNBET', username: 'LNguyESPN', accountId: 'ESPN-8801', screenshot: '/uploads/lisa-espn.jpg', screenshotPersonalInfo: '/uploads/lisa-espn-info.jpg', screenshotDeposit: '/uploads/lisa-espn-deposit.jpg', status: 'VERIFIED' },
+      ],
+      generatedCredentials: {
+        gmailPassword: 'LNguy#2026!',
+        betmgmPassword: 'BetMGM#Lisa2026',
+        platformPasswords: {
+          sportsbook: 'SBook#Lisa2026',
+          BETMGM: 'BetMGM#Lisa2026',
+          PAYPAL: 'PPal#Lisa2026',
+          ONLINE_BANKING: 'Bank#Lisa2026',
+          EDGEBOOST: 'Edge#Lisa2026',
+        },
+        bankPin4: '2580',
+        bankPin6: '258000',
+      },
+      contractDocument: '/uploads/lisa-nguyen-contract.pdf',
+    },
+  })
+  await prisma.phoneAssignment.create({
+    data: {
+      phoneNumber: '(555) 777-0013',
+      carrier: 'Verizon',
+      deviceId: 'IMEI-4040404040',
+      clientRecordId: draftLisa.id,
+      agentId: agent.id,
+      signedOutById: boStaff.id,
+      signedOutAt: signOutDate,
+      dueBackAt: dueBackDate,
+      status: 'SIGNED_OUT',
+    },
+  })
+  console.log(`  Created step-4 draft: Lisa Nguyen (11/11 platforms + contract, ready to submit)`)
+
   // ── Sample Todo ──────────────────────────────────────────
 
-  await prisma.todo.deleteMany({ where: { clientDraftId: sampleDraft.id } })
+  await prisma.todo.deleteMany({ where: { clientRecordId: sampleDraft.id } })
   const todoDueDate = new Date()
   todoDueDate.setDate(todoDueDate.getDate() + 3)
   const sampleTodo = await prisma.todo.create({
@@ -1068,7 +1409,7 @@ async function main() {
       title: 'Contact Bank',
       description: 'Contact Bank — Sarah Martinez',
       issueCategory: 'Contact Bank',
-      clientDraftId: sampleDraft.id,
+      clientRecordId: sampleDraft.id,
       assignedToId: agent.id,
       createdById: boStaff.id,
       dueDate: todoDueDate,
@@ -1076,6 +1417,80 @@ async function main() {
     },
   })
   console.log(`  Created sample todo: ${sampleTodo.id} (Contact Bank, assigned to Marcus, due ${todoDueDate.toISOString().split('T')[0]})`)
+
+  // ── Sample Fund Allocations ───────────────────────────────
+  // Mix of UNCONFIRMED, CONFIRMED, and DISCREPANCY for testing
+
+  await prisma.fundAllocation.deleteMany({})
+  await prisma.fundAllocation.createMany({
+    data: [
+      {
+        amount: 500.00,
+        platform: 'DraftKings',
+        direction: 'DEPOSIT',
+        notes: 'Initial fund deposit for David Wilson accounts',
+        recordedById: boStaff.id,
+        confirmationStatus: 'CONFIRMED',
+        confirmedAt: new Date('2026-02-11T10:00:00'),
+        confirmedById: admin.id,
+        confirmedAmount: 500.00,
+        createdAt: new Date('2026-02-11T08:00:00'),
+      },
+      {
+        amount: 300.00,
+        platform: 'FanDuel',
+        direction: 'DEPOSIT',
+        notes: 'FanDuel deposit for David Wilson',
+        recordedById: boStaff.id,
+        confirmationStatus: 'CONFIRMED',
+        confirmedAt: new Date('2026-02-13T14:00:00'),
+        confirmedById: boStaff.id,
+        confirmedAmount: 300.00,
+        createdAt: new Date('2026-02-13T09:00:00'),
+      },
+      {
+        amount: 200.00,
+        platform: 'PayPal',
+        direction: 'DEPOSIT',
+        notes: 'PayPal transfer for David Wilson',
+        recordedById: boStaff.id,
+        confirmationStatus: 'DISCREPANCY',
+        confirmedAt: new Date('2026-02-15T16:00:00'),
+        confirmedById: admin.id,
+        confirmedAmount: 185.50,
+        discrepancyNotes: 'PayPal fee deducted $14.50',
+        createdAt: new Date('2026-02-15T08:00:00'),
+      },
+      {
+        amount: 150.00,
+        platform: 'DraftKings',
+        direction: 'WITHDRAWAL',
+        notes: 'DraftKings withdrawal for David Wilson',
+        recordedById: boStaff.id,
+        confirmationStatus: 'UNCONFIRMED',
+        createdAt: new Date('2026-02-20T10:00:00'),
+      },
+      {
+        amount: 400.00,
+        platform: 'BetMGM',
+        direction: 'DEPOSIT',
+        notes: 'BetMGM deposit for Emily Chen accounts',
+        recordedById: boStaff.id,
+        confirmationStatus: 'UNCONFIRMED',
+        createdAt: new Date('2026-02-25T09:00:00'),
+      },
+      {
+        amount: 250.00,
+        platform: 'Online Banking',
+        direction: 'DEPOSIT',
+        notes: 'Bank transfer for Emily Chen',
+        recordedById: boStaff.id,
+        confirmationStatus: 'UNCONFIRMED',
+        createdAt: new Date('2026-02-27T11:00:00'),
+      },
+    ],
+  })
+  console.log('  Created sample fund allocations (2 confirmed, 1 discrepancy, 3 unconfirmed)')
 
   // ── Event Logs ─────────────────────────────────────────
   // General system events
@@ -1103,7 +1518,7 @@ async function main() {
         userId: boStaff.id,
         metadata: {
           todoId: sampleTodo.id,
-          clientDraftId: sampleDraft.id,
+          clientRecordId: sampleDraft.id,
           clientName: 'Sarah Martinez',
           agentId: agent.id,
           agentName: 'Marcus Rivera',
@@ -1113,7 +1528,7 @@ async function main() {
     ],
   })
 
-  // Client-specific event logs (with metadata.clientId for timeline queries)
+  // Client-specific event logs (with metadata.clientRecordId for timeline queries)
   // David Wilson — 7 lifecycle events
   await prisma.eventLog.createMany({
     data: [
@@ -1121,49 +1536,49 @@ async function main() {
         eventType: 'CLIENT_DRAFT_CREATED',
         description: 'Client intake started for David Wilson by Marcus Rivera',
         userId: agent.id,
-        metadata: { clientId: client1.id, clientName: 'David Wilson', agentName: 'Marcus Rivera' },
+        metadata: { clientRecordId: client1.id, clientName: 'David Wilson', agentName: 'Marcus Rivera' },
         createdAt: new Date('2026-02-05'),
       },
       {
         eventType: 'DEVICE_SIGNED_OUT',
         description: 'Device (555) 888-0001 signed out for David Wilson',
         userId: boStaff.id,
-        metadata: { clientId: client1.id, clientName: 'David Wilson', phoneNumber: '(555) 888-0001', carrier: 'Verizon' },
+        metadata: { clientRecordId: client1.id, clientName: 'David Wilson', phoneNumber: '(555) 888-0001', carrier: 'Verizon' },
         createdAt: new Date('2026-02-06'),
       },
       {
         eventType: 'DEVICE_RETURNED',
         description: 'Device (555) 888-0001 returned for David Wilson',
         userId: boStaff.id,
-        metadata: { clientId: client1.id, clientName: 'David Wilson', phoneNumber: '(555) 888-0001' },
+        metadata: { clientRecordId: client1.id, clientName: 'David Wilson', phoneNumber: '(555) 888-0001' },
         createdAt: new Date('2026-02-08'),
       },
       {
         eventType: 'CLIENT_DRAFT_SUBMITTED',
         description: 'Client intake submitted for David Wilson',
         userId: agent.id,
-        metadata: { clientId: client1.id, clientName: 'David Wilson' },
+        metadata: { clientRecordId: client1.id, clientName: 'David Wilson' },
         createdAt: new Date('2026-02-09'),
       },
       {
         eventType: 'CLIENT_APPROVED',
         description: 'Client David Wilson approved',
         userId: boStaff.id,
-        metadata: { clientId: client1.id, clientName: 'David Wilson' },
+        metadata: { clientRecordId: client1.id, clientName: 'David Wilson' },
         createdAt: new Date('2026-02-10'),
       },
       {
         eventType: 'BONUS_POOL_CREATED',
         description: 'Bonus pool ($400) created for David Wilson',
         userId: admin.id,
-        metadata: { clientId: client1.id, clientName: 'David Wilson', totalAmount: 400 },
+        metadata: { clientRecordId: client1.id, clientName: 'David Wilson', totalAmount: 400 },
         createdAt: new Date('2026-02-10T01:00:00'),
       },
       {
         eventType: 'BONUS_POOL_DISTRIBUTED',
         description: 'Bonus pool distributed for David Wilson — $200 direct + 4 star slices',
         userId: agent.id,
-        metadata: { clientId: client1.id, clientName: 'David Wilson', distributedSlices: 4 },
+        metadata: { clientRecordId: client1.id, clientName: 'David Wilson', distributedSlices: 4 },
         createdAt: new Date('2026-02-10T02:00:00'),
       },
     ],
@@ -1176,42 +1591,42 @@ async function main() {
         eventType: 'CLIENT_DRAFT_CREATED',
         description: 'Client intake started for Emily Chen by Jamie Torres',
         userId: approvedUser.id,
-        metadata: { clientId: client2.id, clientName: 'Emily Chen', agentName: 'Jamie Torres' },
+        metadata: { clientRecordId: client2.id, clientName: 'Emily Chen', agentName: 'Jamie Torres' },
         createdAt: new Date('2026-02-08'),
       },
       {
         eventType: 'DEVICE_SIGNED_OUT',
         description: 'Device (555) 888-0002 signed out for Emily Chen',
         userId: boStaff.id,
-        metadata: { clientId: client2.id, clientName: 'Emily Chen', phoneNumber: '(555) 888-0002', carrier: 'T-Mobile' },
+        metadata: { clientRecordId: client2.id, clientName: 'Emily Chen', phoneNumber: '(555) 888-0002', carrier: 'T-Mobile' },
         createdAt: new Date('2026-02-09'),
       },
       {
         eventType: 'DEVICE_RETURNED',
         description: 'Device (555) 888-0002 returned for Emily Chen',
         userId: boStaff.id,
-        metadata: { clientId: client2.id, clientName: 'Emily Chen', phoneNumber: '(555) 888-0002' },
+        metadata: { clientRecordId: client2.id, clientName: 'Emily Chen', phoneNumber: '(555) 888-0002' },
         createdAt: new Date('2026-02-11'),
       },
       {
         eventType: 'CLIENT_DRAFT_SUBMITTED',
         description: 'Client intake submitted for Emily Chen',
         userId: approvedUser.id,
-        metadata: { clientId: client2.id, clientName: 'Emily Chen' },
+        metadata: { clientRecordId: client2.id, clientName: 'Emily Chen' },
         createdAt: new Date('2026-02-11T01:00:00'),
       },
       {
         eventType: 'CLIENT_APPROVED',
         description: 'Client Emily Chen approved',
         userId: boStaff.id,
-        metadata: { clientId: client2.id, clientName: 'Emily Chen' },
+        metadata: { clientRecordId: client2.id, clientName: 'Emily Chen' },
         createdAt: new Date('2026-02-12'),
       },
       {
         eventType: 'BONUS_POOL_DISTRIBUTED',
         description: 'Bonus pool distributed for Emily Chen — $200 direct + 4 star slices',
         userId: approvedUser.id,
-        metadata: { clientId: client2.id, clientName: 'Emily Chen', distributedSlices: 4 },
+        metadata: { clientRecordId: client2.id, clientName: 'Emily Chen', distributedSlices: 4 },
         createdAt: new Date('2026-02-12T01:00:00'),
       },
     ],
@@ -1224,26 +1639,26 @@ async function main() {
         eventType: 'CLIENT_DRAFT_CREATED',
         description: 'Client intake started for Robert Kim by Marcus Rivera',
         userId: agent.id,
-        metadata: { clientId: client3.id, clientName: 'Robert Kim', agentName: 'Marcus Rivera' },
+        metadata: { clientRecordId: client3.id, clientName: 'Robert Kim', agentName: 'Marcus Rivera' },
         createdAt: new Date('2026-02-20'),
       },
       {
         eventType: 'DEVICE_SIGNED_OUT',
         description: 'Device (555) 888-0003 signed out for Robert Kim',
         userId: boStaff.id,
-        metadata: { clientId: client3.id, clientName: 'Robert Kim', phoneNumber: '(555) 888-0003', carrier: 'AT&T' },
+        metadata: { clientRecordId: client3.id, clientName: 'Robert Kim', phoneNumber: '(555) 888-0003', carrier: 'AT&T' },
         createdAt: new Date('2026-02-21'),
       },
       {
         eventType: 'CLIENT_DRAFT_SUBMITTED',
         description: 'Client intake submitted for Robert Kim',
         userId: agent.id,
-        metadata: { clientId: client3.id, clientName: 'Robert Kim' },
+        metadata: { clientRecordId: client3.id, clientName: 'Robert Kim' },
         createdAt: new Date('2026-02-25'),
       },
     ],
   })
-  console.log('  Created event logs (general + client-specific with clientId)')
+  console.log('  Created event logs (general + client-specific with clientRecordId)')
 
   console.log('\nSeeding complete!')
   console.log('\n  Progression ladder: Rookie → 1★ → 2★ → 3★ → 4★ → ED → SED → MD → CMO')

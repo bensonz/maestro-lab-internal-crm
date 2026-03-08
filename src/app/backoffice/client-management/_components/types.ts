@@ -169,7 +169,7 @@ export interface SummaryMetric {
 }
 
 // ============================================================================
-// Server data shape from getAllClients + getClientStats
+// Server data shape from getAllApprovedRecords + stats
 // ============================================================================
 
 export interface ServerPlatformDetail {
@@ -180,6 +180,13 @@ export interface ServerPlatformDetail {
   reviewedBy: string | null
   reviewedAt: string | null
   reviewNotes: string | null
+  // Bank/card fields from platformData (passed through for client detail display)
+  routingNumber?: string | null
+  bankAccountNumber?: string | null
+  pin?: string | null
+  cardNumber?: string | null
+  cvv?: string | null
+  cardExpiry?: string | null
 }
 
 export interface ServerClientData {

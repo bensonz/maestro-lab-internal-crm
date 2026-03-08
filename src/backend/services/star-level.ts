@@ -39,7 +39,7 @@ export async function recalculateAgentStarLevel(
   if (!agent || agent.role !== 'AGENT') return null
   if (agent.leadershipTier !== 'NONE') return null
 
-  const approvedCount = await prisma.client.count({
+  const approvedCount = await prisma.clientRecord.count({
     where: { closerId: agentId, status: 'APPROVED' },
   })
 

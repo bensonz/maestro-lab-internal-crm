@@ -14,7 +14,7 @@ import type { DeviceRequestItem, ActiveDeviceSignOut } from '@/types/backend-typ
 interface DeviceRequestsSectionProps {
   deviceRequests: DeviceRequestItem[]
   activeSignOuts: ActiveDeviceSignOut[]
-  onAssignDevice: (draftId: string, clientName: string, agentName: string) => void
+  onAssignDevice: (clientRecordId: string, clientName: string, agentName: string) => void
   selectedAgentId: string | null
   clientSearch: string
 }
@@ -100,9 +100,9 @@ export function DeviceRequestsSection({
           <div className="divide-y divide-border/20">
             {filteredRequests.map((req) => (
               <div
-                key={req.draftId}
+                key={req.clientRecordId}
                 className="flex items-center justify-between gap-3 px-5 py-2 transition-colors hover:bg-muted/30"
-                data-testid={`device-request-${req.draftId}`}
+                data-testid={`device-request-${req.clientRecordId}`}
               >
                 <div className="min-w-0 space-y-0.5">
                   <div className="flex items-center gap-2">
@@ -138,8 +138,8 @@ export function DeviceRequestsSection({
                   size="sm"
                   variant="outline"
                   className="h-7 gap-1 px-2 text-xs"
-                  onClick={() => onAssignDevice(req.draftId, req.clientName, req.agentName)}
-                  data-testid={`assign-device-${req.draftId}`}
+                  onClick={() => onAssignDevice(req.clientRecordId, req.clientName, req.agentName)}
+                  data-testid={`assign-device-${req.clientRecordId}`}
                 >
                   <Phone className="h-3 w-3" />
                   Assign &amp; Sign Out

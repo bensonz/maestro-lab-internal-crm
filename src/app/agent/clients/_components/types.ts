@@ -1,5 +1,8 @@
 import { IntakeStatus } from '@/types'
 
+/** Verification sub-categories for post-approval verification tasks */
+export type VerificationSubCategory = 'platform-verification' | 'bank-visit' | 'awaiting-mail'
+
 export interface AgentClient {
   id: string
   name: string
@@ -22,6 +25,13 @@ export interface AgentClient {
   intakeDuration: string | null
   /** Start date formatted, e.g. "Feb 26" */
   startDate: string | null
+  // Verification fields (post-approval tasks)
+  /** Which verification bucket this client falls into, if any */
+  verificationSubCategory: VerificationSubCategory | null
+  /** The specific verification task description */
+  verificationTask: string | null
+  /** Platform name if platform-verification, e.g. "DraftKings" */
+  verificationPlatform: string | null
 }
 
 export interface AgentDraft {

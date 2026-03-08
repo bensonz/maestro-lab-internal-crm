@@ -19,9 +19,9 @@ enum ApplicationStatus {
   REJECTED
 }
 
-enum ClientStatus {
-  PENDING
-  IN_PROGRESS
+enum ClientRecordStatus {
+  DRAFT
+  SUBMITTED
   APPROVED
   REJECTED
   CLOSED
@@ -55,11 +55,6 @@ enum QuarterlySettlementStatus {
   DRAFT
   APPROVED
   PAID
-}
-
-enum ClientDraftStatus {
-  DRAFT
-  SUBMITTED
 }
 
 enum PhoneAssignmentStatus {
@@ -100,9 +95,15 @@ enum EventType {
   CLIENT_APPROVED_NOTIFICATION
   CLIENT_APPROVAL_REVERTED
   FUND_ALLOCATED
+  DEBIT_CARD_UPLOADED
+  GMAIL_SYNCED
+  EMAIL_TODO_CREATED
+  FUND_CONFIRMED
+  FUND_DISCREPANCY_FLAGGED
+  STEP_ADVANCED
 }
 
-// ─── User ────────────────────────────────────────────────
+// --- User -------------------------------------------------------
 
 model User {
   id           String   @id @default(cuid())
@@ -145,21 +146,21 @@ model User {
   eventLogs              EventLog[]
   reviewedApplications   AgentApplication[] @relation("ApplicationReviewer")
   resultOfApplications   AgentApplication[] @relation("ApplicationResult")
-  closedClients          Client[]           @relation("ClientCloser")
+  clientRecords          ClientRecord[]     @relation("RecordCloser")
   closedBonusPools       BonusPool[]        @relation("BonusPoolCloser")
   allocations            BonusAllocation[]  @relation("AllocationAgent")
   allocationsPaidBy      BonusAllocation[]  @relation("AllocationPayer")
   promotionLogs          PromotionLog[]
   quarterlySettlements   QuarterlySettlement[]
-  clientDrafts           ClientDraft[]      @relation("DraftCloser")
   phoneAssignmentsAsAgent  PhoneAssignment[] @relation("PhoneAgent")
   phoneAssignmentsAsIssuer PhoneAssignment[] @relation("PhoneSignedOutBy")
   assignedTodos            Todo[]            @relation("TodoAssignedTo")
   createdTodos             Todo[]            @relation("TodoCreatedBy")
   fundAllocations          FundAllocation[]  @relation("FundRecordedBy")
+  fundConfirmations        FundAllocation[]  @relation("FundConfirmedBy")
 }
 
-// ─── Agent Application ───────────────────────────────────
+// --- Agent Application ------------------------------------------
 
 model AgentApplication {
   id     String            @id @default(cuid())
@@ -210,34 +211,12 @@ model AgentApplication {
   updatedAt DateTime @updatedAt
 }
 
-// ─── Client (minimal) ───────────────────────────────────
+// --- Client Record (unified: draft through approved lifecycle) ---
 
-model Client {
-  id        String       @id @default(cuid())
-  firstName String
-  lastName  String
-  email     String?
-  phone     String?
-  status    ClientStatus @default(PENDING)
-
-  closerId  String
-  closer    User     @relation("ClientCloser", fields: [closerId], references: [id])
-
-  approvedAt DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-
-  bonusPool    BonusPool?
-  fromDraft    ClientDraft?  @relation("DraftResult")
-  transactions Transaction[]
-}
-
-// ─── Client Draft ──────────────────────────────────────
-
-model ClientDraft {
-  id     String            @id @default(cuid())
-  status ClientDraftStatus @default(DRAFT)
-  step   Int               @default(1)
+model ClientRecord {
+  id     String             @id @default(cuid())
+  status ClientRecordStatus @default(DRAFT)
+  step   Int                @default(1)
 
   // Step 1: Pre-Qual
   firstName             String?
@@ -301,6 +280,11 @@ model ClientDraft {
   // Step 4: Contract
   contractDocument String?
 
+  // Step 4: Agent Assessment
+  agentConfidenceLevel  String?    // "high" | "medium" | "low"
+  clientHidingInfo      Boolean    @default(false)
+  clientHidingInfoNotes String?
+
   // Address discovery (progressive OCR across screenshots)
   discoveredAddresses Json?
 
@@ -311,24 +295,31 @@ model ClientDraft {
   debankedBank         String?
   undisclosedInfo      Boolean @default(false)
 
+  // Backoffice review tracking
+  backofficeReviewedStep Int @default(0)
+
+  // Approval
+  approvedAt DateTime?
+
   // Relations
-  closerId       String
-  closer         User    @relation("DraftCloser", fields: [closerId], references: [id])
-  resultClientId String? @unique
-  resultClient   Client? @relation("DraftResult", fields: [resultClientId], references: [id])
+  closerId         String
+  closer           User    @relation("RecordCloser", fields: [closerId], references: [id])
+  bonusPool        BonusPool?
   phoneAssignments PhoneAssignment[]
   todos            Todo[]
+  transactions     Transaction[]
+  fundAllocations  FundAllocation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-// ─── Bonus Pool ─────────────────────────────────────────
+// --- Bonus Pool -------------------------------------------------
 
 model BonusPool {
-  id       String          @id @default(cuid())
-  clientId String          @unique
-  client   Client          @relation(fields: [clientId], references: [id])
+  id             String          @id @default(cuid())
+  clientRecordId String          @unique
+  clientRecord   ClientRecord    @relation(fields: [clientRecordId], references: [id])
 
   closerId       String
   closer         User   @relation("BonusPoolCloser", fields: [closerId], references: [id])
@@ -350,7 +341,7 @@ model BonusPool {
   allocations BonusAllocation[]
 }
 
-// ─── Bonus Allocation ───────────────────────────────────
+// --- Bonus Allocation -------------------------------------------
 
 model BonusAllocation {
   id     String         @id @default(cuid())
@@ -374,7 +365,7 @@ model BonusAllocation {
   updatedAt DateTime @updatedAt
 }
 
-// ─── Promotion Log ──────────────────────────────────────
+// --- Promotion Log ----------------------------------------------
 
 model PromotionLog {
   id      String @id @default(cuid())
@@ -392,7 +383,7 @@ model PromotionLog {
   createdAt DateTime @default(now())
 }
 
-// ─── Quarterly Settlement ───────────────────────────────
+// --- Quarterly Settlement ---------------------------------------
 
 model QuarterlySettlement {
   id       String @id @default(cuid())
@@ -416,7 +407,7 @@ model QuarterlySettlement {
   @@unique([leaderId, year, quarter])
 }
 
-// ─── Phone Assignment ────────────────────────────────────
+// --- Phone Assignment -------------------------------------------
 
 model PhoneAssignment {
   id          String  @id @default(cuid())
@@ -425,8 +416,8 @@ model PhoneAssignment {
   deviceId    String?
   notes       String?
 
-  clientDraftId String
-  clientDraft   ClientDraft @relation(fields: [clientDraftId], references: [id])
+  clientRecordId String
+  clientRecord   ClientRecord @relation(fields: [clientRecordId], references: [id])
 
   agentId String
   agent   User   @relation("PhoneAgent", fields: [agentId], references: [id])
@@ -444,7 +435,7 @@ model PhoneAssignment {
   updatedAt DateTime @updatedAt
 }
 
-// ─── Todo ───────────────────────────────────────────────
+// --- Todo -------------------------------------------------------
 
 model Todo {
   id            String     @id @default(cuid())
@@ -452,8 +443,8 @@ model Todo {
   description   String?
   issueCategory String
 
-  clientDraftId String
-  clientDraft   ClientDraft @relation(fields: [clientDraftId], references: [id])
+  clientRecordId String?
+  clientRecord   ClientRecord? @relation(fields: [clientRecordId], references: [id])
 
   assignedToId  String
   assignedTo    User   @relation("TodoAssignedTo", fields: [assignedToId], references: [id])
@@ -465,12 +456,14 @@ model Todo {
   completedAt   DateTime?
   status        TodoStatus @default(PENDING)
   metadata      Json?
+  source        String     @default("MANUAL")
+  processedEmailId String?
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
 
-// ─── Fund Allocation ────────────────────────────────────
+// --- Fund Allocation --------------------------------------------
 
 model FundAllocation {
   id         String   @id @default(cuid())
@@ -482,10 +475,54 @@ model FundAllocation {
   recordedById String
   recordedBy   User   @relation("FundRecordedBy", fields: [recordedById], references: [id])
 
+  clientRecordId String?
+  clientRecord   ClientRecord? @relation(fields: [clientRecordId], references: [id])
+
+  confirmationStatus  String   @default("UNCONFIRMED")
+  confirmedAt         DateTime?
+  confirmedById       String?
+  confirmedBy         User?    @relation("FundConfirmedBy", fields: [confirmedById], references: [id])
+  confirmedAmount     Decimal? @db.Decimal(12, 2)
+  emailConfirmationId String?
+  discrepancyNotes    String?
+
   createdAt  DateTime @default(now())
 }
 
-// ─── Transaction ────────────────────────────────────────
+// --- Gmail Integration ------------------------------------------
+
+model GmailIntegration {
+  id           String    @id @default(cuid())
+  inboxEmail   String    @unique
+  refreshToken String
+  accessToken  String?
+  tokenExpiry  DateTime?
+  historyId    String?
+  lastSyncAt   DateTime?
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+// --- Processed Email --------------------------------------------
+
+model ProcessedEmail {
+  id             String   @id @default(cuid())
+  gmailMessageId String   @unique
+  threadId       String?
+  from           String
+  subject        String
+  snippet        String?
+  receivedAt     DateTime
+  detectionType  String
+  detectionData  Json?
+  processed      Boolean  @default(false)
+  todoId         String?
+  fundAllocationId String?
+  createdAt      DateTime @default(now())
+}
+
+// --- Transaction ------------------------------------------------
 
 enum TransactionType {
   DEPOSIT
@@ -493,9 +530,9 @@ enum TransactionType {
 }
 
 model Transaction {
-  id           String          @id @default(cuid())
-  clientId     String
-  client       Client          @relation(fields: [clientId], references: [id])
+  id             String          @id @default(cuid())
+  clientRecordId String
+  clientRecord   ClientRecord    @relation(fields: [clientRecordId], references: [id])
 
   type         TransactionType
   amount       Decimal         @db.Decimal(10, 2)
@@ -506,7 +543,7 @@ model Transaction {
   updatedAt DateTime @updatedAt
 }
 
-// ─── Event Log ───────────────────────────────────────────
+// --- Event Log --------------------------------------------------
 
 model EventLog {
   id          String    @id @default(cuid())

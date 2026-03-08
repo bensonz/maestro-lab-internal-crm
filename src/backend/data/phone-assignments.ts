@@ -1,11 +1,11 @@
 import prisma from '@/backend/prisma/client'
 
 /**
- * Find ClientDrafts that have a deviceReservationDate set, are still in DRAFT status,
+ * Find ClientRecords that have a deviceReservationDate set, are still in DRAFT status,
  * and do NOT have an active (SIGNED_OUT) PhoneAssignment.
  */
 export async function getPendingDeviceRequests() {
-  return prisma.clientDraft.findMany({
+  return prisma.clientRecord.findMany({
     where: {
       deviceReservationDate: { not: null },
       status: 'DRAFT',
@@ -21,12 +21,12 @@ export async function getPendingDeviceRequests() {
 }
 
 /**
- * Fetch the most recent PhoneAssignment for a specific draft (any status).
+ * Fetch the most recent PhoneAssignment for a specific record (any status).
  * Returns assignment info for display even after device is returned.
  */
-export async function getAssignmentForDraft(draftId: string) {
+export async function getAssignmentForRecord(recordId: string) {
   return prisma.phoneAssignment.findFirst({
-    where: { clientDraftId: draftId },
+    where: { clientRecordId: recordId },
     orderBy: { signedOutAt: 'desc' },
     select: {
       phoneNumber: true,
@@ -45,7 +45,7 @@ export async function getActivePhoneAssignments() {
     where: { status: 'SIGNED_OUT' },
     orderBy: { dueBackAt: 'asc' },
     include: {
-      clientDraft: {
+      clientRecord: {
         select: {
           id: true,
           firstName: true,
@@ -60,7 +60,7 @@ export async function getActivePhoneAssignments() {
 }
 
 /**
- * Fetch the most recent RETURNED PhoneAssignment per draft.
+ * Fetch the most recent RETURNED PhoneAssignment per record.
  * Used to show Undo/Re-issue button on step-4 rows.
  */
 export async function getReturnedPhoneAssignments() {
@@ -69,7 +69,7 @@ export async function getReturnedPhoneAssignments() {
     orderBy: { returnedAt: 'desc' },
     select: {
       id: true,
-      clientDraftId: true,
+      clientRecordId: true,
       phoneNumber: true,
       carrier: true,
     },

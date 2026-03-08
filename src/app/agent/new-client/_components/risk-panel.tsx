@@ -1,7 +1,7 @@
 'use client'
 
 import { cn } from '@/lib/utils'
-import { Shield, AlertTriangle, CheckCircle2, XCircle, KeyRound, MapPin } from 'lucide-react'
+import { Shield, AlertTriangle, CheckCircle2, XCircle, KeyRound, MapPin, Trophy } from 'lucide-react'
 import type { RiskAssessment } from '@/types/backend-types'
 
 interface RiskPanelProps {
@@ -49,25 +49,21 @@ const CREDENTIAL_DISPLAY_NAMES: Record<string, string> = {
 type FlagEntry = {
   key: keyof RiskAssessment['flags']
   label: string
-  weight: string
   type: 'boolean' | 'idExpiry' | 'missingId' | 'assessment' | 'addressCount'
   labels?: Record<string, string>
 }
 
 const FLAG_ENTRIES: FlagEntry[] = [
-  { key: 'missingIdCount', label: 'Missing IDs', weight: '0: +10 / each: −10', type: 'missingId' },
-  { key: 'idExpiryRisk', label: 'ID Expiring Soon', weight: '−10 to −20', type: 'idExpiry' },
-  { key: 'discoveredAddressCount', label: 'Addresses', weight: 'info only', type: 'addressCount' },
-  { key: 'multipleAddresses', label: 'Multiple Addresses', weight: 'info only', type: 'boolean' },
-  { key: 'paypalPreviouslyUsed', label: 'PayPal Previously Used', weight: '−10', type: 'boolean' },
-  { key: 'debankedHistory', label: 'De-banked History', weight: '−30', type: 'boolean' },
-  { key: 'criminalRecord', label: 'Criminal Record', weight: '−30', type: 'boolean' },
-  { key: 'householdAwareness', label: 'Household Awareness', weight: '0 to −8', type: 'assessment', labels: HOUSEHOLD_LABELS },
-  { key: 'familyTechSupport', label: 'Family Support', weight: '0 to −15', type: 'assessment', labels: FAMILY_SUPPORT_LABELS },
-  { key: 'financialAutonomy', label: 'Financial Autonomy', weight: '0 to −15', type: 'assessment', labels: AUTONOMY_LABELS },
-  { key: 'bankPinOverride', label: 'PIN Changed', weight: 'info only', type: 'boolean' },
-  { key: 'bankNameOverride', label: 'Bank Changed', weight: 'info only', type: 'boolean' },
-  { key: 'bankPhoneEmailNotConfirmed', label: 'Bank Phone/Email Unverified', weight: 'info only', type: 'boolean' },
+  { key: 'missingIdCount', label: 'Missing IDs', type: 'missingId' },
+  { key: 'idExpiryRisk', label: 'ID Expiring Soon', type: 'idExpiry' },
+  { key: 'discoveredAddressCount', label: 'Addresses', type: 'addressCount' },
+  { key: 'multipleAddresses', label: 'Multiple Addresses', type: 'boolean' },
+  { key: 'paypalPreviouslyUsed', label: 'PayPal Previously Used', type: 'boolean' },
+  { key: 'debankedHistory', label: 'De-banked History', type: 'boolean' },
+  { key: 'criminalRecord', label: 'Criminal Record', type: 'boolean' },
+  { key: 'householdAwareness', label: 'Household Awareness', type: 'assessment', labels: HOUSEHOLD_LABELS },
+  { key: 'familyTechSupport', label: 'Family Support', type: 'assessment', labels: FAMILY_SUPPORT_LABELS },
+  { key: 'financialAutonomy', label: 'Financial Autonomy', type: 'assessment', labels: AUTONOMY_LABELS },
 ]
 
 export function RiskPanel({ assessment, draftSelected, idExpiryDaysRemaining }: RiskPanelProps) {
@@ -111,12 +107,9 @@ export function RiskPanel({ assessment, draftSelected, idExpiryDaysRemaining }: 
               data-testid="risk-score-badge"
             >
               <LevelIcon className="h-5 w-5 shrink-0" />
-              <div>
-                <p className="text-sm font-semibold capitalize">
-                  {assessment.level} Risk
-                </p>
-                <p className="text-xs">Score: {assessment.score}</p>
-              </div>
+              <p className="text-sm font-semibold capitalize">
+                {assessment.level} Risk
+              </p>
             </div>
 
             {/* Flag checklist */}
@@ -138,7 +131,7 @@ export function RiskPanel({ assessment, draftSelected, idExpiryDaysRemaining }: 
                   return (
                     <div
                       key={entry.key}
-                      className="flex items-center justify-between text-xs"
+                      className="flex items-center text-xs"
                       data-testid={`risk-flag-${entry.key}`}
                     >
                       <span className={cn('flex items-center gap-1', addrColor)}>
@@ -146,7 +139,6 @@ export function RiskPanel({ assessment, draftSelected, idExpiryDaysRemaining }: 
                         <MapPin className="h-3 w-3" />
                         {count} {count === 1 ? 'Address' : 'Addresses'}
                       </span>
-                      <span className="text-muted-foreground/60">{entry.weight}</span>
                     </div>
                   )
                 }
@@ -173,7 +165,7 @@ export function RiskPanel({ assessment, draftSelected, idExpiryDaysRemaining }: 
                 return (
                   <div
                     key={entry.key}
-                    className="flex items-center justify-between text-xs"
+                    className="flex items-center text-xs"
                     data-testid={`risk-flag-${entry.key}`}
                   >
                     <span
@@ -198,7 +190,6 @@ export function RiskPanel({ assessment, draftSelected, idExpiryDaysRemaining }: 
                       />
                       {displayLabel}
                     </span>
-                    <span className="text-muted-foreground/60">{entry.weight}</span>
                   </div>
                 )
               })}
@@ -210,45 +201,81 @@ export function RiskPanel({ assessment, draftSelected, idExpiryDaysRemaining }: 
                 <KeyRound className="h-3 w-3" />
                 Credentials
               </p>
-              {Object.keys(assessment.flags.credentialMismatches).length > 0 ? (
-                Object.entries(assessment.flags.credentialMismatches).map(([platform, m]) => {
-                  const name = CREDENTIAL_DISPLAY_NAMES[platform] || platform
-                  const hasMismatch = m.username || m.password
-                  const detail = hasMismatch
-                    ? [m.username && 'email', m.password && 'password'].filter(Boolean).join(', ')
-                    : null
+              {(() => {
+                const entries = Object.entries(assessment.flags.credentialMismatches)
+                if (entries.length === 0) {
                   return (
-                    <div
-                      key={platform}
-                      className="flex items-center justify-between text-xs"
-                      data-testid={`credential-${platform}`}
-                    >
-                      <span className={cn('flex items-center gap-1', hasMismatch ? 'text-foreground' : 'text-success')}>
-                        <span className={cn('inline-block h-1.5 w-1.5 rounded-full', hasMismatch ? 'bg-destructive' : 'bg-success')} />
-                        {name}
-                      </span>
-                      {hasMismatch ? (
-                        <span className="text-destructive/70 text-[10px]">{detail}</span>
-                      ) : (
-                        <span className="text-success/70 text-[10px]">match</span>
-                      )}
-                    </div>
+                    <p className="text-[10px] text-muted-foreground/60">
+                      No platforms checked yet
+                    </p>
                   )
-                })
-              ) : (
-                <p className="text-[10px] text-muted-foreground/60">
-                  No platforms checked yet
-                </p>
-              )}
+                }
+                const totalPlatforms = entries.length
+                const matchCount = entries.filter(([, m]) => !m.username && !m.password).length
+                const accuracyPct = Math.round((matchCount / totalPlatforms) * 100)
+                const isPerfect = accuracyPct === 100
+
+                return (
+                  <>
+                    {entries.map(([platform, m]) => {
+                      const name = CREDENTIAL_DISPLAY_NAMES[platform] || CREDENTIAL_DISPLAY_NAMES[platform.toUpperCase()] || platform.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()).replace(/\B\w+/g, (w) => w.toLowerCase())
+                      const hasMismatch = m.username || m.password
+                      const detail = hasMismatch
+                        ? [m.username && 'email', m.password && 'password'].filter(Boolean).join(', ')
+                        : null
+                      return (
+                        <div
+                          key={platform}
+                          className="flex items-center justify-between text-xs"
+                          data-testid={`credential-${platform}`}
+                        >
+                          <span className={cn('flex items-center gap-1', hasMismatch ? 'text-foreground' : 'text-success')}>
+                            <span className={cn('inline-block h-1.5 w-1.5 rounded-full', hasMismatch ? 'bg-destructive' : 'bg-success')} />
+                            {name}
+                          </span>
+                          {hasMismatch ? (
+                            <span className="text-destructive/70 text-[10px]">{detail}</span>
+                          ) : (
+                            <span className="text-success/70 text-[10px]">match</span>
+                          )}
+                        </div>
+                      )
+                    })}
+
+                    {/* Accuracy score */}
+                    <div
+                      className={cn(
+                        'mt-1 rounded-md border p-2.5 text-center',
+                        isPerfect
+                          ? 'border-success/30 bg-success/5'
+                          : 'border-border bg-muted/30',
+                      )}
+                      data-testid="credential-accuracy"
+                    >
+                      <p className={cn(
+                        'font-mono text-lg font-bold',
+                        isPerfect ? 'text-success' : accuracyPct >= 80 ? 'text-warning' : 'text-destructive',
+                      )}>
+                        {accuracyPct}%
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {matchCount}/{totalPlatforms} credentials accurate
+                      </p>
+                      <div className={cn(
+                        'mt-1.5 flex items-center justify-center gap-1 text-[10px] font-medium',
+                        isPerfect ? 'text-success' : 'text-muted-foreground',
+                      )}>
+                        <Trophy className="h-3 w-3" />
+                        {isPerfect
+                          ? 'Perfect accuracy! This boosts your bonus and team performance.'
+                          : 'Credential accuracy boosts your bonus and team performance.'}
+                      </div>
+                    </div>
+                  </>
+                )
+              })()}
             </div>
 
-            {/* Threshold guide */}
-            <div className="rounded-md border p-2 text-[10px] text-muted-foreground space-y-0.5">
-              <p className="font-medium">Thresholds</p>
-              <p>0 to +10: Low (green)</p>
-              <p>−1 to −29: Medium (amber)</p>
-              <p>−30 or below: High (red)</p>
-            </div>
           </>
         )}
       </div>

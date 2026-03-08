@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 // Mock Prisma
 const { mockPrisma } = vi.hoisted(() => ({
   mockPrisma: {
-    client: { count: vi.fn() },
+    clientRecord: { count: vi.fn() },
     user: {
       findUnique: vi.fn(),
       findMany: vi.fn(),
@@ -27,7 +27,7 @@ describe('checkLeadershipEligibility', () => {
   })
 
   it('returns ineligible when agent lacks enough clients', async () => {
-    mockPrisma.client.count.mockResolvedValue(10) // ED needs 30
+    mockPrisma.clientRecord.count.mockResolvedValue(10) // ED needs 30
 
     const result = await checkLeadershipEligibility('agent-1', 'ED')
     expect(result.eligible).toBe(false)
@@ -36,7 +36,7 @@ describe('checkLeadershipEligibility', () => {
   })
 
   it('returns ineligible when agent lacks qualified subordinates', async () => {
-    mockPrisma.client.count.mockResolvedValue(35)
+    mockPrisma.clientRecord.count.mockResolvedValue(35)
     mockPrisma.user.findMany.mockResolvedValue([
       { id: 's1', starLevel: 3 }, // not 4★
       { id: 's2', starLevel: 2 },
@@ -49,7 +49,7 @@ describe('checkLeadershipEligibility', () => {
   })
 
   it('returns ineligible when not enough direct reports', async () => {
-    mockPrisma.client.count.mockResolvedValue(35)
+    mockPrisma.clientRecord.count.mockResolvedValue(35)
     mockPrisma.user.findMany.mockResolvedValue([]) // 0 direct reports but ED needs 1
 
     const result = await checkLeadershipEligibility('agent-1', 'ED')
@@ -57,7 +57,7 @@ describe('checkLeadershipEligibility', () => {
   })
 
   it('returns eligible when all ED requirements met', async () => {
-    mockPrisma.client.count.mockResolvedValue(35)
+    mockPrisma.clientRecord.count.mockResolvedValue(35)
     mockPrisma.user.findMany.mockResolvedValue([
       { id: 's1', starLevel: 4 },
       { id: 's2', starLevel: 4 },
@@ -99,7 +99,7 @@ describe('promoteToLeadership', () => {
       starLevel: 4,
       leadershipTier: 'NONE',
     })
-    mockPrisma.client.count
+    mockPrisma.clientRecord.count
       .mockResolvedValueOnce(35) // eligibility check
       .mockResolvedValueOnce(35) // for promotion log
     mockPrisma.user.findMany.mockResolvedValue([
@@ -124,7 +124,7 @@ describe('promoteToLeadership', () => {
       starLevel: 2,
       leadershipTier: 'NONE',
     })
-    mockPrisma.client.count.mockResolvedValue(5) // not enough
+    mockPrisma.clientRecord.count.mockResolvedValue(5) // not enough
 
     const result = await promoteToLeadership('agent-1', 'ED')
     expect(result.success).toBe(false)

@@ -44,7 +44,7 @@ export default async function AgentManagementPage({
     const thisMonthEarned = a.allocations
       .filter((al) => new Date(al.createdAt) >= startOfMonth)
       .reduce((s, al) => s + al.amount, 0)
-    const newClientsThisMonth = a.closedClients.filter(
+    const newClientsThisMonth = a.clientRecords.filter(
       (c) => new Date(c.createdAt) >= startOfMonth,
     ).length
 

@@ -255,13 +255,13 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
           pin: (creds?.bankPin4 as string) || '\u2014',
         },
         debitCard: {
-          cardNumber: '\u2014', // Not stored as structured data (screenshot-only)
-          cvv: '\u2014',
-          expiration: '\u2014',
+          cardNumber: bankDetail?.cardNumber || '\u2014',
+          cvv: bankDetail?.cvv || '\u2014',
+          expiration: bankDetail?.cardExpiry || '\u2014',
         },
         bankInfo: {
-          routingNumber: '\u2014', // Not stored as structured data (screenshot-only)
-          accountNumber: '\u2014',
+          routingNumber: bankDetail?.routingNumber || '\u2014',
+          accountNumber: bankDetail?.bankAccountNumber || '\u2014',
         },
       },
       {
@@ -274,9 +274,9 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
           password: getPlatformPassword(creds, 'EDGEBOOST'),
         },
         debitCard: {
-          cardNumber: '\u2014', // Not stored as structured data (screenshot-only)
-          cvv: '\u2014',
-          expiration: '\u2014',
+          cardNumber: edgeboostDetail?.cardNumber || '\u2014',
+          cvv: edgeboostDetail?.cvv || '\u2014',
+          expiration: edgeboostDetail?.cardExpiry || '\u2014',
         },
       },
     ],
@@ -292,8 +292,8 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
     platformDetails: serverClient.platformDetails,
     quickInfo: {
       zellePhone: (questionnaire.zellePhone as string) || '\u2014',
-      edgeboostDebit: '\u2014',
-      bankDebit: '\u2014',
+      edgeboostDebit: edgeboostDetail?.cardNumber ? `\u2022\u2022\u2022\u2022 ${edgeboostDetail.cardNumber.slice(-4)}` : '\u2014',
+      bankDebit: bankDetail?.cardNumber ? `\u2022\u2022\u2022\u2022 ${bankDetail.cardNumber.slice(-4)}` : '\u2014',
       state: state || serverClient.state || '\u2014',
     },
     profile: {
