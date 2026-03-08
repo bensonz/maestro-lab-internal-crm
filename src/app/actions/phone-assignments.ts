@@ -73,6 +73,20 @@ export async function assignAndSignOutDevice(
     data: { step: 3 },
   })
 
+  // Log step advancement from device assignment
+  await prisma.eventLog.create({
+    data: {
+      eventType: 'STEP_ADVANCED',
+      description: `Client record auto-advanced from step 2 to step 3 (device assigned)`,
+      userId: session.user.id,
+      metadata: {
+        clientRecordId: draftId,
+        fromStep: 2,
+        toStep: 3,
+      },
+    },
+  })
+
   await prisma.eventLog.create({
     data: {
       eventType: 'DEVICE_SIGNED_OUT',

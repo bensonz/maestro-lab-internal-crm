@@ -100,6 +100,7 @@ enum EventType {
   EMAIL_TODO_CREATED
   FUND_CONFIRMED
   FUND_DISCREPANCY_FLAGGED
+  STEP_ADVANCED
 }
 
 // --- User -------------------------------------------------------
@@ -307,6 +308,7 @@ model ClientRecord {
   phoneAssignments PhoneAssignment[]
   todos            Todo[]
   transactions     Transaction[]
+  fundAllocations  FundAllocation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -472,6 +474,9 @@ model FundAllocation {
 
   recordedById String
   recordedBy   User   @relation("FundRecordedBy", fields: [recordedById], references: [id])
+
+  clientRecordId String?
+  clientRecord   ClientRecord? @relation(fields: [clientRecordId], references: [id])
 
   confirmationStatus  String   @default("UNCONFIRMED")
   confirmedAt         DateTime?

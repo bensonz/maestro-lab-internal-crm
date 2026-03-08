@@ -65,6 +65,7 @@ export async function recordFundMovement(data: Record<string, unknown>): Promise
         direction,
         notes: desc,
         recordedById: session.user.id,
+        clientRecordId: fromClientId,
       },
     })
 

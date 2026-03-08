@@ -971,7 +971,7 @@ async function main() {
         type: 'DEPOSIT',
         amount: 250.00,
         description: 'Bank transfer deposit',
-        platformType: 'ONLINE_BANKING',
+        platformType: 'BANK',
         createdAt: new Date('2026-02-16'),
       },
       {
@@ -984,7 +984,48 @@ async function main() {
       },
     ],
   })
-  console.log('  Created transactions for approved clients')
+  // Additional transactions for war room data
+  const now = new Date()
+  const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const recentDate = new Date(todayDate)
+  recentDate.setHours(recentDate.getHours() - 6)
+
+  await prisma.transaction.createMany({
+    data: [
+      // David Wilson — more sportsbook deposits
+      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 2500, description: 'BetMGM deposit', platformType: 'BETMGM', createdAt: new Date('2026-02-18') },
+      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 1800, description: 'Caesars deposit', platformType: 'CAESARS', createdAt: new Date('2026-02-19') },
+      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 3200, description: 'Fanatics deposit', platformType: 'FANATICS', createdAt: new Date('2026-02-20') },
+      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 1500, description: 'BetRivers deposit', platformType: 'BETRIVERS', createdAt: new Date('2026-02-21') },
+      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 900, description: 'Bally Bet deposit', platformType: 'BALLYBET', createdAt: new Date('2026-02-22') },
+      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 750, description: 'Bet365 deposit', platformType: 'BET365', createdAt: new Date('2026-02-23') },
+      // BANK deposit (recent, triggers $250 overnight alert)
+      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 500, description: 'Bank deposit', platformType: 'BANK', createdAt: recentDate },
+      // EdgeBoost deposits (2 of 4 — partial progress)
+      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 250, description: 'EdgeBoost deposit 1', platformType: 'EDGEBOOST', createdAt: new Date('2026-02-25') },
+      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 250, description: 'EdgeBoost deposit 2', platformType: 'EDGEBOOST', createdAt: new Date('2026-02-27') },
+      // Today's activity
+      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 1200, description: 'DraftKings top-up', platformType: 'DRAFTKINGS', createdAt: todayDate },
+
+      // Emily Chen — more sportsbook deposits
+      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 3500, description: 'DraftKings deposit', platformType: 'DRAFTKINGS', createdAt: new Date('2026-02-17') },
+      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 2200, description: 'FanDuel deposit', platformType: 'FANDUEL', createdAt: new Date('2026-02-18') },
+      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 1600, description: 'Caesars deposit', platformType: 'CAESARS', createdAt: new Date('2026-02-20') },
+      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 800, description: 'Fanatics deposit', platformType: 'FANATICS', createdAt: new Date('2026-02-21') },
+      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 2000, description: 'BetRivers deposit', platformType: 'BETRIVERS', createdAt: new Date('2026-02-24') },
+      // BANK deposit (recent, triggers overnight alert)
+      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 350, description: 'Bank transfer', platformType: 'BANK', createdAt: recentDate },
+      // EdgeBoost deposits (complete — 4x$250)
+      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 250, description: 'EdgeBoost deposit 1', platformType: 'EDGEBOOST', createdAt: new Date('2026-02-20') },
+      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 250, description: 'EdgeBoost deposit 2', platformType: 'EDGEBOOST', createdAt: new Date('2026-02-22') },
+      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 250, description: 'EdgeBoost deposit 3', platformType: 'EDGEBOOST', createdAt: new Date('2026-02-24') },
+      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 250, description: 'EdgeBoost deposit 4', platformType: 'EDGEBOOST', createdAt: new Date('2026-02-26') },
+      // Today
+      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 800, description: 'FanDuel top-up', platformType: 'FANDUEL', createdAt: todayDate },
+      { clientRecordId: client2.id, type: 'WITHDRAWAL', amount: 500, description: 'BetMGM withdrawal', platformType: 'BETMGM', createdAt: todayDate },
+    ],
+  })
+  console.log('  Created additional transactions for war room')
 
   // ── Sample Client Draft ────────────────────────────────
 

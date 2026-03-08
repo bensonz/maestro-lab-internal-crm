@@ -145,9 +145,11 @@ describe('assignAndSignOutDevice', () => {
       data: { step: 3 },
     })
 
-    // Verify event log
-    expect(mockPrisma.eventLog.create).toHaveBeenCalledTimes(1)
-    const logCall = mockPrisma.eventLog.create.mock.calls[0][0]
+    // Verify event logs (STEP_ADVANCED + DEVICE_SIGNED_OUT)
+    expect(mockPrisma.eventLog.create).toHaveBeenCalledTimes(2)
+    const stepAdvancedCall = mockPrisma.eventLog.create.mock.calls[0][0]
+    expect(stepAdvancedCall.data.eventType).toBe('STEP_ADVANCED')
+    const logCall = mockPrisma.eventLog.create.mock.calls[1][0]
     expect(logCall.data.eventType).toBe('DEVICE_SIGNED_OUT')
     expect(logCall.data.userId).toBe('bo-1')
   })

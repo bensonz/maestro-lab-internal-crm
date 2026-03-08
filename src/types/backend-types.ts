@@ -562,3 +562,134 @@ export interface QuarterlySettlementData {
   teamSize: number
   status: string
 }
+
+// --- Cockpit V2 Types ---
+
+export interface CockpitData {
+  signal: CockpitSignalData
+  fundWarRoom: CockpitFundWarRoom
+  agentActivity: CockpitAgentActivity
+  bottleneck: CockpitOnboardingBottleneck
+}
+
+export interface CockpitSignalData {
+  statusLevel: 'normal' | 'attention' | 'critical'
+  attentionCount: number
+}
+
+// Fund War Room
+
+export interface CockpitFundWarRoom {
+  platforms: CockpitWarRoomPlatform[]
+  bankAlerts: CockpitBankOvernightAlert[]
+  edgeBoostProgress: CockpitEdgeBoostProgress[]
+  insights: CockpitSmartInsight[]
+}
+
+export interface CockpitWarRoomPlatform {
+  platform: string
+  platformName: string
+  abbrev: string
+  totalBalance: number
+  target: number
+  accountCount: number
+  minAccountTarget: number
+  accountsBelowMin: CockpitWarRoomAccount[]
+  burnRate: number | null
+  todayDeposits: number
+  todayWithdrawals: number
+}
+
+export interface CockpitWarRoomAccount {
+  clientId: string
+  clientName: string
+  balance: number
+  agentName: string
+}
+
+export interface CockpitBankOvernightAlert {
+  clientId: string
+  clientName: string
+  agentName: string
+  bankBalance: number
+  oldestDepositHoursAgo: number
+}
+
+export interface CockpitEdgeBoostProgress {
+  clientId: string
+  clientName: string
+  agentName: string
+  depositsCompleted: number
+  totalDeposited: number
+  remaining: number
+  isComplete: boolean
+}
+
+export interface CockpitSmartInsight {
+  id: string
+  text: string
+  severity: 'info' | 'warning' | 'critical'
+}
+
+// Agent Activity
+
+export interface CockpitAgentActivity {
+  ranking: {
+    mostClients: { name: string; count: number } | null
+    fastestAgent: { name: string; avgDays: number } | null
+    monthMostClients: { name: string; count: number } | null
+    monthFastestAgent: { name: string; avgDays: number } | null
+  }
+  teamMetrics: {
+    totalAgents: number
+    activeAgents: number
+    globalAvgDays: number | null
+    globalEndToEndDays: number | null
+    zeroSuccessCount: number
+  }
+  lowSuccessAgents: CockpitLowSuccessAgent[]
+  insights: CockpitSmartInsight[]
+}
+
+export interface CockpitLowSuccessAgent {
+  id: string
+  name: string
+  displayTier: string
+  successRate: number
+  totalClients: number
+  approvedClients: number
+}
+
+// Onboarding Bottleneck
+
+export interface CockpitOnboardingBottleneck {
+  stepPipeline: CockpitStepPipeline[]
+  pipelineAvgDays: number
+  bottleneckStep: number | null
+  bottleneckPct: number
+  devices: {
+    waitingForDevice: number
+    devicesOut: number
+    totalDevices: number
+    needThisWeek: number
+    overdue: number
+  }
+  unusedAccounts: CockpitUnusedAccount[]
+  insights: CockpitSmartInsight[]
+}
+
+export interface CockpitStepPipeline {
+  step: number
+  label: string
+  stuckCount: number
+  avgDays: number
+  totalInStep: number
+}
+
+export interface CockpitUnusedAccount {
+  clientId: string
+  clientName: string
+  platform: string
+  platformName: string
+  daysSinceApproval: number
+}

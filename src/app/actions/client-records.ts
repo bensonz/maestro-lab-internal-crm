@@ -43,7 +43,7 @@ export async function saveClientRecord(
   const isPrivileged = role === 'ADMIN' || role === 'BACKOFFICE'
   const record = await prisma.clientRecord.findFirst({
     where: isPrivileged ? { id: draftId } : { id: draftId, closerId: session.user.id },
-    select: { id: true, status: true },
+    select: { id: true, status: true, step: true },
   })
 
   if (!record) return { success: false, error: 'Draft not found' }
@@ -135,6 +135,23 @@ export async function saveClientRecord(
     where: { id: draftId },
     data: updateData,
   })
+
+  // Log STEP_ADVANCED event if step changed
+  const newStep = typeof data.step === 'number' ? data.step : null
+  if (newStep !== null && newStep !== record.step) {
+    await prisma.eventLog.create({
+      data: {
+        eventType: 'STEP_ADVANCED',
+        description: `Client record advanced from step ${record.step} to step ${newStep}`,
+        userId: session.user.id,
+        metadata: {
+          clientRecordId: draftId,
+          fromStep: record.step,
+          toStep: newStep,
+        },
+      },
+    })
+  }
 
   return { success: true }
 }

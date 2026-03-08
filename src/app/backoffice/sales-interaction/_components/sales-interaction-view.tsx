@@ -486,9 +486,9 @@ export function SalesInteractionView({
   }
 
   return (
-    <div className="flex h-full animate-fade-in" data-testid="sales-interaction-view">
+    <div className="flex h-full overflow-hidden animate-fade-in" data-testid="sales-interaction-view">
       {/* ── LEFT PANEL ── */}
-      <div className="hidden w-56 min-w-56 shrink-0 flex-col border-r border-sidebar-border bg-sidebar lg:flex">
+      <div className="hidden w-56 min-w-56 shrink-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar lg:flex">
         {/* Page Title */}
         <div className="border-b border-sidebar-border p-4">
           <h2 className="text-lg font-semibold">Sales Interaction</h2>

@@ -134,6 +134,66 @@ export async function getActionHubData() {
 }
 
 /**
+ * Lightweight stats for the backoffice overview page.
+ * All count() queries — fast and parallel.
+ */
+export async function getOverviewStats() {
+  const now = new Date()
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+  const [
+    pendingReviews,
+    approvedToday,
+    overdueTodos,
+    overdueDevices,
+    activeClients,
+  ] = await Promise.all([
+    // SUBMITTED records awaiting approval
+    prisma.clientRecord.count({
+      where: { status: 'SUBMITTED' },
+    }),
+
+    // Approved today
+    prisma.clientRecord.count({
+      where: {
+        status: 'APPROVED',
+        approvedAt: { gte: todayStart },
+      },
+    }),
+
+    // Overdue pending todos
+    prisma.todo.count({
+      where: {
+        status: 'PENDING',
+        dueDate: { lt: now },
+      },
+    }),
+
+    // Overdue devices
+    prisma.phoneAssignment.count({
+      where: {
+        status: 'SIGNED_OUT',
+        dueBackAt: { lt: now },
+      },
+    }),
+
+    // Active clients (DRAFT + SUBMITTED + APPROVED)
+    prisma.clientRecord.count({
+      where: {
+        status: { in: ['DRAFT', 'SUBMITTED', 'APPROVED'] },
+      },
+    }),
+  ])
+
+  return {
+    pendingReviews,
+    approvedToday,
+    urgentActions: overdueTodos + overdueDevices,
+    activeClients,
+  }
+}
+
+/**
  * Activity timeline for the Action Hub — includes todo, device, fund, and approval events.
  */
 async function getActionHubTimeline(): Promise<TodoTimelineEntry[]> {

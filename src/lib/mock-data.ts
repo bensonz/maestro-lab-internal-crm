@@ -283,35 +283,6 @@ export const MOCK_TEAM_MEMBERS = [
   { id: 'user-sub-2', name: 'Jamie Torres', currentStep: 'Phone Issued', totalSteps: 11, completedSteps: 2, isOneStepAway: false, totalClients: 4 },
 ]
 
-// ─── Backoffice Overview ──────────────────────────────────
-
-export const MOCK_OVERVIEW_STATS = {
-  pendingReviews: 5,
-  approvedToday: 2,
-  urgentActions: 3,
-  activeClients: 47,
-  pendingExtensions: 2,
-  delayedClients: 1,
-}
-
-export const MOCK_PRIORITY_TASKS = [
-  { id: 'pt-1', title: 'Review John Smith screenshots', type: 'screenshot_review', clientName: 'John Smith', clientId: 'client-1', isUrgent: true },
-  { id: 'pt-2', title: 'Approve Sarah Wilson extension', type: 'extension_request', clientName: 'Sarah Wilson', clientId: 'client-4', isUrgent: false },
-  { id: 'pt-3', title: 'Review James Brown for approval', type: 'client_approval', clientName: 'James Brown', clientId: 'client-5', isUrgent: true },
-]
-
-export const MOCK_REMINDERS = [
-  { message: 'P&L reconciliation due today', timeLabel: 'Today', isOverdue: true },
-  { message: '2 extension requests pending review', timeLabel: '1 day ago', isOverdue: false },
-]
-
-export const MOCK_RECENT_ACTIVITY = [
-  { id: 'act-1', title: 'Emily Davis approved', subtitle: 'by Sarah Chen', timestamp: new Date('2026-02-16T12:00:00Z') },
-  { id: 'act-2', title: 'John Smith moved to IN_EXECUTION', subtitle: 'by Sarah Chen', timestamp: new Date('2026-02-15T14:00:00Z') },
-  { id: 'act-3', title: 'Maria Garcia phone issued', subtitle: 'by Sarah Chen', timestamp: new Date('2026-02-14T10:00:00Z') },
-  { id: 'act-4', title: 'New client Robert Taylor created', subtitle: 'by Marcus Rivera', timestamp: new Date('2026-02-15T09:00:00Z') },
-]
-
 // ─── Backoffice Agent Management ──────────────────────────
 
 export const MOCK_AGENTS = [
