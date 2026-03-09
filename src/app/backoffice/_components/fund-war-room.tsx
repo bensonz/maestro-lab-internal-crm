@@ -8,20 +8,26 @@ import {
   DollarSign,
 } from 'lucide-react'
 import type { CockpitFundWarRoom, CockpitSmartInsight } from '@/types/backend-types'
+import { PLATFORM_INFO } from '@/lib/platforms'
+import type { PlatformType } from '@/types'
 
-// Platform favicon domains for Google Favicon API
+// Local SVGs used for Caesars & Fanatics (Google favicons don't render well on dark bg)
+// All others use Google Favicon API for crisp, up-to-date icons
 const PLATFORM_FAVICON: Record<string, string> = {
   DRAFTKINGS: 'draftkings.com',
   FANDUEL: 'fanduel.com',
   BETMGM: 'betmgm.com',
-  CAESARS: 'caesars.com',
-  FANATICS: 'sportsbook.fanatics.com',
   BALLYBET: 'ballybet.com',
   BETRIVERS: 'betrivers.com',
   BET365: 'bet365.com',
 }
 
-function getFaviconUrl(platform: string): string {
+function getPlatformIcon(platform: string): string {
+  const info = PLATFORM_INFO[platform as PlatformType]
+  // Caesars & Fanatics use local SVGs; others use Google Favicon
+  if (platform === 'CAESARS' || platform === 'FANATICS') {
+    return info?.logoPath ?? ''
+  }
   const domain = PLATFORM_FAVICON[platform]
   if (!domain) return ''
   return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`
@@ -116,7 +122,7 @@ function PlatformCard({
   avgDays: number | null
   pipelineCount: number
 }) {
-  const faviconUrl = getFaviconUrl(platform)
+  const faviconUrl = getPlatformIcon(platform)
   const accountsShort = accounts < accountTarget
 
   // Format min account target for display

@@ -11,7 +11,7 @@ export default async function BackofficeCockpitPage() {
   return (
     <div className="space-y-4 p-6 animate-fade-in" data-testid="cockpit-page">
       <FundWarRoom data={data.fundWarRoom} />
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
         <OnboardingBottleneck data={data.bottleneck} />
         <AgentActivity data={data.agentActivity} />
       </div>
