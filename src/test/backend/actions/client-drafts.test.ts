@@ -25,6 +25,9 @@ const { mockPrisma } = vi.hoisted(() => ({
     todo: {
       create: vi.fn(),
     },
+    systemConfig: {
+      findMany: vi.fn(),
+    },
   },
 }))
 vi.mock('@/backend/prisma/client', () => ({ default: mockPrisma }))
@@ -197,6 +200,7 @@ describe('submitClientRecord', () => {
     vi.clearAllMocks()
     mockPrisma.clientRecord.update.mockResolvedValue({})
     mockPrisma.eventLog.create.mockResolvedValue({})
+    mockPrisma.systemConfig.findMany.mockResolvedValue([])
   })
 
   it('rejects unauthenticated users', async () => {

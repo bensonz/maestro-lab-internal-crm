@@ -914,118 +914,9 @@ async function main() {
   })
   console.log('  Created phone assignments for 3 sample clients')
 
-  // ── Transactions for Approved Clients ──────────────────────
-  // Simulate fund deposits and withdrawals
-
-  // David Wilson — 4 transactions
-  await prisma.transaction.createMany({
-    data: [
-      {
-        clientRecordId: client1.id,
-        type: 'DEPOSIT',
-        amount: 500.00,
-        description: 'Initial deposit to DraftKings',
-        platformType: 'DRAFTKINGS',
-        createdAt: new Date('2026-02-11'),
-      },
-      {
-        clientRecordId: client1.id,
-        type: 'DEPOSIT',
-        amount: 300.00,
-        description: 'Deposit to FanDuel',
-        platformType: 'FANDUEL',
-        createdAt: new Date('2026-02-13'),
-      },
-      {
-        clientRecordId: client1.id,
-        type: 'DEPOSIT',
-        amount: 200.00,
-        description: 'PayPal fund transfer',
-        platformType: 'PAYPAL',
-        createdAt: new Date('2026-02-15'),
-      },
-      {
-        clientRecordId: client1.id,
-        type: 'WITHDRAWAL',
-        amount: 150.00,
-        description: 'Withdrawal from DraftKings',
-        platformType: 'DRAFTKINGS',
-        createdAt: new Date('2026-02-20'),
-      },
-    ],
-  })
-
-  // Emily Chen — 3 transactions
-  await prisma.transaction.createMany({
-    data: [
-      {
-        clientRecordId: client2.id,
-        type: 'DEPOSIT',
-        amount: 400.00,
-        description: 'Initial deposit to BetMGM',
-        platformType: 'BETMGM',
-        createdAt: new Date('2026-02-13'),
-      },
-      {
-        clientRecordId: client2.id,
-        type: 'DEPOSIT',
-        amount: 250.00,
-        description: 'Bank transfer deposit',
-        platformType: 'BANK',
-        createdAt: new Date('2026-02-16'),
-      },
-      {
-        clientRecordId: client2.id,
-        type: 'WITHDRAWAL',
-        amount: 100.00,
-        description: 'PayPal withdrawal',
-        platformType: 'PAYPAL',
-        createdAt: new Date('2026-02-22'),
-      },
-    ],
-  })
-  // Additional transactions for war room data
-  const now = new Date()
-  const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const recentDate = new Date(todayDate)
-  recentDate.setHours(recentDate.getHours() - 6)
-
-  await prisma.transaction.createMany({
-    data: [
-      // David Wilson — more sportsbook deposits
-      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 2500, description: 'BetMGM deposit', platformType: 'BETMGM', createdAt: new Date('2026-02-18') },
-      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 1800, description: 'Caesars deposit', platformType: 'CAESARS', createdAt: new Date('2026-02-19') },
-      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 3200, description: 'Fanatics deposit', platformType: 'FANATICS', createdAt: new Date('2026-02-20') },
-      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 1500, description: 'BetRivers deposit', platformType: 'BETRIVERS', createdAt: new Date('2026-02-21') },
-      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 900, description: 'Bally Bet deposit', platformType: 'BALLYBET', createdAt: new Date('2026-02-22') },
-      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 750, description: 'Bet365 deposit', platformType: 'BET365', createdAt: new Date('2026-02-23') },
-      // BANK deposit (recent, triggers $250 overnight alert)
-      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 500, description: 'Bank deposit', platformType: 'BANK', createdAt: recentDate },
-      // EdgeBoost deposits (2 of 4 — partial progress)
-      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 250, description: 'EdgeBoost deposit 1', platformType: 'EDGEBOOST', createdAt: new Date('2026-02-25') },
-      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 250, description: 'EdgeBoost deposit 2', platformType: 'EDGEBOOST', createdAt: new Date('2026-02-27') },
-      // Today's activity
-      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 1200, description: 'DraftKings top-up', platformType: 'DRAFTKINGS', createdAt: todayDate },
-
-      // Emily Chen — more sportsbook deposits
-      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 3500, description: 'DraftKings deposit', platformType: 'DRAFTKINGS', createdAt: new Date('2026-02-17') },
-      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 2200, description: 'FanDuel deposit', platformType: 'FANDUEL', createdAt: new Date('2026-02-18') },
-      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 1600, description: 'Caesars deposit', platformType: 'CAESARS', createdAt: new Date('2026-02-20') },
-      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 800, description: 'Fanatics deposit', platformType: 'FANATICS', createdAt: new Date('2026-02-21') },
-      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 2000, description: 'BetRivers deposit', platformType: 'BETRIVERS', createdAt: new Date('2026-02-24') },
-      // BANK deposit (recent, triggers overnight alert)
-      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 350, description: 'Bank transfer', platformType: 'BANK', createdAt: recentDate },
-      // EdgeBoost deposits (complete — 4x$250)
-      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 250, description: 'EdgeBoost deposit 1', platformType: 'EDGEBOOST', createdAt: new Date('2026-02-20') },
-      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 250, description: 'EdgeBoost deposit 2', platformType: 'EDGEBOOST', createdAt: new Date('2026-02-22') },
-      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 250, description: 'EdgeBoost deposit 3', platformType: 'EDGEBOOST', createdAt: new Date('2026-02-24') },
-      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 250, description: 'EdgeBoost deposit 4', platformType: 'EDGEBOOST', createdAt: new Date('2026-02-26') },
-      // Today
-      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 800, description: 'FanDuel top-up', platformType: 'FANDUEL', createdAt: todayDate },
-      { clientRecordId: client2.id, type: 'WITHDRAWAL', amount: 500, description: 'BetMGM withdrawal', platformType: 'BETMGM', createdAt: todayDate },
-    ],
-  })
-  console.log('  Created additional transactions for war room')
+  // ── Transactions ────────────────────────────────────────────
+  // No seed transactions — platform balances start at $0 (real DB data only)
+  console.log('  Skipped transactions (real data only)')
 
   // ── Sample Client Draft ────────────────────────────────
 
@@ -1673,6 +1564,22 @@ async function main() {
   console.log('  Staff: Nina Patel (Backoffice), David Chen (Finance)')
   console.log('  Clients: 2 approved (with bonus pools), 1 pending')
   console.log('  Bonus pools: $800 total distributed')
+
+  // ── System Config Defaults ─────────────────────────────────
+  // Seed all config defaults so the UI shows current values even before admin changes anything
+  const { CONFIG_REGISTRY } = await import('../src/lib/config-defaults')
+  for (const def of CONFIG_REGISTRY) {
+    await prisma.systemConfig.upsert({
+      where: { key: def.key },
+      update: {},   // Don't overwrite existing values
+      create: {
+        key: def.key,
+        value: String(def.defaultValue),
+        category: def.category,
+      },
+    })
+  }
+  console.log(`  System config: ${CONFIG_REGISTRY.length} defaults seeded`)
 }
 
 main()

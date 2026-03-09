@@ -1,4 +1,5 @@
 import prisma from '@/backend/prisma/client'
+import { getConfig } from '@/backend/data/config'
 import { syncNewMessages } from './sync'
 import { detectEmail } from './detectors'
 import { matchFundAllocation } from './matcher'
@@ -137,6 +138,7 @@ async function processEmail(email: ParsedEmail) {
 
   // Create todo if applicable
   const todoCategory = getTodoCategory(detection)
+  const emailTodoDueDays = await getConfig('EMAIL_TODO_DUE_DAYS', 3)
   if (todoCategory && clientInfo) {
     const todo = await prisma.todo.create({
       data: {
@@ -146,7 +148,7 @@ async function processEmail(email: ParsedEmail) {
         clientRecordId: clientInfo.clientRecordId,
         assignedToId: clientInfo.agentId,
         createdById: clientInfo.agentId, // system-created, attributed to agent
-        dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3-day default
+        dueDate: new Date(Date.now() + emailTodoDueDays * 24 * 60 * 60 * 1000),
         source: 'EMAIL_AUTO',
       },
     })

@@ -1,10 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import {
   Layers,
   Smartphone,
+  Send,
+  Bot,
+  User,
 } from 'lucide-react'
 import type { CockpitOnboardingBottleneck } from '@/types/backend-types'
 import { InsightsSection } from './fund-war-room'
@@ -17,7 +20,7 @@ interface OnboardingBottleneckProps {
 
 export function OnboardingBottleneck({ data }: OnboardingBottleneckProps) {
   const [insightsOpen, setInsightsOpen] = useState(false)
-  const { stepPipeline, devices, unusedAccounts } = data
+  const { stepPipeline, devices } = data
   const totalDrafts = stepPipeline.reduce((s, p) => s + p.totalInStep, 0)
 
   return (
@@ -73,20 +76,47 @@ export function OnboardingBottleneck({ data }: OnboardingBottleneckProps) {
         </div>
       </div>
 
-      {/* Second card: Devices (aligns with Team Metrics) */}
+      {/* Second card: Devices & SIM Cards — pipeline style */}
       <div className="rounded-md border border-border bg-card p-3">
-        <h3 className="mb-2 flex items-center gap-2 text-xs font-medium text-foreground">
+        <h3 className="mb-3 flex items-center gap-2 text-xs font-medium text-foreground">
           <Smartphone className="h-3.5 w-3.5" />
-          Devices
-          <span className="ml-auto font-mono text-muted-foreground">
-            {devices.devicesOut} out · {devices.totalDevices} total
-          </span>
+          Devices & SIM Cards
         </h3>
-        <div className="space-y-1.5 text-xs">
-          {devices.needThisWeek > 0 ? (
+
+        {/* 4-card pipeline */}
+        <div className="mb-3 grid grid-cols-4 gap-2">
+          <StatBox
+            label="Phones Avail"
+            value={`${devices.availableDevices}`}
+            highlight={devices.availableDevices < devices.minInventory ? (devices.availableDevices === 0 ? 'destructive' : 'warning') : undefined}
+          />
+          <StatBox
+            label="SIMs Avail"
+            value={`${devices.simCardsAvailable}`}
+            highlight={devices.simCardsAvailable < devices.minInventory ? (devices.simCardsAvailable === 0 ? 'destructive' : 'warning') : undefined}
+          />
+          <StatBox
+            label="Needed"
+            value={`${devices.needThisWeek}`}
+            highlight={devices.needThisWeek > 0 ? 'warning' : undefined}
+          />
+          <StatBox
+            label="Overdue"
+            value={`${devices.overdue}`}
+            highlight={devices.overdue > 0 ? 'destructive' : undefined}
+          />
+        </div>
+
+        {/* Status line */}
+        <div className="border-t border-border/50 pt-2 text-xs">
+          {devices.overdue > 0 ? (
+            <span className="font-medium text-destructive">
+              {devices.overdue} device{devices.overdue !== 1 ? 's' : ''} not returned — chase agents
+            </span>
+          ) : devices.availableDevices < devices.minInventory ? (
             <div className="flex items-center justify-between">
               <span className="font-medium text-warning">
-                Low Inventory — Need {devices.needThisWeek} phone{devices.needThisWeek !== 1 ? 's' : ''} this week
+                Low inventory — {devices.availableDevices} phone{devices.availableDevices !== 1 ? 's' : ''} available (min {devices.minInventory})
               </span>
               <a
                 href={AMAZON_PHONE_URL}
@@ -97,54 +127,20 @@ export function OnboardingBottleneck({ data }: OnboardingBottleneckProps) {
                 Order →
               </a>
             </div>
+          ) : devices.needThisWeek > 0 ? (
+            <span className="font-medium text-warning">
+              {devices.needThisWeek} client{devices.needThisWeek !== 1 ? 's' : ''} on Step 2 waiting for device
+            </span>
           ) : (
-            <div className="text-muted-foreground">
-              Inventory OK — no phones needed this week
-            </div>
-          )}
-          {devices.waitingForDevice > 0 && (
-            <div className="text-muted-foreground">
-              {devices.waitingForDevice} client{devices.waitingForDevice !== 1 ? 's' : ''} waiting for device
-            </div>
-          )}
-          {devices.overdue > 0 && (
-            <div className="font-medium text-destructive">
-              {devices.overdue} device{devices.overdue !== 1 ? 's' : ''} overdue
-            </div>
+            <span className="text-muted-foreground">
+              All clear — no devices needed
+            </span>
           )}
         </div>
       </div>
 
-      {/* Unused Accounts */}
-      {unusedAccounts.length > 0 && (
-        <div className="rounded-md border border-border bg-card p-3">
-          <h3 className="mb-2 flex items-center gap-2 text-xs font-medium text-foreground">
-            Unused Accounts
-            <span className="ml-auto text-muted-foreground">
-              {unusedAccounts.length} account{unusedAccounts.length !== 1 ? 's' : ''} with $0
-            </span>
-          </h3>
-          <div className="space-y-1">
-            {unusedAccounts.slice(0, 8).map((a, i) => (
-              <div
-                key={`${a.clientId}-${a.platform}-${i}`}
-                className="flex items-center justify-between text-xs"
-              >
-                <span className="text-foreground">{a.clientName}</span>
-                <span className="flex items-center gap-2 text-muted-foreground">
-                  <span>{a.platformName}</span>
-                  <span className="text-[10px]">{a.daysSinceApproval}d ago</span>
-                </span>
-              </div>
-            ))}
-            {unusedAccounts.length > 8 && (
-              <p className="text-[10px] text-muted-foreground">
-                +{unusedAccounts.length - 8} more
-              </p>
-            )}
-          </div>
-        </div>
-      )}
+      {/* AI Chat */}
+      <AIChatBox />
 
       {/* Insights */}
       {data.insights.length > 0 && (
@@ -154,6 +150,108 @@ export function OnboardingBottleneck({ data }: OnboardingBottleneckProps) {
           onToggle={() => setInsightsOpen(!insightsOpen)}
         />
       )}
+    </div>
+  )
+}
+
+// ── AI Chat Box ─────────────────────────────────────────────────────
+
+interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+function AIChatBox() {
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    { role: 'assistant', content: 'Hi! Ask me anything about your pipeline, devices, or agents.' },
+  ])
+  const [input, setInput] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    }
+  }, [messages])
+
+  const handleSend = () => {
+    const text = input.trim()
+    if (!text || isLoading) return
+
+    setMessages((prev) => [...prev, { role: 'user', content: text }])
+    setInput('')
+    setIsLoading(true)
+
+    // Placeholder — swap with real AI endpoint later
+    setTimeout(() => {
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: 'AI integration coming soon. This will connect to your cockpit data for real-time answers.' },
+      ])
+      setIsLoading(false)
+    }, 800)
+  }
+
+  return (
+    <div className="flex flex-col rounded-md border border-border bg-card">
+      <h3 className="flex items-center gap-2 border-b border-border/50 px-3 py-2 text-xs font-medium text-foreground">
+        <Bot className="h-3.5 w-3.5" />
+        AI Assistant
+      </h3>
+
+      {/* Messages */}
+      <div ref={scrollRef} className="flex-1 space-y-2 overflow-y-auto p-3" style={{ maxHeight: 200, minHeight: 120 }}>
+        {messages.map((m, i) => (
+          <div key={i} className={cn('flex gap-2 text-xs', m.role === 'user' && 'justify-end')}>
+            {m.role === 'assistant' && (
+              <Bot className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            )}
+            <span
+              className={cn(
+                'max-w-[85%] rounded-md px-2 py-1',
+                m.role === 'user'
+                  ? 'bg-primary/15 text-foreground'
+                  : 'bg-muted/50 text-muted-foreground',
+              )}
+            >
+              {m.content}
+            </span>
+            {m.role === 'user' && (
+              <User className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            )}
+          </div>
+        ))}
+        {isLoading && (
+          <div className="flex gap-2 text-xs">
+            <Bot className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <span className="rounded-md bg-muted/50 px-2 py-1 text-muted-foreground animate-pulse">
+              Thinking...
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Input */}
+      <div className="flex items-center gap-2 border-t border-border/50 px-3 py-2">
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+          placeholder="Ask about operations..."
+          className="flex-1 bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none"
+          data-testid="ai-chat-input"
+        />
+        <button
+          onClick={handleSend}
+          disabled={!input.trim() || isLoading}
+          className="text-muted-foreground hover:text-foreground disabled:opacity-30"
+          data-testid="ai-chat-send"
+        >
+          <Send className="h-3.5 w-3.5" />
+        </button>
+      </div>
     </div>
   )
 }
@@ -193,3 +291,4 @@ function StatBox({
     </div>
   )
 }
+

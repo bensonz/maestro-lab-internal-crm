@@ -23,6 +23,9 @@ const { mockPrisma } = vi.hoisted(() => ({
     eventLog: {
       create: vi.fn(),
     },
+    systemConfig: {
+      findMany: vi.fn(),
+    },
   },
 }))
 vi.mock('@/backend/prisma/client', () => ({ default: mockPrisma }))
@@ -37,6 +40,7 @@ describe('assignAndSignOutDevice', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockPrisma.eventLog.create.mockResolvedValue({})
+    mockPrisma.systemConfig.findMany.mockResolvedValue([])
   })
 
   it('rejects unauthenticated users', async () => {

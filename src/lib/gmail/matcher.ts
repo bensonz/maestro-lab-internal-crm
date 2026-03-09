@@ -1,4 +1,5 @@
 import prisma from '@/backend/prisma/client'
+import { getConfig } from '@/backend/data/config'
 import type { EmailDetection } from './types'
 
 interface MatchResult {
@@ -32,8 +33,14 @@ export async function matchFundAllocation(
     return { matched: false, autoConfirmed: false, discrepancy: false }
   }
 
-  // 48-hour window
-  const windowStart = new Date(emailReceivedAt.getTime() - 48 * 60 * 60 * 1000)
+  // Configurable match window and tolerances
+  const [matchWindowHours, exactMatchTolerance, discrepancyThreshold] = await Promise.all([
+    getConfig('FUND_MATCH_WINDOW_HOURS', 48),
+    getConfig('FUND_EXACT_MATCH_TOLERANCE', 5),
+    getConfig('FUND_DISCREPANCY_THRESHOLD', 25),
+  ])
+
+  const windowStart = new Date(emailReceivedAt.getTime() - matchWindowHours * 60 * 60 * 1000)
 
   const candidates = await prisma.fundAllocation.findMany({
     where: {
@@ -63,7 +70,7 @@ export async function matchFundAllocation(
   // Find best match by amount
   for (const candidate of candidates) {
     const recordedAmount = Number(candidate.amount)
-    const tolerance = recordedAmount * 0.05 // 5% tolerance
+    const tolerance = recordedAmount * (exactMatchTolerance / 100)
     const diff = Math.abs(recordedAmount - amount)
 
     if (diff <= tolerance) {
@@ -87,7 +94,7 @@ export async function matchFundAllocation(
       }
     }
 
-    if (diff <= recordedAmount * 0.25) {
+    if (diff <= recordedAmount * (discrepancyThreshold / 100)) {
       // Amount mismatch but plausible — flag discrepancy
       await prisma.fundAllocation.update({
         where: { id: candidate.id },

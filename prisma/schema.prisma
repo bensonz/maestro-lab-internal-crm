@@ -158,6 +158,7 @@ model User {
   createdTodos             Todo[]            @relation("TodoCreatedBy")
   fundAllocations          FundAllocation[]  @relation("FundRecordedBy")
   fundConfirmations        FundAllocation[]  @relation("FundConfirmedBy")
+  configUpdates            SystemConfig[]    @relation("ConfigUpdatedBy")
 }
 
 // --- Agent Application ------------------------------------------
@@ -553,4 +554,15 @@ model EventLog {
   user        User?     @relation(fields: [userId], references: [id])
   metadata    Json?
   createdAt   DateTime  @default(now())
+}
+
+// --- System Config -----------------------------------------------
+
+model SystemConfig {
+  key         String   @id
+  value       String
+  category    String
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+  updatedBy   User?    @relation("ConfigUpdatedBy", fields: [updatedById], references: [id])
 }
