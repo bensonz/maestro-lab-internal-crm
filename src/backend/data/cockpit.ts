@@ -63,6 +63,7 @@ export async function getCockpitData(): Promise<CockpitData> {
     INSIGHTS_STUCK_WARNING_COUNT,
     INSIGHTS_UNUSED_ACCOUNTS_WARN,
     INSIGHTS_DEVICE_WAIT_WARN,
+    MIN_DEVICE_INVENTORY,
   ] = await Promise.all([
     getConfig('BANK_OVERNIGHT_THRESHOLD', 250),
     getConfig('BANK_OVERNIGHT_HOURS', 24),
@@ -79,6 +80,7 @@ export async function getCockpitData(): Promise<CockpitData> {
     getConfig('INSIGHTS_STUCK_WARNING_COUNT', 2),
     getConfig('INSIGHTS_UNUSED_ACCOUNTS_WARN', 5),
     getConfig('INSIGHTS_DEVICE_WAIT_WARN', 3),
+    getConfig('MIN_DEVICE_INVENTORY', 6),
   ])
   const ATTENTION_SUCCESS_THRESHOLD = ATTENTION_SUCCESS_THRESHOLD_PCT / 100
 
@@ -106,6 +108,9 @@ export async function getCockpitData(): Promise<CockpitData> {
     distinctPhones,
     deviceReservationCount,
     firstTransactionAgg,
+    nextWeekDeviceProjection,
+    simsOut,
+    allSims,
   ] = await Promise.all([
     // Signal
     prisma.phoneAssignment.count({
@@ -201,16 +206,34 @@ export async function getCockpitData(): Promise<CockpitData> {
       select: { phoneNumber: true },
       distinct: ['phoneNumber'],
     }),
+    // Needed: step-2 drafts that requested a device but haven't been assigned one yet
     prisma.clientRecord.count({
       where: {
-        deviceReservationDate: { not: null },
         status: 'DRAFT',
+        step: 2,
+        deviceReservationDate: { not: null },
         phoneAssignments: { none: { status: 'SIGNED_OUT' } },
       },
     }),
 
     // Burn rate — earliest transaction date
     prisma.transaction.aggregate({ _min: { createdAt: true } }),
+
+    // (removed next-week projection — merged into "needed")
+    Promise.resolve(0),
+
+    // SIM cards: distinct carriers currently signed out (each phone has a SIM)
+    prisma.phoneAssignment.findMany({
+      where: { status: 'SIGNED_OUT' },
+      select: { phoneNumber: true, carrier: true },
+      distinct: ['phoneNumber'],
+    }),
+
+    // All SIM cards (distinct phones ever assigned)
+    prisma.phoneAssignment.findMany({
+      select: { phoneNumber: true, carrier: true },
+      distinct: ['phoneNumber'],
+    }),
   ])
 
   // Days of data for burn rate
@@ -267,7 +290,10 @@ export async function getCockpitData(): Promise<CockpitData> {
     approvedClients,
     transactionsByClientPlatform,
     now,
-    { STUCK_NO_PROGRESS_DAYS, STUCK_DEVICE_WAIT_DAYS, INSIGHTS_STUCK_WARNING_COUNT, INSIGHTS_UNUSED_ACCOUNTS_WARN, INSIGHTS_DEVICE_WAIT_WARN },
+    { STUCK_NO_PROGRESS_DAYS, STUCK_DEVICE_WAIT_DAYS, INSIGHTS_STUCK_WARNING_COUNT, INSIGHTS_UNUSED_ACCOUNTS_WARN, INSIGHTS_DEVICE_WAIT_WARN, MIN_DEVICE_INVENTORY },
+    nextWeekDeviceProjection,
+    allSims.length,
+    simsOut.length,
   )
 
   return { signal, fundWarRoom, agentActivity, bottleneck }
@@ -744,9 +770,12 @@ function buildOnboardingBottleneck(
   }[],
   txByClientPlatform: { clientRecordId: string; platformType: string | null; type: string; _sum: { amount: unknown } }[],
   now: Date,
-  cfg: { STUCK_NO_PROGRESS_DAYS: number; STUCK_DEVICE_WAIT_DAYS: number; INSIGHTS_STUCK_WARNING_COUNT: number; INSIGHTS_UNUSED_ACCOUNTS_WARN: number; INSIGHTS_DEVICE_WAIT_WARN: number },
+  cfg: { STUCK_NO_PROGRESS_DAYS: number; STUCK_DEVICE_WAIT_DAYS: number; INSIGHTS_STUCK_WARNING_COUNT: number; INSIGHTS_UNUSED_ACCOUNTS_WARN: number; INSIGHTS_DEVICE_WAIT_WARN: number; MIN_DEVICE_INVENTORY: number },
+  nextWeekProjection: number,
+  simCardsTotal: number,
+  simCardsOut: number,
 ): CockpitOnboardingBottleneck {
-  const { STUCK_NO_PROGRESS_DAYS, STUCK_DEVICE_WAIT_DAYS, INSIGHTS_STUCK_WARNING_COUNT, INSIGHTS_UNUSED_ACCOUNTS_WARN, INSIGHTS_DEVICE_WAIT_WARN } = cfg
+  const { STUCK_NO_PROGRESS_DAYS, STUCK_DEVICE_WAIT_DAYS, INSIGHTS_STUCK_WARNING_COUNT, INSIGHTS_UNUSED_ACCOUNTS_WARN, INSIGHTS_DEVICE_WAIT_WARN, MIN_DEVICE_INVENTORY } = cfg
   // Step dwell from STEP_ADVANCED events
   const eventsByClient = new Map<string, { fromStep: number; toStep: number; at: Date }[]>()
   for (const ev of stepEvents) {
@@ -890,8 +919,14 @@ function buildOnboardingBottleneck(
       waitingForDevice: deviceReservations,
       devicesOut: signedOutCount,
       totalDevices: distinctPhoneCount,
+      availableDevices: Math.max(0, distinctPhoneCount - signedOutCount),
       needThisWeek: deviceReservations,
+      needNextWeek: nextWeekProjection,
       overdue: overdueDeviceCount,
+      simCardsTotal,
+      simCardsOut,
+      simCardsAvailable: Math.max(0, simCardsTotal - simCardsOut),
+      minInventory: MIN_DEVICE_INVENTORY,
     },
     unusedAccounts,
     insights,

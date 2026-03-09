@@ -385,6 +385,16 @@ export const CONFIG_REGISTRY: ConfigDefinition[] = [
     min: 1,
     max: 14,
   },
+  {
+    key: 'MIN_DEVICE_INVENTORY',
+    label: 'Min Device Inventory',
+    description: 'Available devices below this count triggers a low inventory warning',
+    category: 'Operations',
+    type: 'number',
+    defaultValue: 6,
+    min: 1,
+    max: 50,
+  },
 ]
 
 // Lookup map for quick access

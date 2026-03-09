@@ -678,8 +678,14 @@ export interface CockpitOnboardingBottleneck {
     waitingForDevice: number
     devicesOut: number
     totalDevices: number
+    availableDevices: number
     needThisWeek: number
+    needNextWeek: number
     overdue: number
+    simCardsTotal: number
+    simCardsOut: number
+    simCardsAvailable: number
+    minInventory: number
   }
   unusedAccounts: CockpitUnusedAccount[]
   insights: CockpitSmartInsight[]
