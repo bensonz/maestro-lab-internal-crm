@@ -34,7 +34,7 @@ CRM for client onboarding across sports betting platforms. Two portals:
 
 ## 3. Database
 
-### 12 Prisma Models (`prisma/schema.prisma`)
+### 13 Prisma Models (`prisma/schema.prisma`)
 
 - **User** — staff accounts with hierarchy (supervisorId), star level/tier, leadershipTier (NONE/ED/SED/MD/CMO)
 - **AgentApplication** — PENDING → APPROVED/REJECTED. Stores idDocument + addressDocument
@@ -49,6 +49,7 @@ CRM for client onboarding across sports betting platforms. Two portals:
 - **GmailIntegration** — stores OAuth tokens for Gmail API inbox connection, historyId for incremental sync
 - **ProcessedEmail** — dedup + audit trail for processed emails. gmailMessageId (unique), detectionType, links to todoId + fundAllocationId
 - **EventLog** — append-only audit trail for all system events. EventType includes `FUND_ALLOCATED`, `GMAIL_SYNCED`, `EMAIL_TODO_CREATED`, `FUND_CONFIRMED`, `FUND_DISCREPANCY_FLAGGED`, `STEP_ADVANCED`
+- **SystemConfig** — key-value store for dynamic system configuration. `key` (PK), `value` (String), `category`, `updatedAt`, `updatedById`. 25 configurable values across 4 categories, in-memory cache with 60s TTL
 
 ### Prisma 7 Setup
 
@@ -84,7 +85,7 @@ CRM for client onboarding across sports betting platforms. Two portals:
 ## 5. Current State (Phase 2)
 
 ### Live (real DB)
-Agent Application + review, Agent Directory (table/tree, HoverCard), Login Management (CRUD), Commission system ($400 pool, star distribution), Client records (CRUD, auth-guarded, unified ClientRecord model), Phone assignments (assign/return/re-issue), Agent Dashboard (earnings/star), Agent Earnings (allocations), Agent Clients, Agent Detail (inline-edit + audit), New Client (4-step intake), Commissions page, Search API, NextAuth v5, **Backoffice Operational Cockpit** (signal bar, fund war room with 8 sportsbook platform cards + bank $250 alert + EdgeBoost tracker, agent activity with ranking/metrics/low-success, onboarding bottleneck with step pipeline/devices/unused accounts — all real DB, information-only, drill-down), **Backoffice Action Hub** (daily rundown, overdue devices, pending todos, fund allocations, activity feed), **FundAllocation** (record/track/confirm allocations, clientRecordId linkage), **Auto-todo on client approval** (Collect Debit Card Information, 7-day due), **Gmail Integration** (auto-detect emails, create todos, match funds), **Fund Confirmation** (UNCONFIRMED/CONFIRMED/DISCREPANCY workflow), **STEP_ADVANCED event logging** (auto-logged on step changes and device assignment)
+Agent Application + review, Agent Directory (table/tree, HoverCard), Login Management (CRUD), Commission system ($400 pool, star distribution), Client records (CRUD, auth-guarded, unified ClientRecord model), Phone assignments (assign/return/re-issue), Agent Dashboard (earnings/star), Agent Earnings (allocations), Agent Clients, Agent Detail (inline-edit + audit), New Client (4-step intake), Commissions page, Search API, NextAuth v5, **Backoffice Operational Cockpit** (signal bar, fund war room with 8 sportsbook platform cards + bank $250 alert + EdgeBoost tracker, agent activity with ranking/metrics/low-success, onboarding bottleneck with step pipeline/devices/unused accounts — all real DB, information-only, drill-down), **Backoffice Action Hub** (daily rundown, overdue devices, pending todos, fund allocations, activity feed), **FundAllocation** (record/track/confirm allocations, clientRecordId linkage), **Auto-todo on client approval** (Collect Debit Card Information, 7-day due), **Gmail Integration** (auto-detect emails, create todos, match funds), **Fund Confirmation** (UNCONFIRMED/CONFIRMED/DISCREPANCY workflow), **STEP_ADVANCED event logging** (auto-logged on step changes and device assignment), **System Config** (dynamic key-value settings, 25 values across 4 categories, admin-only UI at Rules Registry > System Config tab, getConfig() with 60s cache, wired to cockpit/phone-assignments/client-records/gmail)
 
 ### Partially Wired (DB + mock fallbacks)
 - Agent dashboard — earnings real, pipeline mock
@@ -276,10 +277,48 @@ Dense, information-first dashboard at `/backoffice`. Zero action buttons — dri
 
 **Key files:** `src/app/backoffice/page.tsx`, `src/backend/data/cockpit.ts`, `src/app/backoffice/_components/cockpit-signal.tsx`, `fund-war-room.tsx`, `agent-activity.tsx`, `onboarding-bottleneck.tsx`
 
-**Constants:** SPORTSBOOK_TARGET=$100K, MIN_ACCOUNT_TARGET=$5K, BANK_OVERNIGHT_THRESHOLD=$250 (24h), EDGEBOOST_TOTAL_TARGET=$1K (4 deposits), STALE_AGENT_DAYS=7, ATTENTION_SUCCESS_THRESHOLD=85%, STUCK_NO_PROGRESS_DAYS=5, STUCK_DEVICE_WAIT_DAYS=1
+**Constants:** Now dynamic via SystemConfig (see Section 15). Defaults: SPORTSBOOK_TARGET=$100K, MIN_ACCOUNT_TARGET=$5K, BANK_OVERNIGHT_THRESHOLD=$250 (24h), EDGEBOOST_TOTAL_TARGET=$1K (4 deposits), STALE_AGENT_DAYS=7, ATTENTION_SUCCESS_THRESHOLD=85%, STUCK_NO_PROGRESS_DAYS=5, STUCK_DEVICE_WAIT_DAYS=1
 
 ---
 
-## 15. Documentation
+## 15. Feature: System Configuration
+
+Dynamic key-value settings page at `/backoffice/rules-registry?tab=config`. ADMIN-only. Replaces all hardcoded business constants.
+
+### Database
+`SystemConfig` model — `key` (PK), `value` (String), `category`, `updatedAt`, `updatedById`.
+
+### Config Registry (`src/lib/config-defaults.ts`)
+25 values across 4 categories:
+
+| Category | Keys |
+|----------|------|
+| Cockpit / Dashboard (10) | SPORTSBOOK_TARGET, MIN_ACCOUNT_TARGET, BANK_OVERNIGHT_THRESHOLD, BANK_OVERNIGHT_HOURS, EDGEBOOST_TOTAL_TARGET, EDGEBOOST_DEPOSIT_COUNT, STALE_AGENT_DAYS, ATTENTION_SUCCESS_THRESHOLD, STUCK_NO_PROGRESS_DAYS, STUCK_DEVICE_WAIT_DAYS |
+| Commission (4) | BONUS_POOL_TOTAL, DIRECT_BONUS, STAR_POOL_TOTAL, SLICE_VALUE |
+| Risk Scoring (5) | RISK_THRESHOLD_LOW_MAX, RISK_THRESHOLD_HIGH, RISK_PENALTY_DEBANKED, RISK_PENALTY_CRIMINAL, RISK_PENALTY_PAYPAL |
+| Operations (6) | PHONE_DUE_BACK_DAYS, AUTO_TODO_DUE_DAYS, FUND_MATCH_WINDOW_HOURS, FUND_EXACT_MATCH_TOLERANCE, FUND_DISCREPANCY_THRESHOLD, EMAIL_TODO_DUE_DAYS |
+
+### Data Layer (`src/backend/data/config.ts`)
+- `getConfig(key, defaultValue)` — reads from DB with 60s in-memory cache, returns typed value
+- `invalidateConfigCache()` — called after admin saves
+- `getAllConfigValues()` — returns all stored values for UI
+
+### Consumers (Phase 1 — wired)
+- `cockpit.ts` — 10 cockpit constants loaded via `Promise.all` at top of `getCockpitData()`
+- `phone-assignments.ts` — `PHONE_DUE_BACK_DAYS`
+- `client-records.ts` — `AUTO_TODO_DUE_DAYS`
+- `gmail/matcher.ts` — `FUND_MATCH_WINDOW_HOURS`, `FUND_EXACT_MATCH_TOLERANCE`, `FUND_DISCREPANCY_THRESHOLD`
+- `gmail/processor.ts` — `EMAIL_TODO_DUE_DAYS`
+
+**Deferred to Phase 2:** Commission constants (73 tests), risk-score.ts (sync function).
+
+### UI
+Rules Registry page (`/backoffice/rules-registry`) now has tabs: "Rules" (existing) + "System Config" (ADMIN only). Config view shows collapsible category cards, number inputs with min/max validation, "modified" badges, save per category with toast feedback, reset-to-default buttons.
+
+**Key files:** `src/lib/config-defaults.ts`, `src/backend/data/config.ts`, `src/app/actions/system-config.ts`, `rules-registry/page.tsx`, `_components/registry-tabs.tsx`, `_components/system-config-view.tsx`
+
+---
+
+## 16. Documentation
 
 Update `CLAUDE.md` after every task. Write detail docs to `docs/` directory when needed.

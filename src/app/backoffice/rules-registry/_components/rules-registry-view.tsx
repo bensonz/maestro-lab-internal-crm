@@ -287,7 +287,7 @@ const PAGES_AUDIT: PageAudit[] = [
 
 // ── Component ───────────────────────────────────────────
 
-export function RulesRegistryView() {
+export function RulesRegistryView({ embedded = false }: { embedded?: boolean }) {
   const [search, setSearch] = useState('')
   const [activeFilter, setActiveFilter] = useState<FilterKey>('all')
   const [expandedRules, setExpandedRules] = useState<Set<string>>(new Set())
@@ -352,14 +352,16 @@ export function RulesRegistryView() {
   }
 
   return (
-    <div className="space-y-6 p-6 animate-fade-in" data-testid="rules-registry-view">
+    <div className={cn('space-y-6', !embedded && 'p-6 animate-fade-in')} data-testid="rules-registry-view">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-semibold">Rules Registry</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          All computed todo rules that generate notifications and action items across the CRM.
-        </p>
-      </div>
+      {!embedded && (
+        <div>
+          <h1 className="text-2xl font-semibold">Rules Registry</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            All computed todo rules that generate notifications and action items across the CRM.
+          </p>
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">

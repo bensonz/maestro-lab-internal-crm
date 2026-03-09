@@ -35,9 +35,9 @@ export function FundWarRoom({ data }: FundWarRoomProps) {
   const [insightsOpen, setInsightsOpen] = useState(false)
 
   return (
-    <div className="card-terminal space-y-4 p-4" data-testid="fund-war-room">
-      {/* Platform Cards — no header, full width */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+    <div className="card-terminal p-0" data-testid="fund-war-room">
+      {/* Platform Cards */}
+      <div className="grid grid-cols-2 gap-px sm:grid-cols-4 lg:grid-cols-8">
         {data.platforms.map((p) => (
           <PlatformCard
             key={p.platform}
@@ -46,25 +46,38 @@ export function FundWarRoom({ data }: FundWarRoomProps) {
             balance={p.totalBalance}
             target={p.target}
             accounts={p.accountCount}
+            accountTarget={p.accountTarget}
+            totalSlots={p.totalSlots}
+            vipCount={p.vipCount}
+            limitedCount={p.limitedCount}
             belowMin={p.accountsBelowMin.length}
-            burnRate={p.burnRate}
+            minAccountTarget={p.minAccountTarget}
+            bankrollReady={p.bankrollReady}
+            avgDays={p.avgDaysPerClient}
+            pipelineCount={p.pipelineCount}
           />
         ))}
       </div>
 
+      {/* Divider */}
+      <div className="border-t border-border" />
+
       {/* Row 2: Bank $250 Alert + EdgeBoost Onboarding */}
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 lg:grid-cols-2 lg:divide-x lg:divide-border">
         <BankOvernightAlert alerts={data.bankAlerts} />
         <EdgeBoostTracker progress={data.edgeBoostProgress} />
       </div>
 
       {/* Row 3: Insights — collapsible, collapsed by default */}
       {data.insights.length > 0 && (
-        <InsightsSection
-          insights={data.insights}
-          open={insightsOpen}
-          onToggle={() => setInsightsOpen(!insightsOpen)}
-        />
+        <>
+          <div className="border-t border-border" />
+          <InsightsSection
+            insights={data.insights}
+            open={insightsOpen}
+            onToggle={() => setInsightsOpen(!insightsOpen)}
+          />
+        </>
       )}
     </div>
   )
@@ -78,75 +91,100 @@ function PlatformCard({
   balance,
   target,
   accounts,
+  accountTarget,
+  totalSlots,
+  vipCount,
+  limitedCount,
   belowMin,
-  burnRate,
+  minAccountTarget,
+  bankrollReady,
+  avgDays,
+  pipelineCount,
 }: {
   platform: string
   name: string
   balance: number
   target: number
   accounts: number
+  accountTarget: number
+  totalSlots: number
+  vipCount: number
+  limitedCount: number
   belowMin: number
-  burnRate: number | null
+  minAccountTarget: number
+  bankrollReady: number
+  avgDays: number | null
+  pipelineCount: number
 }) {
   const faviconUrl = getFaviconUrl(platform)
+  const accountsShort = accounts < accountTarget
+
+  // Format min account target for display
+  const minLabel = minAccountTarget >= 1000
+    ? `$${(minAccountTarget / 1000).toFixed(minAccountTarget % 1000 === 0 ? 0 : 1)}k`
+    : `$${minAccountTarget}`
+
+  // Build status tags
+  const tags: { label: string; color: string }[] = []
+  if (vipCount > 0) tags.push({ label: `${vipCount} vip`, color: 'text-success' })
+  if (limitedCount > 0) tags.push({ label: `${limitedCount} limits`, color: 'text-warning' })
+  if (belowMin > 0) tags.push({ label: `${belowMin}<${minLabel}`, color: 'text-destructive' })
 
   return (
     <div
-      className="flex flex-col rounded-md border border-border bg-card p-3.5"
+      className="flex flex-col px-5 py-5"
       title={name}
       data-testid={`platform-card-${platform}`}
     >
-      {/* Logo + Name + Accounts */}
-      <div className="mb-2 flex items-center gap-2">
+      {/* Logo + Name */}
+      <div className="mb-4 flex items-center gap-2.5">
         {faviconUrl && (
           <img
             src={faviconUrl}
             alt={name}
-            width={20}
-            height={20}
+            width={24}
+            height={24}
             className="rounded-sm"
           />
         )}
-        <span className="text-xs font-semibold text-foreground">{name}</span>
+        <span className="text-sm font-semibold text-foreground">{name}</span>
       </div>
 
-      {/* Balance: "5,050 of 100,000" — target in smaller font */}
-      <div className="mb-2">
-        <span className="font-mono text-lg font-bold text-foreground">
-          {balance.toLocaleString()}
-        </span>
-        <span className="font-mono text-[10px] text-muted-foreground">
-          {' '}of{' '}
-          <span className="text-[9px]">{target.toLocaleString()}</span>
-        </span>
-      </div>
-
-      {/* Accounts */}
-      <div className="mb-1 text-[10px] text-muted-foreground">
-        {accounts} accts
-      </div>
-
-      {/* Below min: "x/total accts <$5K" — red text only, no bg */}
-      {belowMin > 0 ? (
-        <div className="mb-1 text-[10px]">
-          <span className="font-medium text-destructive">
-            {belowMin}/{accounts} accts &lt;$5K
+      {/* Balance / Target */}
+      <div className="mb-4">
+        <div className="flex items-baseline gap-1">
+          <span className="font-mono text-2xl font-bold text-foreground">
+            ${balance.toLocaleString()}
           </span>
+          <span className="font-mono text-sm text-muted-foreground">/</span>
         </div>
-      ) : accounts > 0 ? (
-        <div className="mb-1 text-[10px] text-muted-foreground/50">
-          all accts &gt;$5K
+        <div className="font-mono text-sm text-muted-foreground">
+          ${target.toLocaleString()}
         </div>
-      ) : null}
+      </div>
 
-      {/* Burn rate */}
-      <div className="mt-auto text-[10px] text-muted-foreground">
-        {burnRate !== null && burnRate > 0 ? (
-          <span>~${burnRate.toLocaleString()}/wk out</span>
+      {/* 4-line meta */}
+      <div className="mt-auto flex flex-col gap-1 font-mono text-xs text-muted-foreground">
+        <span className={cn(accountsShort && 'text-destructive font-semibold')}>
+          {accounts}/{accountTarget} accounts
+        </span>
+        {tags.length > 0 ? (
+          <span className="flex flex-wrap gap-x-1.5">
+            {tags.map((t) => (
+              <span key={t.label} className={t.color}>{t.label}</span>
+            ))}
+          </span>
         ) : (
-          <span className="text-muted-foreground/50">no withdrawals</span>
+          <span className="text-muted-foreground/40">all healthy</span>
         )}
+        <span>${bankrollReady.toLocaleString()} bankroll</span>
+        <span>
+          {avgDays !== null ? `${avgDays} d/avg` : '—'}
+          {' · '}
+          <span className={cn(pipelineCount > 0 ? 'text-foreground' : 'text-muted-foreground/40')}>
+            {pipelineCount} pipeline
+          </span>
+        </span>
       </div>
     </div>
   )
@@ -157,7 +195,7 @@ function PlatformCard({
 function BankOvernightAlert({ alerts }: { alerts: CockpitFundWarRoom['bankAlerts'] }) {
   if (alerts.length === 0) {
     return (
-      <div className="rounded-md border border-border bg-card p-3">
+      <div className="p-4">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <DollarSign className="h-3.5 w-3.5" />
           <span className="font-medium">Bank $250 Overnight</span>
@@ -168,11 +206,11 @@ function BankOvernightAlert({ alerts }: { alerts: CockpitFundWarRoom['bankAlerts
   }
 
   return (
-    <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3">
+    <div className="bg-destructive/5 p-4">
       <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-destructive">
         Bank $250 Overnight — {alerts.length} violation{alerts.length !== 1 ? 's' : ''}
       </div>
-      <div className="space-y-1">
+      <div className="max-h-40 space-y-1 overflow-y-auto">
         {alerts.map((a) => (
           <div
             key={a.clientId}
@@ -205,7 +243,7 @@ function EdgeBoostTracker({
   const complete = progress.filter((p) => p.isComplete)
 
   return (
-    <div className="rounded-md border border-border bg-card p-3">
+    <div className="p-4">
       <div className="mb-2 flex items-center gap-2 text-xs font-medium text-foreground">
         EdgeBoost Onboarding
         <span className="ml-auto text-muted-foreground">
@@ -216,8 +254,8 @@ function EdgeBoostTracker({
       {incomplete.length === 0 ? (
         <p className="text-xs text-success">All clients completed 4x deposits</p>
       ) : (
-        <div className="space-y-1.5">
-          {incomplete.slice(0, 5).map((p) => (
+        <div className="max-h-40 space-y-1.5 overflow-y-auto">
+          {incomplete.map((p) => (
             <div key={p.clientId} className="flex items-center gap-2 text-xs">
               <span className="min-w-0 flex-1 truncate text-foreground">{p.clientName}</span>
               {/* 4 dots */}
@@ -237,11 +275,6 @@ function EdgeBoostTracker({
               </span>
             </div>
           ))}
-          {incomplete.length > 5 && (
-            <p className="text-[10px] text-muted-foreground">
-              +{incomplete.length - 5} more
-            </p>
-          )}
         </div>
       )}
     </div>
@@ -260,17 +293,17 @@ export function InsightsSection({
   onToggle: () => void
 }) {
   return (
-    <div className="rounded-md border border-border bg-card">
+    <div>
       <button
         onClick={onToggle}
-        className="flex w-full items-center gap-2 px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground"
+        className="flex w-full items-center gap-2 px-4 py-3 text-xs font-medium text-muted-foreground hover:text-foreground"
         data-testid="insights-toggle"
       >
         {open ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
         Insights ({insights.length})
       </button>
       {open && (
-        <div className="space-y-1 border-t border-border px-3 py-2">
+        <div className="space-y-1 border-t border-border px-4 py-3">
           {insights.map((i) => (
             <div
               key={i.id}

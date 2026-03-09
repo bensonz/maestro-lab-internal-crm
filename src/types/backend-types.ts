@@ -593,11 +593,18 @@ export interface CockpitWarRoomPlatform {
   totalBalance: number
   target: number
   accountCount: number
+  accountTarget: number
+  totalSlots: number
   minAccountTarget: number
   accountsBelowMin: CockpitWarRoomAccount[]
+  vipCount: number
+  limitedCount: number
+  bankrollReady: number
+  avgDaysPerClient: number | null
   burnRate: number | null
   todayDeposits: number
   todayWithdrawals: number
+  pipelineCount: number
 }
 
 export interface CockpitWarRoomAccount {

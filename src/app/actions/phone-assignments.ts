@@ -3,6 +3,7 @@
 import prisma from '@/backend/prisma/client'
 import { auth } from '@/backend/auth'
 import { revalidatePath } from 'next/cache'
+import { getConfig } from '@/backend/data/config'
 
 export async function assignAndSignOutDevice(
   draftId: string,
@@ -49,8 +50,9 @@ export async function assignAndSignOutDevice(
     return { success: false, error: 'Draft already has an active device assignment' }
   }
 
+  const phoneDueBackDays = await getConfig('PHONE_DUE_BACK_DAYS', 3)
   const now = new Date()
-  const dueBackAt = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000) // +3 days
+  const dueBackAt = new Date(now.getTime() + phoneDueBackDays * 24 * 60 * 60 * 1000)
 
   const assignment = await prisma.phoneAssignment.create({
     data: {

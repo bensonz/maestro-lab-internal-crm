@@ -1,6 +1,8 @@
 import prisma from '@/backend/prisma/client'
 import { PLATFORM_INFO, SPORTS_PLATFORMS } from '@/lib/platforms'
 import { getAgentDisplayTier } from '@/lib/commission-constants'
+import { getConfig } from '@/backend/data/config'
+import { PLATFORM_DEFAULTS } from '@/lib/config-defaults'
 import type {
   CockpitData,
   CockpitSignalData,
@@ -17,24 +19,69 @@ import type {
   CockpitSmartInsight,
 } from '@/types/backend-types'
 
-// Constants
-const SPORTSBOOK_TARGET = 100_000
-const MIN_ACCOUNT_TARGET = 5_000
-const BANK_OVERNIGHT_THRESHOLD = 250
-const BANK_OVERNIGHT_HOURS = 24
-const EDGEBOOST_TOTAL_TARGET = 1_000
-const EDGEBOOST_DEPOSIT_COUNT = 4
-const STALE_AGENT_DAYS = 7
-const ATTENTION_SUCCESS_THRESHOLD = 0.85
-const STUCK_NO_PROGRESS_DAYS = 5
-const STUCK_DEVICE_WAIT_DAYS = 1
-
 function toNum(d: unknown): number {
   if (d === null || d === undefined) return 0
   return Number(String(d))
 }
 
+/** Per-platform config values loaded from SystemConfig */
+interface PlatformConfig {
+  balanceTarget: number
+  accountTarget: number
+  minAccount: number
+}
+
 export async function getCockpitData(): Promise<CockpitData> {
+  // Load per-platform config values (3 per platform)
+  const platformKeys = Object.keys(PLATFORM_DEFAULTS)
+  const platformConfigPromises = platformKeys.map(async (p) => {
+    const defaults = PLATFORM_DEFAULTS[p]
+    const [balanceTarget, accountTarget, minAccount] = await Promise.all([
+      getConfig(`${p}_BALANCE_TARGET`, defaults.balanceTarget),
+      getConfig(`${p}_ACCOUNT_TARGET`, defaults.accountTarget),
+      getConfig(`${p}_MIN_ACCOUNT`, defaults.minAccount),
+    ])
+    return [p, { balanceTarget, accountTarget, minAccount }] as [string, PlatformConfig]
+  })
+  const platformConfigEntries = await Promise.all(platformConfigPromises)
+  const platformConfigs = new Map<string, PlatformConfig>(platformConfigEntries)
+
+  // Load other configurable constants
+  const [
+    BANK_OVERNIGHT_THRESHOLD,
+    BANK_OVERNIGHT_HOURS,
+    EDGEBOOST_TOTAL_TARGET,
+    EDGEBOOST_DEPOSIT_COUNT,
+    STALE_AGENT_DAYS,
+    ATTENTION_SUCCESS_THRESHOLD_PCT,
+    STUCK_NO_PROGRESS_DAYS,
+    STUCK_DEVICE_WAIT_DAYS,
+    INSIGHTS_LOW_BALANCE_PCT,
+    INSIGHTS_SLOW_APPROVAL_DAYS,
+    INSIGHTS_INACTIVE_AGENT_WARN,
+    INSIGHTS_ZERO_SUCCESS_CRITICAL,
+    INSIGHTS_STUCK_WARNING_COUNT,
+    INSIGHTS_UNUSED_ACCOUNTS_WARN,
+    INSIGHTS_DEVICE_WAIT_WARN,
+  ] = await Promise.all([
+    getConfig('BANK_OVERNIGHT_THRESHOLD', 250),
+    getConfig('BANK_OVERNIGHT_HOURS', 24),
+    getConfig('EDGEBOOST_TOTAL_TARGET', 1_000),
+    getConfig('EDGEBOOST_DEPOSIT_COUNT', 4),
+    getConfig('STALE_AGENT_DAYS', 7),
+    getConfig('ATTENTION_SUCCESS_THRESHOLD', 85),
+    getConfig('STUCK_NO_PROGRESS_DAYS', 5),
+    getConfig('STUCK_DEVICE_WAIT_DAYS', 1),
+    getConfig('INSIGHTS_LOW_BALANCE_PCT', 50),
+    getConfig('INSIGHTS_SLOW_APPROVAL_DAYS', 14),
+    getConfig('INSIGHTS_INACTIVE_AGENT_WARN', 3),
+    getConfig('INSIGHTS_ZERO_SUCCESS_CRITICAL', 2),
+    getConfig('INSIGHTS_STUCK_WARNING_COUNT', 2),
+    getConfig('INSIGHTS_UNUSED_ACCOUNTS_WARN', 5),
+    getConfig('INSIGHTS_DEVICE_WAIT_WARN', 3),
+  ])
+  const ATTENTION_SUCCESS_THRESHOLD = ATTENTION_SUCCESS_THRESHOLD_PCT / 100
+
   const now = new Date()
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -141,6 +188,7 @@ export async function getCockpitData(): Promise<CockpitData> {
         step: true,
         updatedAt: true,
         deviceReservationDate: true,
+        platformData: true,
         closer: { select: { id: true, name: true } },
         phoneAssignments: {
           where: { status: 'SIGNED_OUT' },
@@ -194,11 +242,20 @@ export async function getCockpitData(): Promise<CockpitData> {
     todayTransactions,
     bankDepositsRecent,
     edgeBoostDeposits,
+    draftRecords,
     daysOfData,
     now,
+    platformConfigs,
+    { BANK_OVERNIGHT_THRESHOLD, EDGEBOOST_TOTAL_TARGET, EDGEBOOST_DEPOSIT_COUNT, INSIGHTS_LOW_BALANCE_PCT },
   )
 
-  const agentActivity = buildAgentActivity(agents, recentAgentEvents, monthStart)
+  const agentActivity = buildAgentActivity(agents, recentAgentEvents, monthStart, {
+    ATTENTION_SUCCESS_THRESHOLD,
+    STALE_AGENT_DAYS,
+    INSIGHTS_SLOW_APPROVAL_DAYS,
+    INSIGHTS_INACTIVE_AGENT_WARN,
+    INSIGHTS_ZERO_SUCCESS_CRITICAL,
+  })
 
   const bottleneck = buildOnboardingBottleneck(
     stepAdvancedEvents,
@@ -210,6 +267,7 @@ export async function getCockpitData(): Promise<CockpitData> {
     approvedClients,
     transactionsByClientPlatform,
     now,
+    { STUCK_NO_PROGRESS_DAYS, STUCK_DEVICE_WAIT_DAYS, INSIGHTS_STUCK_WARNING_COUNT, INSIGHTS_UNUSED_ACCOUNTS_WARN, INSIGHTS_DEVICE_WAIT_WARN },
   )
 
   return { signal, fundWarRoom, agentActivity, bottleneck }
@@ -245,9 +303,38 @@ function buildFundWarRoom(
   todayTx: { platformType: string | null; type: string; amount: unknown }[],
   bankDepositsRecent: { clientRecordId: string; amount: unknown; createdAt: Date }[],
   edgeBoostDeposits: { clientRecordId: string; amount: unknown }[],
+  drafts: { id: string; platformData: unknown }[],
   daysOfData: number,
   now: Date,
+  platformConfigs: Map<string, PlatformConfig>,
+  cfg: { BANK_OVERNIGHT_THRESHOLD: number; EDGEBOOST_TOTAL_TARGET: number; EDGEBOOST_DEPOSIT_COUNT: number; INSIGHTS_LOW_BALANCE_PCT: number },
 ): CockpitFundWarRoom {
+  const { BANK_OVERNIGHT_THRESHOLD, EDGEBOOST_TOTAL_TARGET, EDGEBOOST_DEPOSIT_COUNT, INSIGHTS_LOW_BALANCE_PCT } = cfg
+
+  // Pipeline count per platform from draft clients' platformData
+  const pipelineCounts = new Map<string, number>()
+  for (const draft of drafts) {
+    const pd = draft.platformData
+    if (!pd) continue
+    const platformKeys = new Set<string>()
+    if (Array.isArray(pd)) {
+      // Array format: [{ platform: 'DRAFTKINGS', ... }, ...]
+      for (const entry of pd) {
+        if (entry && typeof entry === 'object' && 'platform' in entry) {
+          platformKeys.add(String((entry as { platform: string }).platform).toUpperCase())
+        }
+      }
+    } else if (typeof pd === 'object') {
+      // Object format: { draftkings: {...}, fanduel: {...}, ... }
+      for (const key of Object.keys(pd as Record<string, unknown>)) {
+        platformKeys.add(key.toUpperCase().replace(/\s+/g, '_'))
+      }
+    }
+    for (const pk of platformKeys) {
+      pipelineCounts.set(pk, (pipelineCounts.get(pk) ?? 0) + 1)
+    }
+  }
+
   // Per-client per-platform balances
   const clientBalances = new Map<string, Map<string, { deposits: number; withdrawals: number }>>()
   for (const row of txByClientPlatform) {
@@ -263,6 +350,11 @@ function buildFundWarRoom(
   // Sportsbook platform cards
   const platforms: CockpitWarRoomPlatform[] = SPORTS_PLATFORMS.map((p) => {
     const info = PLATFORM_INFO[p]
+    const pCfg = platformConfigs.get(p) ?? { balanceTarget: 100_000, accountTarget: 5, minAccount: 5_000 }
+    const BALANCE_TARGET = pCfg.balanceTarget
+    const ACCOUNT_TARGET = pCfg.accountTarget
+    const MIN_ACCOUNT = pCfg.minAccount
+
     // Total balance from groupBy
     let totalDeposits = 0
     let totalWithdrawals = 0
@@ -277,12 +369,18 @@ function buildFundWarRoom(
     // Per-client breakdown
     const accountsBelowMin: CockpitWarRoomAccount[] = []
     let accountCount = 0
+    let bankrollReady = 0
+    let vipCount = 0
+    let limitedCount = 0
     for (const [clientId, pMap] of clientBalances) {
       const cd = pMap.get(p)
       if (cd) {
         accountCount++
         const bal = cd.deposits - cd.withdrawals
-        if (bal < MIN_ACCOUNT_TARGET) {
+        if (bal >= MIN_ACCOUNT) {
+          bankrollReady += bal
+        }
+        if (bal < MIN_ACCOUNT) {
           const c = clientLookup.get(clientId)
           accountsBelowMin.push({
             clientId,
@@ -291,8 +389,31 @@ function buildFundWarRoom(
             agentName: c?.closer?.name ?? 'Unknown',
           })
         }
+        // VIP = balance > $50K on this platform
+        if (bal >= 50_000) vipCount++
+        // Limited = recent withdrawals > 80% of deposits (being drained)
+        if (cd.deposits > 0 && cd.withdrawals / cd.deposits > 0.8) limitedCount++
       }
     }
+
+    // Total slots = all approved clients (potential accounts)
+    const totalSlots = clientLookup.size
+
+    // Avg days per client: average age of accounts on this platform
+    // Use first deposit date per client
+    let totalDays = 0
+    let clientsWithDays = 0
+    for (const [, pMap] of clientBalances) {
+      const cd = pMap.get(p)
+      if (cd) {
+        clientsWithDays++
+        // Approximate: use daysOfData as avg since we don't track per-client first deposit here
+        totalDays += daysOfData
+      }
+    }
+    const avgDaysPerClient = clientsWithDays > 0
+      ? Math.round((totalDays / clientsWithDays) * 10) / 10
+      : null
 
     // Today's activity
     const todayDep = todayTx
@@ -312,13 +433,20 @@ function buildFundWarRoom(
       platformName: info.name,
       abbrev: info.abbrev,
       totalBalance: Math.round(totalBalance),
-      target: SPORTSBOOK_TARGET,
+      target: BALANCE_TARGET,
       accountCount,
-      minAccountTarget: MIN_ACCOUNT_TARGET,
+      accountTarget: ACCOUNT_TARGET,
+      totalSlots,
+      minAccountTarget: MIN_ACCOUNT,
       accountsBelowMin: accountsBelowMin.sort((a, b) => a.balance - b.balance),
+      vipCount,
+      limitedCount,
+      bankrollReady: Math.round(bankrollReady),
+      avgDaysPerClient,
       burnRate: weeklyBurnRate,
       todayDeposits: Math.round(todayDep),
       todayWithdrawals: Math.round(todayWd),
+      pipelineCount: pipelineCounts.get(p) ?? 0,
     }
   })
 
@@ -386,9 +514,10 @@ function buildFundWarRoom(
   }
 
   // Insights
+  const lowBalancePctThreshold = INSIGHTS_LOW_BALANCE_PCT / 100
   const insights: CockpitSmartInsight[] = []
   for (const p of platforms) {
-    if (p.totalBalance > 0 && p.totalBalance < p.target * 0.5) {
+    if (p.totalBalance > 0 && p.totalBalance < p.target * lowBalancePctThreshold) {
       insights.push({
         id: `low-balance-${p.platform}`,
         text: `${p.platformName} at ${Math.round((p.totalBalance / p.target) * 100)}% of target — $${(p.target - p.totalBalance).toLocaleString()} needed`,
@@ -398,8 +527,16 @@ function buildFundWarRoom(
     if (p.accountsBelowMin.length > 0) {
       insights.push({
         id: `below-min-${p.platform}`,
-        text: `${p.accountsBelowMin.length} account${p.accountsBelowMin.length !== 1 ? 's' : ''} below $${MIN_ACCOUNT_TARGET.toLocaleString()} min on ${p.platformName}`,
+        text: `${p.accountsBelowMin.length} account${p.accountsBelowMin.length !== 1 ? 's' : ''} below $${p.minAccountTarget.toLocaleString()} min on ${p.platformName}`,
         severity: 'info',
+      })
+    }
+    // Account target insight
+    if (p.accountCount < p.accountTarget) {
+      insights.push({
+        id: `low-accounts-${p.platform}`,
+        text: `${p.platformName} has ${p.accountCount}/${p.accountTarget} accounts — need ${p.accountTarget - p.accountCount} more`,
+        severity: p.accountCount < p.accountTarget / 2 ? 'warning' : 'info',
       })
     }
   }
@@ -434,7 +571,9 @@ function buildAgentActivity(
   }[],
   recentEvents: { userId: string | null; createdAt: Date }[],
   monthStart: Date,
+  cfg: { ATTENTION_SUCCESS_THRESHOLD: number; STALE_AGENT_DAYS: number; INSIGHTS_SLOW_APPROVAL_DAYS: number; INSIGHTS_INACTIVE_AGENT_WARN: number; INSIGHTS_ZERO_SUCCESS_CRITICAL: number },
 ): CockpitAgentActivity {
+  const { ATTENTION_SUCCESS_THRESHOLD, STALE_AGENT_DAYS, INSIGHTS_SLOW_APPROVAL_DAYS, INSIGHTS_INACTIVE_AGENT_WARN, INSIGHTS_ZERO_SUCCESS_CRITICAL } = cfg
   const activeUserIds = new Set(recentEvents.map((e) => e.userId).filter(Boolean))
 
   const stats = agents.map((a) => {
@@ -526,10 +665,10 @@ function buildAgentActivity(
     insights.push({
       id: 'zero-success',
       text: `${zeroSuccess} agent${zeroSuccess !== 1 ? 's' : ''} with clients but zero approvals`,
-      severity: zeroSuccess > 2 ? 'critical' : 'warning',
+      severity: zeroSuccess > INSIGHTS_ZERO_SUCCESS_CRITICAL ? 'critical' : 'warning',
     })
   }
-  if (globalAvg !== null && globalAvg > 14) {
+  if (globalAvg !== null && globalAvg > INSIGHTS_SLOW_APPROVAL_DAYS) {
     insights.push({
       id: 'slow-overall',
       text: `Average ${Math.round(globalAvg)} days to approve — consider process improvements`,
@@ -541,7 +680,7 @@ function buildAgentActivity(
     insights.push({
       id: 'inactive-agents',
       text: `${inactive} agent${inactive !== 1 ? 's' : ''} with no activity in ${STALE_AGENT_DAYS} days`,
-      severity: inactive > 3 ? 'warning' : 'info',
+      severity: inactive > INSIGHTS_INACTIVE_AGENT_WARN ? 'warning' : 'info',
     })
   }
 
@@ -605,7 +744,9 @@ function buildOnboardingBottleneck(
   }[],
   txByClientPlatform: { clientRecordId: string; platformType: string | null; type: string; _sum: { amount: unknown } }[],
   now: Date,
+  cfg: { STUCK_NO_PROGRESS_DAYS: number; STUCK_DEVICE_WAIT_DAYS: number; INSIGHTS_STUCK_WARNING_COUNT: number; INSIGHTS_UNUSED_ACCOUNTS_WARN: number; INSIGHTS_DEVICE_WAIT_WARN: number },
 ): CockpitOnboardingBottleneck {
+  const { STUCK_NO_PROGRESS_DAYS, STUCK_DEVICE_WAIT_DAYS, INSIGHTS_STUCK_WARNING_COUNT, INSIGHTS_UNUSED_ACCOUNTS_WARN, INSIGHTS_DEVICE_WAIT_WARN } = cfg
   // Step dwell from STEP_ADVANCED events
   const eventsByClient = new Map<string, { fromStep: number; toStep: number; at: Date }[]>()
   for (const ev of stepEvents) {
@@ -721,7 +862,7 @@ function buildOnboardingBottleneck(
       insights.push({
         id: 'bottleneck',
         text: `Step ${bottleneckInfo.step} (${bottleneckInfo.label}) is the bottleneck — ${bottleneckInfo.totalInStep} clients, ${bottleneckInfo.stuckCount} stuck`,
-        severity: bottleneckInfo.stuckCount > 2 ? 'warning' : 'info',
+        severity: bottleneckInfo.stuckCount > INSIGHTS_STUCK_WARNING_COUNT ? 'warning' : 'info',
       })
     }
   }
@@ -729,14 +870,14 @@ function buildOnboardingBottleneck(
     insights.push({
       id: 'device-need',
       text: `${deviceReservations} client${deviceReservations !== 1 ? 's' : ''} waiting for device — need ${deviceReservations} phones this week`,
-      severity: deviceReservations > 3 ? 'warning' : 'info',
+      severity: deviceReservations > INSIGHTS_DEVICE_WAIT_WARN ? 'warning' : 'info',
     })
   }
   if (unusedAccounts.length > 0) {
     insights.push({
       id: 'unused-accounts',
       text: `${unusedAccounts.length} platform account${unusedAccounts.length !== 1 ? 's' : ''} with $0 balance post-approval`,
-      severity: unusedAccounts.length > 5 ? 'warning' : 'info',
+      severity: unusedAccounts.length > INSIGHTS_UNUSED_ACCOUNTS_WARN ? 'warning' : 'info',
     })
   }
 
