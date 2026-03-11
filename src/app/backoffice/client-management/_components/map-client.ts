@@ -6,6 +6,23 @@ import type {
   ViewPlatformStatus,
 } from './types'
 
+// Map DB accountStatuses values to view status
+const DB_STATUS_TO_VIEW: Record<string, ViewPlatformStatus> = {
+  VIP: 'vip',
+  SEMI_LIMITED: 'semi_limited',
+  ACTIVE: 'active',
+  LIMITED: 'limited',
+  DEAD: 'dead',
+}
+
+const DB_STATUS_TO_FINANCE_VIEW: Record<string, FinancePlatformStatus> = {
+  VIP: 'active',
+  SEMI_LIMITED: 'active',
+  ACTIVE: 'active',
+  LIMITED: 'permanent_limited',
+  DEAD: 'rejected',
+}
+
 // ============================================================================
 // Server-to-view-model mapping (extracted for reuse)
 // ============================================================================
@@ -81,6 +98,7 @@ export function mapPlatformsToBetting(
   activePlatforms: string[],
   platformDetails?: ServerPlatformDetail[],
   generatedCredentials?: Record<string, unknown> | null,
+  accountStatuses?: Record<string, string> | null,
 ): Client['bettingPlatforms'] {
   const PLATFORM_META: Record<string, { id: string; name: string; dbType: string }> = {
     DK: { id: 'draftkings', name: 'DraftKings', dbType: 'DRAFTKINGS' },
@@ -111,11 +129,16 @@ export function mapPlatformsToBetting(
   return sportPlatforms.map((abbr) => {
     const meta = PLATFORM_META[abbr] || { id: abbr.toLowerCase(), name: abbr, dbType: abbr }
     const detail = platformDetails?.find((p) => p.platformType === meta.dbType)
+    // Operational status from accountStatuses takes precedence over intake status
+    const acctStatus = accountStatuses?.[meta.dbType]
+    const viewStatus: ViewPlatformStatus = acctStatus && DB_STATUS_TO_VIEW[acctStatus]
+      ? DB_STATUS_TO_VIEW[acctStatus]
+      : detail ? mapBettingStatus(detail.status) : 'pipeline'
     return {
       id: meta.id,
       name: meta.name,
       abbr,
-      status: detail ? mapBettingStatus(detail.status) : ('pipeline' as const),
+      status: viewStatus,
       balance: 0,
       credentials: {
         username: detail?.username || '\u2014',
@@ -203,6 +226,9 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
   // Extract generated credentials for password/PIN display
   const creds = serverClient.generatedCredentials
 
+  // Read operational account statuses (VIP, SEMI_LIMITED, etc.)
+  const acctStatuses = serverClient.accountStatuses
+
   // Build finance platforms from real data
   const paypalDetail = findPlatformDetail(serverClient.platformDetails, 'PAYPAL')
   const bankDetail = findPlatformDetail(serverClient.platformDetails, 'ONLINE_BANKING')
@@ -235,7 +261,7 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
       {
         name: 'PayPal',
         type: 'paypal' as const,
-        status: paypalDetail ? mapFinanceStatus(paypalDetail.status) : 'pipeline',
+        status: acctStatuses?.PAYPAL ? (DB_STATUS_TO_FINANCE_VIEW[acctStatuses.PAYPAL] || mapFinanceStatus(paypalDetail?.status)) : (paypalDetail ? mapFinanceStatus(paypalDetail.status) : 'pipeline'),
         balance: 0,
         isUsed: false,
         credentials: {
@@ -246,7 +272,7 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
       {
         name: 'Bank',
         type: 'bank' as const,
-        status: bankDetail ? mapFinanceStatus(bankDetail.status) : 'pipeline',
+        status: acctStatuses?.ONLINE_BANKING ? (DB_STATUS_TO_FINANCE_VIEW[acctStatuses.ONLINE_BANKING] || mapFinanceStatus(bankDetail?.status)) : (bankDetail ? mapFinanceStatus(bankDetail.status) : 'pipeline'),
         balance: 0,
         bankType: 'Chase' as const,
         credentials: {
@@ -267,7 +293,7 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
       {
         name: 'Edgeboost',
         type: 'edgeboost' as const,
-        status: edgeboostDetail ? mapFinanceStatus(edgeboostDetail.status) : 'pipeline',
+        status: acctStatuses?.EDGEBOOST ? (DB_STATUS_TO_FINANCE_VIEW[acctStatuses.EDGEBOOST] || mapFinanceStatus(edgeboostDetail?.status)) : (edgeboostDetail ? mapFinanceStatus(edgeboostDetail.status) : 'pipeline'),
         balance: 0,
         credentials: {
           username: edgeboostDetail?.username || '\u2014',
@@ -285,6 +311,7 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
       serverClient.activePlatforms,
       serverClient.platformDetails,
       creds,
+      acctStatuses,
     ),
     agent: serverClient.agent || undefined,
     betmgmScreenshots: betmgmDetail?.screenshots ?? [],

@@ -4,6 +4,7 @@ import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Separator } from '@/components/ui/separator'
 import { NotificationDropdown } from '@/components/notification-dropdown'
 import { GlobalSearch, SearchTrigger } from '@/components/global-search'
+import { AIChatTrigger } from '@/components/ai-chat'
 
 export function AgentTopBar() {
   return (
@@ -28,6 +29,7 @@ export function AgentTopBar() {
       <div className="flex items-center gap-3">
         <SearchTrigger variant="icon" />
         <GlobalSearch />
+        <AIChatTrigger />
         <NotificationDropdown />
       </div>
     </header>

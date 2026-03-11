@@ -84,6 +84,16 @@ export async function matchFundAllocation(
         },
       })
 
+      // Auto-complete any "Confirm Fund Withdrawal" todo linked to this allocation
+      await prisma.todo.updateMany({
+        where: {
+          status: 'PENDING',
+          issueCategory: 'Confirm Fund Withdrawal',
+          metadata: { path: ['fundAllocationId'], equals: candidate.id },
+        },
+        data: { status: 'COMPLETED' },
+      })
+
       return {
         matched: true,
         allocationId: candidate.id,

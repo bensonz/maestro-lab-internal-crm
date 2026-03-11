@@ -1,13 +1,10 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import {
   Layers,
   Smartphone,
-  Send,
-  Bot,
-  User,
 } from 'lucide-react'
 import type { CockpitOnboardingBottleneck } from '@/types/backend-types'
 import { InsightsSection } from './fund-war-room'
@@ -139,9 +136,6 @@ export function OnboardingBottleneck({ data }: OnboardingBottleneckProps) {
         </div>
       </div>
 
-      {/* AI Chat */}
-      <AIChatBox />
-
       {/* Insights */}
       {data.insights.length > 0 && (
         <InsightsSection
@@ -150,108 +144,6 @@ export function OnboardingBottleneck({ data }: OnboardingBottleneckProps) {
           onToggle={() => setInsightsOpen(!insightsOpen)}
         />
       )}
-    </div>
-  )
-}
-
-// ── AI Chat Box ─────────────────────────────────────────────────────
-
-interface ChatMessage {
-  role: 'user' | 'assistant'
-  content: string
-}
-
-function AIChatBox() {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: 'assistant', content: 'Hi! Ask me anything about your pipeline, devices, or agents.' },
-  ])
-  const [input, setInput] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const scrollRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
-    }
-  }, [messages])
-
-  const handleSend = () => {
-    const text = input.trim()
-    if (!text || isLoading) return
-
-    setMessages((prev) => [...prev, { role: 'user', content: text }])
-    setInput('')
-    setIsLoading(true)
-
-    // Placeholder — swap with real AI endpoint later
-    setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: 'AI integration coming soon. This will connect to your cockpit data for real-time answers.' },
-      ])
-      setIsLoading(false)
-    }, 800)
-  }
-
-  return (
-    <div className="flex flex-col rounded-md border border-border bg-card">
-      <h3 className="flex items-center gap-2 border-b border-border/50 px-3 py-2 text-xs font-medium text-foreground">
-        <Bot className="h-3.5 w-3.5" />
-        AI Assistant
-      </h3>
-
-      {/* Messages */}
-      <div ref={scrollRef} className="flex-1 space-y-2 overflow-y-auto p-3" style={{ maxHeight: 200, minHeight: 120 }}>
-        {messages.map((m, i) => (
-          <div key={i} className={cn('flex gap-2 text-xs', m.role === 'user' && 'justify-end')}>
-            {m.role === 'assistant' && (
-              <Bot className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            )}
-            <span
-              className={cn(
-                'max-w-[85%] rounded-md px-2 py-1',
-                m.role === 'user'
-                  ? 'bg-primary/15 text-foreground'
-                  : 'bg-muted/50 text-muted-foreground',
-              )}
-            >
-              {m.content}
-            </span>
-            {m.role === 'user' && (
-              <User className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            )}
-          </div>
-        ))}
-        {isLoading && (
-          <div className="flex gap-2 text-xs">
-            <Bot className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            <span className="rounded-md bg-muted/50 px-2 py-1 text-muted-foreground animate-pulse">
-              Thinking...
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* Input */}
-      <div className="flex items-center gap-2 border-t border-border/50 px-3 py-2">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-          placeholder="Ask about operations..."
-          className="flex-1 bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none"
-          data-testid="ai-chat-input"
-        />
-        <button
-          onClick={handleSend}
-          disabled={!input.trim() || isLoading}
-          className="text-muted-foreground hover:text-foreground disabled:opacity-30"
-          data-testid="ai-chat-send"
-        >
-          <Send className="h-3.5 w-3.5" />
-        </button>
-      </div>
     </div>
   )
 }

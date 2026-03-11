@@ -11,6 +11,7 @@ import {
   Wallet,
   ClipboardList,
   Zap,
+  TrendingUp,
   Receipt,
   DollarSign,
   Handshake,
@@ -64,6 +65,7 @@ const navItems: NavItem[] = [
     icon: KeyRound,
   },
   { title: 'Action Hub', href: '/backoffice/todo-list', icon: Zap },
+  { title: 'Daily Balances', href: '/backoffice/daily-balances', icon: TrendingUp },
   {
     title: 'Fund Allocation',
     href: '/backoffice/fund-allocation',

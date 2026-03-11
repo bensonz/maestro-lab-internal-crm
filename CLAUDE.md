@@ -34,11 +34,11 @@ CRM for client onboarding across sports betting platforms. Two portals:
 
 ## 3. Database
 
-### 13 Prisma Models (`prisma/schema.prisma`)
+### 14 Prisma Models (`prisma/schema.prisma`)
 
 - **User** — staff accounts with hierarchy (supervisorId), star level/tier, leadershipTier (NONE/ED/SED/MD/CMO)
 - **AgentApplication** — PENDING → APPROVED/REJECTED. Stores idDocument + addressDocument
-- **ClientRecord** — unified model: DRAFT → SUBMITTED → APPROVED → REJECTED → CLOSED. 4-step intake form data, risk flags, platformData (Json), generatedCredentials (Json), document paths, `approvedAt` timestamp. Links to closer (User). Replaces the old Client + ClientDraft dual-model pattern.
+- **ClientRecord** — unified model: DRAFT → SUBMITTED → APPROVED → REJECTED → CLOSED. 4-step intake form data, risk flags, platformData (Json), generatedCredentials (Json), accountStatuses (Json — operational platform statuses: VIP/SEMI_LIMITED/ACTIVE/LIMITED/DEAD), document paths, `approvedAt` timestamp. Links to closer (User). Replaces the old Client + ClientDraft dual-model pattern.
 - **BonusPool** — $400 per approved client. `clientRecordId` FK. Has many BonusAllocation[]
 - **BonusAllocation** — DIRECT / STAR_SLICE / BACKFILL. Status: PENDING → PAID
 - **PromotionLog** — immutable star level + leadership tier change audit
@@ -48,7 +48,8 @@ CRM for client onboarding across sports betting platforms. Two portals:
 - **FundAllocation** — records every fund allocation with platform, amount (Decimal 12,2), direction (DEPOSIT/WITHDRAWAL), confirmationStatus (UNCONFIRMED/CONFIRMED/DISCREPANCY), confirmedAmount, confirmedBy, discrepancyNotes, optional `clientRecordId` FK
 - **GmailIntegration** — stores OAuth tokens for Gmail API inbox connection, historyId for incremental sync
 - **ProcessedEmail** — dedup + audit trail for processed emails. gmailMessageId (unique), detectionType, links to todoId + fundAllocationId
-- **EventLog** — append-only audit trail for all system events. EventType includes `FUND_ALLOCATED`, `GMAIL_SYNCED`, `EMAIL_TODO_CREATED`, `FUND_CONFIRMED`, `FUND_DISCREPANCY_FLAGGED`, `STEP_ADVANCED`
+- **EventLog** — append-only audit trail for all system events. EventType includes `FUND_ALLOCATED`, `GMAIL_SYNCED`, `EMAIL_TODO_CREATED`, `FUND_CONFIRMED`, `FUND_DISCREPANCY_FLAGGED`, `STEP_ADVANCED`, `BALANCE_RECORDED`, `ACCOUNT_STATUS_CHANGED`
+- **BalanceSnapshot** — daily platform balance recordings. `clientRecordId`, `platform`, `date` (@db.Date), `balance` (Decimal 12,2), `screenshotPath`, `notes`, `createdById`. Unique on `[clientRecordId, platform, date]`. Used for T-1/T-2 P&L calculations in Trader Report
 - **SystemConfig** — key-value store for dynamic system configuration. `key` (PK), `value` (String), `category`, `updatedAt`, `updatedById`. 25 configurable values across 4 categories, in-memory cache with 60s TTL
 
 ### Prisma 7 Setup
@@ -85,7 +86,7 @@ CRM for client onboarding across sports betting platforms. Two portals:
 ## 5. Current State (Phase 2)
 
 ### Live (real DB)
-Agent Application + review, Agent Directory (table/tree, HoverCard), Login Management (CRUD), Commission system ($400 pool, star distribution), Client records (CRUD, auth-guarded, unified ClientRecord model), Phone assignments (assign/return/re-issue), Agent Dashboard (earnings/star), Agent Earnings (allocations), Agent Clients, Agent Detail (inline-edit + audit), New Client (4-step intake), Commissions page, Search API, NextAuth v5, **Backoffice Operational Cockpit** (signal bar, fund war room with 8 sportsbook platform cards + bank $250 alert + EdgeBoost tracker, agent activity with ranking/metrics/low-success, onboarding bottleneck with step pipeline/devices/unused accounts — all real DB, information-only, drill-down), **Backoffice Action Hub** (daily rundown, overdue devices, pending todos, fund allocations, activity feed), **FundAllocation** (record/track/confirm allocations, clientRecordId linkage), **Auto-todo on client approval** (Collect Debit Card Information, 7-day due), **Gmail Integration** (auto-detect emails, create todos, match funds), **Fund Confirmation** (UNCONFIRMED/CONFIRMED/DISCREPANCY workflow), **STEP_ADVANCED event logging** (auto-logged on step changes and device assignment), **System Config** (dynamic key-value settings, 25 values across 4 categories, admin-only UI at Rules Registry > System Config tab, getConfig() with 60s cache, wired to cockpit/phone-assignments/client-records/gmail)
+Agent Application + review, Agent Directory (table/tree, HoverCard), Login Management (CRUD), Commission system ($400 pool, star distribution), Client records (CRUD, auth-guarded, unified ClientRecord model), Phone assignments (assign/return/re-issue), Agent Dashboard (earnings/star), Agent Earnings (allocations), Agent Clients, Agent Detail (inline-edit + audit), New Client (4-step intake), Commissions page, Search API, NextAuth v5, **Backoffice Operational Cockpit** (signal bar, fund war room with 8 sportsbook platform cards + bank $250 alert + EdgeBoost tracker, agent activity with ranking/metrics/low-success, onboarding bottleneck with step pipeline/devices/unused accounts — all real DB, information-only, drill-down), **Backoffice Action Hub** (daily rundown, overdue devices, pending todos, fund allocations, activity feed), **FundAllocation** (record/track/confirm allocations, clientRecordId linkage), **Auto-todo on client approval** (Collect Debit Card Information, 7-day due), **Gmail Integration** (auto-detect emails, create todos, match funds), **Fund Confirmation** (UNCONFIRMED/CONFIRMED/DISCREPANCY workflow), **STEP_ADVANCED event logging** (auto-logged on step changes and device assignment), **System Config** (dynamic key-value settings, 25 values across 4 categories, admin-only UI at Rules Registry > System Config tab, getConfig() with 60s cache, wired to cockpit/phone-assignments/client-records/gmail), **Trader Report Page 2** (P&L from BalanceSnapshot T-1/T-2, active accounts per platform with VIP/Semi-Limited/Active/Limited/Dead status, sportsbook + financial bankroll in same table), **Daily Balance Recording** (`/backoffice/daily-balances` — per-platform balance entry with yesterday reference, progress tracking, screenshot support), **Account Status Management** (operational VIP/Semi-Limited/Active/Limited/Dead statuses on client management platform section, persisted to `accountStatuses` Json field via `updateAccountStatus()` server action)
 
 ### Partially Wired (DB + mock fallbacks)
 - Agent dashboard — earnings real, pipeline mock
@@ -254,7 +255,7 @@ See `prisma/seed.ts` for full details. All passwords: `password123` (except Jami
 - Rachel Kim (SED) → Tony Russo (2★) → Sofia Reyes; Kevin Okafor
 - Victor Hayes (CMO) → Diana Foster (MD) → Ryan Mitchell (4★)
 
-**Sample data:** 3 client records (2 APPROVED w/ bonus pools, 1 SUBMITTED), 5 draft records (Sarah Martinez step 3, Michael Thompson step 2, Jennifer Rodriguez step 1, Andrew Park step 2, Lisa Nguyen step 1), phone assignments, 1 todo (Contact Bank, PENDING), 6 fund allocations (2 confirmed, 1 discrepancy, 3 unconfirmed), 30+ transactions across sportsbook/bank/EdgeBoost platforms (with recent BANK deposits for overnight alert, partial and complete EdgeBoost 4x deposits)
+**Sample data:** 3 client records (2 APPROVED w/ bonus pools, 1 SUBMITTED), 5 draft records (Sarah Martinez step 3, Michael Thompson step 2, Jennifer Rodriguez step 1, Andrew Park step 2, Lisa Nguyen step 1), phone assignments, 1 todo (Contact Bank, PENDING), 6 fund allocations (2 confirmed, 1 discrepancy, 3 unconfirmed), 30+ transactions across sportsbook/bank/EdgeBoost platforms (with recent BANK deposits for overnight alert, partial and complete EdgeBoost 4x deposits), balance snapshots for 3 days across all platforms for both approved clients (David Wilson + Emily Chen), account statuses (Wilson DK=VIP, Chen FD=SEMI_LIMITED)
 
 ---
 
@@ -319,6 +320,36 @@ Rules Registry page (`/backoffice/rules-registry`) now has tabs: "Rules" (existi
 
 ---
 
-## 16. Documentation
+## 16. Feature: Trader Report & Daily Balances
+
+### Balance Snapshots
+Daily balance recordings per client per platform, stored in `BalanceSnapshot` model. Used for P&L calculations and audit trail. Unique constraint on `[clientRecordId, platform, date]` allows upsert workflow.
+
+### Account Statuses
+Operational platform statuses stored as `accountStatuses` Json on `ClientRecord`: `{ "DRAFTKINGS": "VIP", "FANDUEL": "SEMI_LIMITED" }`. Separate from intake `platformData` status — these are set post-approval by backoffice. Values: `VIP`, `SEMI_LIMITED`, `ACTIVE`, `LIMITED`, `DEAD`.
+
+### Trader Report Page 2
+Pre-Trading Daily Brief dialog (opened from Action Hub header "Generate Today's Report" button) now has 2 pages:
+- **Page 1**: Fund movements, platform activity, pending actions (existing)
+- **Page 2**: P&L Summary (T-1 vs T-2 closing balances, per-platform breakdown), Active Accounts (sportsbooks + financial in same table, with VIP/Semi-Limited/Active status badges, daily P&L, lifetime P&L)
+
+**P&L Calculation**: Daily P&L = T-1 closing balance - T-2 closing balance. Lifetime P&L = latest snapshot - first snapshot. Per-platform and total rollups.
+
+### Daily Balance Recording Page
+`/backoffice/daily-balances` — dedicated page for the daily screenshot workflow:
+- Date navigation (prev/next day)
+- Progress bar (X/Y accounts recorded)
+- Grouped by platform (sportsbooks first, then financial)
+- Each row: client name, agent name, yesterday's balance (reference), today's balance input, screenshot indicator, save button
+- Saves via `recordBalanceSnapshot()` server action with upsert
+
+### Client Management Status Wiring
+Platform section in client detail view now uses real `updateAccountStatus()` instead of mock. Sportsbook dropdown options: VIP, Semi-Limited, Active, Limited, Dead. Status colors: VIP=amber, Semi-Limited=orange, Active=green, Limited=warning, Dead=red.
+
+**Key files**: `src/app/actions/balance-snapshots.ts`, `src/backend/data/action-hub.ts` (`getTraderReportData`, `getDailyBalancesData`), `src/app/backoffice/todo-list/_components/trader-report-dialog.tsx`, `src/app/backoffice/daily-balances/`, `src/app/backoffice/client-management/_components/platform-section.tsx`, `src/app/backoffice/client-management/_components/map-client.ts`
+
+---
+
+## 17. Documentation
 
 Update `CLAUDE.md` after every task. Write detail docs to `docs/` directory when needed.

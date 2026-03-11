@@ -234,6 +234,8 @@ export default async function ClientManagementServerPage() {
           userName: e.user?.name ?? 'System',
           createdAt: e.createdAt.toISOString(),
         })),
+        // Operational account statuses (VIP, SEMI_LIMITED, etc.)
+        accountStatuses: (record.accountStatuses as Record<string, string>) ?? null,
       }
     })
 

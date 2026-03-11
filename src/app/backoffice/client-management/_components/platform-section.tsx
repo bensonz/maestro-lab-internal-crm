@@ -33,7 +33,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
-import { updatePlatformStatus } from '@/lib/mock-actions'
+import { updateAccountStatus } from '@/app/actions/balance-snapshots'
 import { EditableField } from './editable-field'
 import type {
   Client,
@@ -50,6 +50,10 @@ function getPlatformStatusColor(
   status: ViewPlatformStatus | FinancePlatformStatus,
 ): string {
   switch (status) {
+    case 'vip':
+      return 'bg-amber-500/20 text-amber-400'
+    case 'semi_limited':
+      return 'bg-orange-500/20 text-orange-400'
     case 'active':
       return 'bg-success/20 text-success'
     case 'limited':
@@ -65,6 +69,10 @@ function getPlatformStatusColor(
 
 function getBettingPlatformStatusColor(status: ViewPlatformStatus): string {
   switch (status) {
+    case 'vip':
+      return 'bg-amber-500/20 text-amber-400 border-amber-400/40'
+    case 'semi_limited':
+      return 'bg-orange-500/20 text-orange-400 border-orange-400/40'
     case 'active':
       return 'bg-success/20 text-success border-success/40'
     case 'limited':
@@ -78,10 +86,12 @@ function getBettingPlatformStatusColor(status: ViewPlatformStatus): string {
 
 function sortPlatformsByStatus(platforms: BettingPlatform[]): BettingPlatform[] {
   const statusOrder: Record<ViewPlatformStatus, number> = {
-    active: 0,
-    pipeline: 1,
-    limited: 2,
-    dead: 3,
+    vip: 0,
+    semi_limited: 1,
+    active: 2,
+    pipeline: 3,
+    limited: 4,
+    dead: 5,
   }
   return [...platforms].sort(
     (a, b) => statusOrder[a.status] - statusOrder[b.status],
@@ -169,6 +179,18 @@ export function PlatformSection({
   const totalPnL = calculateBettingPnL(client)
   const totalFunds = calculateTotalFunds(client)
 
+  // Map view status to DB status for accountStatuses
+  const VIEW_TO_DB_STATUS: Record<string, string> = {
+    vip: 'VIP',
+    semi_limited: 'SEMI_LIMITED',
+    active: 'ACTIVE',
+    limited: 'LIMITED',
+    dead: 'DEAD',
+    pipeline: 'ACTIVE',
+    permanent_limited: 'LIMITED',
+    rejected: 'DEAD',
+  }
+
   function handleStatusChange(platformName: string, newStatus: string) {
     const platformType = PLATFORM_NAME_TO_TYPE[platformName]
     if (!platformType) return
@@ -189,8 +211,14 @@ export function PlatformSection({
       newStatus,
     )
 
+    const dbStatus = VIEW_TO_DB_STATUS[newStatus] || newStatus.toUpperCase()
+
     startTransition(async () => {
-      const result = await updatePlatformStatus(client.id, platformType, newStatus)
+      const result = await updateAccountStatus({
+        clientRecordId: client.id,
+        platform: platformType,
+        status: dbStatus,
+      })
       if (result.success) {
         toast.success(`${platformName} status updated`)
       } else {
@@ -606,7 +634,7 @@ export function PlatformSection({
                               >
                                 <SelectTrigger
                                   className={cn(
-                                    'h-5 w-[72px] justify-center gap-1 rounded-full border px-2 text-[10px] font-medium',
+                                    'h-5 w-[90px] justify-center gap-1 rounded-full border px-2 text-[10px] font-medium',
                                     getBettingPlatformStatusColor(
                                       (bettingStatuses[platform.name] || platform.status) as ViewPlatformStatus,
                                     ),
@@ -615,14 +643,20 @@ export function PlatformSection({
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
+                                  <SelectItem value="vip">
+                                    VIP
+                                  </SelectItem>
+                                  <SelectItem value="semi_limited">
+                                    Semi-Limited
+                                  </SelectItem>
                                   <SelectItem value="active">
                                     Active
                                   </SelectItem>
-                                  <SelectItem value="pipeline">
-                                    Pipeline
-                                  </SelectItem>
                                   <SelectItem value="limited">
                                     Limited
+                                  </SelectItem>
+                                  <SelectItem value="dead">
+                                    Dead
                                   </SelectItem>
                                 </SelectContent>
                               </Select>
@@ -788,14 +822,7 @@ export function PlatformSection({
                       {sortPlatformsByStatus(client.bettingPlatforms).map(
                         (platform) => {
                           const currentBetStatus = (bettingStatuses[platform.name] || platform.status) as ViewPlatformStatus
-                          const statusColor =
-                            currentBetStatus === 'active'
-                              ? 'bg-success/20 text-success border-success/40'
-                              : currentBetStatus === 'pipeline'
-                                ? 'bg-primary/20 text-primary border-primary/40'
-                                : currentBetStatus === 'limited'
-                                  ? 'bg-warning/20 text-warning border-warning/40'
-                                  : 'bg-destructive/20 text-destructive border-destructive/40'
+                          const statusColor = getBettingPlatformStatusColor(currentBetStatus)
                           return (
                             <Tooltip key={platform.id}>
                               <TooltipTrigger asChild>

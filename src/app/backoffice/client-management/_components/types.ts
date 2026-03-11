@@ -3,7 +3,7 @@
 // ============================================================================
 
 export type ClientStatus = 'active' | 'ended' | 'verification_needed'
-export type ViewPlatformStatus = 'active' | 'limited' | 'pipeline' | 'dead'
+export type ViewPlatformStatus = 'active' | 'vip' | 'semi_limited' | 'limited' | 'pipeline' | 'dead'
 export type FinancePlatformStatus = 'active' | 'permanent_limited' | 'rejected' | 'pipeline'
 export type BankType = 'Chase' | 'Citi' | 'BofA'
 
@@ -230,6 +230,8 @@ export interface ServerClientData {
     userName: string
     createdAt: string
   }>
+  // Operational account statuses (VIP, SEMI_LIMITED, etc.) from backoffice
+  accountStatuses: Record<string, string> | null
 }
 
 export interface ServerClientStats {
