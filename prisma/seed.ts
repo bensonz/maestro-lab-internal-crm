@@ -563,6 +563,10 @@ async function main() {
   await prisma.phoneAssignment.deleteMany({
     where: { clientRecord: { email: { startsWith: 'sample-client' } } },
   })
+  // Clean up balance snapshots linked to sample client records
+  await prisma.balanceSnapshot.deleteMany({
+    where: { clientRecord: { email: { startsWith: 'sample-client' } } },
+  })
   // Clean up sample client records
   await prisma.clientRecord.deleteMany({
     where: { email: { startsWith: 'sample-client' } },
@@ -1359,6 +1363,8 @@ async function main() {
         notes: 'DraftKings withdrawal for David Wilson',
         recordedById: boStaff.id,
         confirmationStatus: 'UNCONFIRMED',
+        destinationPlatform: 'BANK',
+        expectedArrivalAt: new Date('2026-02-21T10:00:00'),
         createdAt: new Date('2026-02-20T10:00:00'),
       },
       {
@@ -1564,6 +1570,99 @@ async function main() {
   console.log('  Staff: Nina Patel (Backoffice), David Chen (Finance)')
   console.log('  Clients: 2 approved (with bonus pools), 1 pending')
   console.log('  Bonus pools: $800 total distributed')
+
+  // ── Balance Snapshots (3 days of daily balances for P&L) ──────
+  const today = new Date()
+  const t1 = new Date(today)
+  t1.setDate(t1.getDate() - 1) // yesterday
+  const t2 = new Date(today)
+  t2.setDate(t2.getDate() - 2) // day before yesterday
+  const t3 = new Date(today)
+  t3.setDate(t3.getDate() - 3) // 3 days ago
+
+  // Helper to create date-only (no time) for @db.Date
+  const dateOnly = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate())
+
+  const snapshotData = [
+    // David Wilson — DraftKings: VIP account, growing
+    { clientRecordId: client1.id, platform: 'DRAFTKINGS', date: dateOnly(t3), balance: 48000, createdById: boStaff.id },
+    { clientRecordId: client1.id, platform: 'DRAFTKINGS', date: dateOnly(t2), balance: 51200, createdById: boStaff.id },
+    { clientRecordId: client1.id, platform: 'DRAFTKINGS', date: dateOnly(t1), balance: 53800, createdById: boStaff.id },
+    // David Wilson — FanDuel: active, slight loss yesterday
+    { clientRecordId: client1.id, platform: 'FANDUEL', date: dateOnly(t3), balance: 22000, createdById: boStaff.id },
+    { clientRecordId: client1.id, platform: 'FANDUEL', date: dateOnly(t2), balance: 23500, createdById: boStaff.id },
+    { clientRecordId: client1.id, platform: 'FANDUEL', date: dateOnly(t1), balance: 22100, createdById: boStaff.id },
+    // David Wilson — BetMGM
+    { clientRecordId: client1.id, platform: 'BETMGM', date: dateOnly(t3), balance: 15000, createdById: boStaff.id },
+    { clientRecordId: client1.id, platform: 'BETMGM', date: dateOnly(t2), balance: 15800, createdById: boStaff.id },
+    { clientRecordId: client1.id, platform: 'BETMGM', date: dateOnly(t1), balance: 16200, createdById: boStaff.id },
+    // David Wilson — Bank (bankroll)
+    { clientRecordId: client1.id, platform: 'BANK', date: dateOnly(t3), balance: 8500, createdById: boStaff.id },
+    { clientRecordId: client1.id, platform: 'BANK', date: dateOnly(t2), balance: 8200, createdById: boStaff.id },
+    { clientRecordId: client1.id, platform: 'BANK', date: dateOnly(t1), balance: 7800, createdById: boStaff.id },
+    // David Wilson — PayPal
+    { clientRecordId: client1.id, platform: 'PAYPAL', date: dateOnly(t3), balance: 3200, createdById: boStaff.id },
+    { clientRecordId: client1.id, platform: 'PAYPAL', date: dateOnly(t2), balance: 3200, createdById: boStaff.id },
+    { clientRecordId: client1.id, platform: 'PAYPAL', date: dateOnly(t1), balance: 3000, createdById: boStaff.id },
+
+    // Emily Chen — FanDuel: semi-limited, being drained
+    { clientRecordId: client2.id, platform: 'FANDUEL', date: dateOnly(t3), balance: 18500, createdById: boStaff.id },
+    { clientRecordId: client2.id, platform: 'FANDUEL', date: dateOnly(t2), balance: 17200, createdById: boStaff.id },
+    { clientRecordId: client2.id, platform: 'FANDUEL', date: dateOnly(t1), balance: 15800, createdById: boStaff.id },
+    // Emily Chen — Caesars
+    { clientRecordId: client2.id, platform: 'CAESARS', date: dateOnly(t3), balance: 12000, createdById: boStaff.id },
+    { clientRecordId: client2.id, platform: 'CAESARS', date: dateOnly(t2), balance: 12800, createdById: boStaff.id },
+    { clientRecordId: client2.id, platform: 'CAESARS', date: dateOnly(t1), balance: 13500, createdById: boStaff.id },
+    // Emily Chen — Bank (bankroll)
+    { clientRecordId: client2.id, platform: 'BANK', date: dateOnly(t3), balance: 5500, createdById: boStaff.id },
+    { clientRecordId: client2.id, platform: 'BANK', date: dateOnly(t2), balance: 5300, createdById: boStaff.id },
+    { clientRecordId: client2.id, platform: 'BANK', date: dateOnly(t1), balance: 5100, createdById: boStaff.id },
+    // Emily Chen — EdgeBoost
+    { clientRecordId: client2.id, platform: 'EDGEBOOST', date: dateOnly(t3), balance: 2000, createdById: boStaff.id },
+    { clientRecordId: client2.id, platform: 'EDGEBOOST', date: dateOnly(t2), balance: 2200, createdById: boStaff.id },
+    { clientRecordId: client2.id, platform: 'EDGEBOOST', date: dateOnly(t1), balance: 2400, createdById: boStaff.id },
+  ]
+
+  for (const snap of snapshotData) {
+    await prisma.balanceSnapshot.upsert({
+      where: {
+        clientRecordId_platform_date: {
+          clientRecordId: snap.clientRecordId,
+          platform: snap.platform,
+          date: snap.date,
+        },
+      },
+      update: { balance: snap.balance },
+      create: snap,
+    })
+  }
+  console.log(`  Balance snapshots: ${snapshotData.length} entries for 3 days`)
+
+  // Set account statuses on approved clients
+  await prisma.clientRecord.update({
+    where: { id: client1.id },
+    data: {
+      accountStatuses: {
+        DRAFTKINGS: 'VIP',
+        FANDUEL: 'ACTIVE',
+        BETMGM: 'ACTIVE',
+        BANK: 'ACTIVE',
+        PAYPAL: 'ACTIVE',
+      },
+    },
+  })
+  await prisma.clientRecord.update({
+    where: { id: client2.id },
+    data: {
+      accountStatuses: {
+        FANDUEL: 'SEMI_LIMITED',
+        CAESARS: 'ACTIVE',
+        BANK: 'ACTIVE',
+        EDGEBOOST: 'ACTIVE',
+      },
+    },
+  })
+  console.log('  Account statuses set (Wilson: DK=VIP, Chen: FD=SEMI_LIMITED)')
 
   // ── System Config Defaults ─────────────────────────────────
   // Seed all config defaults so the UI shows current values even before admin changes anything

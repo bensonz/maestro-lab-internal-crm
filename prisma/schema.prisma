@@ -101,6 +101,8 @@ enum EventType {
   FUND_CONFIRMED
   FUND_DISCREPANCY_FLAGGED
   STEP_ADVANCED
+  BALANCE_RECORDED
+  ACCOUNT_STATUS_CHANGED
 }
 
 // --- User -------------------------------------------------------
@@ -159,6 +161,7 @@ model User {
   fundAllocations          FundAllocation[]  @relation("FundRecordedBy")
   fundConfirmations        FundAllocation[]  @relation("FundConfirmedBy")
   configUpdates            SystemConfig[]    @relation("ConfigUpdatedBy")
+  balanceSnapshots         BalanceSnapshot[] @relation("BalanceSnapshots")
 }
 
 // --- Agent Application ------------------------------------------
@@ -278,6 +281,10 @@ model ClientRecord {
   platformData           Json?
   generatedCredentials   Json?
 
+  // Operational account statuses per platform (post-approval, set by backoffice)
+  // Shape: { "DRAFTKINGS": "VIP", "FANDUEL": "SEMI_LIMITED", ... }
+  accountStatuses        Json?
+
   // Step 4: Contract
   contractDocument String?
 
@@ -310,6 +317,7 @@ model ClientRecord {
   todos            Todo[]
   transactions     Transaction[]
   fundAllocations  FundAllocation[]
+  balanceSnapshots BalanceSnapshot[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -479,6 +487,10 @@ model FundAllocation {
   clientRecordId String?
   clientRecord   ClientRecord? @relation(fields: [clientRecordId], references: [id])
 
+  destinationPlatform String?
+  transferMethod      String?
+  expectedArrivalAt   DateTime?
+
   confirmationStatus  String   @default("UNCONFIRMED")
   confirmedAt         DateTime?
   confirmedById       String?
@@ -554,6 +566,27 @@ model EventLog {
   user        User?     @relation(fields: [userId], references: [id])
   metadata    Json?
   createdAt   DateTime  @default(now())
+}
+
+// --- Balance Snapshot --------------------------------------------
+
+model BalanceSnapshot {
+  id              String       @id @default(cuid())
+  clientRecordId  String
+  platform        String       // DRAFTKINGS, FANDUEL, BANK, PAYPAL, etc.
+  date            DateTime     @db.Date
+  balance         Decimal      @db.Decimal(12, 2)
+  screenshotPath  String?
+  notes           String?
+  createdById     String
+  createdAt       DateTime     @default(now())
+
+  clientRecord    ClientRecord @relation(fields: [clientRecordId], references: [id])
+  createdBy       User         @relation("BalanceSnapshots", fields: [createdById], references: [id])
+
+  @@unique([clientRecordId, platform, date])
+  @@index([date])
+  @@index([platform, date])
 }
 
 // --- System Config -----------------------------------------------

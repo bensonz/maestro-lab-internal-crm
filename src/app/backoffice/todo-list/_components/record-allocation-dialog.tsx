@@ -36,6 +36,11 @@ const PLATFORMS = [
   'EDGEBOOST',
 ] as const
 
+const DESTINATIONS = [
+  { value: 'BANK', label: 'Bank' },
+  { value: 'PAYPAL', label: 'PayPal' },
+] as const
+
 interface RecordAllocationDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -49,12 +54,21 @@ export function RecordAllocationDialog({
   const [platform, setPlatform] = useState('')
   const [amount, setAmount] = useState('')
   const [direction, setDirection] = useState('')
+  const [destination, setDestination] = useState('')
+  const [transferMethod, setTransferMethod] = useState('')
   const [notes, setNotes] = useState('')
   const [isPending, startTransition] = useTransition()
+
+  const isWithdrawal = direction === 'WITHDRAWAL'
+  const isBankWire = platform === 'BANK' || destination === 'BANK'
 
   const handleSubmit = () => {
     if (!platform || !amount || !direction) {
       toast.error('Platform, amount, and direction are required.')
+      return
+    }
+    if (isWithdrawal && !destination) {
+      toast.error('Destination is required for withdrawals.')
       return
     }
 
@@ -64,12 +78,16 @@ export function RecordAllocationDialog({
         amount,
         direction,
         notes || undefined,
+        isWithdrawal ? destination : undefined,
+        isWithdrawal && isBankWire ? (transferMethod || 'ACH/Wire') : undefined,
       )
       if (result.success) {
         toast.success('Allocation recorded')
         setPlatform('')
         setAmount('')
         setDirection('')
+        setDestination('')
+        setTransferMethod('')
         setNotes('')
         onOpenChange(false)
         router.refresh()
@@ -77,6 +95,14 @@ export function RecordAllocationDialog({
         toast.error(result.error || 'Failed to record allocation')
       }
     })
+  }
+
+  const handleDirectionChange = (val: string) => {
+    setDirection(val)
+    if (val !== 'WITHDRAWAL') {
+      setDestination('')
+      setTransferMethod('')
+    }
   }
 
   return (
@@ -118,7 +144,7 @@ export function RecordAllocationDialog({
 
           <Field>
             <FieldLabel>Direction</FieldLabel>
-            <Select value={direction} onValueChange={setDirection}>
+            <Select value={direction} onValueChange={handleDirectionChange}>
               <SelectTrigger data-testid="allocation-direction-select">
                 <SelectValue placeholder="Deposit or Withdrawal" />
               </SelectTrigger>
@@ -128,6 +154,41 @@ export function RecordAllocationDialog({
               </SelectContent>
             </Select>
           </Field>
+
+          {isWithdrawal && (
+            <>
+              <Field>
+                <FieldLabel>Destination</FieldLabel>
+                <Select value={destination} onValueChange={setDestination}>
+                  <SelectTrigger data-testid="allocation-destination-select">
+                    <SelectValue placeholder="Where are funds going?" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DESTINATIONS.map((d) => (
+                      <SelectItem key={d.value} value={d.value}>
+                        {d.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              {isBankWire && (
+                <Field>
+                  <FieldLabel>Transfer Method</FieldLabel>
+                  <Select value={transferMethod} onValueChange={setTransferMethod}>
+                    <SelectTrigger data-testid="allocation-method-select">
+                      <SelectValue placeholder="ACH/Wire" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ACH/Wire">ACH/Wire</SelectItem>
+                      <SelectItem value="Zelle">Zelle</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+              )}
+            </>
+          )}
 
           <Field>
             <FieldLabel>Notes (optional)</FieldLabel>
