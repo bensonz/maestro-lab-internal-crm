@@ -271,6 +271,12 @@ export interface FundAllocationEntry {
   confirmedAt: Date | null
   confirmedBy: string | null
   gmailMatched: boolean
+  // Source client info
+  clientName: string | null
+  clientRecordId: string | null
+  // Destination client info
+  destinationClientName: string | null
+  destinationClientRecordId: string | null
   // Clearing fields
   destinationPlatform: string | null
   transferMethod: string | null
@@ -841,4 +847,32 @@ export interface DailyBalancesAccount {
   yesterdayBalance: number | null
   screenshotPath: string | null
   recorded: boolean
+}
+
+// --- Account Statuses Page ---
+
+export interface PlatformStatusEntry {
+  status: string
+  limitDetail?: string // "25%" (FD), "$3K" (MGM), "3/4" (CZR), etc.
+  limitAmount?: number // Dollar amount for DK/ESPN/365/FAN limited
+  limitSports?: string[] // For CZR: ["NBA", "NFL", ...]
+}
+
+export interface AccountStatusesData {
+  rows: AccountStatusRow[]
+  summary: AccountStatusesSummary
+}
+
+export interface AccountStatusRow {
+  clientRecordId: string
+  clientName: string
+  platformStatuses: Record<string, PlatformStatusEntry | null> // all 12 platforms
+  platformBalances: Record<string, number | null> // latest balance per platform
+  registeredPlatforms: string[] // which platforms client has platformData for
+}
+
+export interface AccountStatusesSummary {
+  totalClients: number
+  totalAccounts: number // registered platform slots
+  statusCounts: Record<string, number> // { VIP: 5, ACTIVE: 12, LIMITED: 3, ... }
 }

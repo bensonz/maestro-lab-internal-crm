@@ -18,6 +18,7 @@ import {
   PieChart,
   BarChart3,
   BookOpen,
+  Grid3X3,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -53,6 +54,11 @@ const navItems: NavItem[] = [
     title: 'Client Management',
     href: '/backoffice/client-management',
     icon: Users,
+  },
+  {
+    title: 'Account Status',
+    href: '/backoffice/account-statuses',
+    icon: Grid3X3,
   },
   {
     title: 'Agent Management',

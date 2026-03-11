@@ -111,6 +111,8 @@ export async function getActionHubData() {
       include: {
         recordedBy: { select: { id: true, name: true } },
         confirmedBy: { select: { id: true, name: true } },
+        clientRecord: { select: { id: true, firstName: true, lastName: true } },
+        destinationClientRecord: { select: { id: true, firstName: true, lastName: true } },
       },
       orderBy: { createdAt: 'desc' },
     }),
@@ -181,6 +183,8 @@ export async function getActionHubData() {
       include: {
         recordedBy: { select: { id: true, name: true } },
         confirmedBy: { select: { id: true, name: true } },
+        clientRecord: { select: { id: true, firstName: true, lastName: true } },
+        destinationClientRecord: { select: { id: true, firstName: true, lastName: true } },
       },
       orderBy: { createdAt: 'desc' },
       take: 50,

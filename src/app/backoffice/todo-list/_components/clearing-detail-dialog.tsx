@@ -89,7 +89,10 @@ export function ClearingDetailDialog({
               const style = URGENCY_STYLES[alloc.urgency]
               const destination = alloc.destinationPlatform ?? 'Bank'
               const method = alloc.transferMethod ?? 'Withdrawal'
-              const canConfirm = alloc.confirmationStatus === 'UNCONFIRMED'
+              // Show confirm on UNCONFIRMED and on arrived (Gmail auto-confirmed, needs manual verification)
+              const canConfirm = alloc.confirmationStatus === 'UNCONFIRMED' || alloc.urgency === 'arrived'
+              const sourceLabel = alloc.clientName ? `${alloc.clientName}'s ` : ''
+              const destLabel = alloc.destinationClientName ? `${alloc.destinationClientName}'s ` : ''
 
               return (
                 <div
@@ -100,17 +103,17 @@ export function ClearingDetailDialog({
                   <div className="flex items-start gap-4">
                     {/* Transaction flow */}
                     <div className="min-w-0 flex-1">
-                      {/* From → To with method */}
+                      {/* From → To with method and client names */}
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-semibold text-foreground">
-                          {alloc.platform}
+                          {sourceLabel}{alloc.platform}
                         </span>
                         <div className="flex flex-col items-center">
                           <span className="text-[10px] text-muted-foreground">{method}</span>
                           <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
                         </div>
                         <span className="text-sm font-semibold text-foreground">
-                          {destination}
+                          {destLabel}{destination}
                         </span>
                       </div>
 

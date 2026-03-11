@@ -316,8 +316,9 @@ model ClientRecord {
   phoneAssignments PhoneAssignment[]
   todos            Todo[]
   transactions     Transaction[]
-  fundAllocations  FundAllocation[]
-  balanceSnapshots BalanceSnapshot[]
+  fundAllocationsSource      FundAllocation[] @relation("FundSource")
+  fundAllocationsDestination FundAllocation[] @relation("FundDestination")
+  balanceSnapshots           BalanceSnapshot[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -485,7 +486,10 @@ model FundAllocation {
   recordedBy   User   @relation("FundRecordedBy", fields: [recordedById], references: [id])
 
   clientRecordId String?
-  clientRecord   ClientRecord? @relation(fields: [clientRecordId], references: [id])
+  clientRecord   ClientRecord? @relation("FundSource", fields: [clientRecordId], references: [id])
+
+  destinationClientRecordId String?
+  destinationClientRecord   ClientRecord? @relation("FundDestination", fields: [destinationClientRecordId], references: [id])
 
   destinationPlatform String?
   transferMethod      String?

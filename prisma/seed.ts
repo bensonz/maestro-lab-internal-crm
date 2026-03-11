@@ -1317,14 +1317,22 @@ async function main() {
   // Mix of UNCONFIRMED, CONFIRMED, and DISCREPANCY for testing
 
   await prisma.fundAllocation.deleteMany({})
+
+  // Use current date for realistic clearing status display
+  const seedNow = new Date()
+  const hoursAgo = (h: number) => new Date(seedNow.getTime() - h * 60 * 60 * 1000)
+  const hoursFromNow = (h: number) => new Date(seedNow.getTime() + h * 60 * 60 * 1000)
+
   await prisma.fundAllocation.createMany({
     data: [
+      // ── Deposits (instant, confirmed) ──
       {
         amount: 500.00,
         platform: 'DraftKings',
         direction: 'DEPOSIT',
         notes: 'Initial fund deposit for David Wilson accounts',
         recordedById: boStaff.id,
+        clientRecordId: client1.id,
         confirmationStatus: 'CONFIRMED',
         confirmedAt: new Date('2026-02-11T10:00:00'),
         confirmedById: admin.id,
@@ -1335,8 +1343,9 @@ async function main() {
         amount: 300.00,
         platform: 'FanDuel',
         direction: 'DEPOSIT',
-        notes: 'FanDuel deposit for David Wilson',
+        notes: 'FanDuel deposit for Emily Chen',
         recordedById: boStaff.id,
+        clientRecordId: client2.id,
         confirmationStatus: 'CONFIRMED',
         confirmedAt: new Date('2026-02-13T14:00:00'),
         confirmedById: boStaff.id,
@@ -1344,50 +1353,142 @@ async function main() {
         createdAt: new Date('2026-02-13T09:00:00'),
       },
       {
-        amount: 200.00,
-        platform: 'PayPal',
-        direction: 'DEPOSIT',
-        notes: 'PayPal transfer for David Wilson',
-        recordedById: boStaff.id,
-        confirmationStatus: 'DISCREPANCY',
-        confirmedAt: new Date('2026-02-15T16:00:00'),
-        confirmedById: admin.id,
-        confirmedAmount: 185.50,
-        discrepancyNotes: 'PayPal fee deducted $14.50',
-        createdAt: new Date('2026-02-15T08:00:00'),
-      },
-      {
-        amount: 150.00,
-        platform: 'DraftKings',
-        direction: 'WITHDRAWAL',
-        notes: 'DraftKings withdrawal for David Wilson',
-        recordedById: boStaff.id,
-        confirmationStatus: 'UNCONFIRMED',
-        destinationPlatform: 'BANK',
-        expectedArrivalAt: new Date('2026-02-21T10:00:00'),
-        createdAt: new Date('2026-02-20T10:00:00'),
-      },
-      {
         amount: 400.00,
         platform: 'BetMGM',
         direction: 'DEPOSIT',
         notes: 'BetMGM deposit for Emily Chen accounts',
         recordedById: boStaff.id,
+        clientRecordId: client2.id,
         confirmationStatus: 'UNCONFIRMED',
         createdAt: new Date('2026-02-25T09:00:00'),
       },
+
+      // ── Withdrawals (clearing status — diverse cross-client scenarios) ──
+
+      // 1. Wilson's DraftKings → Chen's PayPal — STUCK (5 days, past expected)
       {
-        amount: 250.00,
-        platform: 'Online Banking',
-        direction: 'DEPOSIT',
-        notes: 'Bank transfer for Emily Chen',
+        amount: 1200.00,
+        platform: 'DraftKings',
+        direction: 'WITHDRAWAL',
+        notes: 'Sportsbook cashout from Wilson to fund Chen PayPal',
         recordedById: boStaff.id,
+        clientRecordId: client1.id,
+        destinationClientRecordId: client2.id,
         confirmationStatus: 'UNCONFIRMED',
-        createdAt: new Date('2026-02-27T11:00:00'),
+        destinationPlatform: 'PayPal',
+        transferMethod: 'ACH/Wire',
+        expectedArrivalAt: hoursAgo(96),
+        createdAt: hoursAgo(120),
+      },
+
+      // 2. Chen's FanDuel → Wilson's PayPal — IN-TRANSIT (~18h remaining)
+      {
+        amount: 800.00,
+        platform: 'FanDuel',
+        direction: 'WITHDRAWAL',
+        notes: 'FanDuel withdrawal from Chen to Wilson PayPal',
+        recordedById: boStaff.id,
+        clientRecordId: client2.id,
+        destinationClientRecordId: client1.id,
+        confirmationStatus: 'UNCONFIRMED',
+        destinationPlatform: 'PayPal',
+        transferMethod: 'ACH/Wire',
+        expectedArrivalAt: hoursFromNow(18),
+        createdAt: hoursAgo(6),
+      },
+
+      // 3. Wilson's Caesars → Chen's PayPal — EXPECTED SOON (~1h)
+      {
+        amount: 500.00,
+        platform: 'Caesars',
+        direction: 'WITHDRAWAL',
+        notes: 'Caesars cashout from Wilson to Chen PayPal',
+        recordedById: boStaff.id,
+        clientRecordId: client1.id,
+        destinationClientRecordId: client2.id,
+        confirmationStatus: 'UNCONFIRMED',
+        destinationPlatform: 'PayPal',
+        transferMethod: 'ACH/Wire',
+        expectedArrivalAt: hoursFromNow(1),
+        createdAt: hoursAgo(23),
+      },
+
+      // 4. Wilson's PayPal → Chen's PayPal — ARRIVED (Gmail auto-confirmed peer transfer)
+      {
+        amount: 350.00,
+        platform: 'PayPal',
+        direction: 'WITHDRAWAL',
+        notes: 'PayPal peer transfer from Wilson to Chen',
+        recordedById: boStaff.id,
+        clientRecordId: client1.id,
+        destinationClientRecordId: client2.id,
+        confirmationStatus: 'CONFIRMED',
+        confirmedAt: hoursAgo(2),
+        confirmedById: null, // Gmail auto-match
+        confirmedAmount: 350.00,
+        destinationPlatform: 'PayPal',
+        transferMethod: 'Zelle',
+        expectedArrivalAt: hoursAgo(1),
+        createdAt: hoursAgo(48),
+      },
+
+      // 5. Chen's BetMGM → Wilson's PayPal — DISCREPANCY (amount mismatch)
+      {
+        amount: 600.00,
+        platform: 'BetMGM',
+        direction: 'WITHDRAWAL',
+        notes: 'BetMGM withdrawal from Chen to Wilson — amount mismatch',
+        recordedById: boStaff.id,
+        clientRecordId: client2.id,
+        destinationClientRecordId: client1.id,
+        confirmationStatus: 'DISCREPANCY',
+        confirmedAt: hoursAgo(3),
+        confirmedById: admin.id,
+        confirmedAmount: 575.00,
+        discrepancyNotes: 'Platform processing fee deducted $25',
+        destinationPlatform: 'PayPal',
+        transferMethod: 'ACH/Wire',
+        expectedArrivalAt: hoursAgo(10),
+        createdAt: hoursAgo(30),
+      },
+
+      // 6. Chen's EdgeBoost → Wilson's PayPal — IN-TRANSIT (12h old, 2-day clearing)
+      {
+        amount: 450.00,
+        platform: 'EdgeBoost',
+        direction: 'WITHDRAWAL',
+        notes: 'EdgeBoost withdrawal from Chen to Wilson PayPal',
+        recordedById: boStaff.id,
+        clientRecordId: client2.id,
+        destinationClientRecordId: client1.id,
+        confirmationStatus: 'UNCONFIRMED',
+        destinationPlatform: 'PayPal',
+        transferMethod: 'ACH/Wire',
+        expectedArrivalAt: hoursFromNow(60),
+        createdAt: hoursAgo(12),
+      },
+
+      // 7. Wilson's DraftKings → Chen's PayPal — ARRIVED (Gmail auto, recent)
+      {
+        amount: 275.00,
+        platform: 'DraftKings',
+        direction: 'WITHDRAWAL',
+        notes: 'DraftKings cashout from Wilson to Chen PayPal',
+        recordedById: boStaff.id,
+        clientRecordId: client1.id,
+        destinationClientRecordId: client2.id,
+        confirmationStatus: 'CONFIRMED',
+        confirmedAt: hoursAgo(1),
+        confirmedById: null, // Gmail auto-match
+        confirmedAmount: 275.00,
+        destinationPlatform: 'PayPal',
+        transferMethod: 'ACH/Wire',
+        expectedArrivalAt: hoursAgo(0.5),
+        createdAt: hoursAgo(26),
       },
     ],
   })
-  console.log('  Created sample fund allocations (2 confirmed, 1 discrepancy, 3 unconfirmed)')
+  console.log('  Created sample fund allocations (2 confirmed deposits, 1 unconfirmed deposit, 7 cross-client withdrawals with diverse clearing statuses)')
 
   // ── Event Logs ─────────────────────────────────────────
   // General system events

@@ -21,6 +21,7 @@ export const PLATFORM_INFO: Record<
   FANATICS: { name: 'Fanatics', abbrev: 'FAN', category: 'sports', logoPath: '/platforms/fanatics-logo.png' },
   BALLYBET: { name: 'Bally Bet', abbrev: 'BB', category: 'sports', logoPath: '/platforms/ballybet-logo.svg' },
   BETRIVERS: { name: 'BetRivers', abbrev: 'BR', category: 'sports', logoPath: '/platforms/betrivers-logo.svg' },
+  ESPNBET: { name: 'ESPN BET', abbrev: 'ESPN', category: 'sports', logoPath: null },
   BET365: { name: 'Bet365', abbrev: '365', category: 'sports', logoPath: null },
   // Financial (3)
   BANK: { name: 'Online Banking', abbrev: 'BNK', category: 'financial', logoPath: null },
@@ -37,6 +38,7 @@ export const ALL_PLATFORMS: PlatformType[] = [
   'FANATICS',
   'BALLYBET',
   'BETRIVERS',
+  'ESPNBET',
   'BET365',
   'PAYPAL',
   'BANK',

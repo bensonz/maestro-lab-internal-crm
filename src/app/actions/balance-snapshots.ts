@@ -76,13 +76,17 @@ export async function recordBalanceSnapshot(input: RecordSnapshotInput) {
 
 // ── Update account status per platform ──────────────────────
 
+import { isValidStatusForPlatform } from '@/lib/account-status-config'
+import type { PlatformStatusEntry } from '@/types/backend-types'
+
 interface UpdateStatusInput {
   clientRecordId: string
   platform: string
-  status: string // VIP, SEMI_LIMITED, ACTIVE, LIMITED, DEAD
+  status: string
+  limitDetail?: string // "25%" (FD), "$3K" (MGM), "3/4" (CZR)
+  limitAmount?: number // Dollar amount for DK/ESPN/365/FAN limited
+  limitSports?: string[] // For CZR: ["NBA", "NFL", ...]
 }
-
-const VALID_STATUSES = ['VIP', 'SEMI_LIMITED', 'ACTIVE', 'LIMITED', 'DEAD']
 
 export async function updateAccountStatus(input: UpdateStatusInput) {
   const session = await auth()
@@ -93,8 +97,8 @@ export async function updateAccountStatus(input: UpdateStatusInput) {
     return { success: false, error: 'Insufficient permissions' }
   }
 
-  if (!VALID_STATUSES.includes(input.status)) {
-    return { success: false, error: `Invalid status: ${input.status}` }
+  if (!isValidStatusForPlatform(input.platform, input.status)) {
+    return { success: false, error: `Invalid status "${input.status}" for platform ${input.platform}` }
   }
 
   try {
@@ -105,30 +109,47 @@ export async function updateAccountStatus(input: UpdateStatusInput) {
     })
     if (!record) return { success: false, error: 'Client record not found' }
 
-    const current = (record.accountStatuses as Record<string, string>) ?? {}
-    const previous = current[input.platform] ?? 'ACTIVE'
-    const updated = { ...current, [input.platform]: input.status }
+    const currentRaw = (record.accountStatuses as Record<string, unknown>) ?? {}
+
+    // Read previous status (handle both old string and new object format)
+    const prevEntry = currentRaw[input.platform]
+    const previousStatus =
+      typeof prevEntry === 'string'
+        ? prevEntry
+        : (prevEntry as PlatformStatusEntry | undefined)?.status ?? '(none)'
+
+    // Build new entry as PlatformStatusEntry object
+    const newEntry: PlatformStatusEntry = { status: input.status }
+    if (input.limitDetail) newEntry.limitDetail = input.limitDetail
+    if (input.limitAmount != null) newEntry.limitAmount = input.limitAmount
+    if (input.limitSports?.length) newEntry.limitSports = input.limitSports
+
+    const updated = { ...currentRaw, [input.platform]: newEntry } as Record<string, unknown>
 
     await prisma.clientRecord.update({
       where: { id: input.clientRecordId },
-      data: { accountStatuses: updated },
+      data: { accountStatuses: updated as object },
     })
 
     await prisma.eventLog.create({
       data: {
         eventType: 'ACCOUNT_STATUS_CHANGED',
-        description: `Account status changed: ${input.platform} ${previous} → ${input.status}`,
+        description: `Account status changed: ${input.platform} ${previousStatus} → ${input.status}${input.limitDetail ? ` (${input.limitDetail})` : ''}`,
         userId: session.user.id as string,
         metadata: {
           clientRecordId: input.clientRecordId,
           platform: input.platform,
-          previousStatus: previous,
+          previousStatus,
           newStatus: input.status,
+          ...(input.limitDetail && { limitDetail: input.limitDetail }),
+          ...(input.limitAmount != null && { limitAmount: input.limitAmount }),
+          ...(input.limitSports?.length && { limitSports: input.limitSports }),
         },
       },
     })
 
     revalidatePath('/backoffice/client-management')
+    revalidatePath('/backoffice/account-statuses')
     revalidatePath('/backoffice/todo-list')
     return { success: true }
   } catch (error) {

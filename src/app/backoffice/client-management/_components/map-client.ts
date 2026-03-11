@@ -23,6 +23,14 @@ const DB_STATUS_TO_FINANCE_VIEW: Record<string, FinancePlatformStatus> = {
   DEAD: 'rejected',
 }
 
+/** Extract status string from accountStatuses entry (handles both old string and new object format) */
+function extractStatusString(raw: unknown): string | null {
+  if (!raw) return null
+  if (typeof raw === 'string') return raw
+  if (typeof raw === 'object' && raw !== null && 'status' in raw) return (raw as { status: string }).status
+  return null
+}
+
 // ============================================================================
 // Server-to-view-model mapping (extracted for reuse)
 // ============================================================================
@@ -227,7 +235,14 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
   const creds = serverClient.generatedCredentials
 
   // Read operational account statuses (VIP, SEMI_LIMITED, etc.)
-  const acctStatuses = serverClient.accountStatuses
+  // Handle both old string format and new PlatformStatusEntry object format
+  const rawAcctStatuses = serverClient.accountStatuses as Record<string, unknown> | null
+  const acctStatuses: Record<string, string> | null = rawAcctStatuses
+    ? Object.fromEntries(
+        Object.entries(rawAcctStatuses).map(([k, v]) => [k, extractStatusString(v) ?? ''])
+          .filter(([, v]) => v !== ''),
+      )
+    : null
 
   // Build finance platforms from real data
   const paypalDetail = findPlatformDetail(serverClient.platformDetails, 'PAYPAL')

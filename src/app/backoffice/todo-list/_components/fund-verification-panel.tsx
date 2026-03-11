@@ -95,6 +95,8 @@ function ClearingRow({ alloc }: { alloc: FundAllocationEntry }) {
   const style = URGENCY_STYLES[alloc.urgency]
   const UrgencyIcon = style.icon
   const destination = alloc.destinationPlatform ?? 'Bank'
+  const sourceLabel = alloc.clientName ? `${alloc.clientName}'s ` : ''
+  const destLabel = alloc.destinationClientName ? `${alloc.destinationClientName}'s ` : ''
 
   return (
     <div
@@ -104,9 +106,9 @@ function ClearingRow({ alloc }: { alloc: FundAllocationEntry }) {
       )}
       data-testid={`clearing-row-${alloc.id}`}
     >
-      {/* From → To */}
+      {/* Source Client's Platform → Dest Client's Platform */}
       <span className="min-w-0 flex-1 truncate text-sm text-foreground">
-        {alloc.platform} <span className="text-muted-foreground">→</span> {destination}
+        {sourceLabel}{alloc.platform} <span className="text-muted-foreground">→</span> {destLabel}{destination}
       </span>
 
       {/* Amount */}

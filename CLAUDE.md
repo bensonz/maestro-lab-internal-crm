@@ -38,7 +38,7 @@ CRM for client onboarding across sports betting platforms. Two portals:
 
 - **User** — staff accounts with hierarchy (supervisorId), star level/tier, leadershipTier (NONE/ED/SED/MD/CMO)
 - **AgentApplication** — PENDING → APPROVED/REJECTED. Stores idDocument + addressDocument
-- **ClientRecord** — unified model: DRAFT → SUBMITTED → APPROVED → REJECTED → CLOSED. 4-step intake form data, risk flags, platformData (Json), generatedCredentials (Json), accountStatuses (Json — operational platform statuses: VIP/SEMI_LIMITED/ACTIVE/LIMITED/DEAD), document paths, `approvedAt` timestamp. Links to closer (User). Replaces the old Client + ClientDraft dual-model pattern.
+- **ClientRecord** — unified model: DRAFT → SUBMITTED → APPROVED → REJECTED → CLOSED. 4-step intake form data, risk flags, platformData (Json), generatedCredentials (Json), accountStatuses (Json — rich operational platform statuses as `PlatformStatusEntry` objects with status/limitDetail/limitAmount/limitSports), document paths, `approvedAt` timestamp. Links to closer (User). Replaces the old Client + ClientDraft dual-model pattern.
 - **BonusPool** — $400 per approved client. `clientRecordId` FK. Has many BonusAllocation[]
 - **BonusAllocation** — DIRECT / STAR_SLICE / BACKFILL. Status: PENDING → PAID
 - **PromotionLog** — immutable star level + leadership tier change audit
@@ -69,7 +69,7 @@ CRM for client onboarding across sports betting platforms. Two portals:
 
 **Types:** `@/types` for Prisma enums. `@/types/backend-types` for complex UI types.
 
-**UI:** shadcn/ui (new-york) in `@/components/ui/`. Icons: `lucide-react`. Platforms: `@/lib/platforms` (11 platforms; financial order: PayPal, Online Banking, EdgeBoost).
+**UI:** shadcn/ui (new-york) in `@/components/ui/`. Icons: `lucide-react`. Platforms: `@/lib/platforms` (12 platforms: 9 sportsbook + 3 financial; financial order: PayPal, Online Banking, EdgeBoost).
 
 **Uploads:** `@/components/upload-dropzone` → `UploadDropzone` + `ScreenshotThumbnail` (size: `'sm'` 32px, `'md'` 64px).
 
@@ -86,7 +86,7 @@ CRM for client onboarding across sports betting platforms. Two portals:
 ## 5. Current State (Phase 2)
 
 ### Live (real DB)
-Agent Application + review, Agent Directory (table/tree, HoverCard), Login Management (CRUD), Commission system ($400 pool, star distribution), Client records (CRUD, auth-guarded, unified ClientRecord model), Phone assignments (assign/return/re-issue), Agent Dashboard (earnings/star), Agent Earnings (allocations), Agent Clients, Agent Detail (inline-edit + audit), New Client (4-step intake), Commissions page, Search API, NextAuth v5, **Backoffice Operational Cockpit** (signal bar, fund war room with 8 sportsbook platform cards + bank $250 alert + EdgeBoost tracker, agent activity with ranking/metrics/low-success, onboarding bottleneck with step pipeline/devices/unused accounts — all real DB, information-only, drill-down), **Backoffice Action Hub** (daily rundown, overdue devices, pending todos, fund allocations, activity feed), **FundAllocation** (record/track/confirm allocations, clientRecordId linkage), **Auto-todo on client approval** (Collect Debit Card Information, 7-day due), **Gmail Integration** (auto-detect emails, create todos, match funds), **Fund Confirmation** (UNCONFIRMED/CONFIRMED/DISCREPANCY workflow), **STEP_ADVANCED event logging** (auto-logged on step changes and device assignment), **System Config** (dynamic key-value settings, 25 values across 4 categories, admin-only UI at Rules Registry > System Config tab, getConfig() with 60s cache, wired to cockpit/phone-assignments/client-records/gmail), **Trader Report Page 2** (P&L from BalanceSnapshot T-1/T-2, active accounts per platform with VIP/Semi-Limited/Active/Limited/Dead status, sportsbook + financial bankroll in same table), **Daily Balance Recording** (`/backoffice/daily-balances` — per-platform balance entry with yesterday reference, progress tracking, screenshot support), **Account Status Management** (operational VIP/Semi-Limited/Active/Limited/Dead statuses on client management platform section, persisted to `accountStatuses` Json field via `updateAccountStatus()` server action)
+Agent Application + review, Agent Directory (table/tree, HoverCard), Login Management (CRUD), Commission system ($400 pool, star distribution), Client records (CRUD, auth-guarded, unified ClientRecord model), Phone assignments (assign/return/re-issue), Agent Dashboard (earnings/star), Agent Earnings (allocations), Agent Clients, Agent Detail (inline-edit + audit), New Client (4-step intake), Commissions page, Search API, NextAuth v5, **Backoffice Operational Cockpit** (signal bar, fund war room with 8 sportsbook platform cards + bank $250 alert + EdgeBoost tracker, agent activity with ranking/metrics/low-success, onboarding bottleneck with step pipeline/devices/unused accounts — all real DB, information-only, drill-down), **Backoffice Action Hub** (daily rundown, overdue devices, pending todos, fund allocations, activity feed), **FundAllocation** (record/track/confirm allocations, clientRecordId linkage), **Auto-todo on client approval** (Collect Debit Card Information, 7-day due), **Gmail Integration** (auto-detect emails, create todos, match funds), **Fund Confirmation** (UNCONFIRMED/CONFIRMED/DISCREPANCY workflow), **STEP_ADVANCED event logging** (auto-logged on step changes and device assignment), **System Config** (dynamic key-value settings, 25 values across 4 categories, admin-only UI at Rules Registry > System Config tab, getConfig() with 60s cache, wired to cockpit/phone-assignments/client-records/gmail), **Trader Report Page 2** (P&L from BalanceSnapshot T-1/T-2, active accounts per platform with VIP/Semi-Limited/Active/Limited/Dead status, sportsbook + financial bankroll in same table), **Daily Balance Recording** (`/backoffice/daily-balances` — per-platform balance entry with yesterday reference, progress tracking, screenshot support), **Account Status Management** (operational statuses on client management platform section, persisted to `accountStatuses` Json field via `updateAccountStatus()` server action), **Account Statuses Page** (`/backoffice/account-statuses` — matrix view of all approved clients × 12 platforms, finance LEFT/sports RIGHT of sticky client name, 16 sportsbook statuses with platform-specific Limited subtypes, financial platform-specific statuses, $Fin/$Sport aggregate columns, balance amounts per cell, search/status/amount filters, inline edit via Select dropdowns)
 
 ### Partially Wired (DB + mock fallbacks)
 - Agent dashboard — earnings real, pipeline mock
@@ -146,7 +146,7 @@ Negative scoring from 0: Missing IDs (+10 if none, -10 each), ID expiry (<75d: -
 **Steps:**
 1. **Pre-Qual** — ID upload (OCR auto-fill), Gmail (deterministic suggestion via `stableHash(name+DOB)`), BetMGM verification (screenshots + OCR). Different-address flow with checkbox
 2. **Background** — SSN/citizenship/missing IDs/criminal, banks/de-banked/PayPal/sportsbook history, demographics + 4 risk assessment questions. **Device Reservation Gate:** "Request for Device" saves reservation, agent blocked on Step 2 until backoffice assigns device (auto-advances to Step 3)
-3. **Platforms** — Device Info Banner (phone, Gmail, countdown) + 11 platform registrations (3 financial + 8 sportsbook). Bank card: special 2-row layout with OCR auto-detect, PIN default 2580
+3. **Platforms** — Device Info Banner (phone, Gmail, countdown) + 12 platform registrations (3 financial + 9 sportsbook incl. ESPN BET). Bank card: special 2-row layout with OCR auto-detect, PIN default 2580
 4. **Contract** — document upload + submission checklist
 
 **Auto-save:** 500ms debounced. `step` in DB = highest step ever reached (via `highestStepRef`). `formDataRef` pattern avoids stale closures.
@@ -326,7 +326,15 @@ Rules Registry page (`/backoffice/rules-registry`) now has tabs: "Rules" (existi
 Daily balance recordings per client per platform, stored in `BalanceSnapshot` model. Used for P&L calculations and audit trail. Unique constraint on `[clientRecordId, platform, date]` allows upsert workflow.
 
 ### Account Statuses
-Operational platform statuses stored as `accountStatuses` Json on `ClientRecord`: `{ "DRAFTKINGS": "VIP", "FANDUEL": "SEMI_LIMITED" }`. Separate from intake `platformData` status — these are set post-approval by backoffice. Values: `VIP`, `SEMI_LIMITED`, `ACTIVE`, `LIMITED`, `DEAD`.
+Operational platform statuses stored as `accountStatuses` Json on `ClientRecord`. New format stores rich `PlatformStatusEntry` objects: `{ "DRAFTKINGS": { "status": "VIP" }, "FANDUEL": { "status": "LIMITED", "limitDetail": "25%" } }`. Backward-compatible: read code handles both old string and new object formats. Set post-approval by backoffice.
+
+**Sportsbook statuses (16):** Sign Up!, Pipeline, Verify Needed, Verify Sent, Active, VIP, Limited (with platform-specific subtypes), WITHDRAWING, WD Testing, WD - w/open bet, Withdrew, WD w/o Limited, Closed - w/bal, Closed - Refunded, Closed aft 2nd Att., Self-Use.
+
+**Platform-specific Limited subtypes:** BR/BB: percentage (10-75%), DK/ESPN/365/FAN: dollar amount, MGM: tier ($3K/$1K/$100), FD: percentage (5-75%), CZR: by sports (1/4-all + NBA/NFL/NCAAB/NCAAF checkboxes).
+
+**Financial statuses:** Bank (Active, Closed by client, De-banked, De-banked w/bal), EdgeBoost (Active, Rejected), PayPal (Active, Perm. Limited, Verify Needed, Perm. Limited w/bal).
+
+**Status config:** `src/lib/account-status-config.ts` — centralized status definitions, colors, platform-specific Limited configs, validation helpers.
 
 ### Trader Report Page 2
 Pre-Trading Daily Brief dialog (opened from Action Hub header "Generate Today's Report" button) now has 2 pages:
@@ -344,9 +352,12 @@ Pre-Trading Daily Brief dialog (opened from Action Hub header "Generate Today's 
 - Saves via `recordBalanceSnapshot()` server action with upsert
 
 ### Client Management Status Wiring
-Platform section in client detail view now uses real `updateAccountStatus()` instead of mock. Sportsbook dropdown options: VIP, Semi-Limited, Active, Limited, Dead. Status colors: VIP=amber, Semi-Limited=orange, Active=green, Limited=warning, Dead=red.
+Platform section in client detail view uses real `updateAccountStatus()`. Reads both old string and new `PlatformStatusEntry` object formats from `accountStatuses` Json.
 
-**Key files**: `src/app/actions/balance-snapshots.ts`, `src/backend/data/action-hub.ts` (`getTraderReportData`, `getDailyBalancesData`), `src/app/backoffice/todo-list/_components/trader-report-dialog.tsx`, `src/app/backoffice/daily-balances/`, `src/app/backoffice/client-management/_components/platform-section.tsx`, `src/app/backoffice/client-management/_components/map-client.ts`
+### Account Statuses Page
+`/backoffice/account-statuses` — full matrix view of all approved clients across all 12 platforms (9 sportsbook + 3 financial). Finance columns (Bank → EB → PayPal) LEFT of sticky client name, sportsbook columns RIGHT. $Fin and $Sport aggregate balance columns flank client name. Each cell shows status dropdown + balance amount. Filters: search, status (grouped), amount (with/without). Status changes via optimistic updates with `useTransition`.
+
+**Key files**: `src/app/actions/balance-snapshots.ts`, `src/backend/data/account-statuses.ts`, `src/backend/data/action-hub.ts`, `src/lib/account-status-config.ts`, `src/app/backoffice/account-statuses/`, `src/app/backoffice/daily-balances/`, `src/app/backoffice/client-management/_components/platform-section.tsx`, `src/app/backoffice/client-management/_components/map-client.ts`
 
 ---
 

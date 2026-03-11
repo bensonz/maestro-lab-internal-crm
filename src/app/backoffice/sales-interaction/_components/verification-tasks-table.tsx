@@ -184,6 +184,10 @@ function getPlatformBadgeConfig(platformType: PlatformType): {
       label: 'BetRivers',
       className: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
     },
+    [PlatformType.ESPNBET]: {
+      label: 'ESPN BET',
+      className: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
+    },
     [PlatformType.BET365]: {
       label: 'Bet365',
       className: 'bg-lime-500/20 text-lime-400 border-lime-500/30',
