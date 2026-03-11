@@ -1,8 +1,8 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search } from 'lucide-react'
+import { Filter, Search, Settings2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
 import {
@@ -14,7 +14,7 @@ import {
   SelectTrigger,
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
-import { ALL_PLATFORMS, PLATFORM_INFO, SPORTS_PLATFORMS, FINANCIAL_PLATFORMS } from '@/lib/platforms'
+import { PLATFORM_INFO, SPORTS_PLATFORMS } from '@/lib/platforms'
 import {
   getStatusOptionsForPlatform,
   findStatusOption,
@@ -30,47 +30,21 @@ import type { AccountStatusesData, AccountStatusRow, PlatformStatusEntry } from 
 
 // ── Finance platform column order: Bank → EB → PayPal ──
 const FINANCE_ORDER = ['BANK', 'EDGEBOOST', 'PAYPAL'] as const
-
-// ── Status filter options ──
-const STATUS_FILTERS = [
-  { value: 'all', label: 'All' },
-  { value: 'ACTIVE', label: 'Active' },
-  { value: 'VIP', label: 'VIP' },
-  { value: 'LIMITED', label: 'Limited' },
-  { value: 'PIPELINE', label: 'Pipeline' },
-  { value: 'SIGN_UP', label: 'Sign Up!' },
-  { value: 'WITHDREW', label: 'WD' },
-  { value: 'WITHDRAWING', label: 'WITHDRAWING' },
-  { value: 'needs-attention', label: 'Needs Attention' },
-  { value: 'closed', label: 'Closed' },
-  { value: 'unset', label: 'Unset' },
-]
-
-const AMOUNT_FILTERS = [
-  { value: 'all', label: 'All' },
-  { value: 'with', label: 'With Amount' },
-  { value: 'without', label: 'W/O Amount' },
-]
+const ALL_COLUMN_PLATFORMS = [...FINANCE_ORDER, ...SPORTS_PLATFORMS]
 
 // ── Helper: build display label from PlatformStatusEntry ──
 function statusDisplayLabel(entry: PlatformStatusEntry | null, platform: string): string {
-  if (!entry) return '\u2014'
+  if (!entry) return '—'
   const opt = findStatusOption(platform, entry.status)
   const label = opt?.label ?? entry.status
   if (entry.status === 'LIMITED') {
     if (entry.limitDetail) {
-      // MGM tiers already contain "Limited" (e.g. "$3K Limited") — don't duplicate
       return entry.limitDetail.toLowerCase().includes('limited') ? entry.limitDetail : `${entry.limitDetail} Limited`
     }
     if (entry.limitAmount != null) return `$${entry.limitAmount.toLocaleString()} Limited`
     return label
   }
   return label
-}
-
-// ── Helper: build display for active detail ──
-function activeDetailLabel(entry: PlatformStatusEntry | null): string {
-  return entry?.limitDetail ?? ''
 }
 
 // ── Helper: get styling for a status ──
@@ -81,31 +55,27 @@ function statusColors(entry: PlatformStatusEntry | null, platform: string): { bg
   return { bg: 'bg-muted', text: 'text-muted-foreground' }
 }
 
-// ── Filter logic ──
-function matchesStatusFilter(row: AccountStatusRow, filter: string): boolean {
-  if (filter === 'all') return true
-  if (filter === 'needs-attention') {
-    return row.registeredPlatforms.some((p) => {
-      const s = row.platformStatuses[p]?.status
-      return s === 'LIMITED' || s === 'WITHDREW' || s === 'WITHDRAWING' || s === 'CLOSED_BAL'
-    })
-  }
-  if (filter === 'closed') {
-    return row.registeredPlatforms.some((p) => {
-      const s = row.platformStatuses[p]?.status
-      return s === 'CLOSED_BAL' || s === 'CLOSED_REFUNDED' || s === 'CLOSED_2ND'
-    })
-  }
-  if (filter === 'unset') {
-    return row.registeredPlatforms.some((p) => !row.platformStatuses[p])
-  }
-  return row.registeredPlatforms.some((p) => row.platformStatuses[p]?.status === filter)
+// ── Helper: get fill bg class for balance tab cell ──
+// Uses the status config's own `color` field so Tailwind can scan it
+function statusFillColor(entry: PlatformStatusEntry | null, platform: string): string {
+  if (!entry) return 'bg-muted/20'
+  const opt = findStatusOption(platform, entry.status)
+  if (!opt) return 'bg-muted/20'
+  return opt.color // e.g. 'bg-red-500/20', 'bg-green-400/20' — already in Tailwind scan
 }
 
-function matchesAmountFilter(row: AccountStatusRow, filter: string): boolean {
-  if (filter === 'all') return true
-  const hasAny = Object.values(row.platformBalances).some((b) => b != null && b > 0)
-  return filter === 'with' ? hasAny : !hasAny
+// ── Filter logic ──
+function matchesColumnFilters(
+  row: AccountStatusRow,
+  columnFilters: Record<string, string>,
+  getEffective: (row: AccountStatusRow, platform: string) => PlatformStatusEntry | null,
+): boolean {
+  for (const [platform, filterValue] of Object.entries(columnFilters)) {
+    if (filterValue === 'all') continue
+    const entry = getEffective(row, platform)
+    if (entry?.status !== filterValue) return false
+  }
+  return true
 }
 
 // ── Aggregate balance helper ──
@@ -119,8 +89,13 @@ function aggregateBalance(row: AccountStatusRow, platforms: readonly string[]): 
 }
 
 function formatBalance(amount: number | null): string {
-  if (amount == null) return '\u2014'
+  if (amount == null) return '—'
   if (amount >= 1000) return `$${(amount / 1000).toFixed(1)}K`
+  return `$${amount.toLocaleString()}`
+}
+
+function formatCellBalance(amount: number | null): string {
+  if (amount == null || amount === 0) return '—'
   return `$${amount.toLocaleString()}`
 }
 
@@ -146,22 +121,13 @@ export function AccountStatusesView({ data }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('all')
-  const [amountFilter, setAmountFilter] = useState('all')
+  const [activeTab, setActiveTab] = useState<'status' | 'balances'>('status')
+
+  // Per-column filters: platform → status value
+  const [columnFilters, setColumnFilters] = useState<Record<string, string>>({})
 
   // Optimistic local overrides: "clientId:platform" → PlatformStatusEntry
   const [overrides, setOverrides] = useState<Record<string, PlatformStatusEntry>>({})
-
-  // Filtered rows
-  const filteredRows = useMemo(() => {
-    const term = search.toLowerCase()
-    return data.rows.filter((row) => {
-      if (term && !row.clientName.toLowerCase().includes(term)) return false
-      if (!matchesStatusFilter(row, statusFilter)) return false
-      if (!matchesAmountFilter(row, amountFilter)) return false
-      return true
-    })
-  }, [data.rows, search, statusFilter, amountFilter])
 
   // Get effective status for a cell (with overrides)
   function getEffectiveStatus(row: AccountStatusRow, platform: string): PlatformStatusEntry | null {
@@ -170,12 +136,22 @@ export function AccountStatusesView({ data }: Props) {
     return row.platformStatuses[platform]
   }
 
+  // Filtered rows
+  const filteredRows = useMemo(() => {
+    const term = search.toLowerCase()
+    return data.rows.filter((row) => {
+      if (term && !row.clientName.toLowerCase().includes(term)) return false
+      if (!matchesColumnFilters(row, columnFilters, getEffectiveStatus)) return false
+      return true
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.rows, search, columnFilters, overrides])
+
   // Handle status change
   function handleStatusChange(row: AccountStatusRow, platform: string, newStatus: string) {
     const key = `${row.clientRecordId}:${platform}`
     const entry: PlatformStatusEntry = { status: newStatus }
 
-    // Optimistic update
     setOverrides((prev) => ({ ...prev, [key]: entry }))
 
     startTransition(async () => {
@@ -185,11 +161,10 @@ export function AccountStatusesView({ data }: Props) {
         status: newStatus,
       })
       if (result.success) {
-        toast.success(`${row.clientName} \u2014 ${PLATFORM_INFO[platform as keyof typeof PLATFORM_INFO]?.name ?? platform} updated`)
+        toast.success(`${row.clientName} — ${PLATFORM_INFO[platform as keyof typeof PLATFORM_INFO]?.name ?? platform} updated`)
         router.refresh()
       } else {
         toast.error(result.error || 'Failed to update')
-        // Revert override
         setOverrides((prev) => {
           const copy = { ...prev }
           delete copy[key]
@@ -199,25 +174,26 @@ export function AccountStatusesView({ data }: Props) {
     })
   }
 
-  // Handle limited detail update (second step after selecting LIMITED)
+  // Handle limited detail update
   function handleLimitedDetail(
     row: AccountStatusRow,
     platform: string,
     detail: { limitDetail?: string; limitAmount?: number; limitSports?: string[] },
   ) {
     const key = `${row.clientRecordId}:${platform}`
-    const entry: PlatformStatusEntry = { status: 'LIMITED', ...detail }
+    const currentStatus = getEffectiveStatus(row, platform)?.status ?? 'LIMITED'
+    const entry: PlatformStatusEntry = { status: currentStatus, ...detail }
     setOverrides((prev) => ({ ...prev, [key]: entry }))
 
     startTransition(async () => {
       const result = await updateAccountStatus({
         clientRecordId: row.clientRecordId,
         platform,
-        status: 'LIMITED',
+        status: currentStatus,
         ...detail,
       })
       if (result.success) {
-        toast.success(`${row.clientName} \u2014 ${PLATFORM_INFO[platform as keyof typeof PLATFORM_INFO]?.name ?? platform} limited detail updated`)
+        toast.success(`${row.clientName} — ${PLATFORM_INFO[platform as keyof typeof PLATFORM_INFO]?.name ?? platform} detail updated`)
         router.refresh()
       } else {
         toast.error(result.error || 'Failed to update')
@@ -230,8 +206,20 @@ export function AccountStatusesView({ data }: Props) {
     })
   }
 
+  function setColumnFilter(platform: string, value: string) {
+    setColumnFilters((prev) => {
+      if (value === 'all') {
+        const copy = { ...prev }
+        delete copy[platform]
+        return copy
+      }
+      return { ...prev, [platform]: value }
+    })
+  }
+
   const { summary } = data
   const sc = summary.statusCounts
+  const activeColumnFilterCount = Object.values(columnFilters).filter((v) => v !== 'all').length
 
   return (
     <div className="space-y-3 p-4" data-testid="account-statuses-view">
@@ -250,8 +238,39 @@ export function AccountStatusesView({ data }: Props) {
         </div>
       </div>
 
-      {/* ── Filters ── */}
-      <div className="flex items-center gap-2">
+      {/* ── Tabs + Filters ── */}
+      <div className="flex items-center gap-3">
+        {/* Tab buttons */}
+        <div className="flex rounded-md border border-border">
+          <button
+            type="button"
+            className={cn(
+              'px-3 py-1 text-xs font-medium transition-colors',
+              activeTab === 'status'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted/30 text-muted-foreground hover:bg-muted/60',
+              'rounded-l-md',
+            )}
+            onClick={() => setActiveTab('status')}
+          >
+            Status
+          </button>
+          <button
+            type="button"
+            className={cn(
+              'px-3 py-1 text-xs font-medium transition-colors',
+              activeTab === 'balances'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted/30 text-muted-foreground hover:bg-muted/60',
+              'rounded-r-md border-l border-border',
+            )}
+            onClick={() => setActiveTab('balances')}
+          >
+            Balances
+          </button>
+        </div>
+
+        {/* Search */}
         <div className="relative w-48">
           <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -262,45 +281,78 @@ export function AccountStatusesView({ data }: Props) {
             data-testid="account-statuses-search"
           />
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="h-7 w-36 text-xs" data-testid="account-statuses-filter">
-            <span>{STATUS_FILTERS.find((f) => f.value === statusFilter)?.label ?? 'All'}</span>
-          </SelectTrigger>
-          <SelectContent>
-            {STATUS_FILTERS.map((f) => (
-              <SelectItem key={f.value} value={f.value} className="text-xs">
-                {f.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={amountFilter} onValueChange={setAmountFilter}>
-          <SelectTrigger className="h-7 w-32 text-xs">
-            <span>{AMOUNT_FILTERS.find((f) => f.value === amountFilter)?.label ?? 'All'}</span>
-          </SelectTrigger>
-          <SelectContent>
-            {AMOUNT_FILTERS.map((f) => (
-              <SelectItem key={f.value} value={f.value} className="text-xs">
-                {f.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <span className="text-[10px] text-muted-foreground">
-          {filteredRows.length} / {data.rows.length}
-        </span>
+
+        {/* Column filter count indicator */}
+        {activeColumnFilterCount > 0 && (
+          <span className="inline-flex items-center gap-1 rounded bg-blue-400/20 px-1.5 py-0.5 text-[10px] font-medium text-blue-400">
+            <Filter className="h-2.5 w-2.5" />
+            {activeColumnFilterCount} column filter{activeColumnFilterCount > 1 ? 's' : ''}
+          </span>
+        )}
+
+        {/* Sum boxes — always visible */}
+        {(() => {
+          const sumFin = filteredRows.reduce((sum, row) => sum + aggregateBalance(row, FINANCE_ORDER), 0)
+          const sumSport = filteredRows.reduce((sum, row) => sum + aggregateBalance(row, SPORTS_PLATFORMS), 0)
+          const totalAssets = sumFin + sumSport
+          return (
+            <>
+              <div className="flex items-center gap-1 rounded border border-border bg-muted/30 px-2 py-0.5">
+                <span className="text-[10px] text-muted-foreground">Sum $Fin</span>
+                <span className="font-mono text-[11px] font-semibold text-foreground">{formatBalance(sumFin)}</span>
+              </div>
+              <div className="flex items-center gap-1 rounded border border-border bg-muted/30 px-2 py-0.5">
+                <span className="text-[10px] text-muted-foreground">Sum $Sport</span>
+                <span className="font-mono text-[11px] font-semibold text-foreground">{formatBalance(sumSport)}</span>
+              </div>
+              <div className="flex items-center gap-1 rounded border border-border bg-primary/10 px-2 py-0.5">
+                <span className="text-[10px] text-muted-foreground">Total Assets</span>
+                <span className="font-mono text-[11px] font-semibold text-foreground">{formatBalance(totalAssets)}</span>
+              </div>
+            </>
+          )
+        })()}
       </div>
 
       {/* ── Matrix Table ── */}
       <div className="overflow-x-auto rounded-md border border-border">
         <table className="w-max min-w-full border-collapse text-xs">
           <thead>
-            <tr className="border-b bg-muted/40">
-              {/* Finance columns */}
-              {FINANCE_ORDER.map((pt) => (
-                <th key={pt} className="whitespace-nowrap px-2 py-1.5 text-center font-medium text-muted-foreground" style={{ minWidth: 80 }}>
-                  {PLATFORM_INFO[pt].abbrev}
+            {/* Column sums row — only on Balances tab */}
+            {activeTab === 'balances' && (
+              <tr className="bg-muted/20">
+                {FINANCE_ORDER.map((pt) => {
+                  const colSum = filteredRows.reduce((s, r) => s + (r.platformBalances[pt] ?? 0), 0)
+                  return (
+                    <th key={pt} className="px-1 py-0.5 text-center font-mono text-[10px] font-normal text-muted-foreground">
+                      {colSum > 0 ? formatBalance(colSum) : ''}
+                    </th>
+                  )
+                })}
+                <th className="border-r px-2 py-0.5 text-center font-mono text-[10px] font-normal text-muted-foreground" />
+                <th className="sticky left-0 z-10 border-r bg-muted/20 px-3 py-0.5 text-left text-[10px] font-normal text-muted-foreground">
+                  Column Totals
                 </th>
+                <th className="border-r px-2 py-0.5 text-center font-mono text-[10px] font-normal text-muted-foreground" />
+                {SPORTS_PLATFORMS.map((pt) => {
+                  const colSum = filteredRows.reduce((s, r) => s + (r.platformBalances[pt] ?? 0), 0)
+                  return (
+                    <th key={pt} className="px-1 py-0.5 text-center font-mono text-[10px] font-normal text-muted-foreground">
+                      {colSum > 0 ? formatBalance(colSum) : ''}
+                    </th>
+                  )
+                })}
+              </tr>
+            )}
+            <tr className="border-b bg-muted/40">
+              {/* Finance column headers with filters */}
+              {FINANCE_ORDER.map((pt) => (
+                <ColumnHeader
+                  key={pt}
+                  platform={pt}
+                  filterValue={columnFilters[pt] ?? 'all'}
+                  onFilterChange={(v) => setColumnFilter(pt, v)}
+                />
               ))}
               {/* Finance aggregate */}
               <th className="whitespace-nowrap border-r px-2 py-1.5 text-center font-medium text-muted-foreground" style={{ minWidth: 56 }}>
@@ -317,18 +369,21 @@ export function AccountStatusesView({ data }: Props) {
               <th className="whitespace-nowrap border-r px-2 py-1.5 text-center font-medium text-muted-foreground" style={{ minWidth: 56 }}>
                 $Sport
               </th>
-              {/* Sports columns */}
+              {/* Sports column headers with filters */}
               {SPORTS_PLATFORMS.map((pt) => (
-                <th key={pt} className="whitespace-nowrap px-2 py-1.5 text-center font-medium text-muted-foreground" style={{ minWidth: 80 }}>
-                  {PLATFORM_INFO[pt].abbrev}
-                </th>
+                <ColumnHeader
+                  key={pt}
+                  platform={pt}
+                  filterValue={columnFilters[pt] ?? 'all'}
+                  onFilterChange={(v) => setColumnFilter(pt, v)}
+                />
               ))}
             </tr>
           </thead>
           <tbody>
             {filteredRows.length === 0 ? (
               <tr>
-                <td colSpan={ALL_PLATFORMS.length + 4} className="py-8 text-center text-muted-foreground">
+                <td colSpan={ALL_COLUMN_PLATFORMS.length + 3} className="py-8 text-center text-muted-foreground">
                   No clients match the current filters.
                 </td>
               </tr>
@@ -340,47 +395,59 @@ export function AccountStatusesView({ data }: Props) {
                 return (
                   <tr key={row.clientRecordId} className="border-b border-border/50 hover:bg-muted/20">
                     {/* Finance cells */}
-                    {FINANCE_ORDER.map((pt) => (
-                      <StatusCell
-                        key={pt}
-                        row={row}
-                        platform={pt}
-                        effectiveStatus={getEffectiveStatus(row, pt)}
-                        isPending={isPending}
-                        onStatusChange={handleStatusChange}
-                        onLimitedDetail={handleLimitedDetail}
-                      />
-                    ))}
+                    {FINANCE_ORDER.map((pt) =>
+                      activeTab === 'status' ? (
+                        <StatusCell
+                          key={pt}
+                          row={row}
+                          platform={pt}
+                          effectiveStatus={getEffectiveStatus(row, pt)}
+                          isPending={isPending}
+                          onStatusChange={handleStatusChange}
+                          onLimitedDetail={handleLimitedDetail}
+                        />
+                      ) : (
+                        <BalanceCell
+                          key={pt}
+                          row={row}
+                          platform={pt}
+                          effectiveStatus={getEffectiveStatus(row, pt)}
+                        />
+                      ),
+                    )}
                     {/* Finance aggregate */}
-                    <td className="border-r px-2 py-1 text-center align-top font-mono text-[10px] text-muted-foreground">
-                      <div className="flex h-[34px] items-center justify-center">
-                        {finTotal > 0 ? formatBalance(finTotal) : '\u2014'}
-                      </div>
+                    <td className="border-r px-2 py-1 text-center align-middle font-mono text-[10px] text-muted-foreground">
+                      {finTotal > 0 ? formatBalance(finTotal) : '—'}
                     </td>
                     {/* Client name (sticky) */}
-                    <td className="sticky left-0 z-10 border-r bg-background px-3 py-1 align-top font-medium">
-                      <div className="flex h-[34px] items-center">
-                        <span className="truncate">{row.clientName}</span>
-                      </div>
+                    <td className="sticky left-0 z-10 border-r bg-background px-3 py-1 align-middle font-medium">
+                      <span className="truncate">{row.clientName}</span>
                     </td>
                     {/* Sports aggregate */}
-                    <td className="border-r px-2 py-1 text-center align-top font-mono text-[10px] text-muted-foreground">
-                      <div className="flex h-[34px] items-center justify-center">
-                        {sportTotal > 0 ? formatBalance(sportTotal) : '\u2014'}
-                      </div>
+                    <td className="border-r px-2 py-1 text-center align-middle font-mono text-[10px] text-muted-foreground">
+                      {sportTotal > 0 ? formatBalance(sportTotal) : '—'}
                     </td>
                     {/* Sports cells */}
-                    {SPORTS_PLATFORMS.map((pt) => (
-                      <StatusCell
-                        key={pt}
-                        row={row}
-                        platform={pt}
-                        effectiveStatus={getEffectiveStatus(row, pt)}
-                        isPending={isPending}
-                        onStatusChange={handleStatusChange}
-                        onLimitedDetail={handleLimitedDetail}
-                      />
-                    ))}
+                    {SPORTS_PLATFORMS.map((pt) =>
+                      activeTab === 'status' ? (
+                        <StatusCell
+                          key={pt}
+                          row={row}
+                          platform={pt}
+                          effectiveStatus={getEffectiveStatus(row, pt)}
+                          isPending={isPending}
+                          onStatusChange={handleStatusChange}
+                          onLimitedDetail={handleLimitedDetail}
+                        />
+                      ) : (
+                        <BalanceCell
+                          key={pt}
+                          row={row}
+                          platform={pt}
+                          effectiveStatus={getEffectiveStatus(row, pt)}
+                        />
+                      ),
+                    )}
                   </tr>
                 )
               })
@@ -389,6 +456,66 @@ export function AccountStatusesView({ data }: Props) {
         </table>
       </div>
     </div>
+  )
+}
+
+// ══════════════════════════════════════════════════════════
+// ColumnHeader — platform header with inline filter dropdown
+// ══════════════════════════════════════════════════════════
+
+interface ColumnHeaderProps {
+  platform: string
+  filterValue: string
+  onFilterChange: (value: string) => void
+}
+
+function ColumnHeader({ platform, filterValue, onFilterChange }: ColumnHeaderProps) {
+  const options = getStatusOptionsForPlatform(platform)
+  const isFiltered = filterValue !== 'all'
+  const isSportsbook = !['BANK', 'EDGEBOOST', 'PAYPAL'].includes(platform)
+
+  return (
+    <th className="whitespace-nowrap px-1 py-1 text-center font-medium text-muted-foreground" style={{ minWidth: 80 }}>
+      <Select value={filterValue} onValueChange={onFilterChange}>
+        <SelectTrigger
+          className={cn(
+            'mx-auto h-5 w-fit gap-1 border-0 px-1.5 text-[10px] font-medium shadow-none',
+            isFiltered ? 'bg-blue-400/20 text-blue-400' : 'bg-transparent text-muted-foreground',
+          )}
+        >
+          <span className="flex items-center gap-1">
+            {isFiltered && <span className="inline-block h-1.5 w-1.5 rounded-full bg-blue-400" />}
+            {PLATFORM_INFO[platform as keyof typeof PLATFORM_INFO]?.abbrev ?? platform}
+          </span>
+        </SelectTrigger>
+        <SelectContent className="max-h-64" position="popper" sideOffset={4}>
+          <SelectItem value="all" className="text-xs">
+            All
+          </SelectItem>
+          {isSportsbook ? (
+            groupByCategory(SPORTSBOOK_STATUSES).map(([group, items]) => (
+              <SelectGroup key={group}>
+                <SelectLabel className="text-[10px] text-muted-foreground">
+                  {STATUS_GROUP_LABELS[group as SportsbookStatusGroup]}
+                </SelectLabel>
+                {items.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                    <span className={cn('inline-block h-2 w-2 rounded-full mr-1.5', opt.color)} />
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            ))
+          ) : (
+            options.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                {opt.label}
+              </SelectItem>
+            ))
+          )}
+        </SelectContent>
+      </Select>
+    </th>
   )
 }
 
@@ -410,37 +537,34 @@ interface StatusCellProps {
 }
 
 function StatusCell({ row, platform, effectiveStatus, isPending, onStatusChange, onLimitedDetail }: StatusCellProps) {
-  const isRegistered = row.registeredPlatforms.includes(platform)
-  const balance = row.platformBalances[platform]
   const colors = statusColors(effectiveStatus, platform)
   const displayLabel = statusDisplayLabel(effectiveStatus, platform)
   const options = getStatusOptionsForPlatform(platform)
 
-  // Group sportsbook options by group for section headers
   const isSportsbook = !['BANK', 'EDGEBOOST', 'PAYPAL'].includes(platform)
 
-  // Not registered → dim dash, no interaction — fixed height to stay aligned
-  if (!isRegistered) {
-    return (
-      <td className="px-1 py-1 text-center align-top">
-        <div className="flex h-[34px] items-center justify-center">
-          <span className="text-[10px] text-muted-foreground/30">—</span>
-        </div>
-      </td>
-    )
-  }
-
-  // Limited detail sub-selector
-  const showLimitedDetail = effectiveStatus?.status === 'LIMITED' && isSportsbook
+  // Limited detail: show tool icon inline when status = LIMITED (sportsbook only)
+  const isLimited = effectiveStatus?.status === 'LIMITED' && isSportsbook
   const limitedConfig = getLimitedConfig(platform)
+  const hasLimitedConfig = isLimited && limitedConfig.type !== 'none'
 
   // Active detail for financial platforms (Bank → Chase/Citi/BofA, EB → Tier 1-4)
   const activeDetailConfig = getActiveDetailConfig(platform)
   const showActiveDetail = effectiveStatus?.status === 'ACTIVE' && activeDetailConfig != null
 
   return (
-    <td className="px-1 py-1 text-center align-top" data-testid={`status-cell-${row.clientRecordId}-${platform}`}>
-      <div className="flex min-h-[34px] flex-col items-center gap-0.5">
+    <td className="px-1 py-1 text-center align-middle" data-testid={`status-cell-${row.clientRecordId}-${platform}`}>
+      <div className="flex items-center justify-center gap-0.5">
+        {/* Active detail INLINE LEFT (Bank name / EB tier) */}
+        {showActiveDetail && (
+          <ActiveDetailInput
+            config={activeDetailConfig}
+            entry={effectiveStatus}
+            isPending={isPending}
+            onChange={(detail) => onLimitedDetail(row, platform, { limitDetail: detail })}
+          />
+        )}
+
         {/* Status dropdown */}
         <Select
           value={effectiveStatus?.status ?? ''}
@@ -458,7 +582,6 @@ function StatusCell({ row, platform, effectiveStatus, isPending, onStatusChange,
           </SelectTrigger>
           <SelectContent className="max-h-64" position="popper" sideOffset={4}>
             {isSportsbook ? (
-              // Grouped sportsbook options
               groupByCategory(SPORTSBOOK_STATUSES).map(([group, items]) => (
                 <SelectGroup key={group}>
                   <SelectLabel className="text-[10px] text-muted-foreground">
@@ -466,14 +589,13 @@ function StatusCell({ row, platform, effectiveStatus, isPending, onStatusChange,
                   </SelectLabel>
                   {items.map((opt) => (
                     <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                      <span className={cn('inline-block w-2 h-2 rounded-full mr-1.5', opt.color)} />
+                      <span className={cn('inline-block h-2 w-2 rounded-full mr-1.5', opt.color)} />
                       {opt.label}
                     </SelectItem>
                   ))}
                 </SelectGroup>
               ))
             ) : (
-              // Financial platform options (flat list)
               options.map((opt) => (
                 <SelectItem key={opt.value} value={opt.value} className="text-xs">
                   {opt.label}
@@ -483,19 +605,9 @@ function StatusCell({ row, platform, effectiveStatus, isPending, onStatusChange,
           </SelectContent>
         </Select>
 
-        {/* Active detail for financial platforms (Bank type, EB tier) */}
-        {showActiveDetail && (
-          <ActiveDetailInput
-            config={activeDetailConfig}
-            entry={effectiveStatus}
-            isPending={isPending}
-            onChange={(detail) => onLimitedDetail(row, platform, { limitDetail: detail })}
-          />
-        )}
-
-        {/* Limited detail (inline sub-selector) */}
-        {showLimitedDetail && limitedConfig.type !== 'none' && (
-          <LimitedDetailInput
+        {/* Limited detail: inline tool icon that opens popover */}
+        {hasLimitedConfig && (
+          <LimitedDetailPopover
             platform={platform}
             config={limitedConfig}
             entry={effectiveStatus}
@@ -503,19 +615,46 @@ function StatusCell({ row, platform, effectiveStatus, isPending, onStatusChange,
             onChange={(detail) => onLimitedDetail(row, platform, detail)}
           />
         )}
-
-        {/* Balance */}
-        <span className="font-mono text-[9px] text-muted-foreground/60">
-          {balance != null ? `$${balance.toLocaleString()}` : '\u00A0'}
-        </span>
       </div>
     </td>
   )
 }
 
-// ── Limited detail input (percentage dropdown, amount input, etc.) ──
+// ══════════════════════════════════════════════════════════
+// BalanceCell — read-only balance with color fill
+// ══════════════════════════════════════════════════════════
 
-interface LimitedDetailInputProps {
+interface BalanceCellProps {
+  row: AccountStatusRow
+  platform: string
+  effectiveStatus: PlatformStatusEntry | null
+}
+
+function BalanceCell({ row, platform, effectiveStatus }: BalanceCellProps) {
+  const balance = row.platformBalances[platform]
+  const fillBg = statusFillColor(effectiveStatus, platform)
+  const colors = statusColors(effectiveStatus, platform)
+
+  return (
+    <td className="px-1 py-1 text-center align-middle">
+      <div
+        className={cn(
+          'mx-auto inline-flex items-center justify-center rounded px-2 py-0.5 font-mono text-[10px] font-medium',
+          fillBg,
+          colors.text,
+        )}
+      >
+        {formatCellBalance(balance)}
+      </div>
+    </td>
+  )
+}
+
+// ══════════════════════════════════════════════════════════
+// LimitedDetailPopover — icon button that opens inline limited detail editor
+// ══════════════════════════════════════════════════════════
+
+interface LimitedDetailPopoverProps {
   platform: string
   config: { type: string; options?: string[]; sports?: string[] }
   entry: PlatformStatusEntry | null
@@ -523,93 +662,161 @@ interface LimitedDetailInputProps {
   onChange: (detail: { limitDetail?: string; limitAmount?: number; limitSports?: string[] }) => void
 }
 
-function LimitedDetailInput({ platform, config, entry, isPending, onChange }: LimitedDetailInputProps) {
+function LimitedDetailPopover({ platform, config, entry, isPending, onChange }: LimitedDetailPopoverProps) {
+  const [open, setOpen] = useState(false)
+  const popRef = useRef<HTMLDivElement>(null)
+
+  // Click-outside handler for manual popovers
+  useEffect(() => {
+    if (!open) return
+    function handleClick(e: MouseEvent) {
+      if (popRef.current && !popRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [open])
+
+  // For percentage / mgm-tier: button toggles a floating option list
   if (config.type === 'percentage' || config.type === 'mgm-tier') {
     return (
-      <Select
-        value={entry?.limitDetail ?? ''}
-        onValueChange={(v) => onChange({ limitDetail: v })}
-        disabled={isPending}
-      >
-        <SelectTrigger className="h-4 min-w-[60px] max-w-[80px] border-0 bg-yellow-400/10 px-1 text-[9px] text-yellow-400 shadow-none">
-          <span className="truncate">{entry?.limitDetail || 'Select...'}</span>
-        </SelectTrigger>
-        <SelectContent position="popper" sideOffset={4}>
-          {config.options?.map((opt) => (
-            <SelectItem key={opt} value={opt} className="text-xs">
-              {opt}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    )
-  }
-
-  if (config.type === 'amount') {
-    return (
-      <Input
-        type="number"
-        placeholder="$amt"
-        className="h-4 w-16 border-0 bg-yellow-400/10 px-1 text-center text-[9px] text-yellow-400 shadow-none"
-        defaultValue={entry?.limitAmount ?? ''}
-        disabled={isPending}
-        onBlur={(e) => {
-          const v = parseFloat(e.target.value)
-          if (!isNaN(v)) onChange({ limitAmount: v })
-        }}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            const v = parseFloat((e.target as HTMLInputElement).value)
-            if (!isNaN(v)) onChange({ limitAmount: v })
-          }
-        }}
-      />
-    )
-  }
-
-  if (config.type === 'caesars-sports') {
-    return (
-      <div className="flex flex-col items-center gap-0.5">
-        <Select
-          value={entry?.limitDetail ?? ''}
-          onValueChange={(v) => onChange({ limitDetail: v, limitSports: entry?.limitSports })}
+      <div className="relative" ref={popRef}>
+        <button
+          type="button"
+          className={cn(
+            'flex h-6 w-6 items-center justify-center rounded bg-yellow-400/10 transition-colors hover:bg-yellow-400/20',
+            open && 'bg-yellow-400/20',
+          )}
+          onClick={(e) => { e.stopPropagation(); setOpen(!open) }}
+          title="Set limited detail"
           disabled={isPending}
         >
-          <SelectTrigger className="h-4 min-w-[50px] max-w-[60px] border-0 bg-yellow-400/10 px-1 text-[9px] text-yellow-400 shadow-none">
-            <span>{entry?.limitDetail || 'X/4'}</span>
-          </SelectTrigger>
-          <SelectContent position="popper" sideOffset={4}>
+          <Settings2 className="h-3.5 w-3.5 text-yellow-400" />
+        </button>
+        {open && (
+          <div className="absolute left-0 top-7 z-50 min-w-[80px] rounded border border-border bg-popover py-1 shadow-md">
             {config.options?.map((opt) => (
-              <SelectItem key={opt} value={opt} className="text-xs">
-                {opt}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {/* Sport checkboxes */}
-        <div className="flex gap-0.5">
-          {config.sports?.map((sport) => {
-            const active = entry?.limitSports?.includes(sport) ?? false
-            return (
               <button
-                key={sport}
+                key={opt}
                 type="button"
-                disabled={isPending}
                 className={cn(
-                  'rounded px-0.5 text-[8px] font-medium transition-colors',
-                  active ? 'bg-yellow-400/30 text-yellow-300' : 'bg-muted/30 text-muted-foreground/40',
+                  'block w-full px-2 py-1 text-left text-xs hover:bg-accent',
+                  entry?.limitDetail === opt && 'bg-accent font-medium text-yellow-400',
                 )}
-                onClick={() => {
-                  const current = entry?.limitSports ?? []
-                  const next = active ? current.filter((s) => s !== sport) : [...current, sport]
-                  onChange({ limitDetail: entry?.limitDetail, limitSports: next })
-                }}
+                onClick={() => { onChange({ limitDetail: opt }); setOpen(false) }}
               >
-                {sport}
+                {opt}
               </button>
-            )
-          })}
-        </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // For amount: icon toggles a small inline amount input
+  if (config.type === 'amount') {
+    return (
+      <div className="relative" ref={popRef}>
+        <button
+          type="button"
+          className={cn(
+            'flex h-6 w-6 items-center justify-center rounded bg-yellow-400/10 transition-colors hover:bg-yellow-400/20',
+            open && 'bg-yellow-400/20',
+          )}
+          onClick={() => setOpen(!open)}
+          title="Set limited amount"
+          disabled={isPending}
+        >
+          <Settings2 className="h-3.5 w-3.5 text-yellow-400" />
+        </button>
+        {open && (
+          <div className="absolute left-0 top-6 z-50 rounded border border-border bg-popover p-1 shadow-md">
+            <Input
+              type="number"
+              placeholder="$amt"
+              className="h-5 w-20 border-0 bg-yellow-400/10 px-1 text-center text-[10px] text-yellow-400 shadow-none"
+              defaultValue={entry?.limitAmount ?? ''}
+              autoFocus
+              disabled={isPending}
+              onBlur={(e) => {
+                const v = parseFloat(e.target.value)
+                if (!isNaN(v)) onChange({ limitAmount: v })
+                setOpen(false)
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const v = parseFloat((e.target as HTMLInputElement).value)
+                  if (!isNaN(v)) onChange({ limitAmount: v })
+                  setOpen(false)
+                }
+                if (e.key === 'Escape') setOpen(false)
+              }}
+            />
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // For caesars-sports: icon toggles a small inline panel
+  if (config.type === 'caesars-sports') {
+    return (
+      <div className="relative" ref={popRef}>
+        <button
+          type="button"
+          className={cn(
+            'flex h-6 w-6 items-center justify-center rounded bg-yellow-400/10 transition-colors hover:bg-yellow-400/20',
+            open && 'bg-yellow-400/20',
+          )}
+          onClick={() => setOpen(!open)}
+          title="Set limited sports"
+          disabled={isPending}
+        >
+          <Settings2 className="h-3.5 w-3.5 text-yellow-400" />
+        </button>
+        {open && (
+          <div className="absolute left-0 top-6 z-50 flex flex-col gap-1 rounded border border-border bg-popover p-1.5 shadow-md">
+            <Select
+              value={entry?.limitDetail ?? ''}
+              onValueChange={(v) => onChange({ limitDetail: v, limitSports: entry?.limitSports })}
+              disabled={isPending}
+            >
+              <SelectTrigger className="h-5 min-w-[50px] border-0 bg-yellow-400/10 px-1 text-[9px] text-yellow-400 shadow-none">
+                <span>{entry?.limitDetail || 'X/4'}</span>
+              </SelectTrigger>
+              <SelectContent position="popper" sideOffset={4}>
+                {config.options?.map((opt) => (
+                  <SelectItem key={opt} value={opt} className="text-xs">
+                    {opt}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="flex gap-0.5">
+              {config.sports?.map((sport) => {
+                const active = entry?.limitSports?.includes(sport) ?? false
+                return (
+                  <button
+                    key={sport}
+                    type="button"
+                    disabled={isPending}
+                    className={cn(
+                      'rounded px-0.5 text-[8px] font-medium transition-colors',
+                      active ? 'bg-yellow-400/30 text-yellow-300' : 'bg-muted/30 text-muted-foreground/40',
+                    )}
+                    onClick={() => {
+                      const current = entry?.limitSports ?? []
+                      const next = active ? current.filter((s) => s !== sport) : [...current, sport]
+                      onChange({ limitDetail: entry?.limitDetail, limitSports: next })
+                    }}
+                  >
+                    {sport}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </div>
     )
   }
@@ -633,7 +840,7 @@ function ActiveDetailInput({ config, entry, isPending, onChange }: ActiveDetailI
       onValueChange={onChange}
       disabled={isPending}
     >
-      <SelectTrigger className="h-4 min-w-[60px] max-w-[80px] border-0 bg-green-400/10 px-1 text-[9px] text-green-400 shadow-none">
+      <SelectTrigger className="h-5 min-w-[50px] max-w-[70px] border-0 bg-green-400/10 px-1 text-[9px] text-green-400 shadow-none">
         <span className="truncate">{entry?.limitDetail || config.label}</span>
       </SelectTrigger>
       <SelectContent position="popper" sideOffset={4}>
@@ -656,3 +863,10 @@ function groupByCategory(statuses: StatusOption[]): [string, StatusOption[]][] {
   }
   return Array.from(groups.entries())
 }
+
+// ── Tailwind safelist for dynamic balance fill colors ──
+// These bg classes are dynamically generated from textColor values in account-status-config.ts.
+// Listing them here ensures Tailwind includes them in the bundle:
+// bg-sky-300/15 bg-blue-400/15 bg-muted-foreground/15 bg-green-400/15 bg-emerald-400/15
+// bg-yellow-400/15 bg-purple-400/15 bg-red-300/15 bg-orange-400/15 bg-red-400/15
+// bg-amber-500/15

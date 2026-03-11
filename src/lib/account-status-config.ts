@@ -32,8 +32,8 @@ export const SPORTSBOOK_STATUSES: StatusOption[] = [
   { value: 'SIGN_UP', label: 'Sign Up!', group: 'setup', color: 'bg-sky-400/20', textColor: 'text-sky-300' },
   { value: 'PIPELINE', label: 'Pipeline', group: 'setup', color: 'bg-blue-400/20', textColor: 'text-blue-400' },
   // Verification
-  { value: 'VERIFY_NEEDED', label: 'Verify Needed', group: 'verification', color: 'bg-muted', textColor: 'text-muted-foreground' },
-  { value: 'VERIFY_SENT', label: 'Verify Sent', group: 'verification', color: 'bg-muted', textColor: 'text-muted-foreground' },
+  { value: 'VERIFY_NEEDED', label: 'Verify Needed', group: 'verification', color: 'bg-red-500/20', textColor: 'text-red-500' },
+  { value: 'VERIFY_SENT', label: 'Verify Sent', group: 'verification', color: 'bg-red-500/20', textColor: 'text-red-500' },
   // Active
   { value: 'ACTIVE', label: 'Active', group: 'active', color: 'bg-green-400/20', textColor: 'text-green-400' },
   { value: 'VIP', label: 'VIP', group: 'active', color: 'bg-emerald-600/25', textColor: 'text-emerald-400' },
@@ -72,7 +72,7 @@ export const EDGEBOOST_STATUSES: StatusOption[] = [
 export const PAYPAL_STATUSES: StatusOption[] = [
   { value: 'ACTIVE', label: 'Active', group: 'financial', color: 'bg-green-400/20', textColor: 'text-green-400' },
   { value: 'PERM_LIMITED', label: 'Perm. Limited', group: 'financial', color: 'bg-yellow-400/20', textColor: 'text-yellow-400' },
-  { value: 'VERIFY_NEEDED', label: 'Verify Needed', group: 'financial', color: 'bg-muted', textColor: 'text-muted-foreground' },
+  { value: 'VERIFY_NEEDED', label: 'Verify Needed', group: 'financial', color: 'bg-red-500/20', textColor: 'text-red-500' },
   { value: 'PERM_LIMITED_BAL', label: 'Perm. Limited w/bal', group: 'financial', color: 'bg-orange-400/20', textColor: 'text-orange-400' },
 ]
 
