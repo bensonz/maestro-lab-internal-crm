@@ -76,7 +76,7 @@ export async function recordBalanceSnapshot(input: RecordSnapshotInput) {
 
 // ── Update account status per platform ──────────────────────
 
-import { isValidStatusForPlatform } from '@/lib/account-status-config'
+import { isValidStatusForPlatformAsync } from '@/backend/data/status-config'
 import type { PlatformStatusEntry } from '@/types/backend-types'
 
 interface UpdateStatusInput {
@@ -97,7 +97,7 @@ export async function updateAccountStatus(input: UpdateStatusInput) {
     return { success: false, error: 'Insufficient permissions' }
   }
 
-  if (!isValidStatusForPlatform(input.platform, input.status)) {
+  if (!(await isValidStatusForPlatformAsync(input.platform, input.status))) {
     return { success: false, error: `Invalid status "${input.status}" for platform ${input.platform}` }
   }
 

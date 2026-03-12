@@ -3,8 +3,9 @@
 // ============================================================================
 
 export type ClientStatus = 'active' | 'ended' | 'verification_needed'
-export type ViewPlatformStatus = 'active' | 'vip' | 'semi_limited' | 'limited' | 'pipeline' | 'dead'
-export type FinancePlatformStatus = 'active' | 'permanent_limited' | 'rejected' | 'pipeline'
+// Platform statuses now use DB values from account-status-config.ts directly
+export type ViewPlatformStatus = string
+export type FinancePlatformStatus = string
 export type BankType = 'Chase' | 'Citi' | 'BofA'
 
 export const BETTING_PLATFORMS = [

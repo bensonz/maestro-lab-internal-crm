@@ -28,15 +28,15 @@ export interface StatusOption {
 // ── Sportsbook statuses ──
 
 export const SPORTSBOOK_STATUSES: StatusOption[] = [
+  // Active (top of list)
+  { value: 'ACTIVE', label: 'Active', group: 'active', color: 'bg-green-400/20', textColor: 'text-green-400' },
+  { value: 'VIP', label: 'VIP', group: 'active', color: 'bg-emerald-600/25', textColor: 'text-emerald-400' },
   // Setup
   { value: 'SIGN_UP', label: 'Sign Up!', group: 'setup', color: 'bg-sky-400/20', textColor: 'text-sky-300' },
   { value: 'PIPELINE', label: 'Pipeline', group: 'setup', color: 'bg-blue-400/20', textColor: 'text-blue-400' },
   // Verification
   { value: 'VERIFY_NEEDED', label: 'Verify Needed', group: 'verification', color: 'bg-red-500/20', textColor: 'text-red-500' },
   { value: 'VERIFY_SENT', label: 'Verify Sent', group: 'verification', color: 'bg-red-500/20', textColor: 'text-red-500' },
-  // Active
-  { value: 'ACTIVE', label: 'Active', group: 'active', color: 'bg-green-400/20', textColor: 'text-green-400' },
-  { value: 'VIP', label: 'VIP', group: 'active', color: 'bg-emerald-600/25', textColor: 'text-emerald-400' },
   // Limited
   { value: 'LIMITED', label: 'Limited', group: 'limited', color: 'bg-yellow-400/20', textColor: 'text-yellow-400' },
   // Withdrawal
@@ -169,8 +169,13 @@ export const ALL_BANK_STATUS_VALUES = BANK_STATUSES.map((s) => s.value)
 export const ALL_EDGEBOOST_STATUS_VALUES = EDGEBOOST_STATUSES.map((s) => s.value)
 export const ALL_PAYPAL_STATUS_VALUES = PAYPAL_STATUSES.map((s) => s.value)
 
-/** Check if a status value is valid for a given platform */
+/** Check if a status value is valid for a given platform (sync — uses hardcoded defaults) */
 export function isValidStatusForPlatform(platform: string, status: string): boolean {
   const options = getStatusOptionsForPlatform(platform)
   return options.some((s) => s.value === status)
 }
+
+// ── DB-aware async loaders ──────────────────────────────────────
+// IMPORTANT: Server-only async functions live in
+// `src/backend/data/status-config.ts` to avoid bundling `pg` into client code.
+// Import from there in server components and server actions.

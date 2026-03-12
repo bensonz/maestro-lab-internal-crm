@@ -12,6 +12,10 @@ import {
   ShieldAlert,
   Wrench,
   Target,
+  ListChecks,
+  Plus,
+  X,
+  GripVertical,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -31,6 +35,23 @@ import {
   type ConfigCategory,
 } from '@/lib/config-defaults'
 import { updateSystemConfig } from '@/app/actions/system-config'
+import { savePlatformStatuses } from '@/app/actions/status-config'
+import type { StatusConfigType } from '@/lib/status-config-keys'
+import type { StatusOption, SportsbookStatusGroup } from '@/lib/account-status-config'
+import {
+  SPORTSBOOK_STATUSES,
+  BANK_STATUSES,
+  EDGEBOOST_STATUSES,
+  PAYPAL_STATUSES,
+  STATUS_GROUP_LABELS,
+} from '@/lib/account-status-config'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 // ── Helpers ─────────────────────────────────────────────
 
@@ -52,6 +73,10 @@ const PLATFORM_FAVICON: Record<string, string> = {
   BALLYBET: 'ballybet.com',
   BETRIVERS: 'betrivers.com',
   BET365: 'bet365.com',
+  ESPNBET: 'espnbet.com',
+  BANK: 'chase.com',
+  EDGEBOOST: 'edgeboost.com',
+  PAYPAL: 'paypal.com',
 }
 
 function getFaviconUrl(platform: string): string {
@@ -101,9 +126,10 @@ function getPlatformGroups(): { platform: string; label: string; keys: { balance
 
 interface SystemConfigViewProps {
   initialValues: Record<string, string>
+  statusConfigs: Record<string, StatusOption[]>
 }
 
-export function SystemConfigView({ initialValues }: SystemConfigViewProps) {
+export function SystemConfigView({ initialValues, statusConfigs }: SystemConfigViewProps) {
   const [values, setValues] = useState<Record<string, string>>(() => {
     const merged: Record<string, string> = {}
     for (const def of CONFIG_REGISTRY) {
@@ -351,6 +377,9 @@ export function SystemConfigView({ initialValues }: SystemConfigViewProps) {
           </Collapsible>
         )
       })}
+
+      {/* Account Statuses Section */}
+      <AccountStatusesSection initialStatuses={statusConfigs} />
     </div>
   )
 }
@@ -614,5 +643,423 @@ function ConfigField({
         )}
       </div>
     </div>
+  )
+}
+
+// ── Account Statuses Editor ─────────────────────────────────
+
+const FINANCIAL_PLATFORMS: StatusConfigType[] = ['BANK', 'EDGEBOOST', 'PAYPAL']
+const SPORTSBOOK_PLATFORM_ORDER: StatusConfigType[] = [
+  'DRAFTKINGS', 'FANDUEL', 'BETMGM', 'CAESARS', 'FANATICS',
+  'BALLYBET', 'BETRIVERS', 'ESPNBET', 'BET365',
+]
+const ALL_PLATFORM_ORDER: StatusConfigType[] = [...SPORTSBOOK_PLATFORM_ORDER, ...FINANCIAL_PLATFORMS]
+
+const PLATFORM_DISPLAY_NAMES: Record<string, string> = {
+  DRAFTKINGS: 'DraftKings',
+  FANDUEL: 'FanDuel',
+  BETMGM: 'BetMGM',
+  CAESARS: 'Caesars',
+  FANATICS: 'Fanatics',
+  BALLYBET: 'Bally Bet',
+  BETRIVERS: 'BetRivers',
+  ESPNBET: 'ESPN BET',
+  BET365: 'Bet365',
+  BANK: 'Online Banking',
+  EDGEBOOST: 'EdgeBoost',
+  PAYPAL: 'PayPal',
+}
+
+const GROUP_OPTIONS: { value: SportsbookStatusGroup; label: string }[] = [
+  { value: 'active', label: 'Active' },
+  { value: 'setup', label: 'Setup' },
+  { value: 'verification', label: 'Verification' },
+  { value: 'limited', label: 'Limited' },
+  { value: 'withdrawal', label: 'Withdrawal' },
+  { value: 'closed', label: 'Closed' },
+  { value: 'other', label: 'Other' },
+]
+
+const COLOR_PRESETS = [
+  { bg: 'bg-green-400/20', text: 'text-green-400', label: 'Green' },
+  { bg: 'bg-emerald-600/25', text: 'text-emerald-400', label: 'Emerald' },
+  { bg: 'bg-sky-400/20', text: 'text-sky-300', label: 'Sky' },
+  { bg: 'bg-blue-400/20', text: 'text-blue-400', label: 'Blue' },
+  { bg: 'bg-yellow-400/20', text: 'text-yellow-400', label: 'Yellow' },
+  { bg: 'bg-orange-400/20', text: 'text-orange-400', label: 'Orange' },
+  { bg: 'bg-red-500/20', text: 'text-red-500', label: 'Red' },
+  { bg: 'bg-purple-400/20', text: 'text-purple-400', label: 'Purple' },
+  { bg: 'bg-red-300/15', text: 'text-red-300', label: 'Rose' },
+  { bg: 'bg-muted/50', text: 'text-muted-foreground', label: 'Muted' },
+  { bg: 'bg-muted', text: 'text-muted-foreground', label: 'Gray' },
+]
+
+/** Default statuses to reset to (sportsbook vs financial) */
+const RESET_DEFAULTS: Record<string, StatusOption[]> = {
+  DRAFTKINGS: SPORTSBOOK_STATUSES,
+  FANDUEL: SPORTSBOOK_STATUSES,
+  BETMGM: SPORTSBOOK_STATUSES,
+  CAESARS: SPORTSBOOK_STATUSES,
+  FANATICS: SPORTSBOOK_STATUSES,
+  BALLYBET: SPORTSBOOK_STATUSES,
+  BETRIVERS: SPORTSBOOK_STATUSES,
+  ESPNBET: SPORTSBOOK_STATUSES,
+  BET365: SPORTSBOOK_STATUSES,
+  BANK: BANK_STATUSES,
+  EDGEBOOST: EDGEBOOST_STATUSES,
+  PAYPAL: PAYPAL_STATUSES,
+}
+
+function AccountStatusesSection({
+  initialStatuses,
+}: {
+  initialStatuses: Record<string, StatusOption[]>
+}) {
+  // Initialize state for all 12 platforms
+  const [statusSections, setStatusSections] = useState<Record<string, StatusOption[]>>(() => {
+    const sections: Record<string, StatusOption[]> = {}
+    for (const platform of ALL_PLATFORM_ORDER) {
+      sections[platform] = [...(initialStatuses[platform] ?? [])]
+    }
+    return sections
+  })
+
+  const [savedSections, setSavedSections] = useState<Record<string, StatusOption[]>>(() => {
+    const sections: Record<string, StatusOption[]> = {}
+    for (const platform of ALL_PLATFORM_ORDER) {
+      sections[platform] = [...(initialStatuses[platform] ?? [])]
+    }
+    return sections
+  })
+
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(
+    () => new Set<string>(),
+  )
+  const [isPending, startTransition] = useTransition()
+  const [savingSection, setSavingSection] = useState<string | null>(null)
+
+  const toggleSection = (key: string) => {
+    setExpandedSections((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  const hasChanges = (key: string) => {
+    return JSON.stringify(statusSections[key]) !== JSON.stringify(savedSections[key])
+  }
+
+  const anyChanges = ALL_PLATFORM_ORDER.some((p) => hasChanges(p))
+
+  const updateStatus = (sectionKey: string, index: number, updates: Partial<StatusOption>) => {
+    setStatusSections((prev) => {
+      const next = { ...prev }
+      const arr = [...next[sectionKey]]
+      arr[index] = { ...arr[index], ...updates }
+      if (updates.label !== undefined) {
+        arr[index].value = updates.label.toUpperCase().replace(/[^A-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')
+      }
+      next[sectionKey] = arr
+      return next
+    })
+  }
+
+  const deleteStatus = (sectionKey: string, index: number) => {
+    setStatusSections((prev) => {
+      const next = { ...prev }
+      next[sectionKey] = next[sectionKey].filter((_, i) => i !== index)
+      return next
+    })
+  }
+
+  const addStatus = (sectionKey: string) => {
+    const isFinancial = FINANCIAL_PLATFORMS.includes(sectionKey as StatusConfigType)
+    setStatusSections((prev) => ({
+      ...prev,
+      [sectionKey]: [
+        ...prev[sectionKey],
+        {
+          value: `NEW_STATUS_${Date.now()}`,
+          label: 'New Status',
+          group: isFinancial ? 'financial' as const : 'other' as const,
+          color: 'bg-muted/50',
+          textColor: 'text-muted-foreground',
+        },
+      ],
+    }))
+  }
+
+  const resetSection = (sectionKey: string) => {
+    const defaults = RESET_DEFAULTS[sectionKey]
+    if (!defaults) return
+    setStatusSections((prev) => ({
+      ...prev,
+      [sectionKey]: [...defaults],
+    }))
+  }
+
+  const saveSection = (sectionKey: string) => {
+    const statuses = statusSections[sectionKey]
+    setSavingSection(sectionKey)
+    startTransition(async () => {
+      const result = await savePlatformStatuses(sectionKey as StatusConfigType, statuses)
+      setSavingSection(null)
+
+      if (result.success) {
+        setSavedSections((prev) => ({
+          ...prev,
+          [sectionKey]: [...statuses],
+        }))
+        toast.success('Statuses saved', {
+          description: `${statuses.length} statuses for ${PLATFORM_DISPLAY_NAMES[sectionKey] ?? sectionKey}`,
+        })
+      } else {
+        toast.error('Failed to save', { description: result.error })
+      }
+    })
+  }
+
+  const isSportsbook = (key: string) => SPORTSBOOK_PLATFORM_ORDER.includes(key as StatusConfigType)
+
+  const renderPlatformSection = (platform: StatusConfigType) => {
+    const isOpen = expandedSections.has(platform)
+    const changed = hasChanges(platform)
+    const isSaving = savingSection === platform && isPending
+    const statuses = statusSections[platform] ?? []
+    const showGroups = isSportsbook(platform)
+    const faviconUrl = getFaviconUrl(platform)
+    const displayName = PLATFORM_DISPLAY_NAMES[platform] ?? platform
+
+    return (
+      <div key={platform} className="border-b border-border/20 last:border-b-0">
+        <button
+          className="flex w-full items-center justify-between px-4 py-2.5 text-left transition-colors hover:bg-accent/5"
+          onClick={() => toggleSection(platform)}
+        >
+          <div className="flex items-center gap-2">
+            {isOpen ? (
+              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+            )}
+            {faviconUrl && (
+              <img src={faviconUrl} alt={displayName} width={16} height={16} className="rounded-sm" />
+            )}
+            <span className="text-xs font-semibold">{displayName}</span>
+            <Badge variant="outline" className="h-4 px-1 font-mono text-[9px]">
+              {statuses.length}
+            </Badge>
+            {changed && (
+              <Badge
+                variant="outline"
+                className="h-4 border-warning/30 bg-warning/10 px-1 text-[9px] text-warning"
+              >
+                unsaved
+              </Badge>
+            )}
+          </div>
+        </button>
+
+        {isOpen && (
+          <div className="px-4 pb-3">
+            {/* Column headers */}
+            <div className={cn(
+              'grid items-center gap-2 px-1 pb-1.5 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground',
+              showGroups
+                ? 'grid-cols-[16px_1fr_100px_100px_28px]'
+                : 'grid-cols-[16px_1fr_100px_28px]',
+            )}>
+              <span></span>
+              <span>Label</span>
+              {showGroups && <span>Group</span>}
+              <span>Color</span>
+              <span></span>
+            </div>
+
+            {/* Status rows */}
+            <div className="space-y-1">
+              {statuses.map((status, idx) => (
+                <div
+                  key={`${platform}-${idx}`}
+                  className={cn(
+                    'grid items-center gap-2 rounded px-1 py-1 transition-colors hover:bg-accent/5',
+                    showGroups
+                      ? 'grid-cols-[16px_1fr_100px_100px_28px]'
+                      : 'grid-cols-[16px_1fr_100px_28px]',
+                  )}
+                >
+                  <div className={cn('h-3.5 w-3.5 rounded-sm border border-border/30', status.color)} />
+
+                  <Input
+                    className="h-7 border-border/50 bg-background text-xs"
+                    value={status.label}
+                    onChange={(e) => updateStatus(platform, idx, { label: e.target.value })}
+                    data-testid={`status-label-${platform}-${idx}`}
+                  />
+
+                  {showGroups && (
+                    <Select
+                      value={status.group as string}
+                      onValueChange={(v) =>
+                        updateStatus(platform, idx, { group: v as SportsbookStatusGroup })
+                      }
+                    >
+                      <SelectTrigger className="h-7 border-border/50 text-[10px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {GROUP_OPTIONS.map((g) => (
+                          <SelectItem key={g.value} value={g.value} className="text-xs">
+                            {g.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+
+                  <Select
+                    value={`${status.color}|${status.textColor}`}
+                    onValueChange={(v) => {
+                      const [bg, text] = v.split('|')
+                      updateStatus(platform, idx, { color: bg, textColor: text })
+                    }}
+                  >
+                    <SelectTrigger className="h-7 border-border/50 text-[10px]">
+                      <div className="flex items-center gap-1.5">
+                        <div className={cn('h-2.5 w-2.5 rounded-sm', status.color)} />
+                        <span className="truncate">
+                          {COLOR_PRESETS.find((c) => c.bg === status.color)?.label ?? 'Custom'}
+                        </span>
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COLOR_PRESETS.map((c) => (
+                        <SelectItem key={c.bg} value={`${c.bg}|${c.text}`} className="text-xs">
+                          <div className="flex items-center gap-2">
+                            <div className={cn('h-3 w-3 rounded-sm', c.bg)} />
+                            {c.label}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <button
+                    onClick={() => deleteStatus(platform, idx)}
+                    className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                    title="Remove status"
+                    data-testid={`status-delete-${platform}-${idx}`}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Add + Save/Reset buttons */}
+            <div className="mt-2 flex items-center justify-between">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                onClick={() => addStatus(platform)}
+                data-testid={`status-add-${platform}`}
+              >
+                <Plus className="mr-1 h-3 w-3" />
+                Add Status
+              </Button>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  disabled={!changed || isSaving}
+                  onClick={() => resetSection(platform)}
+                >
+                  <RotateCcw className="mr-1 h-3 w-3" />
+                  Reset Defaults
+                </Button>
+                <Button
+                  size="sm"
+                  className="h-7 text-xs"
+                  disabled={!changed || isSaving}
+                  onClick={() => saveSection(platform)}
+                  data-testid={`status-save-${platform}`}
+                >
+                  {isSaving ? (
+                    <>
+                      <div className="mr-1 h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="mr-1 h-3 w-3" />
+                      Save
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <Collapsible
+      open={expandedSections.has('_ACCOUNT_STATUSES')}
+      onOpenChange={() => toggleSection('_ACCOUNT_STATUSES')}
+      defaultOpen
+    >
+      <div
+        className="overflow-hidden rounded-lg border border-border/50 bg-card shadow-sm"
+        data-testid="config-category-account-statuses"
+      >
+        <CollapsibleTrigger asChild>
+          <button className="flex w-full items-center justify-between px-4 py-3 transition-colors hover:bg-accent/5">
+            <div className="flex items-center gap-2.5">
+              {expandedSections.has('_ACCOUNT_STATUSES') ? (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              )}
+              <ListChecks className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-semibold">Account Statuses</span>
+              <Badge variant="outline" className="h-5 px-1.5 font-mono text-[10px]">
+                12 platforms
+              </Badge>
+              {anyChanges && (
+                <Badge
+                  variant="outline"
+                  className="border-warning/30 bg-warning/10 text-warning text-[10px]"
+                >
+                  unsaved changes
+                </Badge>
+              )}
+            </div>
+          </button>
+        </CollapsibleTrigger>
+
+        <CollapsibleContent>
+          <div className="border-t border-border/30">
+            {/* Sportsbook header */}
+            <div className="px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-muted/30 border-b border-border/20">
+              Sportsbook Platforms
+            </div>
+            {SPORTSBOOK_PLATFORM_ORDER.map(renderPlatformSection)}
+
+            {/* Financial header */}
+            <div className="px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-muted/30 border-b border-border/20 border-t border-border/30">
+              Financial Platforms
+            </div>
+            {FINANCIAL_PLATFORMS.map(renderPlatformSection)}
+          </div>
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
   )
 }
