@@ -16,15 +16,17 @@ import {
 import { cn } from '@/lib/utils'
 import { PLATFORM_INFO, SPORTS_PLATFORMS } from '@/lib/platforms'
 import {
-  getStatusOptionsForPlatform,
-  findStatusOption,
-  getLimitedConfig,
-  getActiveDetailConfig,
-  SPORTSBOOK_STATUSES,
+  getStatusOptionsForPlatform as getStatusOptionsDefault,
+  findStatusOption as findStatusOptionDefault,
+  getLimitedConfig as getLimitedConfigDefault,
+  getActiveDetailConfig as getActiveDetailConfigDefault,
   STATUS_GROUP_LABELS,
   type StatusOption,
   type SportsbookStatusGroup,
+  type LimitedConfig,
+  type ActiveDetailConfig,
 } from '@/lib/account-status-config'
+import type { PlatformDetailConfig } from '@/lib/status-config-keys'
 import { updateAccountStatus } from '@/app/actions/balance-snapshots'
 import type { AccountStatusesData, AccountStatusRow, PlatformStatusEntry } from '@/types/backend-types'
 
@@ -35,7 +37,7 @@ const ALL_COLUMN_PLATFORMS = [...FINANCE_ORDER, ...SPORTS_PLATFORMS]
 // ── Helper: build display label from PlatformStatusEntry ──
 function statusDisplayLabel(entry: PlatformStatusEntry | null, platform: string): string {
   if (!entry) return '—'
-  const opt = findStatusOption(platform, entry.status)
+  const opt = findStatusOptionDefault(platform, entry.status)
   const label = opt?.label ?? entry.status
   if (entry.status === 'LIMITED') {
     if (entry.limitDetail) {
@@ -50,7 +52,7 @@ function statusDisplayLabel(entry: PlatformStatusEntry | null, platform: string)
 // ── Helper: get styling for a status ──
 function statusColors(entry: PlatformStatusEntry | null, platform: string): { bg: string; text: string } {
   if (!entry) return { bg: 'bg-muted/30', text: 'text-muted-foreground/60' }
-  const opt = findStatusOption(platform, entry.status)
+  const opt = findStatusOptionDefault(platform, entry.status)
   if (opt) return { bg: opt.color, text: opt.textColor }
   return { bg: 'bg-muted', text: 'text-muted-foreground' }
 }
@@ -59,7 +61,7 @@ function statusColors(entry: PlatformStatusEntry | null, platform: string): { bg
 // Uses the status config's own `color` field so Tailwind can scan it
 function statusFillColor(entry: PlatformStatusEntry | null, platform: string): string {
   if (!entry) return 'bg-muted/20'
-  const opt = findStatusOption(platform, entry.status)
+  const opt = findStatusOptionDefault(platform, entry.status)
   if (!opt) return 'bg-muted/20'
   return opt.color // e.g. 'bg-red-500/20', 'bg-green-400/20' — already in Tailwind scan
 }
@@ -122,6 +124,50 @@ export function AccountStatusesView({ data }: Props) {
   const [isPending, startTransition] = useTransition()
   const [search, setSearch] = useState('')
   const [activeTab, setActiveTab] = useState<'status' | 'balances'>('status')
+
+  // DB-aware status lookups — per-platform configs from DB
+  const sc = data.statusConfigs
+  const getStatusOptions = useMemo(() => {
+    if (!sc) return getStatusOptionsDefault
+    return (platform: string): StatusOption[] => {
+      // Each platform has its own dictionary entry
+      return sc[platform] ?? getStatusOptionsDefault(platform)
+    }
+  }, [sc])
+
+  const findStatus = useMemo(() => {
+    return (platform: string, value: string): StatusOption | undefined => {
+      const options = getStatusOptions(platform)
+      return options.find((s) => s.value === value)
+    }
+  }, [getStatusOptions])
+
+  // DB-aware detail config lookups — converts PlatformDetailConfig → LimitedConfig / ActiveDetailConfig
+  const dc = data.detailConfigs
+  const getDetailLimited = useMemo(() => {
+    if (!dc) return getLimitedConfigDefault
+    return (platform: string): LimitedConfig => {
+      const d = dc[platform]
+      if (!d || d.limitedType === 'none') return getLimitedConfigDefault(platform)
+      return {
+        type: d.limitedType,
+        options: d.limitedOptions,
+        sports: d.limitedSports,
+      }
+    }
+  }, [dc])
+
+  const getDetailActive = useMemo(() => {
+    if (!dc) return getActiveDetailConfigDefault
+    return (platform: string): ActiveDetailConfig | null => {
+      const d = dc[platform]
+      if (!d?.activeDetailOptions?.length) return getActiveDetailConfigDefault(platform)
+      return {
+        options: d.activeDetailOptions,
+        label: d.activeDetailLabel ?? '',
+      }
+    }
+  }, [dc])
 
   // Per-column filters: platform → status value
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({})
@@ -218,7 +264,7 @@ export function AccountStatusesView({ data }: Props) {
   }
 
   const { summary } = data
-  const sc = summary.statusCounts
+  const counts = summary.statusCounts
   const activeColumnFilterCount = Object.values(columnFilters).filter((v) => v !== 'all').length
 
   return (
@@ -227,11 +273,11 @@ export function AccountStatusesView({ data }: Props) {
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-lg font-semibold">Account Status</h1>
         <div className="flex flex-wrap gap-1">
-          <SummaryBadge label="VIP" count={sc.VIP ?? 0} bg="bg-emerald-600/25" text="text-emerald-400" />
-          <SummaryBadge label="Active" count={sc.ACTIVE ?? 0} bg="bg-green-400/20" text="text-green-400" />
-          <SummaryBadge label="Limited" count={sc.LIMITED ?? 0} bg="bg-yellow-400/20" text="text-yellow-400" />
-          <SummaryBadge label="Pipeline" count={sc.PIPELINE ?? 0} bg="bg-blue-400/20" text="text-blue-400" />
-          <SummaryBadge label="WD" count={(sc.WITHDREW ?? 0) + (sc.WITHDRAWING ?? 0) + (sc.WD_TESTING ?? 0) + (sc.WD_OPEN_BET ?? 0) + (sc.WD_NO_LIMIT ?? 0)} bg="bg-red-300/15" text="text-red-300" />
+          <SummaryBadge label="VIP" count={counts.VIP ?? 0} bg="bg-emerald-600/25" text="text-emerald-400" />
+          <SummaryBadge label="Active" count={counts.ACTIVE ?? 0} bg="bg-green-400/20" text="text-green-400" />
+          <SummaryBadge label="Limited" count={counts.LIMITED ?? 0} bg="bg-yellow-400/20" text="text-yellow-400" />
+          <SummaryBadge label="Pipeline" count={counts.PIPELINE ?? 0} bg="bg-blue-400/20" text="text-blue-400" />
+          <SummaryBadge label="WD" count={(counts.WITHDREW ?? 0) + (counts.WITHDRAWING ?? 0) + (counts.WD_TESTING ?? 0) + (counts.WD_OPEN_BET ?? 0) + (counts.WD_NO_LIMIT ?? 0)} bg="bg-red-300/15" text="text-red-300" />
           <span className="text-[10px] text-muted-foreground/60">
             {summary.totalClients} clients · {summary.totalAccounts} accounts
           </span>
@@ -352,7 +398,8 @@ export function AccountStatusesView({ data }: Props) {
                   platform={pt}
                   filterValue={columnFilters[pt] ?? 'all'}
                   onFilterChange={(v) => setColumnFilter(pt, v)}
-                />
+                  getOptions={getStatusOptions}
+                                  />
               ))}
               {/* Finance aggregate */}
               <th className="whitespace-nowrap border-r px-2 py-1.5 text-center font-medium text-muted-foreground" style={{ minWidth: 56 }}>
@@ -376,7 +423,8 @@ export function AccountStatusesView({ data }: Props) {
                   platform={pt}
                   filterValue={columnFilters[pt] ?? 'all'}
                   onFilterChange={(v) => setColumnFilter(pt, v)}
-                />
+                  getOptions={getStatusOptions}
+                                  />
               ))}
             </tr>
           </thead>
@@ -405,7 +453,10 @@ export function AccountStatusesView({ data }: Props) {
                           isPending={isPending}
                           onStatusChange={handleStatusChange}
                           onLimitedDetail={handleLimitedDetail}
-                        />
+                          getOptions={getStatusOptions}
+                          getLimited={getDetailLimited}
+                          getActive={getDetailActive}
+                                                  />
                       ) : (
                         <BalanceCell
                           key={pt}
@@ -438,7 +489,10 @@ export function AccountStatusesView({ data }: Props) {
                           isPending={isPending}
                           onStatusChange={handleStatusChange}
                           onLimitedDetail={handleLimitedDetail}
-                        />
+                          getOptions={getStatusOptions}
+                          getLimited={getDetailLimited}
+                          getActive={getDetailActive}
+                                                  />
                       ) : (
                         <BalanceCell
                           key={pt}
@@ -467,12 +521,14 @@ interface ColumnHeaderProps {
   platform: string
   filterValue: string
   onFilterChange: (value: string) => void
+  getOptions?: (platform: string) => StatusOption[]
 }
 
-function ColumnHeader({ platform, filterValue, onFilterChange }: ColumnHeaderProps) {
-  const options = getStatusOptionsForPlatform(platform)
+function ColumnHeader({ platform, filterValue, onFilterChange, getOptions }: ColumnHeaderProps) {
+  const options = getOptions ? getOptions(platform) : getStatusOptionsDefault(platform)
   const isFiltered = filterValue !== 'all'
   const isSportsbook = !['BANK', 'EDGEBOOST', 'PAYPAL'].includes(platform)
+  const grouped = isSportsbook ? groupByCategory(options) : null
 
   return (
     <th className="whitespace-nowrap px-1 py-1 text-center font-medium text-muted-foreground" style={{ minWidth: 80 }}>
@@ -492,8 +548,8 @@ function ColumnHeader({ platform, filterValue, onFilterChange }: ColumnHeaderPro
           <SelectItem value="all" className="text-xs">
             All
           </SelectItem>
-          {isSportsbook ? (
-            groupByCategory(SPORTSBOOK_STATUSES).map(([group, items]) => (
+          {grouped ? (
+            grouped.map(([group, items]) => (
               <SelectGroup key={group}>
                 <SelectLabel className="text-[10px] text-muted-foreground">
                   {STATUS_GROUP_LABELS[group as SportsbookStatusGroup]}
@@ -534,22 +590,25 @@ interface StatusCellProps {
     platform: string,
     detail: { limitDetail?: string; limitAmount?: number; limitSports?: string[] },
   ) => void
+  getOptions?: (platform: string) => StatusOption[]
+  getLimited?: (platform: string) => LimitedConfig
+  getActive?: (platform: string) => ActiveDetailConfig | null
 }
 
-function StatusCell({ row, platform, effectiveStatus, isPending, onStatusChange, onLimitedDetail }: StatusCellProps) {
+function StatusCell({ row, platform, effectiveStatus, isPending, onStatusChange, onLimitedDetail, getOptions, getLimited, getActive }: StatusCellProps) {
   const colors = statusColors(effectiveStatus, platform)
   const displayLabel = statusDisplayLabel(effectiveStatus, platform)
-  const options = getStatusOptionsForPlatform(platform)
+  const options = getOptions ? getOptions(platform) : getStatusOptionsDefault(platform)
 
   const isSportsbook = !['BANK', 'EDGEBOOST', 'PAYPAL'].includes(platform)
 
   // Limited detail: show tool icon inline when status = LIMITED (sportsbook only)
   const isLimited = effectiveStatus?.status === 'LIMITED' && isSportsbook
-  const limitedConfig = getLimitedConfig(platform)
+  const limitedConfig = getLimited ? getLimited(platform) : getLimitedConfigDefault(platform)
   const hasLimitedConfig = isLimited && limitedConfig.type !== 'none'
 
   // Active detail for financial platforms (Bank → Chase/Citi/BofA, EB → Tier 1-4)
-  const activeDetailConfig = getActiveDetailConfig(platform)
+  const activeDetailConfig = getActive ? getActive(platform) : getActiveDetailConfigDefault(platform)
   const showActiveDetail = effectiveStatus?.status === 'ACTIVE' && activeDetailConfig != null
 
   return (
@@ -582,7 +641,7 @@ function StatusCell({ row, platform, effectiveStatus, isPending, onStatusChange,
           </SelectTrigger>
           <SelectContent className="max-h-64" position="popper" sideOffset={4}>
             {isSportsbook ? (
-              groupByCategory(SPORTSBOOK_STATUSES).map(([group, items]) => (
+              groupByCategory(options).map(([group, items]) => (
                 <SelectGroup key={group}>
                   <SelectLabel className="text-[10px] text-muted-foreground">
                     {STATUS_GROUP_LABELS[group as SportsbookStatusGroup]}

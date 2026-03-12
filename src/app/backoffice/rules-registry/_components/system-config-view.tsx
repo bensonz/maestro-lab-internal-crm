@@ -35,8 +35,8 @@ import {
   type ConfigCategory,
 } from '@/lib/config-defaults'
 import { updateSystemConfig } from '@/app/actions/system-config'
-import { savePlatformStatuses } from '@/app/actions/status-config'
-import type { StatusConfigType } from '@/lib/status-config-keys'
+import { savePlatformStatuses, saveDetailConfig } from '@/app/actions/status-config'
+import type { StatusConfigType, PlatformDetailConfig } from '@/lib/status-config-keys'
 import type { StatusOption, SportsbookStatusGroup } from '@/lib/account-status-config'
 import {
   SPORTSBOOK_STATUSES,
@@ -127,9 +127,10 @@ function getPlatformGroups(): { platform: string; label: string; keys: { balance
 interface SystemConfigViewProps {
   initialValues: Record<string, string>
   statusConfigs: Record<string, StatusOption[]>
+  detailConfigs: Record<string, PlatformDetailConfig>
 }
 
-export function SystemConfigView({ initialValues, statusConfigs }: SystemConfigViewProps) {
+export function SystemConfigView({ initialValues, statusConfigs, detailConfigs }: SystemConfigViewProps) {
   const [values, setValues] = useState<Record<string, string>>(() => {
     const merged: Record<string, string> = {}
     for (const def of CONFIG_REGISTRY) {
@@ -379,7 +380,7 @@ export function SystemConfigView({ initialValues, statusConfigs }: SystemConfigV
       })}
 
       {/* Account Statuses Section */}
-      <AccountStatusesSection initialStatuses={statusConfigs} />
+      <AccountStatusesSection initialStatuses={statusConfigs} initialDetails={detailConfigs} />
     </div>
   )
 }
@@ -710,10 +711,259 @@ const RESET_DEFAULTS: Record<string, StatusOption[]> = {
   PAYPAL: PAYPAL_STATUSES,
 }
 
+const DEFAULT_DETAIL: PlatformDetailConfig = { limitedType: 'none' }
+
+const LIMITED_TYPE_OPTIONS = [
+  { value: 'none', label: 'None' },
+  { value: 'percentage', label: 'Percentage (%)' },
+  { value: 'amount', label: 'Dollar Amount ($)' },
+  { value: 'mgm-tier', label: 'Tier Levels' },
+  { value: 'caesars-sports', label: 'By Sports' },
+] as const
+
+// ── Detail Config Editor ─────────────────────────────────────
+
+function DetailConfigEditor({
+  platform,
+  detail,
+  isSportsbook,
+  onUpdateDetail,
+  onAddOption,
+  onUpdateOption,
+  onDeleteOption,
+}: {
+  platform: string
+  detail: PlatformDetailConfig
+  isSportsbook: boolean
+  onUpdateDetail: (platform: string, updates: Partial<PlatformDetailConfig>) => void
+  onAddOption: (platform: string, field: 'limitedOptions' | 'limitedSports' | 'activeDetailOptions') => void
+  onUpdateOption: (platform: string, field: 'limitedOptions' | 'limitedSports' | 'activeDetailOptions', index: number, value: string) => void
+  onDeleteOption: (platform: string, field: 'limitedOptions' | 'limitedSports' | 'activeDetailOptions', index: number) => void
+}) {
+  const hasLimited = isSportsbook
+  const hasActiveDetail = !isSportsbook && (detail.activeDetailOptions?.length || platform === 'BANK' || platform === 'EDGEBOOST')
+  const showActiveDetail = !isSportsbook
+
+  return (
+    <div className="mt-3 space-y-3 rounded border border-border/30 bg-muted/10 p-3">
+      {/* Sportsbook: Limited subtype config */}
+      {hasLimited && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Limited Subtypes
+            </span>
+          </div>
+
+          {/* Limited type selector */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Type:</span>
+            <Select
+              value={detail.limitedType}
+              onValueChange={(v) =>
+                onUpdateDetail(platform, {
+                  limitedType: v as PlatformDetailConfig['limitedType'],
+                  // Reset options when type changes
+                  ...(v === 'none' ? { limitedOptions: undefined, limitedSports: undefined } : {}),
+                })
+              }
+            >
+              <SelectTrigger className="h-7 w-48 border-border/50 text-xs" data-testid={`detail-type-${platform}`}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {LIMITED_TYPE_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Options list for percentage/amount/mgm-tier */}
+          {detail.limitedType !== 'none' && detail.limitedType !== 'caesars-sports' && (
+            <div className="space-y-1">
+              <span className="text-[10px] text-muted-foreground">
+                {detail.limitedType === 'percentage' ? 'Percentage tiers' :
+                 detail.limitedType === 'amount' ? 'Dollar amounts' :
+                 'Tier names'}
+              </span>
+              {(detail.limitedOptions ?? []).map((opt, idx) => (
+                <div key={idx} className="flex items-center gap-1.5">
+                  {detail.limitedType === 'percentage' && (
+                    <span className="text-[10px] text-muted-foreground w-3 shrink-0">%</span>
+                  )}
+                  {detail.limitedType === 'amount' && (
+                    <span className="text-[10px] text-muted-foreground w-3 shrink-0">$</span>
+                  )}
+                  <Input
+                    className="h-6 flex-1 border-border/50 bg-background text-xs"
+                    value={opt}
+                    placeholder={
+                      detail.limitedType === 'percentage' ? 'e.g. 25%' :
+                      detail.limitedType === 'amount' ? 'e.g. $1,000' :
+                      'e.g. Tier 1'
+                    }
+                    onChange={(e) => onUpdateOption(platform, 'limitedOptions', idx, e.target.value)}
+                    data-testid={`detail-option-${platform}-${idx}`}
+                  />
+                  <button
+                    onClick={() => onDeleteOption(platform, 'limitedOptions', idx)}
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 text-[10px] text-muted-foreground"
+                onClick={() => onAddOption(platform, 'limitedOptions')}
+                data-testid={`detail-add-option-${platform}`}
+              >
+                <Plus className="mr-0.5 h-2.5 w-2.5" />
+                Add Option
+              </Button>
+            </div>
+          )}
+
+          {/* Sports list for caesars-sports type */}
+          {detail.limitedType === 'caesars-sports' && (
+            <div className="space-y-1">
+              <span className="text-[10px] text-muted-foreground">Sports options</span>
+              {(detail.limitedSports ?? []).map((sport, idx) => (
+                <div key={idx} className="flex items-center gap-1.5">
+                  <Input
+                    className="h-6 flex-1 border-border/50 bg-background text-xs"
+                    value={sport}
+                    placeholder="e.g. NBA"
+                    onChange={(e) => onUpdateOption(platform, 'limitedSports', idx, e.target.value)}
+                    data-testid={`detail-sport-${platform}-${idx}`}
+                  />
+                  <button
+                    onClick={() => onDeleteOption(platform, 'limitedSports', idx)}
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+              <div className="space-y-1">
+                <span className="text-[10px] text-muted-foreground">Fraction options (e.g. 1/4, 2/4)</span>
+                {(detail.limitedOptions ?? []).map((opt, idx) => (
+                  <div key={idx} className="flex items-center gap-1.5">
+                    <Input
+                      className="h-6 flex-1 border-border/50 bg-background text-xs"
+                      value={opt}
+                      placeholder="e.g. 1/4"
+                      onChange={(e) => onUpdateOption(platform, 'limitedOptions', idx, e.target.value)}
+                      data-testid={`detail-fraction-${platform}-${idx}`}
+                    />
+                    <button
+                      onClick={() => onDeleteOption(platform, 'limitedOptions', idx)}
+                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 text-[10px] text-muted-foreground"
+                  onClick={() => onAddOption(platform, 'limitedOptions')}
+                >
+                  <Plus className="mr-0.5 h-2.5 w-2.5" />
+                  Add Fraction
+                </Button>
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 text-[10px] text-muted-foreground"
+                onClick={() => onAddOption(platform, 'limitedSports')}
+                data-testid={`detail-add-sport-${platform}`}
+              >
+                <Plus className="mr-0.5 h-2.5 w-2.5" />
+                Add Sport
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Financial platforms: Active detail config */}
+      {showActiveDetail && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Active Details
+            </span>
+          </div>
+
+          {/* Label */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground shrink-0">Label:</span>
+            <Input
+              className="h-6 w-40 border-border/50 bg-background text-xs"
+              value={detail.activeDetailLabel ?? ''}
+              placeholder={platform === 'BANK' ? 'Bank' : platform === 'EDGEBOOST' ? 'Tier' : 'Detail'}
+              onChange={(e) => onUpdateDetail(platform, { activeDetailLabel: e.target.value })}
+              data-testid={`detail-label-${platform}`}
+            />
+          </div>
+
+          {/* Options */}
+          <div className="space-y-1">
+            <span className="text-[10px] text-muted-foreground">
+              {platform === 'BANK' ? 'Bank options' : platform === 'EDGEBOOST' ? 'Tier options' : 'Options'}
+            </span>
+            {(detail.activeDetailOptions ?? []).map((opt, idx) => (
+              <div key={idx} className="flex items-center gap-1.5">
+                <Input
+                  className="h-6 flex-1 border-border/50 bg-background text-xs"
+                  value={opt}
+                  placeholder={
+                    platform === 'BANK' ? 'e.g. Chase' :
+                    platform === 'EDGEBOOST' ? 'e.g. Tier 1' :
+                    'Option name'
+                  }
+                  onChange={(e) => onUpdateOption(platform, 'activeDetailOptions', idx, e.target.value)}
+                  data-testid={`detail-active-${platform}-${idx}`}
+                />
+                <button
+                  onClick={() => onDeleteOption(platform, 'activeDetailOptions', idx)}
+                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 text-[10px] text-muted-foreground"
+              onClick={() => onAddOption(platform, 'activeDetailOptions')}
+              data-testid={`detail-add-active-${platform}`}
+            >
+              <Plus className="mr-0.5 h-2.5 w-2.5" />
+              Add Option
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function AccountStatusesSection({
   initialStatuses,
+  initialDetails,
 }: {
   initialStatuses: Record<string, StatusOption[]>
+  initialDetails: Record<string, PlatformDetailConfig>
 }) {
   // Initialize state for all 12 platforms
   const [statusSections, setStatusSections] = useState<Record<string, StatusOption[]>>(() => {
@@ -728,6 +978,23 @@ function AccountStatusesSection({
     const sections: Record<string, StatusOption[]> = {}
     for (const platform of ALL_PLATFORM_ORDER) {
       sections[platform] = [...(initialStatuses[platform] ?? [])]
+    }
+    return sections
+  })
+
+  // Detail configs state
+  const [detailSections, setDetailSections] = useState<Record<string, PlatformDetailConfig>>(() => {
+    const sections: Record<string, PlatformDetailConfig> = {}
+    for (const platform of ALL_PLATFORM_ORDER) {
+      sections[platform] = initialDetails[platform] ? { ...initialDetails[platform] } : { ...DEFAULT_DETAIL }
+    }
+    return sections
+  })
+
+  const [savedDetails, setSavedDetails] = useState<Record<string, PlatformDetailConfig>>(() => {
+    const sections: Record<string, PlatformDetailConfig> = {}
+    for (const platform of ALL_PLATFORM_ORDER) {
+      sections[platform] = initialDetails[platform] ? { ...initialDetails[platform] } : { ...DEFAULT_DETAIL }
     }
     return sections
   })
@@ -747,9 +1014,15 @@ function AccountStatusesSection({
     })
   }
 
-  const hasChanges = (key: string) => {
+  const hasStatusChanges = (key: string) => {
     return JSON.stringify(statusSections[key]) !== JSON.stringify(savedSections[key])
   }
+
+  const hasDetailChanges = (key: string) => {
+    return JSON.stringify(detailSections[key]) !== JSON.stringify(savedDetails[key])
+  }
+
+  const hasChanges = (key: string) => hasStatusChanges(key) || hasDetailChanges(key)
 
   const anyChanges = ALL_PLATFORM_ORDER.some((p) => hasChanges(p))
 
@@ -800,23 +1073,72 @@ function AccountStatusesSection({
     }))
   }
 
+  const updateDetail = (platform: string, updates: Partial<PlatformDetailConfig>) => {
+    setDetailSections((prev) => ({
+      ...prev,
+      [platform]: { ...prev[platform], ...updates },
+    }))
+  }
+
+  const addDetailOption = (platform: string, field: 'limitedOptions' | 'limitedSports' | 'activeDetailOptions') => {
+    setDetailSections((prev) => {
+      const current = prev[platform]
+      const arr = [...(current[field] ?? [])]
+      arr.push('')
+      return { ...prev, [platform]: { ...current, [field]: arr } }
+    })
+  }
+
+  const updateDetailOption = (platform: string, field: 'limitedOptions' | 'limitedSports' | 'activeDetailOptions', index: number, value: string) => {
+    setDetailSections((prev) => {
+      const current = prev[platform]
+      const arr = [...(current[field] ?? [])]
+      arr[index] = value
+      return { ...prev, [platform]: { ...current, [field]: arr } }
+    })
+  }
+
+  const deleteDetailOption = (platform: string, field: 'limitedOptions' | 'limitedSports' | 'activeDetailOptions', index: number) => {
+    setDetailSections((prev) => {
+      const current = prev[platform]
+      const arr = (current[field] ?? []).filter((_, i) => i !== index)
+      return { ...prev, [platform]: { ...current, [field]: arr } }
+    })
+  }
+
   const saveSection = (sectionKey: string) => {
     const statuses = statusSections[sectionKey]
+    const detail = detailSections[sectionKey]
     setSavingSection(sectionKey)
     startTransition(async () => {
-      const result = await savePlatformStatuses(sectionKey as StatusConfigType, statuses)
+      // Save statuses and detail config in parallel
+      const [statusResult, detailResult] = await Promise.all([
+        hasStatusChanges(sectionKey)
+          ? savePlatformStatuses(sectionKey as StatusConfigType, statuses)
+          : { success: true },
+        hasDetailChanges(sectionKey)
+          ? saveDetailConfig(sectionKey as StatusConfigType, detail)
+          : { success: true },
+      ])
       setSavingSection(null)
 
-      if (result.success) {
+      if (statusResult.success && detailResult.success) {
         setSavedSections((prev) => ({
           ...prev,
           [sectionKey]: [...statuses],
         }))
-        toast.success('Statuses saved', {
-          description: `${statuses.length} statuses for ${PLATFORM_DISPLAY_NAMES[sectionKey] ?? sectionKey}`,
+        setSavedDetails((prev) => ({
+          ...prev,
+          [sectionKey]: { ...detail },
+        }))
+        toast.success('Saved', {
+          description: `${PLATFORM_DISPLAY_NAMES[sectionKey] ?? sectionKey} — ${statuses.length} statuses`,
         })
       } else {
-        toast.error('Failed to save', { description: result.error })
+        const error = !statusResult.success
+          ? (statusResult as { error: string }).error
+          : (detailResult as { error: string }).error
+        toast.error('Failed to save', { description: error })
       }
     })
   }
@@ -957,6 +1279,17 @@ function AccountStatusesSection({
                 </div>
               ))}
             </div>
+
+            {/* Status Detail Config (Limited subtypes / Active details) */}
+            <DetailConfigEditor
+              platform={platform}
+              detail={detailSections[platform] ?? DEFAULT_DETAIL}
+              isSportsbook={showGroups}
+              onUpdateDetail={updateDetail}
+              onAddOption={addDetailOption}
+              onUpdateOption={updateDetailOption}
+              onDeleteOption={deleteDetailOption}
+            />
 
             {/* Add + Save/Reset buttons */}
             <div className="mt-2 flex items-center justify-between">

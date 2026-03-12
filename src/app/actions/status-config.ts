@@ -6,8 +6,12 @@ import { revalidatePath } from 'next/cache'
 import { invalidateStatusConfigCache } from '@/backend/data/config'
 import type { StatusOption } from '@/lib/account-status-config'
 
-// Re-export types/constants from shared module (can't export non-functions from "use server")
-import { STATUS_CONFIG_KEYS, type StatusConfigType } from '@/lib/status-config-keys'
+import {
+  STATUS_CONFIG_KEYS,
+  DETAIL_CONFIG_KEYS,
+  type StatusConfigType,
+  type PlatformDetailConfig,
+} from '@/lib/status-config-keys'
 
 /**
  * Save platform statuses to SystemConfig as JSON.
@@ -78,6 +82,68 @@ export async function savePlatformStatuses(
         type,
         statusCount: statuses.length,
         statusValues: statuses.map((s) => s.value),
+      },
+    },
+  })
+
+  invalidateStatusConfigCache()
+  revalidatePath('/backoffice/rules-registry')
+  revalidatePath('/backoffice/account-statuses')
+
+  return { success: true }
+}
+
+/**
+ * Save platform detail config (limited subtypes, active details) to SystemConfig.
+ * Admin-only.
+ */
+export async function saveDetailConfig(
+  platform: StatusConfigType,
+  config: PlatformDetailConfig,
+) {
+  const session = await auth()
+  if (!session?.user) return { success: false, error: 'Not authenticated' }
+  if (session.user.role !== 'ADMIN') {
+    return { success: false, error: 'Admin access required' }
+  }
+
+  const userId = session.user.id
+  const userExists = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true },
+  })
+  if (!userExists) {
+    return { success: false, error: 'Your session is stale. Please log out and log back in.' }
+  }
+
+  const key = DETAIL_CONFIG_KEYS[platform]
+  const jsonValue = JSON.stringify(config)
+
+  await prisma.systemConfig.upsert({
+    where: { key },
+    update: {
+      value: jsonValue,
+      category: 'Account Statuses',
+      updatedById: userId,
+    },
+    create: {
+      key,
+      value: jsonValue,
+      category: 'Account Statuses',
+      updatedById: userId,
+    },
+  })
+
+  await prisma.eventLog.create({
+    data: {
+      eventType: 'USER_UPDATED',
+      description: `Detail config updated: ${platform} (${config.limitedType})`,
+      userId,
+      metadata: {
+        action: 'detail_config_update',
+        platform,
+        limitedType: config.limitedType,
+        limitedOptions: config.limitedOptions,
       },
     },
   })

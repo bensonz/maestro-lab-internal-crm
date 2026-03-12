@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/backend/auth'
 import { getAccountStatusesData } from '@/backend/data/account-statuses'
-import { loadAllStatusConfigs } from '@/backend/data/status-config'
+import { loadAllStatusConfigs, loadAllDetailConfigs } from '@/backend/data/status-config'
 import { AccountStatusesView } from './_components/account-statuses-view'
 
 export default async function AccountStatusesPage() {
@@ -10,11 +10,12 @@ export default async function AccountStatusesPage() {
 
   let data = null
   try {
-    const [d, statusConfigs] = await Promise.all([
+    const [d, statusConfigs, detailConfigs] = await Promise.all([
       getAccountStatusesData(),
       loadAllStatusConfigs(),
+      loadAllDetailConfigs(),
     ])
-    data = d ? { ...d, statusConfigs } : null
+    data = d ? { ...d, statusConfigs, detailConfigs } : null
   } catch (e) {
     console.error('[account-statuses] data fetch error:', e)
   }

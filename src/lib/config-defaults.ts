@@ -36,6 +36,7 @@ export const PLATFORM_DEFAULTS: Record<string, { balanceTarget: number; accountT
   BALLYBET:    { balanceTarget: 20_000,  accountTarget: 4,  minAccount: 5_000 },
   BETRIVERS:   { balanceTarget: 20_000,  accountTarget: 4,  minAccount: 5_000 },
   BET365:      { balanceTarget: 20_000,  accountTarget: 4,  minAccount: 5_000 },
+  ESPNBET:     { balanceTarget: 20_000,  accountTarget: 4,  minAccount: 5_000 },
 }
 
 export const PLATFORM_LABELS: Record<string, string> = {
@@ -47,6 +48,7 @@ export const PLATFORM_LABELS: Record<string, string> = {
   BALLYBET: 'Bally Bet',
   BETRIVERS: 'BetRivers',
   BET365: 'Bet365',
+  ESPNBET: 'ESPN BET',
 }
 
 // Generate per-platform config entries (3 per platform)

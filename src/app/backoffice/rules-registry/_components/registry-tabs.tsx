@@ -5,13 +5,17 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { RulesRegistryView } from './rules-registry-view'
 import { SystemConfigView } from './system-config-view'
 import { Settings, BookOpen } from 'lucide-react'
+import type { StatusOption } from '@/lib/account-status-config'
+import type { PlatformDetailConfig } from '@/lib/status-config-keys'
 
 interface RegistryTabsProps {
   isAdmin: boolean
   configValues: Record<string, string>
+  statusConfigs: Record<string, StatusOption[]>
+  detailConfigs: Record<string, PlatformDetailConfig>
 }
 
-export function RegistryTabs({ isAdmin, configValues }: RegistryTabsProps) {
+export function RegistryTabs({ isAdmin, configValues, statusConfigs, detailConfigs }: RegistryTabsProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const tab = searchParams.get('tab') ?? 'rules'
@@ -53,7 +57,11 @@ export function RegistryTabs({ isAdmin, configValues }: RegistryTabsProps) {
 
         {isAdmin && (
           <TabsContent value="config">
-            <SystemConfigView initialValues={configValues} />
+            <SystemConfigView
+              initialValues={configValues}
+              statusConfigs={statusConfigs}
+              detailConfigs={detailConfigs}
+            />
           </TabsContent>
         )}
       </Tabs>

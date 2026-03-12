@@ -861,6 +861,8 @@ export interface PlatformStatusEntry {
 export interface AccountStatusesData {
   rows: AccountStatusRow[]
   summary: AccountStatusesSummary
+  statusConfigs?: Record<string, import('@/lib/account-status-config').StatusOption[]>
+  detailConfigs?: Record<string, import('@/lib/status-config-keys').PlatformDetailConfig>
 }
 
 export interface AccountStatusRow {
