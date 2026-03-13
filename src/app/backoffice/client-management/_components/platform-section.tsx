@@ -33,59 +33,60 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
-import { updatePlatformStatus } from '@/lib/mock-actions'
+import { updateAccountStatus } from '@/app/actions/balance-snapshots'
+import {
+  getStatusOptionsForPlatform,
+  findStatusOption,
+} from '@/lib/account-status-config'
 import { EditableField } from './editable-field'
 import type {
   Client,
   BettingPlatform,
-  ViewPlatformStatus,
-  FinancePlatformStatus,
 } from './types'
 
 // ============================================================================
 // Helpers
 // ============================================================================
 
-function getPlatformStatusColor(
-  status: ViewPlatformStatus | FinancePlatformStatus,
-): string {
-  switch (status) {
-    case 'active':
-      return 'bg-success/20 text-success'
-    case 'limited':
-      return 'bg-warning/20 text-warning'
-    case 'pipeline':
-      return 'bg-primary/20 text-primary'
-    case 'dead':
-    case 'permanent_limited':
-    case 'rejected':
-      return 'bg-destructive/20 text-destructive'
-  }
+/** Get color classes from status config, with fallback */
+function getStatusColor(platform: string, statusValue: string): string {
+  const opt = findStatusOption(platform, statusValue)
+  if (opt) return `${opt.color} ${opt.textColor}`
+  return 'bg-muted text-muted-foreground'
 }
 
-function getBettingPlatformStatusColor(status: ViewPlatformStatus): string {
-  switch (status) {
-    case 'active':
-      return 'bg-success/20 text-success border-success/40'
-    case 'limited':
-      return 'bg-warning/20 text-warning border-warning/40'
-    case 'pipeline':
-      return 'bg-primary/20 text-primary border-primary/40'
-    default:
-      return 'bg-muted text-muted-foreground border-border'
-  }
+/** Get color classes with border for betting platform icons */
+function getStatusColorWithBorder(platform: string, statusValue: string): string {
+  const opt = findStatusOption(platform, statusValue)
+  if (opt) return `${opt.color} ${opt.textColor} border-current/40`
+  return 'bg-muted text-muted-foreground border-border'
 }
 
-function sortPlatformsByStatus(platforms: BettingPlatform[]): BettingPlatform[] {
-  const statusOrder: Record<ViewPlatformStatus, number> = {
-    active: 0,
-    pipeline: 1,
-    limited: 2,
-    dead: 3,
-  }
-  return [...platforms].sort(
-    (a, b) => statusOrder[a.status] - statusOrder[b.status],
-  )
+/** Get display label for a status value */
+function getStatusLabel(platform: string, statusValue: string): string {
+  const opt = findStatusOption(platform, statusValue)
+  return opt?.label ?? statusValue
+}
+
+// Fixed sportsbook display order: DK FD BetMGM Fanatics Caesars BallyBet BetRivers Bet365 ESPN BET
+const SPORTSBOOK_ORDER = [
+  'DraftKings',
+  'FanDuel',
+  'BetMGM',
+  'Fanatics',
+  'Caesars',
+  'BallyBet',
+  'BetRivers',
+  'Bet365',
+  'ESPN BET',
+]
+
+function orderPlatforms(platforms: BettingPlatform[]): BettingPlatform[] {
+  return [...platforms].sort((a, b) => {
+    const idxA = SPORTSBOOK_ORDER.indexOf(a.name)
+    const idxB = SPORTSBOOK_ORDER.indexOf(b.name)
+    return (idxA === -1 ? 99 : idxA) - (idxB === -1 ? 99 : idxB)
+  })
 }
 
 function calculateBettingPnL(client: Client): number {
@@ -135,6 +136,7 @@ const PLATFORM_NAME_TO_TYPE: Record<string, string> = {
   Fanatics: 'FANATICS',
   BallyBet: 'BALLYBET',
   BetRivers: 'BETRIVERS',
+  'ESPN BET': 'ESPNBET',
   Bet365: 'BET365',
 }
 
@@ -185,12 +187,16 @@ export function PlatformSection({
     // Report to timeline
     onFieldEdit?.(
       `${platformName}.status`,
-      oldStatus,
-      newStatus,
+      getStatusLabel(platformType, oldStatus),
+      getStatusLabel(platformType, newStatus),
     )
 
     startTransition(async () => {
-      const result = await updatePlatformStatus(client.id, platformType, newStatus)
+      const result = await updateAccountStatus({
+        clientRecordId: client.id,
+        platform: platformType,
+        status: newStatus,
+      })
       if (result.success) {
         toast.success(`${platformName} status updated`)
       } else {
@@ -362,75 +368,36 @@ export function PlatformSection({
                           onClick={(e) => e.stopPropagation()}
                           onKeyDown={(e) => e.stopPropagation()}
                         >
-                          {platform.type === 'paypal' && (
-                            <Select
-                              value={financeStatuses[platform.name] || platform.status}
-                              onValueChange={(v) => handleStatusChange(platform.name, v)}
-                              disabled={isPending}
-                            >
-                              <SelectTrigger
-                                className={cn(
-                                  'h-5 w-[90px] justify-center gap-1 rounded-full border px-2 text-[10px] font-medium',
-                                  getPlatformStatusColor((financeStatuses[platform.name] || platform.status) as FinancePlatformStatus),
-                                )}
+                          {(() => {
+                            const platformType = PLATFORM_NAME_TO_TYPE[platform.name] || ''
+                            const options = getStatusOptionsForPlatform(platformType)
+                            const currentStatus = financeStatuses[platform.name] || platform.status
+                            return (
+                              <Select
+                                value={currentStatus}
+                                onValueChange={(v) => handleStatusChange(platform.name, v)}
+                                disabled={isPending}
                               >
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="pipeline">Pipeline</SelectItem>
-                                <SelectItem value="active">Active</SelectItem>
-                                <SelectItem value="permanent_limited">
-                                  Perm. Limited
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
-                          )}
-                          {platform.type === 'edgeboost' && (
-                            <Select
-                              value={financeStatuses[platform.name] || platform.status}
-                              onValueChange={(v) => handleStatusChange(platform.name, v)}
-                              disabled={isPending}
-                            >
-                              <SelectTrigger
-                                className={cn(
-                                  'h-5 w-[90px] justify-center gap-1 rounded-full border px-2 text-[10px] font-medium',
-                                  getPlatformStatusColor((financeStatuses[platform.name] || platform.status) as FinancePlatformStatus),
-                                )}
-                              >
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="pipeline">Pipeline</SelectItem>
-                                <SelectItem value="active">Active</SelectItem>
-                                <SelectItem value="rejected">
-                                  Rejected
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
-                          )}
-                          {platform.type === 'bank' && (
-                            <Select
-                              value={financeStatuses[platform.name] || platform.status}
-                              onValueChange={(v) => handleStatusChange(platform.name, v)}
-                              disabled={isPending}
-                            >
-                              <SelectTrigger
-                                className={cn(
-                                  'h-5 w-[90px] justify-center gap-1 rounded-full border px-2 text-[10px] font-medium',
-                                  getPlatformStatusColor((financeStatuses[platform.name] || platform.status) as FinancePlatformStatus),
-                                )}
-                              >
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="pipeline">Pipeline</SelectItem>
-                                <SelectItem value="active">Active</SelectItem>
-                                <SelectItem value="rejected">
-                                  Rejected
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
-                          )}
+                                <SelectTrigger
+                                  className={cn(
+                                    'h-5 w-[110px] justify-center gap-1 rounded-full border px-2 text-[10px] font-medium',
+                                    getStatusColor(platformType, currentStatus),
+                                  )}
+                                >
+                                  <SelectValue>
+                                    {getStatusLabel(platformType, currentStatus)}
+                                  </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {options.map((opt) => (
+                                    <SelectItem key={opt.value} value={opt.value}>
+                                      {opt.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )
+                          })()}
                         </div>
                       </div>
                       <span className="font-mono text-sm">
@@ -559,7 +526,7 @@ export function PlatformSection({
                 </div>
 
                 {/* Betting Platforms */}
-                {sortPlatformsByStatus(client.bettingPlatforms).map(
+                {orderPlatforms(client.bettingPlatforms).map(
                   (platform) => {
                     const pnl =
                       (platform.deposits || 0) - (platform.withdrawals || 0)
@@ -599,33 +566,36 @@ export function PlatformSection({
                               onClick={(e) => e.stopPropagation()}
                               onKeyDown={(e) => e.stopPropagation()}
                             >
-                              <Select
-                                value={bettingStatuses[platform.name] || platform.status}
-                                onValueChange={(v) => handleStatusChange(platform.name, v)}
-                                disabled={isPending}
-                              >
-                                <SelectTrigger
-                                  className={cn(
-                                    'h-5 w-[72px] justify-center gap-1 rounded-full border px-2 text-[10px] font-medium',
-                                    getBettingPlatformStatusColor(
-                                      (bettingStatuses[platform.name] || platform.status) as ViewPlatformStatus,
-                                    ),
-                                  )}
-                                >
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="active">
-                                    Active
-                                  </SelectItem>
-                                  <SelectItem value="pipeline">
-                                    Pipeline
-                                  </SelectItem>
-                                  <SelectItem value="limited">
-                                    Limited
-                                  </SelectItem>
-                                </SelectContent>
-                              </Select>
+                              {(() => {
+                                const platformType = PLATFORM_NAME_TO_TYPE[platform.name] || 'DRAFTKINGS'
+                                const options = getStatusOptionsForPlatform(platformType)
+                                const currentStatus = bettingStatuses[platform.name] || platform.status
+                                return (
+                                  <Select
+                                    value={currentStatus}
+                                    onValueChange={(v) => handleStatusChange(platform.name, v)}
+                                    disabled={isPending}
+                                  >
+                                    <SelectTrigger
+                                      className={cn(
+                                        'h-5 w-[110px] justify-center gap-1 rounded-full border px-2 text-[10px] font-medium',
+                                        getStatusColorWithBorder(platformType, currentStatus),
+                                      )}
+                                    >
+                                      <SelectValue>
+                                        {getStatusLabel(platformType, currentStatus)}
+                                      </SelectValue>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {options.map((opt) => (
+                                        <SelectItem key={opt.value} value={opt.value}>
+                                          {opt.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                )
+                              })()}
                             </div>
                           </div>
                           <span className="ml-2 font-mono text-sm">
@@ -745,14 +715,8 @@ export function PlatformSection({
                               ? 'B'
                               : 'EB'
                         const currentStatus = financeStatuses[platform.name] || platform.status
-                        const finIconColor =
-                          currentStatus === 'active'
-                            ? 'bg-success/20 text-success border-success/40'
-                            : currentStatus === 'pipeline'
-                              ? 'bg-primary/20 text-primary border-primary/40'
-                              : currentStatus === 'permanent_limited'
-                                ? 'bg-warning/20 text-warning border-warning/40'
-                                : 'bg-destructive/20 text-destructive border-destructive/40'
+                        const platformType = PLATFORM_NAME_TO_TYPE[platform.name] || ''
+                        const finIconColor = getStatusColorWithBorder(platformType, currentStatus)
                         return (
                           <Tooltip key={platform.name}>
                             <TooltipTrigger asChild>
@@ -785,17 +749,11 @@ export function PlatformSection({
                   {/* Betting platforms */}
                   <div className="flex items-center gap-0.5">
                     <TooltipProvider delayDuration={100}>
-                      {sortPlatformsByStatus(client.bettingPlatforms).map(
+                      {orderPlatforms(client.bettingPlatforms).map(
                         (platform) => {
-                          const currentBetStatus = (bettingStatuses[platform.name] || platform.status) as ViewPlatformStatus
-                          const statusColor =
-                            currentBetStatus === 'active'
-                              ? 'bg-success/20 text-success border-success/40'
-                              : currentBetStatus === 'pipeline'
-                                ? 'bg-primary/20 text-primary border-primary/40'
-                                : currentBetStatus === 'limited'
-                                  ? 'bg-warning/20 text-warning border-warning/40'
-                                  : 'bg-destructive/20 text-destructive border-destructive/40'
+                          const currentBetStatus = bettingStatuses[platform.name] || platform.status
+                          const betPlatformType = PLATFORM_NAME_TO_TYPE[platform.name] || 'DRAFTKINGS'
+                          const statusColor = getStatusColorWithBorder(betPlatformType, currentBetStatus)
                           return (
                             <Tooltip key={platform.id}>
                               <TooltipTrigger asChild>

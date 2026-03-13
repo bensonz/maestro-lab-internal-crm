@@ -563,6 +563,10 @@ async function main() {
   await prisma.phoneAssignment.deleteMany({
     where: { clientRecord: { email: { startsWith: 'sample-client' } } },
   })
+  // Clean up balance snapshots linked to sample client records
+  await prisma.balanceSnapshot.deleteMany({
+    where: { clientRecord: { email: { startsWith: 'sample-client' } } },
+  })
   // Clean up sample client records
   await prisma.clientRecord.deleteMany({
     where: { email: { startsWith: 'sample-client' } },
@@ -914,118 +918,9 @@ async function main() {
   })
   console.log('  Created phone assignments for 3 sample clients')
 
-  // ── Transactions for Approved Clients ──────────────────────
-  // Simulate fund deposits and withdrawals
-
-  // David Wilson — 4 transactions
-  await prisma.transaction.createMany({
-    data: [
-      {
-        clientRecordId: client1.id,
-        type: 'DEPOSIT',
-        amount: 500.00,
-        description: 'Initial deposit to DraftKings',
-        platformType: 'DRAFTKINGS',
-        createdAt: new Date('2026-02-11'),
-      },
-      {
-        clientRecordId: client1.id,
-        type: 'DEPOSIT',
-        amount: 300.00,
-        description: 'Deposit to FanDuel',
-        platformType: 'FANDUEL',
-        createdAt: new Date('2026-02-13'),
-      },
-      {
-        clientRecordId: client1.id,
-        type: 'DEPOSIT',
-        amount: 200.00,
-        description: 'PayPal fund transfer',
-        platformType: 'PAYPAL',
-        createdAt: new Date('2026-02-15'),
-      },
-      {
-        clientRecordId: client1.id,
-        type: 'WITHDRAWAL',
-        amount: 150.00,
-        description: 'Withdrawal from DraftKings',
-        platformType: 'DRAFTKINGS',
-        createdAt: new Date('2026-02-20'),
-      },
-    ],
-  })
-
-  // Emily Chen — 3 transactions
-  await prisma.transaction.createMany({
-    data: [
-      {
-        clientRecordId: client2.id,
-        type: 'DEPOSIT',
-        amount: 400.00,
-        description: 'Initial deposit to BetMGM',
-        platformType: 'BETMGM',
-        createdAt: new Date('2026-02-13'),
-      },
-      {
-        clientRecordId: client2.id,
-        type: 'DEPOSIT',
-        amount: 250.00,
-        description: 'Bank transfer deposit',
-        platformType: 'BANK',
-        createdAt: new Date('2026-02-16'),
-      },
-      {
-        clientRecordId: client2.id,
-        type: 'WITHDRAWAL',
-        amount: 100.00,
-        description: 'PayPal withdrawal',
-        platformType: 'PAYPAL',
-        createdAt: new Date('2026-02-22'),
-      },
-    ],
-  })
-  // Additional transactions for war room data
-  const now = new Date()
-  const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const recentDate = new Date(todayDate)
-  recentDate.setHours(recentDate.getHours() - 6)
-
-  await prisma.transaction.createMany({
-    data: [
-      // David Wilson — more sportsbook deposits
-      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 2500, description: 'BetMGM deposit', platformType: 'BETMGM', createdAt: new Date('2026-02-18') },
-      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 1800, description: 'Caesars deposit', platformType: 'CAESARS', createdAt: new Date('2026-02-19') },
-      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 3200, description: 'Fanatics deposit', platformType: 'FANATICS', createdAt: new Date('2026-02-20') },
-      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 1500, description: 'BetRivers deposit', platformType: 'BETRIVERS', createdAt: new Date('2026-02-21') },
-      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 900, description: 'Bally Bet deposit', platformType: 'BALLYBET', createdAt: new Date('2026-02-22') },
-      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 750, description: 'Bet365 deposit', platformType: 'BET365', createdAt: new Date('2026-02-23') },
-      // BANK deposit (recent, triggers $250 overnight alert)
-      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 500, description: 'Bank deposit', platformType: 'BANK', createdAt: recentDate },
-      // EdgeBoost deposits (2 of 4 — partial progress)
-      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 250, description: 'EdgeBoost deposit 1', platformType: 'EDGEBOOST', createdAt: new Date('2026-02-25') },
-      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 250, description: 'EdgeBoost deposit 2', platformType: 'EDGEBOOST', createdAt: new Date('2026-02-27') },
-      // Today's activity
-      { clientRecordId: client1.id, type: 'DEPOSIT', amount: 1200, description: 'DraftKings top-up', platformType: 'DRAFTKINGS', createdAt: todayDate },
-
-      // Emily Chen — more sportsbook deposits
-      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 3500, description: 'DraftKings deposit', platformType: 'DRAFTKINGS', createdAt: new Date('2026-02-17') },
-      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 2200, description: 'FanDuel deposit', platformType: 'FANDUEL', createdAt: new Date('2026-02-18') },
-      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 1600, description: 'Caesars deposit', platformType: 'CAESARS', createdAt: new Date('2026-02-20') },
-      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 800, description: 'Fanatics deposit', platformType: 'FANATICS', createdAt: new Date('2026-02-21') },
-      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 2000, description: 'BetRivers deposit', platformType: 'BETRIVERS', createdAt: new Date('2026-02-24') },
-      // BANK deposit (recent, triggers overnight alert)
-      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 350, description: 'Bank transfer', platformType: 'BANK', createdAt: recentDate },
-      // EdgeBoost deposits (complete — 4x$250)
-      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 250, description: 'EdgeBoost deposit 1', platformType: 'EDGEBOOST', createdAt: new Date('2026-02-20') },
-      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 250, description: 'EdgeBoost deposit 2', platformType: 'EDGEBOOST', createdAt: new Date('2026-02-22') },
-      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 250, description: 'EdgeBoost deposit 3', platformType: 'EDGEBOOST', createdAt: new Date('2026-02-24') },
-      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 250, description: 'EdgeBoost deposit 4', platformType: 'EDGEBOOST', createdAt: new Date('2026-02-26') },
-      // Today
-      { clientRecordId: client2.id, type: 'DEPOSIT', amount: 800, description: 'FanDuel top-up', platformType: 'FANDUEL', createdAt: todayDate },
-      { clientRecordId: client2.id, type: 'WITHDRAWAL', amount: 500, description: 'BetMGM withdrawal', platformType: 'BETMGM', createdAt: todayDate },
-    ],
-  })
-  console.log('  Created additional transactions for war room')
+  // ── Transactions ────────────────────────────────────────────
+  // No seed transactions — platform balances start at $0 (real DB data only)
+  console.log('  Skipped transactions (real data only)')
 
   // ── Sample Client Draft ────────────────────────────────
 
@@ -1422,14 +1317,22 @@ async function main() {
   // Mix of UNCONFIRMED, CONFIRMED, and DISCREPANCY for testing
 
   await prisma.fundAllocation.deleteMany({})
+
+  // Use current date for realistic clearing status display
+  const seedNow = new Date()
+  const hoursAgo = (h: number) => new Date(seedNow.getTime() - h * 60 * 60 * 1000)
+  const hoursFromNow = (h: number) => new Date(seedNow.getTime() + h * 60 * 60 * 1000)
+
   await prisma.fundAllocation.createMany({
     data: [
+      // ── Deposits (instant, confirmed) ──
       {
         amount: 500.00,
         platform: 'DraftKings',
         direction: 'DEPOSIT',
         notes: 'Initial fund deposit for David Wilson accounts',
         recordedById: boStaff.id,
+        clientRecordId: client1.id,
         confirmationStatus: 'CONFIRMED',
         confirmedAt: new Date('2026-02-11T10:00:00'),
         confirmedById: admin.id,
@@ -1440,8 +1343,9 @@ async function main() {
         amount: 300.00,
         platform: 'FanDuel',
         direction: 'DEPOSIT',
-        notes: 'FanDuel deposit for David Wilson',
+        notes: 'FanDuel deposit for Emily Chen',
         recordedById: boStaff.id,
+        clientRecordId: client2.id,
         confirmationStatus: 'CONFIRMED',
         confirmedAt: new Date('2026-02-13T14:00:00'),
         confirmedById: boStaff.id,
@@ -1449,48 +1353,142 @@ async function main() {
         createdAt: new Date('2026-02-13T09:00:00'),
       },
       {
-        amount: 200.00,
-        platform: 'PayPal',
-        direction: 'DEPOSIT',
-        notes: 'PayPal transfer for David Wilson',
-        recordedById: boStaff.id,
-        confirmationStatus: 'DISCREPANCY',
-        confirmedAt: new Date('2026-02-15T16:00:00'),
-        confirmedById: admin.id,
-        confirmedAmount: 185.50,
-        discrepancyNotes: 'PayPal fee deducted $14.50',
-        createdAt: new Date('2026-02-15T08:00:00'),
-      },
-      {
-        amount: 150.00,
-        platform: 'DraftKings',
-        direction: 'WITHDRAWAL',
-        notes: 'DraftKings withdrawal for David Wilson',
-        recordedById: boStaff.id,
-        confirmationStatus: 'UNCONFIRMED',
-        createdAt: new Date('2026-02-20T10:00:00'),
-      },
-      {
         amount: 400.00,
         platform: 'BetMGM',
         direction: 'DEPOSIT',
         notes: 'BetMGM deposit for Emily Chen accounts',
         recordedById: boStaff.id,
+        clientRecordId: client2.id,
         confirmationStatus: 'UNCONFIRMED',
         createdAt: new Date('2026-02-25T09:00:00'),
       },
+
+      // ── Withdrawals (clearing status — diverse cross-client scenarios) ──
+
+      // 1. Wilson's DraftKings → Chen's PayPal — STUCK (5 days, past expected)
       {
-        amount: 250.00,
-        platform: 'Online Banking',
-        direction: 'DEPOSIT',
-        notes: 'Bank transfer for Emily Chen',
+        amount: 1200.00,
+        platform: 'DraftKings',
+        direction: 'WITHDRAWAL',
+        notes: 'Sportsbook cashout from Wilson to fund Chen PayPal',
         recordedById: boStaff.id,
+        clientRecordId: client1.id,
+        destinationClientRecordId: client2.id,
         confirmationStatus: 'UNCONFIRMED',
-        createdAt: new Date('2026-02-27T11:00:00'),
+        destinationPlatform: 'PayPal',
+        transferMethod: 'ACH/Wire',
+        expectedArrivalAt: hoursAgo(96),
+        createdAt: hoursAgo(120),
+      },
+
+      // 2. Chen's FanDuel → Wilson's PayPal — IN-TRANSIT (~18h remaining)
+      {
+        amount: 800.00,
+        platform: 'FanDuel',
+        direction: 'WITHDRAWAL',
+        notes: 'FanDuel withdrawal from Chen to Wilson PayPal',
+        recordedById: boStaff.id,
+        clientRecordId: client2.id,
+        destinationClientRecordId: client1.id,
+        confirmationStatus: 'UNCONFIRMED',
+        destinationPlatform: 'PayPal',
+        transferMethod: 'ACH/Wire',
+        expectedArrivalAt: hoursFromNow(18),
+        createdAt: hoursAgo(6),
+      },
+
+      // 3. Wilson's Caesars → Chen's PayPal — EXPECTED SOON (~1h)
+      {
+        amount: 500.00,
+        platform: 'Caesars',
+        direction: 'WITHDRAWAL',
+        notes: 'Caesars cashout from Wilson to Chen PayPal',
+        recordedById: boStaff.id,
+        clientRecordId: client1.id,
+        destinationClientRecordId: client2.id,
+        confirmationStatus: 'UNCONFIRMED',
+        destinationPlatform: 'PayPal',
+        transferMethod: 'ACH/Wire',
+        expectedArrivalAt: hoursFromNow(1),
+        createdAt: hoursAgo(23),
+      },
+
+      // 4. Wilson's PayPal → Chen's PayPal — ARRIVED (Gmail auto-confirmed peer transfer)
+      {
+        amount: 350.00,
+        platform: 'PayPal',
+        direction: 'WITHDRAWAL',
+        notes: 'PayPal peer transfer from Wilson to Chen',
+        recordedById: boStaff.id,
+        clientRecordId: client1.id,
+        destinationClientRecordId: client2.id,
+        confirmationStatus: 'CONFIRMED',
+        confirmedAt: hoursAgo(2),
+        confirmedById: null, // Gmail auto-match
+        confirmedAmount: 350.00,
+        destinationPlatform: 'PayPal',
+        transferMethod: 'Zelle',
+        expectedArrivalAt: hoursAgo(1),
+        createdAt: hoursAgo(48),
+      },
+
+      // 5. Chen's BetMGM → Wilson's PayPal — DISCREPANCY (amount mismatch)
+      {
+        amount: 600.00,
+        platform: 'BetMGM',
+        direction: 'WITHDRAWAL',
+        notes: 'BetMGM withdrawal from Chen to Wilson — amount mismatch',
+        recordedById: boStaff.id,
+        clientRecordId: client2.id,
+        destinationClientRecordId: client1.id,
+        confirmationStatus: 'DISCREPANCY',
+        confirmedAt: hoursAgo(3),
+        confirmedById: admin.id,
+        confirmedAmount: 575.00,
+        discrepancyNotes: 'Platform processing fee deducted $25',
+        destinationPlatform: 'PayPal',
+        transferMethod: 'ACH/Wire',
+        expectedArrivalAt: hoursAgo(10),
+        createdAt: hoursAgo(30),
+      },
+
+      // 6. Chen's EdgeBoost → Wilson's PayPal — IN-TRANSIT (12h old, 2-day clearing)
+      {
+        amount: 450.00,
+        platform: 'EdgeBoost',
+        direction: 'WITHDRAWAL',
+        notes: 'EdgeBoost withdrawal from Chen to Wilson PayPal',
+        recordedById: boStaff.id,
+        clientRecordId: client2.id,
+        destinationClientRecordId: client1.id,
+        confirmationStatus: 'UNCONFIRMED',
+        destinationPlatform: 'PayPal',
+        transferMethod: 'ACH/Wire',
+        expectedArrivalAt: hoursFromNow(60),
+        createdAt: hoursAgo(12),
+      },
+
+      // 7. Wilson's DraftKings → Chen's PayPal — ARRIVED (Gmail auto, recent)
+      {
+        amount: 275.00,
+        platform: 'DraftKings',
+        direction: 'WITHDRAWAL',
+        notes: 'DraftKings cashout from Wilson to Chen PayPal',
+        recordedById: boStaff.id,
+        clientRecordId: client1.id,
+        destinationClientRecordId: client2.id,
+        confirmationStatus: 'CONFIRMED',
+        confirmedAt: hoursAgo(1),
+        confirmedById: null, // Gmail auto-match
+        confirmedAmount: 275.00,
+        destinationPlatform: 'PayPal',
+        transferMethod: 'ACH/Wire',
+        expectedArrivalAt: hoursAgo(0.5),
+        createdAt: hoursAgo(26),
       },
     ],
   })
-  console.log('  Created sample fund allocations (2 confirmed, 1 discrepancy, 3 unconfirmed)')
+  console.log('  Created sample fund allocations (2 confirmed deposits, 1 unconfirmed deposit, 7 cross-client withdrawals with diverse clearing statuses)')
 
   // ── Event Logs ─────────────────────────────────────────
   // General system events
@@ -1673,6 +1671,115 @@ async function main() {
   console.log('  Staff: Nina Patel (Backoffice), David Chen (Finance)')
   console.log('  Clients: 2 approved (with bonus pools), 1 pending')
   console.log('  Bonus pools: $800 total distributed')
+
+  // ── Balance Snapshots (3 days of daily balances for P&L) ──────
+  const today = new Date()
+  const t1 = new Date(today)
+  t1.setDate(t1.getDate() - 1) // yesterday
+  const t2 = new Date(today)
+  t2.setDate(t2.getDate() - 2) // day before yesterday
+  const t3 = new Date(today)
+  t3.setDate(t3.getDate() - 3) // 3 days ago
+
+  // Helper to create date-only (no time) for @db.Date
+  const dateOnly = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate())
+
+  const snapshotData = [
+    // David Wilson — DraftKings: VIP account, growing
+    { clientRecordId: client1.id, platform: 'DRAFTKINGS', date: dateOnly(t3), balance: 48000, createdById: boStaff.id },
+    { clientRecordId: client1.id, platform: 'DRAFTKINGS', date: dateOnly(t2), balance: 51200, createdById: boStaff.id },
+    { clientRecordId: client1.id, platform: 'DRAFTKINGS', date: dateOnly(t1), balance: 53800, createdById: boStaff.id },
+    // David Wilson — FanDuel: active, slight loss yesterday
+    { clientRecordId: client1.id, platform: 'FANDUEL', date: dateOnly(t3), balance: 22000, createdById: boStaff.id },
+    { clientRecordId: client1.id, platform: 'FANDUEL', date: dateOnly(t2), balance: 23500, createdById: boStaff.id },
+    { clientRecordId: client1.id, platform: 'FANDUEL', date: dateOnly(t1), balance: 22100, createdById: boStaff.id },
+    // David Wilson — BetMGM
+    { clientRecordId: client1.id, platform: 'BETMGM', date: dateOnly(t3), balance: 15000, createdById: boStaff.id },
+    { clientRecordId: client1.id, platform: 'BETMGM', date: dateOnly(t2), balance: 15800, createdById: boStaff.id },
+    { clientRecordId: client1.id, platform: 'BETMGM', date: dateOnly(t1), balance: 16200, createdById: boStaff.id },
+    // David Wilson — Bank (bankroll)
+    { clientRecordId: client1.id, platform: 'BANK', date: dateOnly(t3), balance: 8500, createdById: boStaff.id },
+    { clientRecordId: client1.id, platform: 'BANK', date: dateOnly(t2), balance: 8200, createdById: boStaff.id },
+    { clientRecordId: client1.id, platform: 'BANK', date: dateOnly(t1), balance: 7800, createdById: boStaff.id },
+    // David Wilson — PayPal
+    { clientRecordId: client1.id, platform: 'PAYPAL', date: dateOnly(t3), balance: 3200, createdById: boStaff.id },
+    { clientRecordId: client1.id, platform: 'PAYPAL', date: dateOnly(t2), balance: 3200, createdById: boStaff.id },
+    { clientRecordId: client1.id, platform: 'PAYPAL', date: dateOnly(t1), balance: 3000, createdById: boStaff.id },
+
+    // Emily Chen — FanDuel: semi-limited, being drained
+    { clientRecordId: client2.id, platform: 'FANDUEL', date: dateOnly(t3), balance: 18500, createdById: boStaff.id },
+    { clientRecordId: client2.id, platform: 'FANDUEL', date: dateOnly(t2), balance: 17200, createdById: boStaff.id },
+    { clientRecordId: client2.id, platform: 'FANDUEL', date: dateOnly(t1), balance: 15800, createdById: boStaff.id },
+    // Emily Chen — Caesars
+    { clientRecordId: client2.id, platform: 'CAESARS', date: dateOnly(t3), balance: 12000, createdById: boStaff.id },
+    { clientRecordId: client2.id, platform: 'CAESARS', date: dateOnly(t2), balance: 12800, createdById: boStaff.id },
+    { clientRecordId: client2.id, platform: 'CAESARS', date: dateOnly(t1), balance: 13500, createdById: boStaff.id },
+    // Emily Chen — Bank (bankroll)
+    { clientRecordId: client2.id, platform: 'BANK', date: dateOnly(t3), balance: 5500, createdById: boStaff.id },
+    { clientRecordId: client2.id, platform: 'BANK', date: dateOnly(t2), balance: 5300, createdById: boStaff.id },
+    { clientRecordId: client2.id, platform: 'BANK', date: dateOnly(t1), balance: 5100, createdById: boStaff.id },
+    // Emily Chen — EdgeBoost
+    { clientRecordId: client2.id, platform: 'EDGEBOOST', date: dateOnly(t3), balance: 2000, createdById: boStaff.id },
+    { clientRecordId: client2.id, platform: 'EDGEBOOST', date: dateOnly(t2), balance: 2200, createdById: boStaff.id },
+    { clientRecordId: client2.id, platform: 'EDGEBOOST', date: dateOnly(t1), balance: 2400, createdById: boStaff.id },
+  ]
+
+  for (const snap of snapshotData) {
+    await prisma.balanceSnapshot.upsert({
+      where: {
+        clientRecordId_platform_date: {
+          clientRecordId: snap.clientRecordId,
+          platform: snap.platform,
+          date: snap.date,
+        },
+      },
+      update: { balance: snap.balance },
+      create: snap,
+    })
+  }
+  console.log(`  Balance snapshots: ${snapshotData.length} entries for 3 days`)
+
+  // Set account statuses on approved clients
+  await prisma.clientRecord.update({
+    where: { id: client1.id },
+    data: {
+      accountStatuses: {
+        DRAFTKINGS: 'VIP',
+        FANDUEL: 'ACTIVE',
+        BETMGM: 'ACTIVE',
+        BANK: 'ACTIVE',
+        PAYPAL: 'ACTIVE',
+      },
+    },
+  })
+  await prisma.clientRecord.update({
+    where: { id: client2.id },
+    data: {
+      accountStatuses: {
+        FANDUEL: 'SEMI_LIMITED',
+        CAESARS: 'ACTIVE',
+        BANK: 'ACTIVE',
+        EDGEBOOST: 'ACTIVE',
+      },
+    },
+  })
+  console.log('  Account statuses set (Wilson: DK=VIP, Chen: FD=SEMI_LIMITED)')
+
+  // ── System Config Defaults ─────────────────────────────────
+  // Seed all config defaults so the UI shows current values even before admin changes anything
+  const { CONFIG_REGISTRY } = await import('../src/lib/config-defaults')
+  for (const def of CONFIG_REGISTRY) {
+    await prisma.systemConfig.upsert({
+      where: { key: def.key },
+      update: {},   // Don't overwrite existing values
+      create: {
+        key: def.key,
+        value: String(def.defaultValue),
+        category: def.category,
+      },
+    })
+  }
+  console.log(`  System config: ${CONFIG_REGISTRY.length} defaults seeded`)
 }
 
 main()

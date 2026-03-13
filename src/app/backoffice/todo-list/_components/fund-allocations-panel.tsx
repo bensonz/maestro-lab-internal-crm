@@ -1,8 +1,6 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   DollarSign,
@@ -12,9 +10,10 @@ import {
   CheckCircle2,
   Circle,
   AlertTriangle,
+  Mail,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { format } from 'date-fns'
+import { format, formatDistanceToNow } from 'date-fns'
 import { RecordAllocationDialog } from './record-allocation-dialog'
 import { FundConfirmationDialog } from './fund-confirmation-dialog'
 import type { FundAllocationEntry } from './types'
@@ -24,37 +23,13 @@ type FilterTab = 'all' | 'UNCONFIRMED' | 'CONFIRMED' | 'DISCREPANCY'
 interface FundAllocationsPanelProps {
   allocations: FundAllocationEntry[]
   yesterdayCount: number
-}
-
-function ConfirmationBadge({ status }: { status: string }) {
-  switch (status) {
-    case 'CONFIRMED':
-      return (
-        <Badge variant="secondary" className="gap-1 text-[10px] text-success">
-          <CheckCircle2 className="h-3 w-3" />
-          Confirmed
-        </Badge>
-      )
-    case 'DISCREPANCY':
-      return (
-        <Badge variant="secondary" className="gap-1 text-[10px] text-destructive">
-          <AlertTriangle className="h-3 w-3" />
-          Discrepancy
-        </Badge>
-      )
-    default:
-      return (
-        <Badge variant="secondary" className="gap-1 text-[10px] text-warning">
-          <Circle className="h-3 w-3" />
-          Unconfirmed
-        </Badge>
-      )
-  }
+  lastGmailSync: Date | null
 }
 
 export function FundAllocationsPanel({
   allocations,
   yesterdayCount,
+  lastGmailSync,
 }: FundAllocationsPanelProps) {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
@@ -87,147 +62,131 @@ export function FundAllocationsPanel({
     { value: 'DISCREPANCY', label: 'Discrepancy' },
   ]
 
+  // Gmail sync status
+  const gmailSyncStatus = getGmailSyncStatus(lastGmailSync)
+
   return (
     <>
-      <Card data-testid="fund-allocations-panel">
-        <CardHeader className="pb-3">
-          <div className="flex items-center gap-2">
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-            <CardTitle className="text-sm font-medium">
-              Fund Allocations
-            </CardTitle>
-            <span className="text-xs text-muted-foreground">
-              {allocations.length} today
-              {yesterdayCount > 0 && ` (${yesterdayCount} yesterday)`}
-            </span>
+      <div className="card-terminal p-0" data-testid="fund-allocations-panel">
+        {/* Header */}
+        <div className="flex items-center gap-2.5 border-b border-border px-5 py-3">
+          <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-foreground">
+            Fund Allocations
+          </h3>
+          <span className="font-mono text-xs text-muted-foreground">
+            {allocations.length} today
+            {yesterdayCount > 0 && ` / ${yesterdayCount} yesterday`}
+          </span>
+          <div className="ml-auto flex items-center gap-2">
+            <GmailSyncBadge status={gmailSyncStatus} lastSync={lastGmailSync} />
             <Button
               size="sm"
               variant="outline"
-              className="ml-auto h-7 gap-1 text-xs"
+              className="h-7 gap-1.5 text-xs"
               onClick={() => setDialogOpen(true)}
               data-testid="record-allocation-btn"
             >
-              <Plus className="h-3 w-3" />
+              <Plus className="h-3.5 w-3.5" />
               Record
             </Button>
           </div>
+        </div>
 
-          {/* Filter tabs */}
-          <div className="mt-2 flex gap-1">
+        {/* Filter tabs + summary */}
+        <div className="flex items-center justify-between border-b border-border/50 px-5 py-2">
+          <div className="flex gap-1">
             {tabs.map((tab) => (
-              <Button
+              <button
                 key={tab.value}
-                variant={filter === tab.value ? 'default' : 'ghost'}
-                size="sm"
-                className="h-6 gap-1 text-[10px]"
                 onClick={() => setFilter(tab.value)}
+                className={cn(
+                  'rounded px-3 py-1.5 text-xs font-medium transition-colors',
+                  filter === tab.value
+                    ? 'bg-muted text-foreground'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
                 data-testid={`filter-${tab.value}`}
               >
                 {tab.label}
                 {tab.count !== undefined && tab.count > 0 && (
-                  <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[9px]">
-                    {tab.count}
-                  </Badge>
+                  <span className="ml-1.5 font-mono text-warning">{tab.count}</span>
                 )}
-              </Button>
+              </button>
             ))}
           </div>
-        </CardHeader>
-        <CardContent className="pt-0">
-          {filtered.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">
-              {filter === 'all'
-                ? 'No allocations recorded today'
-                : `No ${filter.toLowerCase()} allocations`}
-            </p>
-          ) : (
-            <>
-              {/* Summary row */}
-              <div className="mb-3 flex gap-4 text-xs">
-                <div className="flex items-center gap-1 text-success">
-                  <ArrowDownRight className="h-3 w-3" />
-                  Deposits: ${totalDeposits.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                </div>
-                <div className="flex items-center gap-1 text-destructive">
-                  <ArrowUpRight className="h-3 w-3" />
-                  Withdrawals: ${totalWithdrawals.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                {filtered.map((alloc) => (
-                  <div
-                    key={alloc.id}
-                    className={cn(
-                      'flex items-center gap-3 rounded-md border px-3 py-2',
-                      alloc.confirmationStatus === 'DISCREPANCY' && 'border-destructive/20 bg-destructive/5',
-                    )}
-                    data-testid={`allocation-row-${alloc.id}`}
-                  >
-                    {alloc.direction === 'DEPOSIT' ? (
-                      <ArrowDownRight className="h-4 w-4 shrink-0 text-success" />
-                    ) : (
-                      <ArrowUpRight className="h-4 w-4 shrink-0 text-destructive" />
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">
-                          {alloc.platform}
-                        </span>
-                        <Badge
-                          variant="secondary"
-                          className={cn(
-                            'text-[10px]',
-                            alloc.direction === 'DEPOSIT'
-                              ? 'text-success'
-                              : 'text-destructive',
-                          )}
-                        >
-                          {alloc.direction}
-                        </Badge>
-                        <ConfirmationBadge status={alloc.confirmationStatus} />
-                      </div>
-                      {alloc.notes && (
-                        <p className="text-xs text-muted-foreground truncate">
-                          {alloc.notes}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <div className="text-right">
-                        <span
-                          className={cn(
-                            'font-mono text-sm font-medium',
-                            alloc.direction === 'DEPOSIT'
-                              ? 'text-success'
-                              : 'text-destructive',
-                          )}
-                        >
-                          ${alloc.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                        </span>
-                        <p className="text-[10px] text-muted-foreground">
-                          {format(new Date(alloc.createdAt), 'h:mm a')} — {alloc.recordedBy}
-                        </p>
-                      </div>
-                      {alloc.confirmationStatus === 'UNCONFIRMED' && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 text-xs"
-                          onClick={() => handleConfirm(alloc)}
-                          data-testid={`confirm-btn-${alloc.id}`}
-                        >
-                          Confirm
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
+          {filtered.length > 0 && (
+            <div className="flex gap-4 font-mono text-xs">
+              <span className="text-success">
+                +${totalDeposits.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              </span>
+              <span className="text-destructive">
+                -${totalWithdrawals.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* Content */}
+        {filtered.length === 0 ? (
+          <p className="px-5 py-6 text-sm text-muted-foreground">
+            {filter === 'all'
+              ? 'No allocations recorded today'
+              : `No ${filter.toLowerCase()} allocations`}
+          </p>
+        ) : (
+          <div className="max-h-[400px] divide-y divide-border/30 overflow-y-auto">
+            {filtered.map((alloc) => (
+              <div
+                key={alloc.id}
+                className={cn(
+                  'flex items-center gap-3 px-5 py-3 transition-colors hover:bg-muted/20',
+                  alloc.confirmationStatus === 'DISCREPANCY' && 'bg-destructive/5',
+                )}
+                data-testid={`allocation-row-${alloc.id}`}
+              >
+                {alloc.direction === 'DEPOSIT' ? (
+                  <ArrowDownRight className="h-4 w-4 shrink-0 text-success" />
+                ) : (
+                  <ArrowUpRight className="h-4 w-4 shrink-0 text-destructive" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-foreground">
+                      {alloc.platform}
+                    </span>
+                    <ConfirmationDot status={alloc.confirmationStatus} />
+                    {alloc.gmailMatched && (
+                      <Mail className="h-3.5 w-3.5 text-success" />
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {format(new Date(alloc.createdAt), 'h:mm a')} — {alloc.recordedBy}
+                    {alloc.notes && ` — ${alloc.notes}`}
+                  </p>
+                </div>
+                <span
+                  className={cn(
+                    'shrink-0 font-mono text-sm font-semibold',
+                    alloc.direction === 'DEPOSIT' ? 'text-success' : 'text-destructive',
+                  )}
+                >
+                  ${alloc.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                </span>
+                {alloc.confirmationStatus === 'UNCONFIRMED' && (
+                  <button
+                    onClick={() => handleConfirm(alloc)}
+                    className="shrink-0 rounded px-2.5 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
+                    data-testid={`confirm-btn-${alloc.id}`}
+                  >
+                    Confirm
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       <RecordAllocationDialog
         open={dialogOpen}
@@ -244,4 +203,63 @@ export function FundAllocationsPanel({
       />
     </>
   )
+}
+
+// ── Gmail Sync Badge ─────────────────────────────────────
+
+type SyncStatus = 'fresh' | 'stale' | 'offline' | 'none'
+
+function getGmailSyncStatus(lastSync: Date | null): SyncStatus {
+  if (!lastSync) return 'none'
+  const minutesAgo = (Date.now() - new Date(lastSync).getTime()) / (1000 * 60)
+  if (minutesAgo <= 10) return 'fresh'
+  if (minutesAgo <= 60) return 'stale'
+  return 'offline'
+}
+
+function GmailSyncBadge({
+  status,
+  lastSync,
+}: {
+  status: SyncStatus
+  lastSync: Date | null
+}) {
+  if (status === 'none') return null
+
+  const config = {
+    fresh: { color: 'bg-success', text: 'text-success', dot: 'bg-success' },
+    stale: { color: 'bg-warning', text: 'text-warning', dot: 'bg-warning' },
+    offline: { color: 'bg-destructive', text: 'text-destructive', dot: 'bg-destructive' },
+  }[status]
+
+  const timeAgo = lastSync
+    ? formatDistanceToNow(new Date(lastSync), { addSuffix: true })
+    : ''
+
+  return (
+    <div
+      className="flex items-center gap-1.5 rounded px-2 py-1"
+      title={`Gmail synced ${timeAgo}`}
+      data-testid="gmail-sync-badge"
+    >
+      <div className={cn('h-2 w-2 rounded-full', config.dot)} />
+      <Mail className={cn('h-3.5 w-3.5', config.text)} />
+      <span className={cn('font-mono text-[11px]', config.text)}>
+        {status === 'fresh' ? 'synced' : timeAgo}
+      </span>
+    </div>
+  )
+}
+
+// ── Confirmation status dot ─────────────────────────────
+
+function ConfirmationDot({ status }: { status: string }) {
+  const config = {
+    CONFIRMED: { icon: CheckCircle2, color: 'text-success' },
+    DISCREPANCY: { icon: AlertTriangle, color: 'text-destructive' },
+    UNCONFIRMED: { icon: Circle, color: 'text-warning' },
+  }[status] ?? { icon: Circle, color: 'text-muted-foreground' }
+
+  const Icon = config.icon
+  return <Icon className={cn('h-3.5 w-3.5', config.color)} />
 }

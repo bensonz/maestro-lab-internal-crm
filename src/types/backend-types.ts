@@ -182,9 +182,26 @@ export interface ActionHubKPIs {
   pendingTodos: number
   overdueTodos: number
   overdueDevices: number
+  deviceReservations: number
   todayAllocations: number
   readyToApprove: number
   unconfirmedAllocations: number
+  onboardingTodos: number
+}
+
+export interface MotivationData {
+  streakDays: number
+  longestStreak: number
+  yesterdayStats: {
+    todosCompleted: number
+    clientsApproved: number
+    fundsRecorded: number
+  }
+  todayProgress: {
+    total: number
+    remaining: number
+    pct: number
+  }
 }
 
 export interface RundownBlock {
@@ -211,6 +228,15 @@ export interface OverdueDevice {
   daysOverdue: number
 }
 
+export interface DeviceReservation {
+  clientRecordId: string
+  clientName: string
+  agentId: string
+  agentName: string
+  requestedAt: Date
+  step: number
+}
+
 export interface ActionHubTodo {
   id: string
   title: string
@@ -225,6 +251,13 @@ export interface ActionHubTodo {
   source: string
 }
 
+export type FundClearingUrgency =
+  | 'arrived'
+  | 'expected-soon'
+  | 'in-transit'
+  | 'stuck'
+  | 'discrepancy'
+
 export interface FundAllocationEntry {
   id: string
   amount: number
@@ -237,11 +270,90 @@ export interface FundAllocationEntry {
   confirmedAmount: number | null
   confirmedAt: Date | null
   confirmedBy: string | null
+  gmailMatched: boolean
+  // Source client info
+  clientName: string | null
+  clientRecordId: string | null
+  // Destination client info
+  destinationClientName: string | null
+  destinationClientRecordId: string | null
+  // Clearing fields
+  destinationPlatform: string | null
+  transferMethod: string | null
+  expectedArrivalAt: Date | null
+  urgency: FundClearingUrgency
+  timeLabel: string
+}
+
+export interface ProcessedEmailEntry {
+  id: string
+  from: string
+  subject: string
+  snippet: string | null
+  receivedAt: Date
+  detectionType: string
+  todoId: string | null
+  fundAllocationId: string | null
+}
+
+export interface DiscrepancyEntry {
+  id: string
+  amount: number
+  platform: string
+  direction: string
+  notes: string | null
+  recordedBy: string
+  createdAt: Date
+  discrepancyNotes: string | null
 }
 
 export interface ActiveAgent {
   id: string
   name: string
+}
+
+// --- Trader Report (Page 2: P&L + Accounts) ---
+
+export interface TraderReportData {
+  pnl: TraderPnL
+  platformAccounts: TraderPlatformGroup[]
+}
+
+export interface TraderPnL {
+  dailyTotal: number
+  byPlatform: TraderPlatformPnL[]
+}
+
+export interface TraderPlatformPnL {
+  platform: string
+  name: string
+  abbrev: string
+  t1Balance: number
+  t2Balance: number
+  dailyPnL: number
+  accountCount: number
+}
+
+export interface TraderPlatformGroup {
+  platform: string
+  name: string
+  abbrev: string
+  category: 'sports' | 'financial'
+  accounts: TraderAccount[]
+  totalBalance: number
+  vipCount: number
+  semiLimitedCount: number
+  activeCount: number
+}
+
+export interface TraderAccount {
+  clientId: string
+  clientName: string
+  agentName: string
+  balance: number
+  dailyPnL: number
+  lifetimePnL: number
+  status: 'VIP' | 'Semi-Limited' | 'Active' | 'Limited' | 'Dead'
 }
 
 // --- From backend/services/agent-kpis.ts ---
@@ -593,11 +705,18 @@ export interface CockpitWarRoomPlatform {
   totalBalance: number
   target: number
   accountCount: number
+  accountTarget: number
+  totalSlots: number
   minAccountTarget: number
   accountsBelowMin: CockpitWarRoomAccount[]
+  vipCount: number
+  limitedCount: number
+  bankrollReady: number
+  avgDaysPerClient: number | null
   burnRate: number | null
   todayDeposits: number
   todayWithdrawals: number
+  pipelineCount: number
 }
 
 export interface CockpitWarRoomAccount {
@@ -671,8 +790,14 @@ export interface CockpitOnboardingBottleneck {
     waitingForDevice: number
     devicesOut: number
     totalDevices: number
+    availableDevices: number
     needThisWeek: number
+    needNextWeek: number
     overdue: number
+    simCardsTotal: number
+    simCardsOut: number
+    simCardsAvailable: number
+    minInventory: number
   }
   unusedAccounts: CockpitUnusedAccount[]
   insights: CockpitSmartInsight[]
@@ -692,4 +817,64 @@ export interface CockpitUnusedAccount {
   platform: string
   platformName: string
   daysSinceApproval: number
+}
+
+// --- Daily Balances Recording Page ---
+
+export interface DailyBalancesData {
+  date: string // YYYY-MM-DD
+  platformGroups: DailyBalancesPlatformGroup[]
+  totalAccounts: number
+  totalRecorded: number
+}
+
+export interface DailyBalancesPlatformGroup {
+  platform: string
+  name: string
+  abbrev: string
+  category: 'sports' | 'financial'
+  accounts: DailyBalancesAccount[]
+  recordedCount: number
+  totalCount: number
+}
+
+export interface DailyBalancesAccount {
+  clientRecordId: string
+  clientName: string
+  agentName: string
+  platform: string
+  todayBalance: number | null
+  yesterdayBalance: number | null
+  screenshotPath: string | null
+  recorded: boolean
+}
+
+// --- Account Statuses Page ---
+
+export interface PlatformStatusEntry {
+  status: string
+  limitDetail?: string // "25%" (FD), "$3K" (MGM), "3/4" (CZR), etc.
+  limitAmount?: number // Dollar amount for DK/ESPN/365/FAN limited
+  limitSports?: string[] // For CZR: ["NBA", "NFL", ...]
+}
+
+export interface AccountStatusesData {
+  rows: AccountStatusRow[]
+  summary: AccountStatusesSummary
+  statusConfigs?: Record<string, import('@/lib/account-status-config').StatusOption[]>
+  detailConfigs?: Record<string, import('@/lib/status-config-keys').PlatformDetailConfig>
+}
+
+export interface AccountStatusRow {
+  clientRecordId: string
+  clientName: string
+  platformStatuses: Record<string, PlatformStatusEntry | null> // all 12 platforms
+  platformBalances: Record<string, number | null> // latest balance per platform
+  registeredPlatforms: string[] // which platforms client has platformData for
+}
+
+export interface AccountStatusesSummary {
+  totalClients: number
+  totalAccounts: number // registered platform slots
+  statusCounts: Record<string, number> // { VIP: 5, ACTIVE: 12, LIMITED: 3, ... }
 }

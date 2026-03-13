@@ -26,9 +26,31 @@ import {
   SPORTS_PLATFORMS,
   getPlatformName,
   getPlatformTypeFromName,
+  PLATFORM_INFO,
 } from '@/lib/platforms'
+import type { PlatformType } from '@/types'
 import { PlatformIcon } from '@/components/platform-icon'
 import { FundAllocationForm } from './fund-allocation-form'
+
+// Google Favicon domains for sportsbook platforms
+const PLATFORM_FAVICON: Record<string, string> = {
+  DRAFTKINGS: 'draftkings.com',
+  FANDUEL: 'fanduel.com',
+  BETMGM: 'betmgm.com',
+  BALLYBET: 'ballybet.com',
+  BETRIVERS: 'betrivers.com',
+  BET365: 'bet365.com',
+}
+
+function getSportsPlatformIcon(platform: string): string {
+  const info = PLATFORM_INFO[platform as PlatformType]
+  if (platform === 'CAESARS' || platform === 'FANATICS') {
+    return info?.logoPath ?? ''
+  }
+  const domain = PLATFORM_FAVICON[platform]
+  if (!domain) return ''
+  return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`
+}
 
 // ── Types ───────────────────────────────────────────
 interface Client {
@@ -174,28 +196,43 @@ export function FundAllocationView({
 
         {/* Sportsbook Platforms */}
         <div className="grid grid-cols-4 gap-2 lg:grid-cols-8">
-          {SPORTS_PLATFORMS.map((platformType) => (
-            <Card
-              key={platformType}
-              className="card-terminal cursor-pointer transition-all hover:border-warning"
-              onClick={() => handlePlatformClick(getPlatformName(platformType))}
-              data-testid={`balance-card-${getPlatformName(platformType).toLowerCase().replace(/\s/g, '-')}`}
-            >
-              <CardContent className="p-2">
-                <div className="text-center">
-                  <div className="mx-auto mb-1 flex h-6 w-6 items-center justify-center rounded bg-warning/20 text-warning">
-                    <PlatformIcon platform={platformType} size={12} />
+          {SPORTS_PLATFORMS.map((platformType) => {
+            const iconUrl = getSportsPlatformIcon(platformType)
+            return (
+              <Card
+                key={platformType}
+                className="card-terminal cursor-pointer transition-all hover:border-warning"
+                onClick={() => handlePlatformClick(getPlatformName(platformType))}
+                data-testid={`balance-card-${getPlatformName(platformType).toLowerCase().replace(/\s/g, '-')}`}
+              >
+                <CardContent className="p-2">
+                  <div className="flex flex-col items-center gap-1.5">
+                    <div className="flex items-center gap-1.5">
+                      {iconUrl ? (
+                        <img
+                          src={iconUrl}
+                          alt={getPlatformName(platformType)}
+                          width={20}
+                          height={20}
+                          className="rounded-sm"
+                        />
+                      ) : (
+                        <div className="flex h-5 w-5 items-center justify-center rounded bg-warning/20 text-warning">
+                          <PlatformIcon platform={platformType} size={12} />
+                        </div>
+                      )}
+                      <span className="truncate text-xs font-semibold text-foreground">
+                        {getPlatformName(platformType)}
+                      </span>
+                    </div>
+                    <p className="font-mono text-sm font-semibold text-foreground">
+                      $0
+                    </p>
                   </div>
-                  <p className="truncate text-[10px] font-medium text-muted-foreground">
-                    {getPlatformName(platformType)}
-                  </p>
-                  <p className="font-mono text-xs font-semibold text-foreground">
-                    $0
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            )
+          })}
         </div>
       </div>
 

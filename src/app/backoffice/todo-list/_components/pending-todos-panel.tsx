@@ -1,7 +1,5 @@
 'use client'
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { ListChecks, AlertTriangle, Clock, Mail } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
@@ -16,40 +14,43 @@ export function PendingTodosPanel({ todos }: PendingTodosPanelProps) {
   const upcoming = todos.filter((t) => !t.overdue)
 
   return (
-    <Card id="pending-todos" data-testid="pending-todos-panel">
-      <CardHeader className="pb-3">
-        <div className="flex items-center gap-2">
-          <ListChecks className="h-4 w-4 text-muted-foreground" />
-          <CardTitle className="text-sm font-medium">Pending Todos</CardTitle>
-          {todos.length > 0 && (
-            <Badge
-              variant={overdue.length > 0 ? 'destructive' : 'secondary'}
-              className="ml-auto text-[10px]"
-            >
-              {todos.length}
-            </Badge>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent className="pt-0">
-        {todos.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">
-            No pending todos
-          </p>
-        ) : (
-          <div className="space-y-1">
-            {/* Overdue items first */}
-            {overdue.map((todo) => (
-              <TodoRow key={todo.id} todo={todo} />
-            ))}
-            {/* Upcoming items */}
-            {upcoming.map((todo) => (
-              <TodoRow key={todo.id} todo={todo} />
-            ))}
-          </div>
+    <div id="pending-todos" className="card-terminal p-0" data-testid="pending-todos-panel">
+      {/* Header */}
+      <div className="flex items-center gap-2.5 border-b border-border px-5 py-3">
+        <ListChecks className="h-4 w-4 text-muted-foreground" />
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-foreground">
+          Operational Todos
+        </h3>
+        {todos.length > 0 && (
+          <span
+            className={cn(
+              'ml-auto rounded px-2 py-0.5 font-mono text-xs font-semibold',
+              overdue.length > 0
+                ? 'bg-destructive/20 text-destructive'
+                : 'bg-primary/20 text-primary',
+            )}
+          >
+            {todos.length}
+          </span>
         )}
-      </CardContent>
-    </Card>
+      </div>
+
+      {/* Content */}
+      {todos.length === 0 ? (
+        <p className="px-5 py-6 text-sm text-muted-foreground">
+          No pending todos
+        </p>
+      ) : (
+        <div className="max-h-[360px] divide-y divide-border/50 overflow-y-auto">
+          {overdue.map((todo) => (
+            <TodoRow key={todo.id} todo={todo} />
+          ))}
+          {upcoming.map((todo) => (
+            <TodoRow key={todo.id} todo={todo} />
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -57,10 +58,8 @@ function TodoRow({ todo }: { todo: ActionHubTodo }) {
   return (
     <div
       className={cn(
-        'flex items-center gap-3 rounded-md border px-3 py-2',
-        todo.overdue
-          ? 'border-destructive/20 bg-destructive/5'
-          : 'border-border',
+        'flex items-center gap-3 px-5 py-3 transition-colors hover:bg-muted/20',
+        todo.overdue && 'bg-destructive/5',
       )}
       data-testid={`todo-row-${todo.id}`}
     >
@@ -71,27 +70,29 @@ function TodoRow({ todo }: { todo: ActionHubTodo }) {
       )}
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium truncate">
+          <span className="truncate text-sm font-medium text-foreground">
             {todo.issueCategory}
           </span>
           {todo.source === 'EMAIL_AUTO' && (
-            <Mail className="h-3 w-3 shrink-0 text-primary" />
+            <Mail className="h-3.5 w-3.5 shrink-0 text-primary" />
           )}
         </div>
-        <p className="text-xs text-muted-foreground truncate">
+        <p className="truncate text-xs text-muted-foreground">
           {todo.clientName} — {todo.agentName}
         </p>
       </div>
-      <div className="shrink-0 text-right">
-        <Badge
-          variant={todo.overdue ? 'destructive' : 'secondary'}
-          className="text-[10px]"
-        >
-          {todo.overdue
-            ? `${Math.abs(todo.daysUntilDue)}d overdue`
-            : `Due ${format(new Date(todo.dueDate), 'MMM d')}`}
-        </Badge>
-      </div>
+      <span
+        className={cn(
+          'shrink-0 rounded px-2 py-1 font-mono text-xs font-semibold',
+          todo.overdue
+            ? 'bg-destructive/20 text-destructive'
+            : 'bg-muted text-muted-foreground',
+        )}
+      >
+        {todo.overdue
+          ? `${Math.abs(todo.daysUntilDue)}d overdue`
+          : format(new Date(todo.dueDate), 'MMM d')}
+      </span>
     </div>
   )
 }

@@ -1,0 +1,32 @@
+import { redirect } from 'next/navigation'
+import { auth } from '@/backend/auth'
+import { getAccountStatusesData } from '@/backend/data/account-statuses'
+import { loadAllStatusConfigs, loadAllDetailConfigs } from '@/backend/data/status-config'
+import { AccountStatusesView } from './_components/account-statuses-view'
+
+export default async function AccountStatusesPage() {
+  const session = await auth()
+  if (!session?.user) redirect('/login')
+
+  let data = null
+  try {
+    const [d, statusConfigs, detailConfigs] = await Promise.all([
+      getAccountStatusesData(),
+      loadAllStatusConfigs(),
+      loadAllDetailConfigs(),
+    ])
+    data = d ? { ...d, statusConfigs, detailConfigs } : null
+  } catch (e) {
+    console.error('[account-statuses] data fetch error:', e)
+  }
+
+  if (!data) {
+    return (
+      <div className="flex h-[400px] items-center justify-center text-muted-foreground">
+        Failed to load account statuses data.
+      </div>
+    )
+  }
+
+  return <AccountStatusesView data={data} />
+}

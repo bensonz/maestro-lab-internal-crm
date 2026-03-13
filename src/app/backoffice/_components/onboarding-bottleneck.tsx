@@ -17,7 +17,7 @@ interface OnboardingBottleneckProps {
 
 export function OnboardingBottleneck({ data }: OnboardingBottleneckProps) {
   const [insightsOpen, setInsightsOpen] = useState(false)
-  const { stepPipeline, devices, unusedAccounts } = data
+  const { stepPipeline, devices } = data
   const totalDrafts = stepPipeline.reduce((s, p) => s + p.totalInStep, 0)
 
   return (
@@ -73,20 +73,47 @@ export function OnboardingBottleneck({ data }: OnboardingBottleneckProps) {
         </div>
       </div>
 
-      {/* Second card: Devices (aligns with Team Metrics) */}
+      {/* Second card: Devices & SIM Cards — pipeline style */}
       <div className="rounded-md border border-border bg-card p-3">
-        <h3 className="mb-2 flex items-center gap-2 text-xs font-medium text-foreground">
+        <h3 className="mb-3 flex items-center gap-2 text-xs font-medium text-foreground">
           <Smartphone className="h-3.5 w-3.5" />
-          Devices
-          <span className="ml-auto font-mono text-muted-foreground">
-            {devices.devicesOut} out · {devices.totalDevices} total
-          </span>
+          Devices & SIM Cards
         </h3>
-        <div className="space-y-1.5 text-xs">
-          {devices.needThisWeek > 0 ? (
+
+        {/* 4-card pipeline */}
+        <div className="mb-3 grid grid-cols-4 gap-2">
+          <StatBox
+            label="Phones Avail"
+            value={`${devices.availableDevices}`}
+            highlight={devices.availableDevices < devices.minInventory ? (devices.availableDevices === 0 ? 'destructive' : 'warning') : undefined}
+          />
+          <StatBox
+            label="SIMs Avail"
+            value={`${devices.simCardsAvailable}`}
+            highlight={devices.simCardsAvailable < devices.minInventory ? (devices.simCardsAvailable === 0 ? 'destructive' : 'warning') : undefined}
+          />
+          <StatBox
+            label="Needed"
+            value={`${devices.needThisWeek}`}
+            highlight={devices.needThisWeek > 0 ? 'warning' : undefined}
+          />
+          <StatBox
+            label="Overdue"
+            value={`${devices.overdue}`}
+            highlight={devices.overdue > 0 ? 'destructive' : undefined}
+          />
+        </div>
+
+        {/* Status line */}
+        <div className="border-t border-border/50 pt-2 text-xs">
+          {devices.overdue > 0 ? (
+            <span className="font-medium text-destructive">
+              {devices.overdue} device{devices.overdue !== 1 ? 's' : ''} not returned — chase agents
+            </span>
+          ) : devices.availableDevices < devices.minInventory ? (
             <div className="flex items-center justify-between">
               <span className="font-medium text-warning">
-                Low Inventory — Need {devices.needThisWeek} phone{devices.needThisWeek !== 1 ? 's' : ''} this week
+                Low inventory — {devices.availableDevices} phone{devices.availableDevices !== 1 ? 's' : ''} available (min {devices.minInventory})
               </span>
               <a
                 href={AMAZON_PHONE_URL}
@@ -97,54 +124,17 @@ export function OnboardingBottleneck({ data }: OnboardingBottleneckProps) {
                 Order →
               </a>
             </div>
+          ) : devices.needThisWeek > 0 ? (
+            <span className="font-medium text-warning">
+              {devices.needThisWeek} client{devices.needThisWeek !== 1 ? 's' : ''} on Step 2 waiting for device
+            </span>
           ) : (
-            <div className="text-muted-foreground">
-              Inventory OK — no phones needed this week
-            </div>
-          )}
-          {devices.waitingForDevice > 0 && (
-            <div className="text-muted-foreground">
-              {devices.waitingForDevice} client{devices.waitingForDevice !== 1 ? 's' : ''} waiting for device
-            </div>
-          )}
-          {devices.overdue > 0 && (
-            <div className="font-medium text-destructive">
-              {devices.overdue} device{devices.overdue !== 1 ? 's' : ''} overdue
-            </div>
+            <span className="text-muted-foreground">
+              All clear — no devices needed
+            </span>
           )}
         </div>
       </div>
-
-      {/* Unused Accounts */}
-      {unusedAccounts.length > 0 && (
-        <div className="rounded-md border border-border bg-card p-3">
-          <h3 className="mb-2 flex items-center gap-2 text-xs font-medium text-foreground">
-            Unused Accounts
-            <span className="ml-auto text-muted-foreground">
-              {unusedAccounts.length} account{unusedAccounts.length !== 1 ? 's' : ''} with $0
-            </span>
-          </h3>
-          <div className="space-y-1">
-            {unusedAccounts.slice(0, 8).map((a, i) => (
-              <div
-                key={`${a.clientId}-${a.platform}-${i}`}
-                className="flex items-center justify-between text-xs"
-              >
-                <span className="text-foreground">{a.clientName}</span>
-                <span className="flex items-center gap-2 text-muted-foreground">
-                  <span>{a.platformName}</span>
-                  <span className="text-[10px]">{a.daysSinceApproval}d ago</span>
-                </span>
-              </div>
-            ))}
-            {unusedAccounts.length > 8 && (
-              <p className="text-[10px] text-muted-foreground">
-                +{unusedAccounts.length - 8} more
-              </p>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Insights */}
       {data.insights.length > 0 && (
@@ -193,3 +183,4 @@ function StatBox({
     </div>
   )
 }
+

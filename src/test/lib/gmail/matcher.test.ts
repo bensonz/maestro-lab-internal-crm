@@ -7,6 +7,9 @@ const { mockPrisma } = vi.hoisted(() => ({
       findMany: vi.fn(),
       update: vi.fn(),
     },
+    systemConfig: {
+      findMany: vi.fn(),
+    },
   },
 }))
 vi.mock('@/backend/prisma/client', () => ({ default: mockPrisma }))
@@ -33,6 +36,8 @@ describe('matchFundAllocation', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockPrisma.fundAllocation.update.mockResolvedValue({})
+    // Return empty config so getConfig uses defaults
+    mockPrisma.systemConfig.findMany.mockResolvedValue([])
   })
 
   it('returns no match when no platform provided', async () => {

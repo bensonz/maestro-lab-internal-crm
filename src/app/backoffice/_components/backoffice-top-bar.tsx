@@ -6,6 +6,7 @@ import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Separator } from '@/components/ui/separator'
 import { NotificationDropdown } from '@/components/notification-dropdown'
 import { GlobalSearch, SearchTrigger } from '@/components/global-search'
+import { AIChatTrigger } from '@/components/ai-chat'
 
 export function BackofficeTopBar() {
   return (
@@ -24,6 +25,7 @@ export function BackofficeTopBar() {
       </div>
 
       <div className="flex items-center gap-2">
+        <AIChatTrigger />
         <NotificationDropdown />
         <Button
           variant="ghost"

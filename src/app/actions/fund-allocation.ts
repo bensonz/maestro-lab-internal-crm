@@ -3,6 +3,7 @@
 import prisma from '@/backend/prisma/client'
 import { auth } from '@/backend/auth'
 import { revalidatePath } from 'next/cache'
+import { getClearingHours, computeExpectedArrival } from '@/lib/clearing-windows'
 
 /**
  * Record a fund movement (deposit/withdrawal/transfer).
@@ -57,6 +58,10 @@ export async function recordFundMovement(data: Record<string, unknown>): Promise
     // Build description
     const desc = notes || `${type === 'internal' ? 'Internal' : 'External'} ${direction}: ${fromPlatform} → ${toPlatform}`
 
+    // Compute clearing window
+    const clearingHours = await getClearingHours(fromPlatform, direction)
+    const expectedArrivalAt = computeExpectedArrival(new Date(), clearingHours)
+
     // Create FundAllocation record
     await prisma.fundAllocation.create({
       data: {
@@ -66,6 +71,9 @@ export async function recordFundMovement(data: Record<string, unknown>): Promise
         notes: desc,
         recordedById: session.user.id,
         clientRecordId: fromClientId,
+        destinationPlatform: toPlatform || null,
+        transferMethod: method || null,
+        expectedArrivalAt,
       },
     })
 

@@ -11,12 +11,14 @@ import {
   Wallet,
   ClipboardList,
   Zap,
+  TrendingUp,
   Receipt,
   DollarSign,
   Handshake,
   PieChart,
   BarChart3,
   BookOpen,
+  Grid3X3,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -54,6 +56,11 @@ const navItems: NavItem[] = [
     icon: Users,
   },
   {
+    title: 'Account Status',
+    href: '/backoffice/account-statuses',
+    icon: Grid3X3,
+  },
+  {
     title: 'Agent Management',
     href: '/backoffice/agent-management',
     icon: UserCog,
@@ -64,6 +71,7 @@ const navItems: NavItem[] = [
     icon: KeyRound,
   },
   { title: 'Action Hub', href: '/backoffice/todo-list', icon: Zap },
+  { title: 'Daily Balances', href: '/backoffice/daily-balances', icon: TrendingUp },
   {
     title: 'Fund Allocation',
     href: '/backoffice/fund-allocation',

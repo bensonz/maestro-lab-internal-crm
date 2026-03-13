@@ -1,10 +1,16 @@
 import type {
   Client,
-  FinancePlatformStatus,
   ServerClientData,
   ServerPlatformDetail,
-  ViewPlatformStatus,
 } from './types'
+
+/** Extract status string from accountStatuses entry (handles both old string and new object format) */
+function extractStatusString(raw: unknown): string | null {
+  if (!raw) return null
+  if (typeof raw === 'string') return raw
+  if (typeof raw === 'object' && raw !== null && 'status' in raw) return (raw as { status: string }).status
+  return null
+}
 
 // ============================================================================
 // Server-to-view-model mapping (extracted for reuse)
@@ -81,6 +87,7 @@ export function mapPlatformsToBetting(
   activePlatforms: string[],
   platformDetails?: ServerPlatformDetail[],
   generatedCredentials?: Record<string, unknown> | null,
+  accountStatuses?: Record<string, string> | null,
 ): Client['bettingPlatforms'] {
   const PLATFORM_META: Record<string, { id: string; name: string; dbType: string }> = {
     DK: { id: 'draftkings', name: 'DraftKings', dbType: 'DRAFTKINGS' },
@@ -90,32 +97,35 @@ export function mapPlatformsToBetting(
     FAN: { id: 'fanatics', name: 'Fanatics', dbType: 'FANATICS' },
     BB: { id: 'ballybet', name: 'BallyBet', dbType: 'BALLYBET' },
     BR: { id: 'betrivers', name: 'BetRivers', dbType: 'BETRIVERS' },
+    ESPN: { id: 'espnbet', name: 'ESPN BET', dbType: 'ESPNBET' },
     '365': { id: 'bet365', name: 'Bet365', dbType: 'BET365' },
   }
 
-  // Map DB status to view status
-  function mapBettingStatus(dbStatus: string | undefined): ViewPlatformStatus {
+  // Map intake status to a DB-style status value
+  function mapIntakeToDbStatus(dbStatus: string | undefined): string {
     switch (dbStatus) {
-      case 'VERIFIED': return 'active'
-      case 'LIMITED': return 'limited'
-      case 'REJECTED': return 'dead'
-      case 'PENDING_REVIEW': return 'pipeline'
-      default: return 'pipeline'
+      case 'VERIFIED': return 'ACTIVE'
+      case 'LIMITED': return 'LIMITED'
+      case 'REJECTED': return 'CLOSED_REFUNDED'
+      case 'PENDING_REVIEW': return 'PIPELINE'
+      default: return 'PIPELINE'
     }
   }
 
-  // Only include sportsbook platform abbreviations
-  const sportAbbrs = ['DK', 'FD', 'MGM', 'CZR', 'FAN', 'BB', 'BR', '365']
-  const sportPlatforms = platforms.filter((p) => sportAbbrs.includes(p))
+  // Always show all 9 sportsbook platforms for approved clients
+  const allSportAbbrs = ['DK', 'FD', 'MGM', 'CZR', 'FAN', 'BB', 'BR', 'ESPN', '365']
 
-  return sportPlatforms.map((abbr) => {
+  return allSportAbbrs.map((abbr) => {
     const meta = PLATFORM_META[abbr] || { id: abbr.toLowerCase(), name: abbr, dbType: abbr }
     const detail = platformDetails?.find((p) => p.platformType === meta.dbType)
+    // Operational status from accountStatuses takes precedence over intake status
+    const acctStatus = accountStatuses?.[meta.dbType]
+    const status = acctStatus || (detail ? mapIntakeToDbStatus(detail.status) : 'PIPELINE')
     return {
       id: meta.id,
       name: meta.name,
       abbr,
-      status: detail ? mapBettingStatus(detail.status) : ('pipeline' as const),
+      status,
       balance: 0,
       credentials: {
         username: detail?.username || '\u2014',
@@ -145,13 +155,13 @@ export function mapEventTypeToTimelineType(
   return 'update'
 }
 
-// Map DB platform status to finance view status
-export function mapFinanceStatus(dbStatus: string | undefined): FinancePlatformStatus {
+// Map intake status to a DB-style finance status value
+export function mapIntakeToFinanceStatus(dbStatus: string | undefined): string {
   switch (dbStatus) {
-    case 'VERIFIED': return 'active'
-    case 'LIMITED': return 'permanent_limited'
-    case 'REJECTED': return 'rejected'
-    default: return 'pipeline' // NOT_STARTED, PENDING_UPLOAD, PENDING_REVIEW, etc.
+    case 'VERIFIED': return 'ACTIVE'
+    case 'LIMITED': return 'PERM_LIMITED'
+    case 'REJECTED': return 'REJECTED'
+    default: return 'ACTIVE'
   }
 }
 
@@ -203,6 +213,16 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
   // Extract generated credentials for password/PIN display
   const creds = serverClient.generatedCredentials
 
+  // Read operational account statuses (VIP, SEMI_LIMITED, etc.)
+  // Handle both old string format and new PlatformStatusEntry object format
+  const rawAcctStatuses = serverClient.accountStatuses as Record<string, unknown> | null
+  const acctStatuses: Record<string, string> | null = rawAcctStatuses
+    ? Object.fromEntries(
+        Object.entries(rawAcctStatuses).map(([k, v]) => [k, extractStatusString(v) ?? ''])
+          .filter(([, v]) => v !== ''),
+      )
+    : null
+
   // Build finance platforms from real data
   const paypalDetail = findPlatformDetail(serverClient.platformDetails, 'PAYPAL')
   const bankDetail = findPlatformDetail(serverClient.platformDetails, 'ONLINE_BANKING')
@@ -235,7 +255,7 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
       {
         name: 'PayPal',
         type: 'paypal' as const,
-        status: paypalDetail ? mapFinanceStatus(paypalDetail.status) : 'pipeline',
+        status: acctStatuses?.PAYPAL || (paypalDetail ? mapIntakeToFinanceStatus(paypalDetail.status) : 'ACTIVE'),
         balance: 0,
         isUsed: false,
         credentials: {
@@ -246,7 +266,7 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
       {
         name: 'Bank',
         type: 'bank' as const,
-        status: bankDetail ? mapFinanceStatus(bankDetail.status) : 'pipeline',
+        status: acctStatuses?.BANK || acctStatuses?.ONLINE_BANKING || (bankDetail ? mapIntakeToFinanceStatus(bankDetail.status) : 'ACTIVE'),
         balance: 0,
         bankType: 'Chase' as const,
         credentials: {
@@ -267,7 +287,7 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
       {
         name: 'Edgeboost',
         type: 'edgeboost' as const,
-        status: edgeboostDetail ? mapFinanceStatus(edgeboostDetail.status) : 'pipeline',
+        status: acctStatuses?.EDGEBOOST || (edgeboostDetail ? mapIntakeToFinanceStatus(edgeboostDetail.status) : 'ACTIVE'),
         balance: 0,
         credentials: {
           username: edgeboostDetail?.username || '\u2014',
@@ -285,6 +305,7 @@ export function mapServerClientToClient(serverClient: ServerClientData): Client 
       serverClient.activePlatforms,
       serverClient.platformDetails,
       creds,
+      acctStatuses,
     ),
     agent: serverClient.agent || undefined,
     betmgmScreenshots: betmgmDetail?.screenshots ?? [],

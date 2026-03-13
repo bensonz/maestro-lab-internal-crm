@@ -4,6 +4,7 @@ import prisma from '@/backend/prisma/client'
 import { auth } from '@/backend/auth'
 import { revalidatePath } from 'next/cache'
 import { clientDraftSubmitSchema } from '@/lib/validations/client-draft'
+import { getConfig } from '@/backend/data/config'
 
 export async function createClientRecord() {
   const session = await auth()
@@ -200,6 +201,7 @@ export async function submitClientRecord(draftId: string) {
   })
 
   // Auto-create todo: Collect Debit Card Information (cards arrive ~7 days after intake)
+  const autoTodoDueDays = await getConfig('AUTO_TODO_DUE_DAYS', 7)
   const clientName = `${record.firstName} ${record.lastName}`
   await prisma.todo.create({
     data: {
@@ -209,7 +211,7 @@ export async function submitClientRecord(draftId: string) {
       clientRecordId: draftId,
       assignedToId: session.user.id,
       createdById: session.user.id,
-      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+      dueDate: new Date(Date.now() + autoTodoDueDays * 24 * 60 * 60 * 1000),
       status: 'PENDING',
     },
   })
